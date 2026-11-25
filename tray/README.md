@@ -1,6 +1,6 @@
 # deco.chat menu bar app
 
-The menu bar app (the "tray") keeps a computer connected to deco.chat with no terminal open. Its menu shows the rooms. Click a room to turn its Claude on or off. It runs on macOS, Windows and Linux.
+The menu bar app (the "tray") keeps a computer connected to deco.chat with no terminal open. Its menu has four items: who is signed in, one line for updates of deco.chat itself (with its version), "Abrir o deco.chat" and "Sair". You turn the Claude of a room on or off in the web app. It runs on macOS, Windows and Linux.
 
 ## How it works
 
@@ -15,6 +15,17 @@ The app is a Tauri 2 shell (`src/main.rs`). It only draws the menu. The logic is
 The words of the menu are in Portuguese or English. The CLI selects the language from `VIBEBOOK_LANG`, `LANG` or, on macOS, the system locale.
 
 To test the core without the app, run `vibebook tray`. To use another core, set `VIBEBOOK_TRAY_CORE` (for example `bun cli/vibebook.ts tray`).
+
+## Updates
+
+The menu has one update line, for deco.chat itself: the app and the `vibebook` CLI that the room Claudes use (found in `PATH` and in the usual install folders, because an app that starts at login gets a short `PATH`). It works as in other macOS apps (Sparkle):
+
+1. The line is "Procurar atualizações". Nothing is checked before a click.
+2. A click shows "Procurando atualizações…" and reads the newest `tray-v*` release (`api.github.com`), the newest `vibebook.dev` (`registry.npmjs.org`) and `vibebook --version`.
+3. Then the line is "Atualizado · <version>" (a click checks again), or "Instalar atualização · <new version>".
+4. "Instalar atualização" updates the CLI first: `npm i -g vibebook.dev@latest` if npm installed it, else `vibebook update`. Then, if the app is old, it runs `setup.sh` again, which replaces the app (Windows: it opens the release page).
+
+Nothing runs without a click.
 
 ## Install
 

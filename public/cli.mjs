@@ -3,7 +3,7 @@
 // cli/vibebook.ts
 import { execFileSync, execSync, spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { appendFileSync, chmodSync, closeSync, existsSync as existsSync2, fstatSync, mkdirSync, openSync, readdirSync as readdirSync2, readFileSync, readSync, renameSync, rmSync, statSync as statSync2, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, existsSync as existsSync2, fstatSync, mkdirSync, openSync, readdirSync as readdirSync2, readFileSync, readSync, realpathSync, renameSync, rmSync, statSync as statSync2, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, delimiter, dirname, join as join2 } from "node:path";
@@ -70,7 +70,7 @@ async function scanTranscripts(root, skip) {
 }
 
 // cli/vibebook.ts
-var VERSION = "1.7.11";
+var VERSION = "1.7.12";
 var HOME = process.env.VIBEBOOK_HOME || join2(homedir(), ".vibebook");
 var SESSION = join2(HOME, "session.json");
 var AGENTS = join2(HOME, "agents.json");
@@ -531,7 +531,7 @@ function machineHeaders() {
     return {};
   }
 }
-var ROLES = join(HOME, "roles.json");
+var ROLES = join2(HOME, "roles.json");
 function roleHeaders(agent) {
   const given = flag("role") ?? process.env.VIBEBOOK_ROLE;
   const all = readJson(ROLES, {});
@@ -660,7 +660,7 @@ var RUN_NAME = RUN_AGENT === "codex" ? "Codex" : "Claude";
 var HERDR_FILE = join2(HOME, RUN_AGENT === "codex" ? "herdr-codex.json" : "herdr.json");
 var roomLabel = (title) => RUN_AGENT === "codex" ? `${title.slice(0, 32)} · Codex` : title.slice(0, 40);
 var listenWords = () => RUN_AGENT === "codex" ? CODEX_LISTEN_PROMPT : LISTEN_PROMPT;
-var resumeArgs = (session2) => !session2 ? [] : RUN_AGENT === "codex" ? ["resume", session2] : ["--resume", session2];
+var resumeArgs = (session) => !session ? [] : RUN_AGENT === "codex" ? ["resume", session] : ["--resume", session];
 var listenTask = (room) => RUN_AGENT === "codex" ? `${CODEX_LISTEN_PROMPT} Sala: room_id=${room}.` : pluginVersion() ? `/vibebook:listen ${room}` : `${LISTEN_PROMPT} Sala: room_id=${room}.`;
 var STOP = new Set("a o as os e de da do das dos para pra pro com em no na nos nas um uma por que the of for with and to in on at my our".split(" "));
 var slug = (t) => {
@@ -895,7 +895,7 @@ function machineId() {
   writePrivate(MACHINE, { id });
   return id;
 }
-var sessionAgent = (session2) => `s_${createHash("sha256").update(`${RUN_AGENT === "codex" ? "codex" : "claude-code"}:${session2}`).digest("hex").slice(0, 32)}`;
+var sessionAgent = (session) => `s_${createHash("sha256").update(`${RUN_AGENT === "codex" ? "codex" : "claude-code"}:${session}`).digest("hex").slice(0, 32)}`;
 var roomsCache = null;
 async function claudeRooms(agent, tools, kind = "herdr", managed = []) {
   const port = await ensureHub().catch(() => null);
@@ -1008,7 +1008,7 @@ async function herdrSync(agent, tools) {
   for (const [room, title] of on) {
     const e = map[room] ??= {};
     if (e.workspace && live.has(e.workspace)) {
-      const label = wsList.find((w2) => w2.workspace_id === e.workspace)?.label;
+      const label = wsList.find((w) => w.workspace_id === e.workspace)?.label;
       if (label !== undefined && label !== roomLabel(title))
         try {
           herdr("workspace", "rename", e.workspace, roomLabel(title));
@@ -1300,7 +1300,81 @@ function trayWords() {
   }
   if (!lang)
     lang = Intl.DateTimeFormat().resolvedOptions().locale;
-  return /^pt/i.test(lang.trim()) ? { login: "Entrar no deco.chat…", quit: "Sair", none: "Nenhuma sala", open: "Abrir o deco.chat", offline: "Sem conexão" } : { login: "Sign in to deco.chat…", quit: "Quit", none: "No rooms", open: "Open deco.chat", offline: "Offline" };
+  return /^pt/i.test(lang.trim()) ? { login: "Entrar no deco.chat…", quit: "Sair", open: "Abrir o deco.chat", offline: "Sem conexão", check: "Procurar atualizações", checking: "Procurando atualizações…", upToDate: "Atualizado", install: "Instalar atualização", updating: "Atualizando o deco.chat…", failed: "O deco.chat não atualizou. Tentar de novo" } : { login: "Sign in to deco.chat…", quit: "Quit", open: "Open deco.chat", offline: "Offline", check: "Check for updates", checking: "Checking for updates…", upToDate: "Up to date", install: "Install update", updating: "Updating deco.chat…", failed: "deco.chat did not update. Try again" };
+}
+var olderVersion = (a, b) => {
+  const x = a.split(".").map(Number), y = b.split(".").map(Number);
+  for (let i = 0;i < 3; i++)
+    if ((x[i] ?? 0) !== (y[i] ?? 0))
+      return (x[i] ?? 0) < (y[i] ?? 0);
+  return false;
+};
+async function npmLatest(pkg) {
+  try {
+    const r = await fetch(`https://registry.npmjs.org/${pkg}/latest`, { signal: AbortSignal.timeout(5000) });
+    return r.ok ? String((await r.json()).version ?? "") : "";
+  } catch {
+    return "";
+  }
+}
+async function trayLatest() {
+  try {
+    const r = await fetch("https://api.github.com/repos/decocms/chat/releases?per_page=50", { signal: AbortSignal.timeout(5000), headers: { accept: "application/vnd.github+json" } });
+    if (!r.ok)
+      return "";
+    const tag = (await r.json()).find((x) => !x.draft && !x.prerelease && /^tray-v\d/.test(x.tag_name ?? ""))?.tag_name;
+    return tag?.slice("tray-v".length) ?? "";
+  } catch {
+    return "";
+  }
+}
+function cliUpdate(bin) {
+  let real = bin;
+  try {
+    real = realpathSync(bin);
+  } catch {}
+  if (!real.replace(/\\/g, "/").includes("/node_modules/vibebook.dev/"))
+    return [bin, "update"];
+  const npm = findAgent("npm");
+  return npm ? [npm, "i", "-g", "vibebook.dev@latest"] : undefined;
+}
+var agentDirs = () => {
+  const h = homedir();
+  return [
+    ...(process.env.PATH ?? "").split(process.platform === "win32" ? ";" : ":"),
+    join2(h, ".local", "bin"),
+    join2(h, ".claude", "local"),
+    join2(h, ".bun", "bin"),
+    join2(h, ".npm-global", "bin"),
+    join2(h, ".vibebook", "bin"),
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    "/usr/bin"
+  ].filter(Boolean);
+};
+function findAgent(cmd) {
+  const names = process.platform === "win32" ? [`${cmd}.exe`, `${cmd}.cmd`] : [cmd];
+  for (const d of agentDirs())
+    for (const n of names)
+      if (existsSync2(join2(d, n)))
+        return join2(d, n);
+  return;
+}
+function agentVersion(bin) {
+  return new Promise((done) => {
+    const child = spawn(bin, ["--version"], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    let out = "";
+    const stop = setTimeout(() => child.kill(), 8000);
+    child.stdout?.on("data", (d) => out += String(d));
+    child.on("error", () => {
+      clearTimeout(stop);
+      done("");
+    });
+    child.on("close", () => {
+      clearTimeout(stop);
+      done(/\d+\.\d+(\.\d+)?/.exec(out)?.[0] ?? "");
+    });
+  });
 }
 var HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for you and your Claude).
 
@@ -1624,11 +1698,11 @@ async function main() {
         } catch {}
         if (queue) {
           mkdirSync(HOME, { recursive: true });
-          let log2 = "ignore";
+          let log = "ignore";
           try {
-            log2 = openSync(join2(HOME, "codex-wake.log"), "a");
+            log = openSync(join2(HOME, "codex-wake.log"), "a");
           } catch {}
-          spawn(process.execPath, [process.argv[1], ...argv, "--codex-wake", tid], { detached: true, stdio: ["ignore", log2, log2], env: process.env, cwd: process.cwd() }).unref();
+          spawn(process.execPath, [process.argv[1], ...argv, "--codex-wake", tid], { detached: true, stdio: ["ignore", log, log], env: process.env, cwd: process.cwd() }).unref();
           process.stdout.write(`vibebook listen: ouvindo em segundo plano. Quando a sala tiver novidade, esta conversa do Codex recebe uma mensagem (codex queue) e você começa um turno. Não rode listen de novo depois de cada turno.
 `);
           return;
@@ -1767,7 +1841,7 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
                 if (await check(0) && await woken())
                   return;
               } catch {
-                await new Promise((r2) => setTimeout(r2, 15000));
+                await new Promise((r) => setTimeout(r, 15000));
               }
               last = Date.now();
             }
@@ -1833,38 +1907,65 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
       const out = (m) => process.stdout.write(`${JSON.stringify(m)}
 `);
       const tr = trayWords();
-      let rooms = [];
-      const draw = (note) => {
+      const appVersion = process.env.VIBEBOOK_TRAY_VERSION?.match(/^\d+\.\d+\.\d+$/)?.[0] ?? "";
+      const deco = { appLatest: "", cli: "", cliVersion: "", cliLatest: "", state: "" };
+      const scan = async () => {
+        deco.cli = findAgent("vibebook") ?? "";
+        await Promise.all([
+          appVersion ? trayLatest().then((v) => deco.appLatest = v) : Promise.resolve(),
+          deco.cli ? agentVersion(deco.cli).then((v) => deco.cliVersion = v) : Promise.resolve(),
+          deco.cli ? npmLatest("vibebook.dev").then((v) => deco.cliLatest = v) : Promise.resolve()
+        ]);
+      };
+      const appBehind = () => !!(appVersion && deco.appLatest && olderVersion(appVersion, deco.appLatest));
+      const cliBehind = () => !!(deco.cliVersion && deco.cliLatest && olderVersion(deco.cliVersion, deco.cliLatest) && cliUpdate(deco.cli));
+      const draw = () => {
         const who = loggedInAs(readJson(SESSION, null));
         if (!who)
           return out({ icon: "off", menu: [{ id: "login", label: tr.login }, { sep: true }, { id: "quit", label: tr.quit }] });
+        const newest = [appBehind() && `deco.chat ${deco.appLatest}`, cliBehind() && `CLI ${deco.cliLatest}`].filter(Boolean).join(" · ");
+        const item = deco.state === "updating" ? { id: "update", label: tr.updating, enabled: false } : deco.state === "checking" ? { id: "check", label: tr.checking, enabled: false } : deco.state === "failed" ? { id: "update", label: tr.failed } : deco.state === "checked" && newest ? { id: "update", label: `${tr.install} · ${newest}` } : deco.state === "checked" ? { id: "check", label: [tr.upToDate, appVersion || deco.cliVersion && `CLI ${deco.cliVersion}`].filter(Boolean).join(" · ") } : { id: "check", label: tr.check };
         out({
-          icon: rooms.some((r) => r.on) ? "on" : "off",
+          icon: "on",
           menu: [
             { id: "who", label: who, enabled: false },
-            ...note ? [{ id: "note", label: note, enabled: false }] : [],
             { sep: true },
-            ...rooms.length ? rooms.map((r) => ({ id: `sala:${r.room_id}`, label: r.title.slice(0, 40), checked: r.on })) : [{ id: "none", label: tr.none, enabled: false }],
-            { sep: true },
+            item,
             { id: "open", label: tr.open },
+            { sep: true },
             { id: "quit", label: tr.quit }
           ]
         });
       };
-      const refresh = async () => {
-        if (!loggedInAs(readJson(SESSION, null)))
-          return draw();
-        try {
-          const res = await callTool("claude_rooms", {}, agent);
-          rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
-          draw();
-        } catch (e) {
-          draw(`${tr.offline}: ${String(e.message ?? e).split(`
-`)[0].slice(0, 40)}`);
-        }
+      const check = async () => {
+        deco.state = "checking";
+        draw();
+        await scan();
+        deco.state = "checked";
+        draw();
       };
-      await refresh();
-      const timer = setInterval(() => void refresh(), 15000);
+      const update = async (origin) => {
+        deco.state = "updating";
+        draw();
+        const run = (cmd, args) => new Promise((done) => {
+          const child = spawn(cmd, args, { stdio: "ignore", windowsHide: true });
+          child.on("error", () => done(false));
+          child.on("exit", (code) => done(code === 0));
+        });
+        const cli = cliBehind() ? cliUpdate(deco.cli) : undefined;
+        const ok = cli ? await run(cli[0], cli.slice(1)) : true;
+        if (ok && appBehind()) {
+          if (process.platform === "win32")
+            openBrowser(`https://github.com/decocms/chat/releases/tag/tray-v${deco.appLatest}`);
+          else
+            spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], { stdio: "ignore", detached: true }).unref();
+        }
+        await scan();
+        deco.state = ok ? "checked" : "failed";
+        draw();
+      };
+      draw();
+      const timer = setInterval(() => draw(), 15000);
       let buf = "";
       process.stdin.setEncoding("utf8");
       process.stdin.on("data", async (chunk) => {
@@ -1880,28 +1981,24 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
           } catch {
             continue;
           }
+          const origin = readJson(SESSION, null)?.origin ?? DEFAULT_ORIGIN;
           if (click === "quit") {
             clearInterval(timer);
             process.exit(0);
           }
           if (click === "open") {
-            openBrowser(readJson(SESSION, null)?.origin ?? DEFAULT_ORIGIN);
+            openBrowser(origin);
             continue;
           }
           if (click === "login") {
             await login(DEFAULT_ORIGIN).catch(() => {});
-            await refresh();
+            draw();
             continue;
           }
-          if (click.startsWith("sala:")) {
-            const r = rooms.find((x) => `sala:${x.room_id}` === click);
-            if (!r)
-              continue;
-            r.on = !r.on;
-            draw();
-            await callTool("switch_claude", { room_id: r.room_id, on: r.on }, agent).catch(() => {});
-            await refresh();
-          }
+          if (click === "update" && deco.state !== "updating")
+            update(origin);
+          if (click === "check" && deco.state !== "checking")
+            check();
         }
       });
       process.stdin.on("end", () => process.exit(0));
@@ -1923,13 +2020,13 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
       const lock = join2(HOME, "herdr.pid");
       const other = Number(existsSync2(lock) ? readFileSync(lock, "utf8") : 0);
       if (other && other !== process.pid) {
-        let alive2 = true;
+        let alive = true;
         try {
           process.kill(other, 0);
         } catch {
-          alive2 = false;
+          alive = false;
         }
-        if (alive2)
+        if (alive)
           return die(`vibebook herdr is already running (pid ${other}); one per machine is enough`);
       }
       writeFileSync(lock, String(process.pid));

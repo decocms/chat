@@ -2268,3 +2268,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · feat/tray-agents · The menu bar app shows only you, the deco.chat update, Open and Quit
+- Agent: Claude Opus 5.5
+- Context: Gimenes, after Pedro's beta: keep the room switches in the web app (#5573). The update is for deco.chat itself, the app and the CLI, not for the agents (#5602). No "Ligar nas salas…" (#5636). Then the menu shows only: the signed-in email, check for updates or the update button with the version, open deco.chat, quit (#5638). Then (#5640): "check for updates", and after the check "up to date" with the version; he asked for the most canonical way. He did not say how to update the CLI.
+- Decision: One update line, as in other macOS apps (Sparkle): "Procurar atualizações", with no check before the click. A click checks the app (newest `tray-v*`) and the `vibebook` CLI on `PATH` (newest `vibebook.dev` on npm), then shows "Atualizado · <version>" or "Instalar atualização · <new version>". The install updates the CLI first (`npm i -g vibebook.dev@latest` when npm installed it, else `vibebook update`), then runs `setup.sh` again for the app (Windows: the release page). The list of agents is gone.
+- Other options: Check every hour and show the install line by itself (Gimenes asked for check, then the result). Two lines, one for the app and one for the CLI (one click is simpler, and both are deco.chat). Tauri's updater for the app (it needs a signing key secret). A version line apart from the update line (Gimenes asked for four items).
+- Risk: low. A click runs the CLI's update and `setup.sh` with the person's rights.
+- Undo: Revert the commit and release the app again.
+- Status: open

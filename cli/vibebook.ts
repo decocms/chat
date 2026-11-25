@@ -4,13 +4,13 @@
 // Built into public/cli.mjs (bun run build:cli); on npm as vibebook.dev (npm i -g vibebook.dev), or installed by https://chat.decocms.com/install.sh.
 import { execFileSync, execSync, spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, delimiter, dirname, join } from "node:path";
 import { scanTranscripts } from "./backfill";
 
-const VERSION = "1.7.11";
+const VERSION = "1.7.12";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -1197,10 +1197,66 @@ function trayWords() {
   }
   if (!lang) lang = Intl.DateTimeFormat().resolvedOptions().locale;
   return /^pt/i.test(lang.trim())
-    ? { login: "Entrar no deco.chat…", quit: "Sair", none: "Nenhuma sala", open: "Abrir o deco.chat", offline: "Sem conexão" }
-    : { login: "Sign in to deco.chat…", quit: "Quit", none: "No rooms", open: "Open deco.chat", offline: "Offline" };
+    ? { login: "Entrar no deco.chat…", quit: "Sair", open: "Abrir o deco.chat", offline: "Sem conexão", check: "Procurar atualizações", checking: "Procurando atualizações…", upToDate: "Atualizado", install: "Instalar atualização", updating: "Atualizando o deco.chat…", failed: "O deco.chat não atualizou. Tentar de novo" }
+    : { login: "Sign in to deco.chat…", quit: "Quit", open: "Open deco.chat", offline: "Offline", check: "Check for updates", checking: "Checking for updates…", upToDate: "Up to date", install: "Install update", updating: "Updating deco.chat…", failed: "deco.chat did not update. Try again" };
 }
 
+/** True when version a is older than b (x.y.z; a missing part is 0). */
+const olderVersion = (a: string, b: string) => {
+  const x = a.split(".").map(Number), y = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) < (y[i] ?? 0);
+  return false;
+};
+/** The newest version of an npm package, or "" (offline, or no such package). */
+async function npmLatest(pkg: string): Promise<string> {
+  try {
+    const r = await fetch(`https://registry.npmjs.org/${pkg}/latest`, { signal: AbortSignal.timeout(5000) });
+    return r.ok ? String(((await r.json()) as { version?: unknown }).version ?? "") : "";
+  } catch { return ""; }
+}
+/** The newest tray-v* release of the menu bar app, as "x.y.z", or "". */
+async function trayLatest(): Promise<string> {
+  try {
+    const r = await fetch("https://api.github.com/repos/decocms/chat/releases?per_page=50", { signal: AbortSignal.timeout(5000), headers: { accept: "application/vnd.github+json" } });
+    if (!r.ok) return "";
+    const tag = ((await r.json()) as { tag_name?: string; draft?: boolean; prerelease?: boolean }[]).find((x) => !x.draft && !x.prerelease && /^tray-v\d/.test(x.tag_name ?? ""))?.tag_name;
+    return tag?.slice("tray-v".length) ?? "";
+  } catch { return ""; }
+}
+/** How to update the vibebook CLI that the room Claudes use (not the one inside the app): npm when npm installed it
+ *  (its real path is in the vibebook.dev package), else its own `update` (install.sh's ~/.vibebook/cli.mjs). */
+function cliUpdate(bin: string): string[] | undefined {
+  let real = bin;
+  try { real = realpathSync(bin); } catch {}
+  if (!real.replace(/\\/g, "/").includes("/node_modules/vibebook.dev/")) return [bin, "update"];
+  const npm = findAgent("npm");
+  return npm ? [npm, "i", "-g", "vibebook.dev@latest"] : undefined;
+}
+/** Where CLIs install besides PATH: an app started at login (LaunchAgent, systemd) has a short PATH. */
+const agentDirs = () => {
+  const h = homedir();
+  return [
+    ...(process.env.PATH ?? "").split(process.platform === "win32" ? ";" : ":"),
+    join(h, ".local", "bin"), join(h, ".claude", "local"), join(h, ".bun", "bin"), join(h, ".npm-global", "bin"),
+    join(h, ".vibebook", "bin"), "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin",
+  ].filter(Boolean);
+};
+function findAgent(cmd: string): string | undefined {
+  const names = process.platform === "win32" ? [`${cmd}.exe`, `${cmd}.cmd`] : [cmd];
+  for (const d of agentDirs()) for (const n of names) if (existsSync(join(d, n))) return join(d, n);
+  return undefined;
+}
+/** A command's version from `<cmd> --version`, or "". Async and up to 8 s. */
+function agentVersion(bin: string): Promise<string> {
+  return new Promise((done) => {
+    const child = spawn(bin, ["--version"], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    let out = "";
+    const stop = setTimeout(() => child.kill(), 8000);
+    child.stdout?.on("data", (d) => (out += String(d)));
+    child.on("error", () => { clearTimeout(stop); done(""); });
+    child.on("close", () => { clearTimeout(stop); done(/\d+\.\d+(\.\d+)?/.exec(out)?.[0] ?? ""); });
+  });
+}
 const HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for you and your Claude).
 
   vibebook login                 connect this machine (opens the browser; once per machine)
@@ -1578,38 +1634,80 @@ async function main() {
     case "tray": {
       // The core of the menu bar app (tray/, Gimenes #4428, #4521): the shell only draws. Out: one JSON line per menu,
       // {"menu":[{id,label,checked?,enabled?}|{"sep":true}],"icon":"on"|"off"}. In: one JSON line per click, {"click":id}.
-      // The room list and the switch. Opening the Claudes stays with `vibebook herdr`.
+      // Four things (Gimenes #5638): who is signed in, one line for updates of deco.chat itself (the app and the vibebook
+      // CLI, Gimenes #5602) with its version, "Abrir o deco.chat" (the room switches are in the web app) and "Sair".
+      // Opening the Claudes stays with `vibebook herdr`.
       const out = (m: unknown) => process.stdout.write(`${JSON.stringify(m)}\n`);
       const tr = trayWords();
-      let rooms: { room_id: string; title: string; on: boolean }[] = [];
-      const draw = (note?: string) => {
+      const appVersion = process.env.VIBEBOOK_TRAY_VERSION?.match(/^\d+\.\d+\.\d+$/)?.[0] ?? "";
+      // The newest app release, and the CLI on PATH (the one the room Claudes run) with the newest on npm.
+      const deco = { appLatest: "", cli: "", cliVersion: "", cliLatest: "", state: "" as "" | "checking" | "checked" | "updating" | "failed" };
+      // On "Procurar atualizações", and again after an update.
+      const scan = async () => {
+        deco.cli = findAgent("vibebook") ?? "";
+        await Promise.all([
+          appVersion ? trayLatest().then((v) => (deco.appLatest = v)) : Promise.resolve(),
+          deco.cli ? agentVersion(deco.cli).then((v) => (deco.cliVersion = v)) : Promise.resolve(),
+          deco.cli ? npmLatest("vibebook.dev").then((v) => (deco.cliLatest = v)) : Promise.resolve(),
+        ]);
+      };
+      const appBehind = () => !!(appVersion && deco.appLatest && olderVersion(appVersion, deco.appLatest));
+      const cliBehind = () => !!(deco.cliVersion && deco.cliLatest && olderVersion(deco.cliVersion, deco.cliLatest) && cliUpdate(deco.cli));
+      const draw = () => {
         const who = loggedInAs(readJson<Session | null>(SESSION, null));
         if (!who) return out({ icon: "off", menu: [{ id: "login", label: tr.login }, { sep: true }, { id: "quit", label: tr.quit }] });
+        const newest = [appBehind() && `deco.chat ${deco.appLatest}`, cliBehind() && `CLI ${deco.cliLatest}`].filter(Boolean).join(" · ");
+        // As macOS apps do (Sparkle): "Procurar atualizações"; a click checks, then "Instalar atualização · <version>"
+        // or "Atualizado · <version>" (Gimenes #5640). Nothing is checked before the click.
+        const item =
+          deco.state === "updating" ? { id: "update", label: tr.updating, enabled: false }
+          : deco.state === "checking" ? { id: "check", label: tr.checking, enabled: false }
+          : deco.state === "failed" ? { id: "update", label: tr.failed }
+          : deco.state === "checked" && newest ? { id: "update", label: `${tr.install} · ${newest}` }
+          : deco.state === "checked" ? { id: "check", label: [tr.upToDate, appVersion || (deco.cliVersion && `CLI ${deco.cliVersion}`)].filter(Boolean).join(" · ") }
+          : { id: "check", label: tr.check };
         out({
-          icon: rooms.some((r) => r.on) ? "on" : "off",
+          icon: "on",
           menu: [
             { id: "who", label: who, enabled: false },
-            ...(note ? [{ id: "note", label: note, enabled: false }] : []),
             { sep: true },
-            ...(rooms.length ? rooms.map((r) => ({ id: `sala:${r.room_id}`, label: r.title.slice(0, 40), checked: r.on })) : [{ id: "none", label: tr.none, enabled: false }]),
-            { sep: true },
+            item,
             { id: "open", label: tr.open },
+            { sep: true },
             { id: "quit", label: tr.quit },
           ],
         });
       };
-      const refresh = async () => {
-        if (!loggedInAs(readJson<Session | null>(SESSION, null))) return draw();
-        try {
-          const res = await callTool("claude_rooms", {}, agent);
-          rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: typeof rooms }).rooms ?? [];
-          draw();
-        } catch (e) {
-          draw(`${tr.offline}: ${String((e as Error).message ?? e).split("\n")[0].slice(0, 40)}`);
-        }
+      const check = async () => {
+        deco.state = "checking";
+        draw();
+        await scan();
+        deco.state = "checked";
+        draw();
       };
-      await refresh();
-      const timer = setInterval(() => void refresh(), 15_000);
+      // The update: the CLI first (npm, or its own `update`), then the app (setup.sh again: it replaces this app and
+      // starts the new one, tray/README.md). Windows: the app's release page.
+      const update = async (origin: string) => {
+        deco.state = "updating";
+        draw();
+        const run = (cmd: string, args: string[]) =>
+          new Promise<boolean>((done) => {
+            const child = spawn(cmd, args, { stdio: "ignore", windowsHide: true });
+            child.on("error", () => done(false));
+            child.on("exit", (code) => done(code === 0));
+          });
+        const cli = cliBehind() ? cliUpdate(deco.cli) : undefined;
+        const ok = cli ? await run(cli[0]!, cli.slice(1)) : true;
+        if (ok && appBehind()) {
+          if (process.platform === "win32") openBrowser(`https://github.com/decocms/chat/releases/tag/tray-v${deco.appLatest}`);
+          else spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], { stdio: "ignore", detached: true }).unref();
+        }
+        await scan();
+        deco.state = ok ? "checked" : "failed";
+        draw();
+      };
+      draw();
+      const timer = setInterval(() => draw(), 15_000);
       let buf = "";
       process.stdin.setEncoding("utf8");
       process.stdin.on("data", async (chunk: string) => {
@@ -1619,17 +1717,12 @@ async function main() {
           buf = buf.slice(i + 1);
           let click = "";
           try { click = String((JSON.parse(line) as { click?: unknown }).click ?? ""); } catch { continue; }
+          const origin = readJson<Session | null>(SESSION, null)?.origin ?? DEFAULT_ORIGIN;
           if (click === "quit") { clearInterval(timer); process.exit(0); }
-          if (click === "open") { openBrowser(readJson<Session | null>(SESSION, null)?.origin ?? DEFAULT_ORIGIN); continue; }
-          if (click === "login") { await login(DEFAULT_ORIGIN).catch(() => {}); await refresh(); continue; }
-          if (click.startsWith("sala:")) {
-            const r = rooms.find((x) => `sala:${x.room_id}` === click);
-            if (!r) continue;
-            r.on = !r.on;
-            draw();
-            await callTool("switch_claude", { room_id: r.room_id, on: r.on }, agent).catch(() => {});
-            await refresh();
-          }
+          if (click === "open") { openBrowser(origin); continue; }
+          if (click === "login") { await login(DEFAULT_ORIGIN).catch(() => {}); draw(); continue; }
+          if (click === "update" && deco.state !== "updating") void update(origin);
+          if (click === "check" && deco.state !== "checking") void check();
         }
       });
       process.stdin.on("end", () => process.exit(0));

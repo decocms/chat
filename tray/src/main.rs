@@ -43,7 +43,10 @@ fn core_command() -> Command {
             let cli = dir.join(format!("vibebook{}", std::env::consts::EXE_SUFFIX));
             if cli.exists() {
                 let mut cmd = Command::new(cli);
-                cmd.args(["watch", "--menu"]).env("VIBEBOOK_HERDR_DIR", &dir);
+                // The app's own version: the menu shows it and offers an update when a newer tray-v* release exists.
+                cmd.args(["watch", "--menu"])
+                    .env("VIBEBOOK_HERDR_DIR", &dir)
+                    .env("VIBEBOOK_TRAY_VERSION", env!("CARGO_PKG_VERSION"));
                 return no_window(cmd);
             }
         }
