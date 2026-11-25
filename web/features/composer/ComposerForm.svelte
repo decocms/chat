@@ -5,6 +5,8 @@
 
 <script lang="ts">
   import { visibleMessage, messageById } from "../chat/privacy";
+  import { lastEditable } from "../chat/model";
+  import { startEditing } from "../chat/editing";
   import { roomHasThread } from "../../../shared/call";
   import { COMPOSER_FRAME } from "./shape";
   import { MARK_DONE } from "../../../shared/epicStatus";
@@ -251,6 +253,24 @@
         event.preventDefault();
         event.stopPropagation();
         mentionClosed = true;
+        return true;
+      }
+    }
+    // ArrowUp in an empty composer edits your last message here, in place (like Discord).
+    if (
+      event.key === "ArrowUp" &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.isComposing &&
+      !$draft.text &&
+      !$draft.attachments.length
+    ) {
+      const last = lastEditable(room, thread);
+      if (last) {
+        event.preventDefault();
+        startEditing(room.id, last.id);
         return true;
       }
     }
