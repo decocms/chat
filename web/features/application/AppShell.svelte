@@ -3,6 +3,7 @@
   import { get } from "svelte/store";
   import type { Snippet } from "svelte";
   import type { BrowserApplicationServices } from "./browser";
+  import { studioType } from "../../lib/components/type";
   import type { ComposerDrafts } from "../composer/drafts";
   import type {
     ApplicationRoomPresentation,
@@ -300,7 +301,10 @@
             ? "md:grid-cols-[68px_273px_minmax(0,1fr)]"
             : "md:grid-cols-[68px_minmax(0,1fr)]",
         ],
-    "group/shell bg-background font-sans text-sm leading-6 text-foreground",
+    "group/shell bg-background text-sm leading-6 text-foreground",
+    // Inter as the rail and a room's sidebar set it (cv08: the capital I with its bars): the Home and Settings too,
+    // so "Inbox" reads the same on the Home as in a room (PO #5601).
+    studioType,
     // Scrollbars stay invisible until you point at (or focus into) what scrolls, like the classic app: with a
     // mouse attached, macOS otherwise draws a full track on every scroller (Gui #2893).
     "[&_*]:[scrollbar-color:transparent_transparent] [&_*:hover]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent] [&_*:focus-within]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent]",
