@@ -1802,6 +1802,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: A new request method (`vibebook/compose`). The SDK on the side of the app sends only the methods that it knows, so an app would need its own code for the request. `ui/update-model-context` (silent, but in a room it has no target). An "always allow" in the confirmation of a post (a post without a question is a larger change in the security model).
 - Risk: low. An app can put text in the composer when the person does not expect it, but it cannot send it. It cannot remove the text of the person.
 - Undo: Revert this commit. Apps then get the question before each post again.
+- Status: open
 
 ### 2026-11-25 · feat/ack-opens-thread · A request taken in main opens its thread on the ack
 
