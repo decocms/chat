@@ -100,7 +100,7 @@
   const tintDot = (tint: RoomTint) => {
     switch (tint) {
       case null:
-        return "border border-border bg-background";
+        return "border border-muted-foreground bg-background";
       case "blue":
         return "bg-room-tint-blue";
       case "green":
