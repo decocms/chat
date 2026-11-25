@@ -88,6 +88,7 @@ const pt = {
   studioNoOrgs: "Não deu para listar suas organizações do Studio.",
   removeStudioBody:
     "Seus agents do Studio nesta e em outras salas param de receber mensagens até você conectar de novo.",
+  removeStudioAgentTitle: "Remover agent do Studio?",
   removeStudioAgentBody:
     "O agent sai desta sala. A conversa dele continua no Studio.",
 } as const;
@@ -183,6 +184,7 @@ const en: Record<SandboxCopyKey, string> = {
   studioNoOrgs: "Could not list your Studio organizations.",
   removeStudioBody:
     "Your Studio agents in this and other rooms stop receiving messages until you connect again.",
+  removeStudioAgentTitle: "Remove Studio agent?",
   removeStudioAgentBody:
     "The agent leaves this room. Its conversation stays in Studio.",
 };

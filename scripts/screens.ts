@@ -300,7 +300,50 @@ try {
     ).length;
     if (sent !== 1)
       throw new Error(`the Studio mock received ${sent} messages, not 1`);
+    // A project's agent: it takes the project's title in Studio as its name and @handle.
+    await card.locator("input").fill("mock-project");
+    await cloud.locator("[data-studio-create]").click();
+    const project = cloud.locator("[data-sandbox-id]", {
+      hasText: "example-store",
+    });
+    await project.waitFor();
+    await cloud.waitForTimeout(1500);
+    await project.scrollIntoViewIfNeeded();
+    await cloud.screenshot({
+      path: join(out, "studio-project-agent-1440.png"),
+    });
+    shots.push("studio-project-agent-1440.png");
+    // The two confirmations: remove one agent from the room, remove the Studio connection.
+    const remove = /^(Remove|Remover)$/;
+    const dialog = cloud.getByRole("alertdialog").or(cloud.getByRole("dialog"));
+    await project.getByRole("button", { name: remove }).click();
+    await dialog.first().waitFor();
+    await cloud.waitForTimeout(400);
+    await cloud.screenshot({ path: join(out, "studio-remove-agent-1440.png") });
+    shots.push("studio-remove-agent-1440.png");
+    await cloud.keyboard.press("Escape");
+    await dialog.first().waitFor({ state: "hidden" });
+    await card.getByRole("button", { name: remove }).click();
+    await dialog.first().waitFor();
+    await cloud.waitForTimeout(400);
+    await cloud.screenshot({
+      path: join(out, "studio-remove-connection-1440.png"),
+    });
+    shots.push("studio-remove-connection-1440.png");
+    await cloud.keyboard.press("Escape");
     await cloud.close();
+    const phone = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+    });
+    await phone.goto(`${base}/settings?room=${room}#cloud`, {
+      waitUntil: "networkidle",
+    });
+    await phone.locator("[data-studio-create]").waitFor();
+    await phone.locator("[data-studio-connection]").scrollIntoViewIfNeeded();
+    await phone.waitForTimeout(600);
+    await phone.screenshot({ path: join(out, "studio-390.png") });
+    shots.push("studio-390.png");
+    await phone.close();
   }
   if (flag("link")) {
     // A copied link to an old message (Gimenes #4843): more than one window of messages after it, then the link opens

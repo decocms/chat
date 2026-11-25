@@ -446,7 +446,11 @@
 <ConfirmDialog
   open={selected !== null}
   title={text(
-    selected?.kind === "sandbox" ? "removeTitle" : "credentialRemoveTitle",
+    selected?.kind === "sandbox"
+      ? selected.studio
+        ? "removeStudioAgentTitle"
+        : "removeTitle"
+      : "credentialRemoveTitle",
   )}
   description={text(
     selected?.kind === "sandbox"
