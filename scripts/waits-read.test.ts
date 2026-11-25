@@ -46,7 +46,8 @@ function fixture() {
   const room = new Database(":memory:"),
     db = new Database(":memory:");
   db.exec(`CREATE TABLE waits (book_id TEXT, ref TEXT, email TEXT, thread TEXT, topic TEXT, author TEXT, text TEXT, ts INTEGER, PRIMARY KEY (book_id, ref, email));
-    CREATE TABLE human_reads (email TEXT, book_id TEXT, last_id INTEGER, PRIMARY KEY (email, book_id));`);
+    CREATE TABLE human_reads (email TEXT, book_id TEXT, last_id INTEGER, PRIMARY KEY (email, book_id));
+    CREATE TABLE digest_items (email TEXT, book_id TEXT, msg_id INTEGER, thread TEXT, author TEXT, text TEXT, ts INTEGER, PRIMARY KEY (email, book_id, msg_id));`);
   const sql = {
     exec(query: string, ...params: (string | number | null)[]) {
       const text = query.trim();
@@ -107,7 +108,19 @@ function fixture() {
         .query(`SELECT ref FROM waits WHERE email = ? ORDER BY ref`)
         .all(email) as { ref: string }[]
     ).map((r) => r.ref);
-  return { book, wait, refs, poked };
+  const held = (msg: number) =>
+    db
+      .query(
+        `INSERT INTO digest_items (email, book_id, msg_id, thread, author, text, ts) VALUES (?, 'room01', ?, 'main', ?, 'hi', 1)`,
+      )
+      .run(voce, msg, other);
+  const heldIds = () =>
+    (
+      db.query(`SELECT msg_id FROM digest_items ORDER BY msg_id`).all() as {
+        msg_id: number;
+      }[]
+    ).map((r) => r.msg_id);
+  return { book, wait, refs, poked, held, heldIds };
 }
 
 test("reading past a mention clears it; a task in review and Claude's questions stay", async () => {
@@ -123,6 +136,15 @@ test("reading past a mention clears it; a task in review and Claude's questions 
   await f.book.markRead([voce], 12);
   expect(f.refs()).toEqual(["a20", "b21", "t7"]); // only work is left: the Inbox, no number on the room
   expect(waitCount(f.refs().map((ref) => ({ ref })))).toBe(0);
+});
+
+test("reading a held-back mention takes it out of the Inbox and the digest", async () => {
+  const f = fixture();
+  f.held(3);
+  f.held(15);
+  await f.book.markRead([voce], 10);
+  expect(f.heldIds()).toEqual([15]);
+  expect(f.poked).toEqual([voce]);
 });
 
 test("reading with nothing to clear does not poke the person", async () => {
