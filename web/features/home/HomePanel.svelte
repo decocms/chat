@@ -19,7 +19,7 @@
     roomIcon,
     targetHref,
     waitTarget,
-    plainWaitText,
+    homeWaitText,
     claudeWait,
     personVersion,
     dmEntry,
@@ -756,7 +756,7 @@
                     ></span
                   ><b
                     class="line-clamp-4 text-[17px] leading-[1.3] font-medium tracking-[-0.01em] break-words"
-                    >{plainWaitText(wait.text)}</b
+                    >{homeWaitText(wait, lang)}</b
                   ></span
                 ></a
               >{/each}
