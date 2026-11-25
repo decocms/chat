@@ -66,9 +66,19 @@ Rules:
 - The cursor is the message ID, because IDs only increase. `before` scrolls back. `after` gets the messages that came after that ID. With neither, you get the newest. `limit` is 1 to 100 (default 50).
 - The app gets scroll-back through this route (`web/features/root-room/api.ts`). If the request fails, the app sends the WebSocket `older` command, which gives the same page.
 
+### A room opens
+
+- The snapshot of a room is one `state` event (`Book.roomSnapshot`). In a large room it is 500 to 650 KB. WebSocket frames are not compressed, but HTTP responses are. Thus the app gets the snapshot over HTTP, and the socket carries only live events.
+- The app opens the socket with `lite=1`. The Book then sends `{ t: "hello", at }` before all other events, and no `state`.
+- On `hello`, the app sends `GET /api/books/:id/room?t=&since=&at=&eh=`, with the params that the socket got (`t` and the resume params, see "A reconnect resumes"). Only members get it (403 for the others). The answer is the same `state` event that the socket sends (`Book.roomState`, checked with `RoomEventSchemas.state`). The app applies it through the same path as a socket `state` (`web/features/root-room/session.ts`).
+- Live events that come between `hello` and the HTTP answer wait in a queue. The app applies them after the snapshot, in their order. Each event after `hello` is newer than the snapshot, and each one is an upsert by ID or a full value, so it is safe to apply it again.
+- If the HTTP read fails, the app opens the socket again without `lite`. That socket sends `state` as before.
+- A socket without `lite` (an old cached app, the CLI) gets `state` as before.
+- `ws_state` measures the first frame of the socket (`lite: true` for `hello`). `room_state` measures the HTTP answer (bytes before compression, ms).
+
 ### A reconnect resumes
 
-- A socket that already has the room (a reconnect, or a cached room that opens again) sends `since` (its newest message id), `at` (the time of its last `state`) and `eh` (the hash of the threads that it got). The Book keeps nothing for each client (`Book.resumeOf`). The worker passes the three values on to the Book (`src/bookSocket.ts`).
+- A socket that already has the room (a reconnect, or a cached room that opens again) sends `since` (its newest message id), `at` (the time of its last `state`) and `eh` (the hash of the threads that it got). The Book keeps nothing for each client (`Book.resumeOf`). The worker passes the three values on to the Book (`src/bookSocket.ts`). A light socket sends the same values in `GET /api/books/:id/room`.
 - The Book then sends a `state` with `resume: true`. It has the open thread's window and each message that is newer than `since`, or edited or deleted since `at`. When the threads have the same hash, it leaves them out (`epicsSame`). The app merges the messages and acks into the room that it has (`web/app/roomStore.ts`).
 - The Book sends the whole state when there are no params, the state is older than 6 hours, or more than 200 rows changed.
 

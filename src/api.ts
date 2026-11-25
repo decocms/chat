@@ -60,6 +60,7 @@ import {
   type AccessResult,
   MessagesQuery,
   type MessagesPage,
+  RoomStateQuery,
   LinkQuery,
   type LinkResolution,
   ClaudeToggleBody,
@@ -107,6 +108,7 @@ import {
   type InfraMonitor,
   InfraWindow,
 } from "../shared/schemas";
+import type { RoomStateEvent } from "../shared/events";
 
 export type Bind = string | number | null;
 /** What the typed routes may do, bound to the signed-in person. Authorization stays in each route (isMember). */
@@ -131,6 +133,8 @@ export interface ApiServices {
   humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
   /** One page of a thread (GET /api/books/:id/messages). The route checks membership first. */
   roomMessages(roomId: string, query: MessagesQuery): Promise<MessagesPage>;
+  /** The room's snapshot, the socket's `state` (GET /api/books/:id/room). The route checks membership first. */
+  roomState(roomId: string, query: RoomStateQuery): Promise<RoomStateEvent>;
   /** Where a link to this app goes (GET /api/books/:id/link): `private` unless you are a member (src/linkTarget.ts). */
   linkTarget(roomId: string, query: LinkQuery): Promise<LinkResolution>;
   /** Validates type/size/secrets and stores the file; throws an Error whose message is user-facing. */
@@ -662,6 +666,24 @@ export const roomApi = accountApi
       if (!(await svc.isMember(id))) return c.json(forbidden, 403);
       c.header("Cache-Control", "private, no-store");
       return c.json((await svc.roomMessages(id, c.req.valid("query"))) satisfies MessagesPage, 200);
+    },
+  )
+  // The room's snapshot over HTTP, compressed (a WebSocket frame is not): a light socket (lite=1) sends only hello and
+  // the app reads this. The same `state` event as the socket sends; room_state beside ws_state compares them.
+  .get(
+    "/api/books/:id/room",
+    validator("query", (value, c) => {
+      const r = RoomStateQuery.safeParse(value);
+      return r.success ? r.data : c.json({ error: "invalid query" } satisfies ErrorBody, 400);
+    }),
+    async (c) => {
+      const svc = c.get("svc"), id = c.req.param("id");
+      if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+      const started = Date.now();
+      const state = await svc.roomState(id, c.req.valid("query"));
+      svc.track("room_state", { book: id, bytes: JSON.stringify(state).length, ms: Date.now() - started, resume: state.resume ? (state.epicsSame ? "same" : "epics") : c.req.valid("query").since ? "full" : undefined });
+      c.header("Cache-Control", "private, no-store");
+      return c.json(state satisfies RoomStateEvent, 200);
     },
   )
   .get(

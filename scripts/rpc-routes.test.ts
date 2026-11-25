@@ -11,6 +11,7 @@ import { AgentDbRow, UploadHeaders } from "../src/apiServerSchemas";
 import { encodeCall } from "../shared/jsonRpc";
 import { parsePersonEvent, PersonEventSchema } from "../shared/person";
 import type { SearchQuery } from "../shared/schemas";
+import { RoomEventSchemas } from "../shared/events";
 import {
   connectionIdentity,
   type ConnectionIdentityPorts,
@@ -75,6 +76,21 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     roomMessages: async (room, query) => {
       pages.push({ room, ...query });
       return { thread: query.thread, messages: [], acks: [], more: false };
+    },
+    roomState: async (room, query) => {
+      pages.push({ state: room, ...query });
+      return {
+        t: "state",
+        me: "test@example.com",
+        book: { title: "Sala", owner: "test@example.com" },
+        members: ["test@example.com"],
+        messages: [],
+        epics: [],
+        online: [],
+        suggestions: [],
+        at: 5,
+        ...(query.since ? { resume: true } : {}),
+      };
     },
     linkTarget: async (room, query) => {
       pages.push({ link: room, ...query });
@@ -421,6 +437,58 @@ test("GET messages: a page by id cursor, members only, the query validated (cach
   expect((await outsider.app.request("/api/books/room/messages")).status).toBe(
     403,
   );
+  expect(outsider.pages).toHaveLength(0);
+});
+
+test("GET room: the room's state over HTTP, members only, with the socket's params, and tracked", async () => {
+  const tracked: { name: string; dims?: Record<string, unknown> }[] = [];
+  const f = fixture({
+    track: (name, dims) => void tracked.push({ name, dims }),
+  });
+  const ok = await f.app.request("/api/books/room/room?t=e1");
+  expect(ok.status).toBe(200);
+  expect(ok.headers.get("cache-control")).toBe("private, no-store");
+  const state = await ok.json();
+  expect(RoomEventSchemas.state.safeParse(state).success).toBe(true);
+  expect(state).toMatchObject({ t: "state", me: "test@example.com", at: 5 });
+  const resumed = await f.app.request(
+    "/api/books/room/room?t=main&since=40&at=1795618413891&eh=18k75oq4jio",
+  );
+  expect(await resumed.json()).toMatchObject({ resume: true });
+  expect((await f.app.request("/api/books/room/room")).status).toBe(200);
+  expect(f.pages).toEqual([
+    { state: "room", t: "e1" },
+    {
+      state: "room",
+      t: "main",
+      since: 40,
+      at: 1795618413891,
+      eh: "18k75oq4jio",
+    },
+    { state: "room", t: "main" },
+  ]);
+  expect(tracked.map((t) => t.name)).toEqual([
+    "room_state",
+    "room_state",
+    "room_state",
+  ]);
+  expect(tracked[0]?.dims).toMatchObject({
+    book: "room",
+    bytes: JSON.stringify(state).length,
+  });
+  expect(tracked[1]?.dims).toMatchObject({ resume: "epics" });
+  for (const query of [
+    "t=",
+    "since=x",
+    "at=-1",
+    "eh=a%26b",
+    `t=${"x".repeat(65)}`,
+  ])
+    expect((await f.app.request(`/api/books/room/room?${query}`)).status).toBe(
+      400,
+    );
+  const outsider = fixture({ isMember: async () => false });
+  expect((await outsider.app.request("/api/books/room/room")).status).toBe(403);
   expect(outsider.pages).toHaveLength(0);
 });
 

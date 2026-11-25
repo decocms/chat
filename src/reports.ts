@@ -148,10 +148,13 @@ async function unblockLine(env: Env, start: number, end: number) {
   return n("terminal_ask") ? `\n- Travas do terminal levadas pra sala (permissão, pergunta, plano): **${n("terminal_ask")}**, resolvidas pela sala ${n("terminal_answered")}; o resto caiu no terminal` : "";
 }
 
-/** Opening a room (the WS state): how many, average size, and the fattest one with its biggest fields. */
+/** Opening a room (the WS state): how many, average size, and the fattest one with its biggest fields. A light socket
+ *  (lite) sends only hello: its opens count, its bytes not; its state goes over HTTP (room_state, compressed). */
 async function wsStateLine(env: Env, start: number, end: number) {
-  const r = await env.DB.prepare(`SELECT count(*) AS n, avg(json_extract(dims, '$.bytes')) AS avg, max(json_extract(dims, '$.bytes')) AS mx FROM events WHERE name = 'ws_state' AND ts >= ? AND ts < ?`).bind(start, end).first<{ n: number; avg: number; mx: number }>();
+  const r = await env.DB.prepare(`SELECT count(*) AS n, avg(CASE WHEN json_extract(dims, '$.lite') IS NULL THEN json_extract(dims, '$.bytes') END) AS avg, max(json_extract(dims, '$.bytes')) AS mx FROM events WHERE name = 'ws_state' AND ts >= ? AND ts < ?`).bind(start, end).first<{ n: number; avg: number | null; mx: number }>();
   if (!r?.n) return "";
+  const http = await env.DB.prepare(`SELECT count(*) AS n, avg(json_extract(dims, '$.bytes')) AS avg, avg(json_extract(dims, '$.ms')) AS ms FROM events WHERE name = 'room_state' AND ts >= ? AND ts < ?`).bind(start, end).first<{ n: number; avg: number; ms: number }>();
+  const httpLine = http?.n ? `\n  - Pelo HTTP (GET /room, comprimido): ${http.n}×, média ${bytes(http.avg)} antes da compressão, ${Math.round(http.ms)} ms` : "";
   const big = await env.DB.prepare(`SELECT json_extract(dims, '$.book') AS book, json_extract(dims, '$.top') AS top, json_extract(dims, '$.msgs') AS msgs FROM events WHERE name = 'ws_state' AND ts >= ? AND ts < ? ORDER BY json_extract(dims, '$.bytes') DESC LIMIT 1`).bind(start, end).first<{ book: string; top: string; msgs: string | null }>();
   const push = await env.DB.prepare(`SELECT json_extract(dims, '$.t') AS t, count(*) AS n, sum(json_extract(dims, '$.bytes')) AS b FROM events WHERE name = 'ws_push' AND ts >= ? AND ts < ? GROUP BY t ORDER BY b DESC LIMIT 4`).bind(start, end).all<{ t: string; n: number; b: number }>();
   const pushes = push.results.map((x) => `${x.t} ${bytes(x.b)} (${x.n}×)`).join(" · ");
@@ -164,7 +167,7 @@ async function wsStateLine(env: Env, start: number, end: number) {
   // Everything the rooms sent over their sockets, by event kind (Book.sendTo → ws_bytes, flushed hourly).
   const wire = await env.DB.prepare(`SELECT json_extract(dims, '$.t') AS t, sum(json_extract(dims, '$.n')) AS n, sum(json_extract(dims, '$.bytes')) AS b FROM events WHERE name = 'ws_bytes' AND ts >= ? AND ts < ? GROUP BY t ORDER BY b DESC LIMIT 6`).bind(start, end).all<{ t: string; n: number; b: number }>();
   const wireLine = wire.results.map((x) => `${x.t} ${bytes(x.b)} (${x.n}×, ${bytes(x.b / Math.max(1, x.n))} cada)`).join(" · ");
-  return `\n- Abrir sala (estado do WS, últimas 24h): **${r.n}×**, média ${bytes(r.avg)}, maior ${bytes(r.mx)} (sala ${big?.book}: ${big?.top}${big?.msgs ? `; messages: ${big.msgs}` : ""})${people ? `\n  - Quem mais abriu: ${people}` : ""}${rcLine ? `\n  - Reconexões pelo código do socket anterior: ${rcLine}` : ""}${pushes ? `\n- Empurrões grandes pelo WS (≥20 KB): ${pushes}` : ""}${wireLine ? `\n- Tudo que saiu pelos sockets das salas, por tipo: ${wireLine}` : ""}`;
+  return `\n- Abrir sala (estado do WS, últimas 24h): **${r.n}×**, média ${bytes(r.avg ?? 0)}, maior ${bytes(r.mx)} (sala ${big?.book}: ${big?.top}${big?.msgs ? `; messages: ${big.msgs}` : ""})${httpLine}${people ? `\n  - Quem mais abriu: ${people}` : ""}${rcLine ? `\n  - Reconexões pelo código do socket anterior: ${rcLine}` : ""}${pushes ? `\n- Empurrões grandes pelo WS (≥20 KB): ${pushes}` : ""}${wireLine ? `\n- Tudo que saiu pelos sockets das salas, por tipo: ${wireLine}` : ""}`;
 }
 
 /** The Claudes' tool calls (agent_call) by tool and client: what the /mcp requests are. */
