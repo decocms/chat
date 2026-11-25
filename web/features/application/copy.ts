@@ -646,8 +646,19 @@ const EN: Readonly<Record<string, string>> = {
   "Essa thread não existe mais nesta sala.":
     "That thread is no longer in this room.",
   Threads: "Threads",
-  "Threads abertas": "Open threads",
-  Feitas: "Done",
+  // The threads tabs: the same English words in both languages (Viktor).
+  Mine: "Mine",
+  Open: "Open",
+  Done: "Done",
+  "Nenhuma thread aberta é sua": "None of the open threads is yours",
+  "As threads que você cria ou que passam para você aparecem aqui.":
+    "Threads that you start or that are handed to you show up here.",
+  "Nenhuma thread aberta": "No open threads",
+  "Para abrir uma, use Criar thread numa mensagem.":
+    "To start one, use Create thread on a message.",
+  "Nenhuma thread feita ainda": "No done threads yet",
+  "Uma thread marcada como feita vem para cá.":
+    "A thread marked done moves here.",
   "Ver menos": "Show less",
   "Ver mais ({n})": "Show more ({n})",
   "Fixar no topo": "Pin to top",
