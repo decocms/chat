@@ -217,6 +217,9 @@ test("viewer renders safe Markdown, changes exact version and disconnects old co
     }),
   );
   await settle();
+  // The closed dialog keeps the file while it animates out (Gimenes #5629), then goes.
+  for (let i = 0; i < 60 && document.querySelector("[data-file-viewer]"); i++)
+    await new Promise((done) => setTimeout(done, 50));
   expect(document.querySelector("[data-file-viewer]")).toBeNull();
 });
 test("component-only unmount closes the owner and invalidates late media callbacks", async () => {
