@@ -473,6 +473,40 @@ test("hanging up while the SFU answers a step: the step's failure is no error of
   }
 });
 
+test("opening a room with a call on, and every update of who is in it, leaves me out; a click joins", async () => {
+  const restore = fakeBrowser();
+  try {
+    let joins = 0;
+    const api = {
+      join: async () => (joins++, "s-me"),
+      tracks: async () => ({ sessionDescription: { type: "answer" as const, sdp: "v=0" }, tracks: [] }),
+      answer: async () => {},
+      close: async () => {},
+      leave: async () => {},
+    };
+    const { createCallSession } = await import("../web/features/call/session");
+    const call = createCallSession("f94aedb83899", api, () => true, () => "main");
+    let phase = "";
+    call.state.subscribe((v) => (phase = v.phase));
+    const ana = { email: "ana@x.test", session: "s-ana", tracks: ["mic"] };
+    // The room opens (or reloads, F5) with Ana in the call, then the room's word on the call keeps coming.
+    call.setPeers([ana], "me@x.test");
+    await later();
+    call.setPeers([ana, { email: "bia@x.test", session: "s-bia", tracks: ["mic"] }], "me@x.test");
+    await later();
+    call.setPeers([ana], "me@x.test");
+    await later();
+    expect(phase).toBe("idle");
+    expect(joins).toBe(0);
+    call.join();
+    await later();
+    expect(phase).toBe("in");
+    expect(joins).toBe(1);
+  } finally {
+    restore();
+  }
+});
+
 // ---- ringing a DM, and the call's line in main ----
 const DM = "dm0123456789abcdef0123";
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));

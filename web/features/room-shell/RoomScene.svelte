@@ -113,14 +113,8 @@
     () => get(owner.state)?.header.thread ?? "main",
   );
   const callView = call.state;
-  // A DM's call rings the other person (Atender joins); a room's call is joined by opening the room.
-  $effect(() =>
-    call.setPeers(
-      $view?.header.room.call,
-      $view?.header.room.me,
-      !$view?.header.room.book.dm,
-    ),
-  );
+  // Opening a room never joins its call: a click does (the phone, the call's line, a DM's Atender).
+  $effect(() => call.setPeers($view?.header.room.call, $view?.header.room.me));
   // A click on a call's button elsewhere (the ring's card, a call line in the chat) for this room: done here, where
   // the room's call lives.
   $effect(() => {
