@@ -1778,6 +1778,9 @@ export class Book extends DurableObject<Env> {
         id: m.id,
         at: new Date(m.ts).toISOString(),
         thread: threadName(m.thread),
+        // The thread's id: two threads can have the same title, so an agent finds the thread by this, never by the
+        // title (@vibe #4571, Gimenes #4582).
+        epic_id: m.thread,
         from: who(m.author),
         by_agent: m.kind === "agent",
         mentions_you: !!email && m.author !== email && mentionsMe(m.text, !m.kind && m.author !== "ai"),
@@ -1846,7 +1849,7 @@ export class Book extends DurableObject<Env> {
         ? this.sql
             .exec(`SELECT m.id, m.thread, m.text, m.ts FROM messages m WHERE m.tag = 'reminder' AND (m.author = ? OR m.for_who = ?) AND m.ts > ? AND NOT EXISTS (SELECT 1 FROM acks a WHERE a.msg_id = m.id AND a.status = 'done') ORDER BY m.id`, email, email, Date.now() - 7 * 864e5)
             .toArray()
-            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), text: m.text as string, at: new Date(m.ts as number).toISOString() }))
+            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), epic_id: m.thread as string, text: m.text as string, at: new Date(m.ts as number).toISOString() }))
         : undefined,
       // Your human's messages from the last 48h that none of their agents acked (doing/idle/done): what got skipped.
       unacked: email
@@ -1860,7 +1863,7 @@ export class Book extends DurableObject<Env> {
             .toArray()
             .reverse()
             .filter((m) => !forOther(String(m.text ?? "")))
-            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), text: String(m.text ?? "").slice(0, 300), at: new Date(m.ts as number).toISOString() }))
+            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), epic_id: m.thread as string, text: String(m.text ?? "").slice(0, 300), at: new Date(m.ts as number).toISOString() }))
         : undefined,
       ...(briefs.length
         ? {
