@@ -25,6 +25,7 @@
     orderedRooms,
     roomsOnly,
     chatList,
+    type RoomTarget,
     type WaitKind,
   } from "./model";
   import RoomTile from "./RoomTile.svelte";
@@ -46,6 +47,21 @@
   import Onboarding from "../onboarding/Onboarding.svelte";
   import NewMessage from "../app-navigation/NewMessage.svelte";
   import { createOnboardingSession } from "../onboarding/session";
+  import RoomRow from "../app-navigation/RoomRow.svelte";
+  import RoomAvatar from "../rooms/RoomAvatar.svelte";
+  import { createApplicationCopy } from "../application/copy";
+  import {
+    HOME_INBOX_TABS,
+    homeInboxLeave,
+    homeInboxLists,
+    homeInboxSaid,
+    homeInboxWho,
+    type HomeInboxCard,
+    type HomeInboxTab,
+  } from "../application/homeInboxLists";
+  import { inboxPreview } from "../application/roomInboxModel";
+  import { keyboardInset } from "./keyboardInset";
+  import ChatRowEnd from "./ChatRowEnd.svelte";
   let {
     pwa,
     personal,
@@ -66,6 +82,7 @@
     ondismiss,
     company,
     oncompany,
+    inbox,
   }: HomeBridge = $props();
   const account = $derived(personal.state);
   const pwaView = $derived(pwa.state);
@@ -92,6 +109,90 @@
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
   ) => homeText(lang, key, vars);
+  // A phone's list of conversations: the Inbox's tabs as chips over it ("Todas" is the list itself), the
+  // same lists the desktop Home's tabs show (homeInboxLists). The page holds the Inbox open for them (AppShell).
+  const appText = $derived(createApplicationCopy(lang === "en" ? "en" : "pt"));
+  const inboxView = untrack(() => inbox?.state);
+  // The chip you picked stays while you go into a room and back (this tab only).
+  const CHIP_KEY = "vb:home-chip";
+  let chip = $state<"all" | HomeInboxTab>(
+    untrack(() => {
+      try {
+        const saved = sessionStorage.getItem(CHIP_KEY);
+        return saved === "foryou" || saved === "mentions" || saved === "tasks"
+          ? saved
+          : "all";
+      } catch {
+        return "all";
+      }
+    }),
+  );
+  const inboxLists = $derived(
+    $inboxView && $account.me
+      ? homeInboxLists({
+          data: $inboxView.data,
+          hidden: $inboxView.hidden,
+          me: $account.me,
+          lang: lang === "en" ? "en" : "pt",
+          t: appText,
+        })
+      : null,
+  );
+  const chips = $derived([
+    { id: "all" as const, label: appText("Todas"), count: 0 },
+    ...(inbox
+      ? HOME_INBOX_TABS.map((tab) => ({
+          id: tab.id,
+          label: appText(tab.label),
+          count: inboxLists?.[tab.id].length ?? 0,
+        }))
+      : []),
+  ]);
+  // The @s of you, from the Inbox's Menções: their rooms get the "@" badge in Todas, their rows in the chips.
+  const mentionKeys = $derived(
+    new Set((inboxLists?.mentions ?? []).map((card) => card.key)),
+  );
+  const mentionRooms = $derived(
+    new Set((inboxLists?.mentions ?? []).map((card) => card.book)),
+  );
+  const chipItems = $derived(chip === "all" ? [] : (inboxLists?.[chip] ?? []));
+  function chipEmpty(tab: HomeInboxTab) {
+    switch (tab) {
+      case "foryou":
+        return appText("Nada esperando você.");
+      case "mentions":
+        return appText("Nenhuma menção.");
+      case "tasks":
+        return appText("Nenhuma tarefa aberta.");
+      default: {
+        const never: never = tab;
+        return never;
+      }
+    }
+  }
+  const cardTarget = (card: HomeInboxCard): RoomTarget => ({
+    roomId: card.book,
+    thread: card.thread || "main",
+    messageId: card.message?.messageId ?? card.message?.mention?.msg_id,
+  });
+  /** The row's name: the room and its thread (a task: its thread). */
+  const cardLabel = (card: HomeInboxCard) =>
+    card.kind === "thread" || !card.where
+      ? card.room
+      : `${card.room} › ${card.where}`;
+  /** Under it: who wrote and what; a task or a thread says itself. */
+  const cardMeta = (card: HomeInboxCard) =>
+    card.kind === "task"
+      ? card.text
+      : card.kind === "thread"
+        ? [card.text, card.where].filter(Boolean).join(" · ")
+        : `${homeInboxWho(card, $account.me, appText)}: ${inboxPreview(homeInboxSaid(card))}`;
+  function openCard(card: HomeInboxCard) {
+    const binding = $inboxView?.binding;
+    if (inbox && binding && inbox.owns(binding))
+      homeInboxLeave(inbox, binding, card, onnavigate);
+    else onnavigate(cardTarget(card));
+  }
   // The desk home: what waits on you as a hand of cards, most important in the middle.
   const waits = $derived(byImportance($account.me?.waits ?? []));
   // The tab's icon carries a red dot while the title shows "(n)".
@@ -330,20 +431,43 @@
   <!-- A phone: the home is the list of conversations, like a chat app (Gimenes #3800).
        Someone with no conversation yet gets the desk below, with its way in.
        Like WhatsApp's chats screen: its own bar ("Conversas" / "Chats" and you; no inbox, Gimenes #4144),
-       a search field, the list, and a floating + for a new room or message.
+       a search field, the Inbox tabs as filter chips, the list, and the ask box docked at the foot
+       (its + makes a room or a message, where the floating + was).
        The shell hides the app's phone bar and the DM list under this layout. -->
   <main
     data-view="home"
     data-home-layout="chats"
-    class="min-h-full bg-background px-2 pb-28 font-sans text-sm leading-6 text-foreground"
+    class="min-h-full bg-background px-2 pb-[calc(5.5rem+env(safe-area-inset-bottom))] font-sans text-base leading-6 text-foreground"
   >
     <header
       data-home-bar
-      class="sticky top-0 z-40 -mx-2 flex h-14 items-center gap-1 bg-background pr-3 pl-4"
+      class="sticky top-0 z-40 -mx-2 flex h-14 items-center gap-2 bg-background pr-3 pl-4"
     >
-      <h1 class="m-0 min-w-0 flex-1 truncate text-2xl font-bold tracking-tight">
+      <!-- A 28px title (PO: WhatsApp's 34px was too big), its search field (44px, 17px type) and its rows (ChatList). -->
+      <h1
+        class="m-0 min-w-0 flex-1 truncate text-[1.75rem] leading-9 font-bold tracking-tight"
+      >
         {text("chatsTitle")}
       </h1>
+      <!-- New: a DM (people from your rooms, or an email) or a room (Gui #4572), as WhatsApp's top-right action. -->
+      {#if $account.me}<NewMessage
+          me={$account.me}
+          {lang}
+          {onconnect}
+          {ondismiss}
+          onroom={(trigger) => {
+            if (trigger?.isConnected) onnew(trigger);
+            else onnew();
+          }}
+          >{#snippet trigger({ props })}<Button
+              {...props}
+              variant="secondary"
+              data-home-new
+              aria-label={text("newMessage")}
+              class="size-10 shrink-0 rounded-full p-0"
+              ><Icon icon="plus" class="size-[22px]" /></Button
+            >{/snippet}</NewMessage
+        >{/if}
       <AccountRow
         me={$account.me}
         row={false}
@@ -356,20 +480,53 @@
         }}
       />
     </header>
-    <div class="px-2 pt-1 pb-3">
+    <div class="px-2 pb-2">
       <button
         type="button"
         data-home-search
-        class="flex h-11 w-full cursor-pointer items-center gap-3 rounded-full border-0 bg-muted px-4 text-left font-sans text-base text-muted-foreground outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
+        class="flex h-11 w-full cursor-pointer items-center gap-3 rounded-full border-0 bg-muted px-4 text-left font-sans text-lg text-muted-foreground outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
         onclick={() => onsearch()}
         ><Icon icon="search-md" class="size-5 shrink-0" /><span
           class="min-w-0 truncate">{text("searchPlaceholder")}</span
         ></button
       >
     </div>
+    <!-- The Inbox's tabs as WhatsApp's filter chips ("Todas · Não lidas 16 · …"): one row that scrolls
+         sideways, the count after the label, the chosen one filled. -->
+    {#if chips.length > 1}<div
+        role="group"
+        aria-label={appText("Caixa de entrada")}
+        data-home-chips
+        class="-mx-2 flex gap-2 overflow-x-auto overscroll-x-contain px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {#each chips as option (option.id)}<button
+            type="button"
+            data-home-chip={option.id}
+            aria-pressed={chip === option.id}
+            class={[
+              "flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border-0 px-3.5 font-sans text-[15px] leading-5 font-medium whitespace-nowrap outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
+              chip === option.id
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground",
+            ]}
+            onclick={() => {
+              chip = option.id;
+              try {
+                sessionStorage.setItem(CHIP_KEY, option.id);
+              } catch {
+                /* No storage: the chip resets when you come back. */
+              }
+              scrollTo({ top: 0 });
+            }}
+            >{option.label}{#if option.count}<span
+                data-home-chip-count
+                class="tabular-nums">{option.count}</span
+              >{/if}</button
+          >{/each}
+      </div>{/if}
     <!-- The phone's user center (Gimenes, step 4): the desktop sidebar's rows, in its order, under the search. Each row
       goes when it is done; inside a room only their count shows, on ← (RoomHeader). This list draws only on a phone. -->
-    {#if centerCount || $company?.length}<div class="mb-3 px-2">
+    {#if centerCount || $company?.length}<div class="mb-2 px-2">
         <UserCenter phone
           >{#if $account.updateAvailable}<UpdateRow {lang} />{/if}<InstallCard
             owner={pwa}
@@ -387,35 +544,75 @@
           /></UserCenter
         >
       </div>{/if}
-    <ChatList
-      me={$account.me}
-      seen={$account.seen}
-      now={$account.now}
-      {lang}
-      {ago}
-      {onnavigate}
-      onmenu={onroommenu}
-    />
-    <!-- The + makes a DM (people from your rooms, or an email) or a room (Gui #4572: it only made rooms). -->
-    {#if $account.me}<NewMessage
+    {#if chip === "all"}<ChatList
         me={$account.me}
+        seen={$account.seen}
+        now={$account.now}
         {lang}
-        {onconnect}
-        {ondismiss}
-        side="top"
-        onroom={(trigger) => {
-          if (trigger?.isConnected) onnew(trigger);
-          else onnew();
-        }}
-        >{#snippet trigger({ props })}<Button
-            {...props}
-            variant="brand"
-            data-home-new
-            aria-label={text("newMessage")}
-            class="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 size-14 rounded-2xl shadow-lg"
-            ><Icon icon="plus" class="size-6" /></Button
-          >{/snippet}</NewMessage
-      >{/if}
+        {ago}
+        {onnavigate}
+        onmenu={onroommenu}
+        mentioned={mentionRooms}
+      />{:else if chipItems.length}{@const me = $account.me}
+      <nav
+        data-home-inbox-list={chip}
+        aria-label={chips.find((option) => option.id === chip)?.label}
+        class="w-full"
+      >
+        <ul class="m-0 list-none space-y-0.5 p-0">
+          {#each chipItems as card (card.key)}{@const dm = dmEntry(
+              me,
+              card.book,
+            )}
+            <li data-home-inbox-item={card.kind}>
+              <RoomRow
+                href={targetHref(cardTarget(card))}
+                label={cardLabel(card)}
+                meta={cardMeta(card)}
+                urgent={card.kind === "claude"}
+                variant="chats"
+                onopen={() => openCard(card)}
+              >
+                {#snippet leading()}<RoomAvatar
+                    size="chat"
+                    title={dm ? dm.name : card.room}
+                    icon={card.summary ? roomIcon(card.summary) : undefined}
+                    person={dm}
+                    {lang}
+                    surface="background"
+                  />{/snippet}
+                {#snippet trailing()}<ChatRowEnd
+                    time={card.ts ? ago(card.ts) : null}
+                    mention={mentionKeys.has(card.key)}
+                    {lang}
+                  />{/snippet}
+              </RoomRow>
+            </li>{/each}
+        </ul>
+      </nav>{:else}<p
+        data-home-inbox-empty={chip}
+        role="status"
+        class="m-0 px-4 py-10 text-center text-base text-muted-foreground"
+      >
+        {$inboxView?.phase === "ready" || $inboxView?.phase === "error"
+          ? chipEmpty(chip)
+          : text("loading")}
+      </p>{/if}
+    <!-- The home's ask box, docked where a chat's composer is (thumb reach): what you type goes to the room
+         and thread it fits; where it goes opens above the field, over the list's foot. It rides above the
+         on-screen keyboard (keyboardInset). -->
+    <div
+      use:keyboardInset
+      data-home-dock
+      class="fixed inset-x-0 bottom-0 z-30 bg-background px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] data-keyboard:pb-2"
+    >
+      <div
+        data-home-ask="dock"
+        class="flex min-w-0 flex-col-reverse [&>:last-child:has(>*)]:mb-2"
+      >
+        <HomeAsk {personal} {lang} {onnavigate} {onnew} {onsearch} dock />
+      </div>
+    </div>
   </main>
 {:else}
   <!-- The desk home: the agent's cube, one sentence on what waits on you, the

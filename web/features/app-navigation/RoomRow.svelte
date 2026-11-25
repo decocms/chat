@@ -1,6 +1,10 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { navRow, type NavRowVariant } from "../../lib/components/navRow";
+  import {
+    NAV_ROW_TEXT,
+    navRow,
+    type NavRowVariant,
+  } from "../../lib/components/navRow";
   /**
    * One place to go in a list: a room, a DM or Home. The caller draws what
    * stands for it (`leading`: an avatar, an icon) and anything at its end
@@ -55,9 +59,10 @@
     onopen();
   }}
   >{@render leading()}<span class="flex min-w-0 flex-1 flex-col"
-    ><span class="truncate">{label}</span>{#if meta}<span
+    ><span class={NAV_ROW_TEXT[variant].label}>{label}</span>{#if meta}<span
         class={[
-          "truncate text-xs leading-4 font-normal",
+          NAV_ROW_TEXT[variant].meta,
+          "font-normal",
           urgent ? "text-warning" : "text-muted-foreground",
         ]}>{meta}</span
       >{/if}</span

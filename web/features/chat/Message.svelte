@@ -278,8 +278,8 @@
   onfocusin={showToolbar}
   class={[
     continuous
-      ? "group relative rounded-control px-3 pt-0.5 pb-0 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
-      : "group relative mt-1 rounded-control px-3 pt-1 pb-0 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
+      ? "group relative rounded-control px-3 pt-0.5 pb-0 font-sans text-[0.875rem] text-foreground transition-colors max-md:text-[1.0625rem] duration-150 pointer-fine:hover:bg-accent/55"
+      : "group relative mt-1 rounded-control px-3 pt-1 pb-0 font-sans text-[0.875rem] text-foreground transition-colors max-md:text-[1.0625rem] duration-150 pointer-fine:hover:bg-accent/55",
     // A long press opens the actions sheet, so on a touch screen it does not also select text (the sheet copies).
     origin || editing
       ? ""
@@ -379,12 +379,12 @@
     <div data-message-body class="min-w-0 flex-1 space-y-1">
       {#if !continuous}<div
           data-message-head
-          class="-mb-0.5 flex min-h-5 flex-wrap items-center gap-x-2 text-xs text-muted-foreground"
+          class="-mb-0.5 flex min-h-5 flex-wrap items-center gap-x-2 text-xs text-muted-foreground max-md:text-sm"
         >
           <span
             class={[
               // The name is as big as the message under it; only the weight differs.
-              "text-[0.875rem] leading-5 font-semibold",
+              "text-[0.875rem] leading-5 font-semibold max-md:text-[1.0625rem] max-md:leading-6",
               m.kind === "agent"
                 ? AGENT_NAMES[agentProvider(m.via)]
                 : "text-foreground",

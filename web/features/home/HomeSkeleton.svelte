@@ -39,14 +39,14 @@
     data-home-layout="chats"
     data-home-skeleton
     class={[
-      "min-h-full bg-background px-2 pb-28 font-sans text-sm leading-6 text-foreground",
+      "min-h-full bg-background px-2 pb-28 font-sans text-base leading-6 text-foreground",
       only,
     ]}
   >
     <div role="status" aria-label={label}>
-      <div class="-mx-2 flex h-14 items-center gap-1 pr-3 pl-4">
+      <div class="-mx-2 flex h-14 items-center gap-2 pr-3 pl-4">
         <span
-          class="m-0 min-w-0 flex-1 truncate text-2xl font-bold tracking-tight"
+          class="m-0 min-w-0 flex-1 truncate text-[1.75rem] leading-9 font-bold tracking-tight"
           >{title}</span
         >
         <span
@@ -55,17 +55,17 @@
           ><Skeleton class="size-8 rounded-full" /></span
         >
       </div>
-      <div class="px-2 pt-1 pb-3">
+      <div class="px-2 pb-2">
         <Skeleton class="h-11 w-full rounded-full" />
       </div>
       <div class="space-y-0.5">
-        {#each ["h-3.5 w-36", "h-3.5 w-28", "h-3.5 w-40", "h-3.5 w-24", "h-3.5 w-32"] as name (name)}<div
-            class="flex items-center gap-3 px-2 py-2"
+        {#each ["h-4 w-36", "h-4 w-28", "h-4 w-40", "h-4 w-24", "h-4 w-32"] as name (name)}<div
+            class="flex min-h-20 items-center gap-3 px-2 py-2"
           >
-            <Skeleton class="size-10 shrink-0 rounded-xl" />
-            <div class="flex min-w-0 flex-1 flex-col gap-2">
+            <Skeleton class="size-14 shrink-0 rounded-2xl" />
+            <div class="flex min-w-0 flex-1 flex-col gap-2.5">
               <Skeleton class={name} />
-              <Skeleton class="h-3 w-48 max-w-full" />
+              <Skeleton class="h-3.5 w-48 max-w-full" />
             </div>
           </div>{/each}
       </div>

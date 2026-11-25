@@ -159,7 +159,7 @@
       "relative grid w-full min-w-0 animate-room-viewport grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] overflow-hidden [container-type:size]",
       tabs && "grid-rows-[auto_auto_auto_minmax(0,1fr)_auto_auto]!",
       $view.mobile
-        ? "grid-cols-[0_minmax(0,1fr)_0] [&_input]:text-[16px] [&_textarea]:text-[16px] [&_select]:text-[16px]"
+        ? "grid-cols-[0_minmax(0,1fr)_0] [&_input]:text-[16px] [&_textarea]:text-[17px] [&_select]:text-[16px]"
         : "grid-cols-[auto_minmax(0,1fr)_auto]",
       $view.resizing && "cursor-col-resize select-none",
     ]}

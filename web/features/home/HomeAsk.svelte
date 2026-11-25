@@ -38,6 +38,7 @@
     onnew,
     onsearch,
     compact = false,
+    dock = false,
   }: {
     personal: PersonalSession;
     lang: HomeLanguage;
@@ -46,6 +47,8 @@
     onsearch: () => void;
     /** A narrow column (the Inbox's list): the short placeholder, on one line. */
     compact?: boolean;
+    /** Docked at a phone home's foot (HomePanel): the field's bigger controls. */
+    dock?: boolean;
   } = $props();
   const draft = $derived(personal.draft);
   const mobile = new MediaQuery(MOBILE_QUERY);
@@ -182,6 +185,7 @@
     pending={$view.busy === "route"}
     ready={!!$draft.ask.trim() || !!$view.poll}
     sendDisabled={!$draft.ask.trim() && !$view.poll}
+    {dock}
   >
     {#snippet above()}
       {#if $view.poll}<div data-home-ask-poll class="flex px-2 pt-2">
