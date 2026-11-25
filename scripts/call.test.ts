@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import { expect, mock, test } from "bun:test";
 import { planTracks, withDtx } from "../web/features/call/session";
+import { createStageNav } from "../web/features/call/stageNav";
 import { meetLink, meetMessage } from "../web/features/call/meet";
 import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "../src/callBudget";
 import { CALL_THREAD, RING_MS, callLineText, isRecorder, isRecorderOf, isRoomMember, parseCallLine, recorderEmail } from "../shared/call";
@@ -282,7 +283,7 @@ function callRoom(bookId = "abcdef") {
   };
   const book = new Book(
     ctx as unknown as ConstructorParameters<typeof Book>[0],
-    { DB: { prepare: statement, batch: async () => [] }, PEOPLE, DOC_ROOMS: { idFromName: () => "doc", get: () => ({ setText: async () => {} }) } } as unknown as ConstructorParameters<typeof Book>[1],
+    { DB: { prepare: statement, batch: async () => [] }, PEOPLE, DOC_ROOMS: { idFromName: () => "doc", get: () => ({ setText: async () => {}, kickAll: async () => {} }) } } as unknown as ConstructorParameters<typeof Book>[1],
   );
   book.set("book_id", bookId);
   book.wakeAt = async () => {};
@@ -302,29 +303,55 @@ function callRoom(bookId = "abcdef") {
   return { book, frames, epics, main, thread, send, pokes, lines, socket, ws };
 }
 
-test("one call chat per room, the same for every call, and the room says which while a call is on", () => {
+test("each call of a room gets its own thread from its line in main, the room says which, and it stays after", () => {
   const r = callRoom();
   r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
-  expect(r.book.liveCallThread()).toBe(CALL_THREAD);
-  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: CALL_THREAD });
-  // No thread: the call chat is not a thread. Main has the call's line only.
-  expect(r.epics()).toHaveLength(0);
+  const [first] = r.epics();
+  expect(first?.title).toMatch(/^Call · \d{2}\/\d{2} \d{2}:\d{2}$/);
+  // The thread starts from the call's line in main, and is the person's who started the call.
   expect(r.main().map((m) => m.text)).toEqual(["📞 iniciou uma call."]);
+  expect(first).toMatchObject({ owner: "ana@x.test", from_msg: r.main()[0]!.id });
+  expect(r.book.liveCallThread()).toBe(first!.id);
+  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: first!.id });
+  // It is a normal thread: the sidebar lists it.
+  expect(r.book.wireEpics(r.book.epics()).map((e) => e.id)).toContain(first!.id);
+  // Bia joining the call that is on makes no thread.
+  r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
+  expect(r.epics()).toHaveLength(1);
   r.book.callLeave("ana@x.test");
+  r.book.callLeave("bia@x.test");
   expect(r.book.liveCallThread()).toBeUndefined();
   expect(r.frames.filter((f) => f.t === "call").at(-1)?.thread).toBeUndefined();
-  // The next call: the same chat.
-  r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
-  expect(r.book.liveCallThread()).toBe(CALL_THREAD);
-  expect(r.epics()).toHaveLength(0);
+  // After the call it stays; the next call gets a thread of its own.
+  r.book.callJoin("abcdef", "bia@x.test", "s-bia2", "https://x.test");
+  expect(r.epics()).toHaveLength(2);
+  const second = r.book.liveCallThread();
+  expect(second).not.toBe(first!.id);
+  expect(r.epics().map((e) => e.id)).toContain(second!);
 });
 
-test("a message sent to the call chat lands in it, and the room's listings never show it as a thread", async () => {
+test("what is sent beside the stage goes to the call's thread, and the recording's summary lands there", async () => {
   const r = callRoom();
   r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  const thread = r.book.liveCallThread()!;
+  expect(await r.send({ t: "msg", thread, text: "Alguém compartilha a tela?" })).toEqual({ ok: true });
+  expect(r.thread(thread).map((m) => m.text)).toEqual(["Alguém compartilha a tela?"]);
+  r.book.callLeave("ana@x.test");
+  await r.book.callRecorded("abcdef", { url: "https://grain.test/r/1", minutes: 3, people: ["ana@x.test"], transcript: "", withheld: false, file: null });
+  expect(r.thread(thread).at(-1)?.text).toContain("https://grain.test/r/1");
+});
+
+test("a call's thread deleted during the call: the call goes on, its chat is main", () => {
+  const r = callRoom();
+  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  r.book.deleteEpic(r.book.liveCallThread()!);
+  expect(r.book.liveCallThread()).toBe("main");
+});
+
+test("the room's old call chat (before each call had a thread) still takes messages, and is never listed as a thread", async () => {
+  const r = callRoom();
   expect(await r.send({ t: "msg", thread: CALL_THREAD, text: "Alguém compartilha a tela?" })).toEqual({ ok: true });
   expect(r.thread(CALL_THREAD).map((m) => m.text)).toEqual(["Alguém compartilha a tela?"]);
-  expect(r.main().map((m) => m.text)).toEqual(["📞 iniciou uma call."]);
   // The room's threads (what the app and the sidebar list) and an agent's read: no "call" among the epics; the
   // message is readable, named as the call chat.
   expect(r.book.wireEpics(r.book.epics()).map((e) => e.id)).not.toContain(CALL_THREAD);
@@ -343,18 +370,18 @@ test("the recorder alone starts no call", () => {
   expect(r.book.liveCallThread()).toBeUndefined();
 });
 
-test("a DM's call keeps the DM's own chat beside the stage; the call chat is refused there", async () => {
+test("a DM's call keeps the DM's own chat beside the stage: no thread; the call chat is refused there", async () => {
   const dm = callRoom("dm0123456789abcdef0123");
   dm.book.callJoin("dm0123456789abcdef0123", "ana@x.test", "s-ana", "https://x.test");
   expect(dm.book.liveCallThread()).toBe("main");
+  expect(dm.epics()).toHaveLength(0);
   expect(dm.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: "main" });
   expect(await dm.send({ t: "msg", thread: CALL_THREAD, text: "oi" })).toMatchObject({ ok: false });
   expect(dm.thread(CALL_THREAD)).toHaveLength(0);
 });
 
-test("the call chat comes back on a reconnect that resumes, pages like any thread, and takes a post", async () => {
+test("the old call chat comes back on a reconnect that resumes, pages like any thread, and takes a post", async () => {
   const r = callRoom();
-  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
   await r.send({ t: "msg", thread: CALL_THREAD, text: "antes" });
   const at = Date.now() - 1000;
   const since = r.book.roomWindow("main").countsAt;
@@ -386,7 +413,7 @@ test("a person alone is not recorded; the second person makes it a call to recor
   const r = callRoom();
   expect(r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test")).toBe(false);
   expect(r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test")).toBe(true);
-  expect(r.book.liveCallThread()).toBe(CALL_THREAD);
+  expect(r.book.liveCallThread()).toBe(r.epics()[0]!.id);
 });
 
 test("a hang-up takes only that session out of the call; a newer session of the person stays", () => {
@@ -670,4 +697,47 @@ test("the call's own socket keeps the person in the call after the room's socket
   call.close();
   r.book.webSocketClose(call as unknown as WebSocket);
   expect(r.book.callPeers()).toEqual([]);
+});
+
+// ---- the stage and the room's thread (RoomScene through stageNav.ts): Gimenes, 2026-11-25, stuck in the call chat ----
+test("opening the stage goes once to the call's thread; another thread closes the stage and stays", () => {
+  const nav = createStageNav();
+  const has = () => true;
+  // In a thread, a call starts: the room has not said its thread yet.
+  expect(nav.see("t-1", undefined, false, has)).toBeNull();
+  nav.opened();
+  expect(nav.see("t-1", undefined, true, has)).toBeNull();
+  // The room says the call's thread: the stage goes there, once.
+  expect(nav.see("t-1", "call-1", true, has)).toEqual({ go: "call-1" });
+  expect(nav.see("t-1", "call-1", true, has)).toBeNull();
+  expect(nav.see("call-1", "call-1", true, has)).toBeNull();
+  // A click on another thread (the sidebar), on main (the room's name) or Back: the stage closes.
+  expect(nav.see("t-2", "call-1", true, has)).toEqual({ close: true });
+  nav.closed();
+  // Closed, nothing sends the person back to the call's thread, whatever the room says next.
+  for (let i = 0; i < 3; i++) expect(nav.see("t-2", "call-1", false, has)).toBeNull();
+  expect(nav.see("main", "call-1", false, has)).toBeNull();
+  // The call's thread with the stage closed is a thread like any other: it stays.
+  expect(nav.see("call-1", "call-1", false, has)).toBeNull();
+  // Opened again from the call's thread, a move to main closes it.
+  nav.opened();
+  expect(nav.see("call-1", "call-1", true, has)).toBeNull();
+  expect(nav.see("main", "call-1", true, has)).toEqual({ close: true });
+});
+
+test("the stage waits for the call's thread to be in the room, and a move before that closes it", () => {
+  const nav = createStageNav();
+  let listed = false;
+  const has = () => listed;
+  nav.see("main", undefined, false, has);
+  nav.opened();
+  expect(nav.see("main", "call-1", true, has)).toBeNull();
+  listed = true;
+  expect(nav.see("main", "call-1", true, has)).toEqual({ go: "call-1" });
+  const other = createStageNav();
+  other.see("main", undefined, false, has);
+  other.opened();
+  expect(other.see("t-9", undefined, true, has)).toEqual({ close: true });
+  other.closed();
+  expect(other.see("t-9", "call-1", false, has)).toBeNull();
 });

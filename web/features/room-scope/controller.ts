@@ -720,8 +720,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       if (
         changed &&
         snapshot.thread !== "main" &&
-        // The call chat has no doc (it sits beside the call's stage).
+        // The call's chat opens no doc: it sits beside the call's stage, and a doc that opens closes the stage.
         snapshot.thread !== CALL_THREAD &&
+        snapshot.thread !== value.callThread &&
         !snapshot.thread.startsWith("pre:") &&
         !layout.read().documentVisible
       ) {

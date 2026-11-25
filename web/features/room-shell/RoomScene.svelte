@@ -32,10 +32,11 @@
   import { roomAvatarVersion } from "../room-scope/model";
   import CallControls from "../call/CallControls.svelte";
   import CallStage from "../call/CallStage.svelte";
+  import { createStageNav } from "../call/stageNav";
   import CallSidebarRow from "../call/CallSidebarRow.svelte";
   import CallPanel from "../call/CallPanel.svelte";
   import { callHub } from "../call/hub";
-  import { CALL_THREAD, isRecorder, roomHasThread } from "../../../shared/call";
+  import { isRecorder, roomHasThread } from "../../../shared/call";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
@@ -112,16 +113,14 @@
     title: () => get(owner.state)?.header.room.book.title ?? "",
   });
   const callView = call.state;
-  // A DM's call rings the other person (Atender joins); a room's call is joined by opening the room, unless I am in
-  // another room's call. The call I am in hears the room from its own socket (hub.ts): the room's view, which may
-  // show a saved room for a moment, does not tell it who is in it.
+  // Who is in the room's call. Opening a room never joins its call: a click does (Entrar na call, Iniciar call,
+  // Atender; a DM's call rings). The call I am in hears the room from its own socket (hub.ts): the room's view, which
+  // may show a saved room for a moment, does not tell it who is in it.
   $effect(() => {
     const peers = $view?.header.room.call,
-      me = $view?.header.room.me,
-      dm = !!$view?.header.room.book.dm,
-      busy = !!$liveCall && $liveCall.room !== captured.roomId;
+      me = $view?.header.room.me;
     untrack(() => {
-      if (!hub.isLive(call)) call.setPeers(peers, me, !dm && !busy);
+      if (!hub.isLive(call)) call.setPeers(peers, me);
     });
   });
   const inCall = $derived($callView.phase !== "idle");
@@ -135,21 +134,19 @@
   // What opening the stage changed in the layout (the doc beside the chat closes, so the stage has the room's
   // width), to put it back when the stage closes.
   let closedPane = false;
-  // The stage shows the call's own thread beside it (room.callThread): opening it goes there once.
-  let toCallThread = false,
-    asked = "";
+  // The stage shows the call's own thread beside it (room.callThread): opening it goes there once (stageNav.ts).
+  const stageNav = createStageNav();
   function openStage() {
     if (!stageOpen && !layout.read().mobile) {
       closedPane = layout.read().documentVisible;
       if (closedPane) layout.toggleDocument();
     }
     stageOpen = true;
-    toCallThread = true;
-    asked = "";
+    stageNav.opened();
   }
   function closeStage() {
     stageOpen = false;
-    toCallThread = false;
+    stageNav.closed();
     chatHidden = false;
     // The stage in full screen (CallStage) leaves it with the stage.
     if (document.fullscreenElement) void document.exitFullscreen();
@@ -180,39 +177,23 @@
       if (asked.camera) cameraOpen = true;
     });
   });
-  // Another thread (the sidebar, a link, Back) closes the stage; the call's chat keeps it. The call chat is only
-  // seen beside the stage: with the stage closed (hung up, or a link to it), the person goes back to where they were.
-  let lastThread = "",
-    returnTo = "main",
-    sentBack = "";
+  // Another thread (the sidebar, a link, Back) closes the stage; the call's own thread keeps it. The call's thread
+  // is a normal thread (a room's call has one, a DM's is the conversation): with the stage closed it stays open as
+  // any other, so nothing ever sends the person back to it.
   $effect(() => {
     const room = $view?.header.room,
       thread = $view?.header.thread ?? "",
       target = room?.callThread,
       open = staged;
     untrack(() => {
-      const moved = thread !== lastThread;
-      lastThread = thread;
-      if (moved && thread !== CALL_THREAD) returnTo = thread || "main";
-      if (!open) {
-        if (thread === CALL_THREAD && sentBack !== thread) {
-          sentBack = thread;
-          owner.actions.setThread(
-            returnTo !== CALL_THREAD && room && roomHasThread(room, returnTo)
-              ? returnTo
-              : "main",
-          );
-        }
-        if (thread !== CALL_THREAD) sentBack = "";
-        return;
-      }
-      if (moved && thread !== target) return closeStage();
-      if (!toCallThread || !target || !room) return;
-      if (thread === target) toCallThread = false;
-      else if (asked !== target && roomHasThread(room, target)) {
-        asked = target;
-        owner.actions.setThread(target);
-      }
+      const move = stageNav.see(
+        thread,
+        target,
+        open,
+        (id) => !!room && roomHasThread(room, id),
+      );
+      if (move && "close" in move) closeStage();
+      else if (move) owner.actions.setThread(move.go);
     });
   });
   // A pane that opens (doc, files, apps, people, a pinned file) closes the stage too.
@@ -461,6 +442,7 @@
       bind:cameraOpen
       chatHidden={fill ? chatHidden : undefined}
       onchat={() => (chatHidden = !chatHidden)}
+      onclose={fill ? closeStage : undefined}
       t={services.t}
     />{/if}{/snippet}
 {#snippet callBeside()}{@render callStage(true)}{/snippet}

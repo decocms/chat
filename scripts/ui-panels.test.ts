@@ -9117,6 +9117,8 @@ const { default: IncomingCall } =
   await import("../web/features/call/IncomingCall.svelte");
 const { default: CallPanel } =
   await import("../web/features/call/CallPanel.svelte");
+const { default: CallControls } =
+  await import("../web/features/call/CallControls.svelte");
 const { createCallHub } = await import("../web/features/call/hub");
 const { incomingRing } = await import("../web/features/call/ring");
 describe("the call is the app's (web/features/call/hub.ts)", () => {
@@ -9153,6 +9155,62 @@ describe("the call is the app's (web/features/call/hub.ts)", () => {
       configurable: true,
     });
   }
+
+  // Viktor, 2026-11-25: "everybody joined every call and is stuck in calls". A room that hears its call is on
+  // never joins: only a click does.
+  const inTheCall = [
+    { email: "ana@x.test", session: "s-ana", tracks: ["mic"] },
+    { email: "bia@x.test", session: "s-bia", tracks: ["mic"] },
+  ];
+  test("opening a room with a call on does not join it, nor does visiting several rooms with calls", () => {
+    noMicrophoneYet();
+    const { hub, opened } = fakeHub();
+    for (const room of ["room-a", "room-b", "room-c", "dm-ana-me"]) {
+      // What RoomScene does when the room opens and on every word of the room after.
+      const call = hub.session(room, { title: () => room });
+      for (let i = 0; i < 3; i++) call.setPeers(inTheCall, "me@x.test");
+      expect(get(call.state).phase).toBe("idle");
+      expect(get(hub.live)).toBeNull();
+      hub.release(room, call);
+    }
+    expect(opened).toEqual([]);
+  });
+
+  test("only a click joins: the top bar's green phone joins the room's call that is on", async () => {
+    noMicrophoneYet();
+    const { hub, opened } = fakeHub();
+    const call = hub.session("room-a", { title: () => "Sala A" });
+    call.setPeers(inTheCall, "me@x.test");
+    const target = document.createElement("div");
+    document.body.append(target);
+    let stage = 0;
+    const instance = flushSync(() =>
+      mount(CallControls, {
+        target,
+        props: {
+          call,
+          peers: inTheCall,
+          name: (email: string) => email.split("@")[0]!,
+          onopen: () => stage++,
+          t: (text: string) => text,
+        },
+      }),
+    );
+    try {
+      expect(get(call.state).phase).toBe("idle");
+      target.querySelector<HTMLElement>("[data-call-start]")!.click();
+      flushSync();
+      expect(get(call.state).phase).toBe("joining");
+      expect(get(hub.live)?.room).toBe("room-a");
+      expect(opened).toEqual(["room-a"]);
+      // In the call, the same phone opens the stage: no second join.
+      target.querySelector<HTMLElement>("[data-call-start]")!.click();
+      expect(stage).toBe(1);
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
+  });
 
   test("Atender from another room joins the DM's call, goes to the DM and clears the ring, in one click", async () => {
     noMicrophoneYet();

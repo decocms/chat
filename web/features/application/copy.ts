@@ -878,6 +878,7 @@ const EN: Readonly<Record<string, string>> = {
     "Your screen share stopped: the screen did not change for 10 minutes.",
   "Mostrar o chat": "Show the chat",
   "Ocultar o chat": "Hide the chat",
+  "Voltar pro chat (a call continua)": "Back to the chat (the call goes on)",
   "Sua tela, como os outros veem": "Your screen, as the others see it",
   "Não consegui usar o microfone. Libere o acesso no navegador.":
     "I could not use the microphone. Allow it in the browser.",

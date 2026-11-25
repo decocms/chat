@@ -834,12 +834,23 @@ export class Book extends DurableObject<Env> {
   liveCallThread(): string | undefined {
     return this.callPeers().some((p) => !isRecorder(p.email)) ? this.callThread() : undefined;
   }
-  /** The room's call chat: one for every call of the room (CALL_THREAD, never listed as a thread). A DM's call
-   *  is the conversation's. */
+  /** The thread of the call that is on (or of the last one): a room's call has its own thread (newCallThread), a
+   *  DM's call is the conversation's. A thread deleted since, or a call from before threads per call: main. */
   private callThread(): string {
-    return this.isDm ? "main" : CALL_THREAD;
+    const thread = this.isDm ? "main" : (this.get("call_thread") ?? "main");
+    return this.epics().some((e) => e.id === thread) ? thread : "main";
   }
-  /** A thread a message can go to: main, the room's call chat, an epic. */
+  /** A new call's own thread, started from its line in main: "Call · 25/11 14:30". The chat beside the stage while
+   *  the call is on, then a normal thread in the sidebar where the recording's summary lands. */
+  private newCallThread(email: string, line: number, at: number): string {
+    const when = new Intl.DateTimeFormat(this.en ? "en-US" : "pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(at).replace(",", "");
+    const id = this.createEpic(`Call · ${when}`);
+    this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, line, id);
+    this.epicsChanged();
+    return id;
+  }
+  /** A thread a message can go to: main, an epic (a call's thread is one), and the room's old call chat
+   *  (CALL_THREAD: every call's chat before each call had its own thread). */
   knownThread(thread: string): boolean {
     return thread === "main" || (thread === CALL_THREAD && !this.isDm) || this.epics().some((e) => e.id === thread);
   }
@@ -899,6 +910,7 @@ export class Book extends DurableObject<Env> {
     this.set("call_line", String(m.id));
     this.set("call_at", String(m.ts));
     this.set("call_many", "");
+    this.set("call_thread", this.isDm ? "" : this.newCallThread(email, m.id, m.ts));
     if (this.isDm) this.ctx.waitUntil(this.ringStart(email).catch((e) => console.error("call ring", String(e))));
   }
   /** The last person left: the line says how it went, in the same message (a DM nobody answered: missed). */

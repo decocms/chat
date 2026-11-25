@@ -170,8 +170,6 @@ export function createCallSession(
     idleReports = 0,
     sound: AudioContext | null = null,
     speakTimer: ReturnType<typeof setInterval> | undefined,
-    // Left on purpose, or the microphone or the call failed: no automatic join until the call ends.
-    stayOut = false,
     // Each teardown (a hang-up, a drop, a failure) starts a new epoch. A step of the SFU that was on its way when
     // the call ended belongs to the old one: what it does or fails afterwards is no error of the call (a hang-up
     // showed "A call falhou", 2026-11-25).
@@ -261,7 +259,6 @@ export function createCallSession(
     denoiser?.stop();
     denoiser = null;
     micSender = null;
-    if (error === "mic" || error === "failed") stayOut = true;
     clearInterval(usageTimer);
     clearInterval(speakTimer);
     clearTimeout(retryTimer);
@@ -461,32 +458,22 @@ export function createCallSession(
   return {
     state: { subscribe: state.subscribe },
     /** The room's word on who is in the call. Missing from it while in the call = this tab was dropped. */
-    /** `me`: with a call on in the room and me not in it, this tab joins by itself, microphone off. */
-    /** `auto`: false in a DM, whose call rings instead (the person answers it). */
-    setPeers(next: readonly CallPeer[] | undefined, me = "", auto = true) {
+    /** `me`: who I am (my own mark in the list). Hearing that a call is on never joins this tab: only a click
+     *  (Entrar na call, Iniciar call, Atender) does. A room that joined by itself kept every visitor in its call once
+     *  the call outlived the room's view (hub.ts): Viktor, 2026-11-25, "everybody joined every call". */
+    setPeers(next: readonly CallPeer[] | undefined, me = "") {
       // The recorder (shared/call.ts) is in the list, and is not a person: nobody receives its tracks, and it
       // does not count as company.
       const all = [...(next ?? [])];
       peers = all.filter((peer) => !isRecorder(peer.email));
       self = me || self;
-      if (!peers.length) stayOut = false;
-      const phase = get(state).phase;
-      if (phase === "in") {
-        if (!all.some((peer) => peer.session === session)) teardown("dropped");
-        else {
-          // Nobody is left to see my screen.
-          if (peers.length < 2) stopShare("alone");
-          void enqueue(sync);
-        }
-      } else if (
-        phase === "idle" &&
-        auto &&
-        me &&
-        peers.length &&
-        !stayOut &&
-        !all.some((peer) => peer.email === me)
-      )
-        this.join(true);
+      if (get(state).phase !== "in") return;
+      if (!all.some((peer) => peer.session === session)) teardown("dropped");
+      else {
+        // Nobody is left to see my screen.
+        if (peers.length < 2) stopShare("alone");
+        void enqueue(sync);
+      }
     },
     join(muted = false) {
       if (get(state).phase !== "idle") return;
@@ -549,7 +536,6 @@ export function createCallSession(
       if (get(state).phase === "idle") return;
       // Still joining with no session yet: the join, when the room answers, leaves that session (join).
       if (session) leaveServer(session);
-      stayOut = true;
       teardown();
     },
     /** Noise suppression on or off: in the call now, and in the next calls on this device. */

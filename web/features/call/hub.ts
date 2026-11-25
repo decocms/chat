@@ -94,9 +94,8 @@ export function createCallHub(options: CallHubOptions = {}) {
     live.set({ room, title: entry.title(), session: entry.session });
     const opened = connect(room, {
       onEvent(event: RoomEvent) {
-        // The room's word on the call: the session sees who is in it (and if it was dropped). A DM rings rather than
-        // joining by itself, and the live call never joins by itself.
-        if (event.t === "call") entry.session.setPeers(event.call, me, false);
+        // The room's word on the call: the session sees who is in it (and if it was dropped).
+        if (event.t === "call") entry.session.setPeers(event.call, me);
       },
       onRemoved: () => entry.session.leave(),
       onUnavailable: () => entry.session.leave(),

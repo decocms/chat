@@ -35,6 +35,7 @@
     fill = false,
     chatHidden,
     onchat,
+    onclose,
     staged = true,
     cameraOpen = $bindable(false),
     t,
@@ -52,6 +53,8 @@
     /** Desktop: is the chat column beside the stage hidden? Missing = there is no column to hide (phones). */
     chatHidden?: boolean;
     onchat?(): void;
+    /** Desktop: closes the stage, back to the room's chat; the call goes on. */
+    onclose?(): void;
     /** In the call with the stage closed (the person reads the room): only the toasts and the camera's dialog. */
     staged?: boolean;
     /** The camera's dialog is open (the sidebar's call panel opens it too). */
@@ -365,6 +368,16 @@
               icon={full ? "minimize-01" : "expand-01"}
               size={16}
             /></IconButton
+          >{/if}
+        {#if onclose && !full}<IconButton
+            data-call-close
+            label={t("Voltar pro chat (a call continua)")}
+            tooltipSide="bottom"
+            class={cn(
+              !canFull && "ml-auto",
+              "size-8 rounded-full text-call-muted-foreground hover:bg-call-button hover:text-call-foreground",
+            )}
+            onclick={() => onclose?.()}><Icon icon="x" size={16} /></IconButton
           >{/if}
       </div>
       <div
