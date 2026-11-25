@@ -294,3 +294,66 @@ test("a page of a thread: newest, before an id, after an id, with more and in ti
     "m2",
   ]);
 });
+
+test("a reconnect resumes: newer, edited and deleted messages plus the open thread; whole state when too old (cache plan PR 2)", async () => {
+  const { book, run, db } = fixture();
+  const ids = Array.from(
+    { length: 4 },
+    (_, i) => book.addMessage("main", email, `m${i}`).id,
+  );
+  const at = Date.now();
+  db.query(`UPDATE messages SET ts = ts - 1000`).run();
+  const fresh = book.addMessage("e1", email, "new").id;
+  expect(await run({ t: "msg.edit", id: ids[1]!, text: "m1 edited" })).toEqual({
+    ok: true,
+  });
+  expect(
+    await book.changeMessage(ids[0]!, { email, agent: false }, null),
+  ).toEqual({ ok: true });
+  const url = (q: string) => new URL(`https://x.test/ws/abcdef?t=main&${q}`);
+  const window = book.roomWindow("main", email).messages;
+  const resumed = book.resumeOf(
+    url(`since=${ids[3]}&at=${at}&eh=h1`),
+    "main",
+    window,
+    "h1",
+  );
+  expect(resumed?.epicsSame).toBe(true);
+  const texts = Object.fromEntries(
+    resumed!.messages.map((m) => [m.id, m.text]),
+  );
+  expect(texts[fresh]).toBe("new");
+  expect(texts[ids[1]!]).toBe("m1 edited");
+  expect(
+    resumed!.messages.find((m) => m.id === ids[0])?.deleted,
+  ).toBeGreaterThan(0);
+  // The open thread's window comes too (a reconnect can open another thread).
+  expect(texts[ids[3]!]).toBe("m3");
+  expect(
+    book.resumeOf(url(`since=${ids[3]}&at=${at}&eh=old`), "main", window, "h1")
+      ?.epicsSame,
+  ).toBe(false);
+  // No params, a state older than 6 h, or a time from the future: the whole state.
+  expect(book.resumeOf(url(""), "main", window, "h1")).toBeNull();
+  expect(
+    book.resumeOf(
+      url(`since=${ids[3]}&at=${at - 7 * 3600_000}`),
+      "main",
+      window,
+      "h1",
+    ),
+  ).toBeNull();
+  expect(
+    book.resumeOf(
+      url(`since=${ids[3]}&at=${Date.now() + 60_000}`),
+      "main",
+      window,
+      "h1",
+    ),
+  ).toBeNull();
+  // More than 200 changed rows: the whole state.
+  for (let i = 0; i < 201; i++) book.addMessage("main", email, `bulk ${i}`);
+  expect(
+    book.resumeOf(url(`since=${ids[3]}&at=${at}`), "main", window, "h1"),
+  ).toBeNull();
+});

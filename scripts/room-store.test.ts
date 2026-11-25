@@ -68,6 +68,60 @@ describe("Book room state reducer", () => {
     expect(old.typing).toEqual({ "2": "smart" });
   });
 
+  test("a resumed reconnect merges its messages and acks into the room, keeps the threads when epicsSame (cache plan PR 2)", () => {
+    const old = room({
+      messages: [message(1), message(2), message(3)],
+      acks: [ack("A", "doing", 1), ack("B", "doing", 3)],
+      typing: { "2": "smart" },
+      filesAll: true,
+      eh: "h1",
+    });
+    const { id: _id, typing: _typing, ...base } = room();
+    const resumed = apply(old, {
+      t: "state",
+      ...base,
+      messages: [message(3, "edited"), message(4)],
+      acks: [ack("B", "done", 3)],
+      epics: [],
+      epicsSame: true,
+      resume: true,
+      at: 9,
+      eh: "h1",
+    });
+    expect(resumed.messages.map((m) => [m.id, m.text])).toEqual([
+      [1, "message 1"],
+      [2, "message 2"],
+      [3, "edited"],
+      [4, "message 4"],
+    ]);
+    expect(resumed.acks?.map((a) => [a.msg_id, a.status])).toEqual([
+      [1, "doing"],
+      [3, "done"],
+    ]);
+    expect(resumed.epics.map((e) => e.id)).toEqual(["a", "b"]);
+    expect(resumed.typing).toEqual({});
+    expect(resumed.filesAll).toBeUndefined();
+    expect(resumed.at).toBe(9);
+    // Threads that changed come whole.
+    const changed = apply(old, {
+      t: "state",
+      ...base,
+      messages: [],
+      epics: [epic("c")],
+      resume: true,
+    });
+    expect(changed.epics.map((e) => e.id)).toEqual(["c"]);
+    // An epics event after the state: its hash no longer names the threads.
+    expect(apply(old, { t: "epics", epics: [epic("z")] }).eh).toBeUndefined();
+    // A resume for another room is a full state there.
+    expect(
+      reduceRoom(
+        old,
+        { t: "state", ...base, messages: [message(9)], resume: true },
+        "other",
+      )?.messages.map((m) => m.id),
+    ).toEqual([9]);
+  });
   test("duplicate msg delivery does not duplicate or replace a newer message", () => {
     const initial = room({ messages: [message(2, "fresh text")] });
     const retry = apply(initial, { t: "msg", m: message(2, "old retry") });

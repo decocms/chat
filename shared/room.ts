@@ -245,6 +245,13 @@ export const RoomSnapshotSchema = z.object({
   pins: opt(z.array(PinSchema)),
   polls: opt(z.record(str, PollSchema)),
   briefs: opt(z.array(BriefSchema)),
+  /** When the Book built this state, and the hash of its epics: a reconnect sends them back (since/at/eh) to resume. */
+  at: opt(num),
+  eh: opt(str),
+  /** A resumed state (cache plan PR 2): only what changed since the app's last one, merged into the room it has.
+   *  epicsSame = the threads did not change, so epics is empty and the app keeps its own. */
+  resume: opt(bool),
+  epicsSame: opt(bool),
 });
 /** The room as the browser keeps it: the snapshot plus its id and who is typing. */
 export type Room = z.infer<typeof RoomSnapshotSchema> & {
