@@ -401,3 +401,67 @@ test("read_room gives each message its thread's id, so two threads with one titl
   // The messages nobody acked yet say which thread too.
   expect(read.unacked?.map((m) => m.epic_id)).toEqual([a, b, "main"]);
 });
+
+// Gui #4562: main is almost only thread starts. A request taken by its person's Claude opens its thread.
+test("an ack on the person's own request in main opens its thread, and start_thread fills that one", async () => {
+  const f = fixture();
+  const req = f.book.addMessage("main", email, "coloca o email abaixo do nome");
+  const ack = f.book.agentAck("abcdef", "a1", email, "Claude", req.id);
+  const thread = (ack as { thread?: string }).thread ?? "";
+  expect(thread).toMatch(/^[0-9a-f]{8}$/);
+  expect(f.epic(thread)).toMatchObject({
+    from_msg: req.id,
+    owner: email,
+    title: "coloca o email abaixo do nome",
+  });
+  // Acking again does not open a second one.
+  expect(
+    f.book.agentAck("abcdef", "a1", email, "Claude", req.id),
+  ).not.toHaveProperty("thread");
+  const made = await f.book.agentEpic(
+    "abcdef",
+    email,
+    "Email embaixo do nome",
+    "Gui pediu",
+    ["PR", "Conferir em prod"],
+    "Claude",
+    req.id,
+    "a1",
+  );
+  expect(made).toMatchObject({
+    ok: true,
+    epic_id: thread,
+    tasks: [{ title: "PR" }, { title: "Conferir em prod" }],
+  });
+  expect(f.epic(thread)?.title).toBe("Email embaixo do nome");
+  // A reply in main to that request goes into its thread.
+  await f.book.agentPost(
+    "abcdef",
+    email,
+    "PR aberto",
+    "main",
+    [],
+    "Claude",
+    false,
+    false,
+    req.id,
+  );
+  expect(f.messages().at(-1)).toMatchObject({ thread, reply_to: req.id });
+});
+
+test("an ack opens no thread for someone else's message, a thread message, or idle", () => {
+  const f = fixture();
+  const theirs = f.book.addMessage(
+    "main",
+    "other@example.test",
+    "pedido de outra pessoa",
+  );
+  expect(
+    f.book.agentAck("abcdef", "a1", email, "Claude", theirs.id),
+  ).not.toHaveProperty("thread");
+  const mine = f.book.addMessage("main", email, "ok, valeu");
+  expect(
+    f.book.agentAck("abcdef", "a1", email, "Claude", mine.id, "idle"),
+  ).not.toHaveProperty("thread");
+  expect(f.db.query(`SELECT COUNT(*) AS n FROM epics`).get()).toEqual({ n: 0 });
+});

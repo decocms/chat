@@ -1803,3 +1803,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. An app can put text in the composer when the person does not expect it, but it cannot send it. It cannot remove the text of the person.
 - Undo: Revert this commit. Apps then get the question before each post again.
 - Status: open
+
+### 2026-11-25 · feat/ack-opens-thread · A request taken in main opens its thread on the ack
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#4562, #4565): main should be almost only thread starts. Agents answered requests in main instead of opening a thread.
+- Decision:
+  - When an agent acks (`doing`) a message of its own human in main that has no thread, the server opens a thread from it (title = the request, owner = that person, status doing). `start_thread` for that message returns this thread once and sets the agent's title, goal and tasks.
+  - A post in main with `reply_to` a request that has an open thread goes into that thread.
+- Other options: open a thread for every message of a person in main (also small talk and yes/no answers would become threads); only a stronger rule for agents (agents already had the rule and skipped it).
+- Risk: low. A short request that an agent acks with `doing` gets a thread with no tasks. Another person's message, an `idle` or `done` ack and DMs open nothing.
+- Undo: Revert this commit. Agents then open threads only with `start_thread`.
+- Status: open
