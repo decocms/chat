@@ -16,7 +16,13 @@ const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
   locale: "en-US",
 });
-await context.addCookies([{ name: "vb_lang", value: "en", url: base }]);
+await context.addCookies([
+  { name: "vb_lang", value: "en", url: base },
+  // A fresh dev identity (dev_as) when the Worker's DEV_EMAIL already has rooms.
+  ...(process.env.TEST_DEV_AS
+    ? [{ name: "dev_as", value: process.env.TEST_DEV_AS, url: base }]
+    : []),
+]);
 const page = await context.newPage();
 const initial = MeResult.parse(
   await (await context.request.get(`${base}/api/me`)).json(),
@@ -45,21 +51,21 @@ await page.route("**/api/agents", (route) =>
   }),
 );
 try {
-  const reset = await context.request.post(`${base}/api/me`, {
-    data: { name: "" },
-  });
-  assert(reset.ok());
+  // The Worker rejects an empty name, so a named identity cannot be reset: use a fresh one.
+  assert(!initial.name, "Use a fresh, nameless identity (TEST_DEV_AS)");
   await page.goto(`${base}/`, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });
-  const wizard = page.locator("[data-onboarding]");
+  // The first run is a dialog over the actual Home, which renders behind it.
+  const wizard = page.locator('[role="dialog"][data-onboarding]');
   await expect(wizard).toHaveAttribute("data-onboarding-step", "1");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator('[data-view="home"]')).toHaveCount(1);
+  await expect(wizard.getByText("Step 1 of 3", { exact: true })).toBeVisible();
   await page
     .getByRole("textbox", { name: "Your name", exact: true })
     .fill("Onboarding Fixture");
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await wizard.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(wizard).toHaveAttribute("data-onboarding-step", "2", {
     timeout: 30_000,
   });
@@ -79,10 +85,14 @@ try {
     exact: true,
   });
   await draft.fill("First-room draft retained across Back");
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await wizard.getByRole("button", { name: "Back", exact: true }).click();
   await expect(wizard).toHaveAttribute("data-onboarding-step", "1");
-  await page
-    .getByRole("button", { name: "Skip and see the home", exact: true })
+  await wizard.getByRole("button", { name: "Skip", exact: true }).click();
+  await expect(wizard).toHaveAttribute("data-onboarding-step", "3");
+  await expect(draft).toHaveValue("First-room draft retained across Back");
+  // The ✕ closes the whole thing: every step left is skipped for good.
+  await wizard
+    .getByRole("button", { name: "Close and see the home", exact: true })
     .click();
   await expect(wizard).toHaveCount(0);
   await page.reload();
@@ -94,8 +104,5 @@ try {
   // This harness intentionally does not call model-backed start-room or fabricate a room result.
   // The actual creator/authoritative-ID path is separately covered by owner fixtures.
 } finally {
-  await context.request.post(`${base}/api/me`, {
-    data: { name: initial.name ?? "" },
-  });
   await browser.close();
 }

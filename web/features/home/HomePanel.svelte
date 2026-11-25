@@ -50,7 +50,6 @@
     rooms,
     profile,
     creator,
-    onlanguage,
     lang,
     ago,
     onnavigate,
@@ -383,9 +382,9 @@
     </p>{/if}{/snippet}
 
 <svelte:head><title>{tabTitle("deco.chat", waits.length)}</title></svelte:head>
-{#if $onboardingView.visible}
-  <Onboarding owner={onboarding} {lang} {onlanguage} />
-{:else if mobile.current && !$account.me && !$account.error}
+<!-- The first run is a dialog over this Home, not a page of its own (Valls). -->
+<Onboarding owner={onboarding} {lang} />
+{#if mobile.current && !$account.me && !$account.error}
   <!-- A phone while your account loads: the list's bar, title on the left (Gimenes #3878). -->
   <HomeSkeleton label={text("loading")} title={text("chatsTitle")} chats />
 {:else if mobile.current && $account.me && chatList($account.me).length}

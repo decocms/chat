@@ -892,7 +892,6 @@ test("Home renders untrusted room metadata as text and passes exact room identit
         rooms,
         profile,
         creator,
-        onlanguage: () => {},
         lang: "en",
         ago: () => "now",
         onnavigate: (value: RoomTarget) => navigation.push(value),
@@ -958,7 +957,6 @@ test("Home ask box is the room's chat box: emoji, + menu and dictation that keep
         rooms,
         profile,
         creator,
-        onlanguage: () => {},
         lang: "en",
         ago: () => "now",
         onnavigate: () => {},
@@ -1056,7 +1054,6 @@ test("room refresh keeps Home draft/focus, then unmount owns late routing result
           rooms,
           profile,
           creator,
-          onlanguage: () => {},
           lang: "en",
           ago: () => "now",
           onnavigate: (value: RoomTarget) => navigation.push(value),
@@ -1124,7 +1121,6 @@ test("canonical ask clearance takes the ask card away without hiding the task", 
         lang: "en",
         ago: () => "now",
         onnavigate: () => {},
-        onlanguage: () => {},
         onhome: () => {},
         onarchived: () => {},
         onnew: () => {},
@@ -1155,11 +1151,10 @@ test("canonical ask clearance takes the ask card away without hiding the task", 
   expect(target.querySelector("h1")?.textContent).toContain("One thing");
   expect(target.textContent).toContain("Task remains actionable");
 });
-test("actual Home mounts three onboarding steps, preserves drafts across Back and skips into ordinary Home", async () => {
-  let canonical = me({ name: "", books: [] });
-  const { personal, rooms, pwa, profile, creator } = await setup({
-    me: async () => canonical,
-  });
+async function mountOnboardingHome(name = "") {
+  let canonical = me({ name, books: [] });
+  const fixture = await setup({ me: async () => canonical });
+  const { personal, rooms, pwa, profile, creator } = fixture;
   const target = document.createElement("div");
   document.body.append(target);
   const component = flushSync(() =>
@@ -1174,7 +1169,6 @@ test("actual Home mounts three onboarding steps, preserves drafts across Back an
         lang: "en",
         ago: () => "now",
         onnavigate: () => {},
-        onlanguage: () => {},
         onhome: () => {},
         onarchived: () => {},
         onnew: () => {},
@@ -1190,37 +1184,54 @@ test("actual Home mounts three onboarding steps, preserves drafts across Back an
     }),
   );
   await flush();
+  // The dialog is portaled to the body; the Home renders behind it.
+  const dialog = () =>
+    document.querySelector<HTMLElement>('[role="dialog"][data-onboarding]');
   const click = (label: string) => {
-    const button = [...target.querySelectorAll("button")].find(
+    const button = [...(dialog()?.querySelectorAll("button") ?? [])].find(
       (value) => value.textContent?.trim() === label,
     );
     expect(!!button).toBe(true);
     button!.click();
   };
-  const step = () =>
-    target
-      .querySelector("[data-onboarding]")
-      ?.getAttribute("data-onboarding-step");
-  expect(step()).toBe("1");
-  expect(target.querySelector('[role="dialog"]')).toBe(null);
-  const name = target.querySelector<HTMLInputElement>(
-    'input[autocomplete="given-name"]',
-  )!;
+  const step = () => dialog()?.getAttribute("data-onboarding-step");
+  // Closed, or on its way out (the exit animation keeps it a moment).
+  const closed = () => dialog()?.getAttribute("data-state") !== "open";
+  return {
+    closed,
+    ...fixture,
+    target,
+    dialog,
+    click,
+    step,
+    canonical(value: ReturnType<typeof me>) {
+      canonical = value;
+    },
+  };
+}
+test("onboarding is a dialog over the actual Home: three steps, drafts kept across Back, skip finishes", async () => {
+  localStorage.clear();
+  const h = await mountOnboardingHome();
+  expect(h.step()).toBe("1");
+  expect(h.target.querySelector("[data-onboarding]")).toBe(null);
+  expect(h.target.querySelector('[data-view="home"]') === null).toBe(false);
+  expect(h.dialog()!.textContent).toContain("Step 1 of 3");
+  const name = h
+    .dialog()!
+    .querySelector<HTMLInputElement>('input[autocomplete="given-name"]')!;
   name.value = "Ada";
   name.dispatchEvent(new Event("input", { bubbles: true }));
-  target
-    .querySelector("form")!
-    .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  h.click("Continue");
   await flush();
-  expect(step()).toBe("1"); // An HTTP success is not the canonical profile.
-  canonical = me({ name: "Ada", books: [] });
-  await personal.refresh();
+  expect(h.step()).toBe("1"); // An HTTP success is not the canonical profile.
+  h.canonical(me({ name: "Ada", books: [] }));
+  await h.personal.refresh();
   await flush();
-  expect(step()).toBe("2");
-  click("Skip for now");
+  expect(h.step()).toBe("2");
+  h.click("Skip");
   await flush();
-  expect(step()).toBe("3");
-  const draft = target.querySelector("textarea")!;
+  expect(h.step()).toBe("3");
+  const draft = h.dialog()!.querySelector("textarea")!;
   draft.value = "A careful first room";
   draft.dispatchEvent(new Event("input", { bubbles: true }));
   const composing = new KeyboardEvent("keydown", {
@@ -1231,17 +1242,37 @@ test("actual Home mounts three onboarding steps, preserves drafts across Back an
   });
   draft.dispatchEvent(composing);
   await flush();
-  expect(get(creator.state).busy).toBe(false);
-  click("Back");
+  expect(get(h.creator.state).busy).toBe(false);
+  h.click("Back");
   await flush();
-  expect(step()).toBe("2");
-  click("Skip for now");
+  expect(h.step()).toBe("2");
+  h.click("Skip");
   await flush();
-  expect(target.querySelector("textarea")!.value).toBe("A careful first room");
-  click("Skip and see the home");
+  expect(h.dialog()!.querySelector("textarea")!.value).toBe(
+    "A careful first room",
+  );
+  h.click("Skip"); // Skipping the last step finishes.
   await flush();
-  expect(step()).toBe(undefined);
-  expect(target.querySelector("#home-ask") === null).toBe(false);
+  expect(h.closed()).toBe(true);
+  expect(h.target.querySelector("#home-ask") === null).toBe(false);
+  expect(localStorage.getItem("vb.obDone")).toBe("1");
+});
+test("skipping the name keeps the email's name and moves on; the close button skips all for good", async () => {
+  localStorage.clear();
+  const h = await mountOnboardingHome();
+  expect(h.step()).toBe("1");
+  h.click("Skip");
+  await flush();
+  expect(h.step()).toBe("2");
+  expect(localStorage.getItem("vb.obName")).toBe("1");
+  expect(get(h.personal.state).me?.name).toBe("");
+  const close = [...h.dialog()!.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Close and see the home",
+  );
+  expect(!!close).toBe(true);
+  close!.click();
+  await flush();
+  expect(h.closed()).toBe(true);
   expect(localStorage.getItem("vb.obDone")).toBe("1");
 });
 
@@ -1982,7 +2013,6 @@ test("a phone's list of conversations puts a new version first, as the desktop s
         lang: "en",
         ago: () => "now",
         onnavigate: () => {},
-        onlanguage: () => {},
         onhome: () => {},
         onarchived: () => {},
         onnew: () => {},

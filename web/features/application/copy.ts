@@ -1145,6 +1145,25 @@ const EN: Readonly<Record<string, string>> = {
     "Empty doc. Click <b>Edit</b> or ask your agent to summarize the decisions here.",
   "@vibe avaliou este doc. O agent de cada um também recebe isso (doc_notes).":
     "@vibe reviewed this doc. Everyone's agent gets this too (doc_notes).",
+  // The first-run dialog over the home (web/features/onboarding).
+  "Passo {n} de 3": "Step {n} of 3",
+  Continuar: "Continue",
+  "Trocar foto": "Change photo",
+  "Adicionar foto (opcional)": "Add a photo (optional)",
+  "Foto do perfil": "Profile photo",
+  "Solte a imagem aqui": "Drop the image here",
+  "No deco.chat cada pessoa traz o próprio Claude: ele lê a sala, trabalha nas tarefas e te pergunta antes de agir. Cole isto no Claude Code, dentro da pasta do projeto:":
+    "In deco.chat everyone brings their own Claude: it reads the room, works on the tasks and asks you before acting. Paste this into Claude Code, inside the project folder:",
+  "Sua primeira sala": "Your first room",
+  "Uma sala por projeto: conversa, doc e tarefas. Diga o que é e com quem; quem você citar é convidado.":
+    "One room per project: chat, doc and tasks. Say what it is and with whom; anyone you name gets invited.",
+  "Criar a sala": "Create the room",
+  "Não foi possível salvar. Confira os dados e tente novamente.":
+    "Could not save. Check the details and try again.",
+  "Ainda sem confirmação. Confira o estado atual antes de tentar novamente.":
+    "Not confirmed yet. Review the current state before trying again.",
+  "Conferi o estado atual": "I reviewed the current state",
+  "Fechar e ver a home": "Close and see the home",
 };
 export function createApplicationCopy(language: ApplicationLanguage) {
   return (pt: string, vars?: CopyVars): string => {
