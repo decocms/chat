@@ -20,7 +20,7 @@ import {
   OkResult,
   PostMessageResult,
 } from "../shared/schemas";
-import { parseRoomEvent, record } from "../shared/validation";
+import { parseRoomEvent, record, toRoomEvent } from "../shared/validation";
 import { createRoomStore } from "../web/app/roomStore";
 import { createRoomApi } from "../web/app/transport";
 import type { FetchLike } from "../web/app/transport";
@@ -258,6 +258,20 @@ function observe(page: Page, roomId: string) {
     sent: Record<string, number> = {},
     received: Record<string, number> = {};
   page.on("pageerror", (error) => errors.push(localBrowserError(error, base)));
+  // A light socket sends `hello`, and the app reads the room's `state` over HTTP (GET /api/books/:id/room): the
+  // store takes that state too, as the app does.
+  page.on("response", async (response) => {
+    if (new URL(response.url()).pathname !== `/api/books/${roomId}/room`)
+      return;
+    if (!response.ok()) return;
+    try {
+      const event = toRoomEvent(await response.json());
+      received[event.t] = (received[event.t] ?? 0) + 1;
+      store.apply(event, roomId);
+    } catch {
+      errors.push({ name: "InvalidRealBookSnapshot", locations: [] });
+    }
+  });
   const active = new Map<object, keyof ApplicationSockets>();
   const activeCounts: ApplicationSockets = { book: 0, personal: 0, yjs: 0 };
   const observedAt = Date.now();
