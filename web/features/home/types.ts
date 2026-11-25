@@ -11,7 +11,6 @@ export type HomeBridge = {
   rooms: RoomsSession;
   profile: AccountSession;
   creator: NewRoomSession;
-  onlanguage: (lang: HomeLanguage) => void;
   lang: HomeLanguage;
   ago: (time: number) => string;
   onnavigate: (target: RoomTarget) => void;
