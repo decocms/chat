@@ -2,9 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { get } from "svelte/store";
 import type { Epic, Message } from "../shared/room";
 import {
-  archivedEpics,
+  activeEpics,
+  doneEpics,
   epicAncestors,
   epicForest,
+  isThreadView,
+  mineEpics,
   reorderEpics,
   sidebarEpics,
   visibleEpics,
@@ -12,6 +15,8 @@ import {
 import {
   createNavigationSession,
   enterNavigationThread,
+  setNavigationView,
+  storedThreadView,
   toggleNavigationBranch,
   syncNavigationSession,
 } from "../web/features/navigation/session";
@@ -19,8 +24,8 @@ import {
 const epic = (
   id: string,
   parent: string | null = null,
-  archived = false,
-): Epic => ({ id, title: id, tasks: [], parent, archived });
+  done = false,
+): Epic => ({ id, title: id, tasks: [], parent, done });
 const storage = () => {
   const values = new Map<string, string>();
   return {
@@ -127,7 +132,7 @@ describe("epic navigation model", () => {
       ["other", false],
     ]);
   });
-  test("archive view orders by last message, then reverse canonical index", () => {
+  test("done view orders by last message, then reverse canonical index", () => {
     const records = [
       epic("open"),
       epic("a", null, true),
@@ -135,7 +140,7 @@ describe("epic navigation model", () => {
       epic("c", null, true),
     ];
     expect(
-      archivedEpics(records, [
+      doneEpics(records, [
         { id: 8, thread: "a", author: "me", ts: 0, text: "activity" },
       ]).map((row) => row.id),
     ).toEqual(["a", "c", "b"]);
@@ -184,29 +189,29 @@ describe("epic navigation model", () => {
 });
 
 describe("room-owned navigation session", () => {
-  test("rail-only thread entries reopen ancestors without discarding the room draft", () => {
+  test("rail-only thread entries reopen ancestors without discarding the room's open tab", () => {
     const room = {
       id: "room",
       epics: [epic("parent"), epic("child", "parent")],
     };
     const session = syncNavigationSession(null, room, "child");
-    session.state.update((state) => ({ ...state, draft: "Rail draft" }));
+    session.state.update((state) => ({ ...state, suggestions: true }));
     toggleNavigationBranch(session, "parent");
     expect([...get(session.state).closed]).toEqual(["parent"]);
     expect(syncNavigationSession(session, room, "main")).toBe(session);
     expect(syncNavigationSession(session, room, "child")).toBe(session);
     expect([...get(session.state).closed]).toEqual([]);
-    expect(get(session.state).draft).toBe("Rail draft");
+    expect(get(session.state).suggestions).toBe(true);
     const other = syncNavigationSession(
       session,
       { id: "other", epics: [] },
       "main",
     );
     expect(other).not.toBe(session);
-    expect(get(other.state).draft).toBe("");
+    expect(get(other.state).suggestions).toBe(false);
   });
-  test("returning from an archived thread is a new entry even while the active tab stays selected", () => {
-    const session = createNavigationSession("room", false, storage());
+  test("returning from an done thread is a new entry even while the active tab stays selected", () => {
+    const session = createNavigationSession("room", null, storage());
     const forest = epicForest([
       epic("a"),
       epic("a-leaf", "a"),
@@ -222,26 +227,26 @@ describe("room-owned navigation session", () => {
     enterNavigationThread(session, forest, "a-leaf");
     expect([...get(session.state).closed]).toEqual(["b"]);
   });
-  test("entering a filtered archived child reveals its branch when its tab opens", () => {
+  test("entering a filtered done child reveals its branch when its tab opens", () => {
     const local = storage();
     local.setItem("vb.tree.room", '["parent"]');
-    const session = createNavigationSession("room", false, local);
+    const session = createNavigationSession("room", null, local);
     enterNavigationThread(session, epicForest([epic("open")]), "child");
     expect(get(session.state).openedFor).toBeNull();
-    const archived = epicForest([
+    const done = epicForest([
       epic("parent", null, true),
       epic("child", "parent", true),
     ]);
-    enterNavigationThread(session, archived, "child");
+    enterNavigationThread(session, done, "child");
     expect([...get(session.state).closed]).toEqual([]);
     toggleNavigationBranch(session, "parent");
-    enterNavigationThread(session, archived, "child");
+    enterNavigationThread(session, done, "child");
     expect([...get(session.state).closed]).toEqual(["parent"]);
   });
-  test("ancestor auto-opening runs once per thread entry, preserving manual collapse and drafts", () => {
+  test("ancestor auto-opening runs once per thread entry, preserving manual collapse and the open tab", () => {
     const local = storage();
     local.setItem("vb.tree.room", '["root","child"]');
-    const session = createNavigationSession("room", false, local);
+    const session = createNavigationSession("room", null, local);
     const forest = epicForest([
       epic("root"),
       epic("child", "root"),
@@ -249,7 +254,7 @@ describe("room-owned navigation session", () => {
     ]);
     enterNavigationThread(session, forest, "leaf");
     expect([...get(session.state).closed]).toEqual([]);
-    session.state.update((state) => ({ ...state, draft: "Retained draft" }));
+    session.state.update((state) => ({ ...state, suggestions: true }));
     toggleNavigationBranch(session, "root");
     let notifications = 0;
     const stop = session.state.subscribe(() => notifications++);
@@ -260,31 +265,31 @@ describe("room-owned navigation session", () => {
     );
     expect(notifications).toBe(1);
     expect([...get(session.state).closed]).toEqual(["root"]);
-    expect(get(session.state).draft).toBe("Retained draft");
+    expect(get(session.state).suggestions).toBe(true);
     enterNavigationThread(session, forest, "main");
     enterNavigationThread(session, forest, "leaf");
     expect([...get(session.state).closed]).toEqual([]);
-    expect(get(session.state).draft).toBe("Retained draft");
+    expect(get(session.state).suggestions).toBe(true);
     stop();
   });
-  test("closed branches reload per room; another room never receives its draft", () => {
+  test("closed branches reload per room; another room never receives its open tab", () => {
     const local = storage();
-    const a = createNavigationSession("a", false, local);
+    const a = createNavigationSession("a", null, local);
     toggleNavigationBranch(a, "root");
-    a.state.update((state) => ({ ...state, draft: "Only in a" }));
-    const reload = createNavigationSession("a", false, local);
-    const b = createNavigationSession("b", false, local);
+    a.state.update((state) => ({ ...state, suggestions: true }));
+    const reload = createNavigationSession("a", null, local);
+    const b = createNavigationSession("b", null, local);
     expect([...get(reload.state).closed]).toEqual(["root"]);
-    expect(get(reload.state).draft).toBe("");
+    expect(get(reload.state).suggestions).toBe(false);
     expect([...get(b.state).closed]).toEqual([]);
-    expect(get(b.state).draft).toBe("");
+    expect(get(b.state).suggestions).toBe(false);
   });
   test("malformed and unavailable storage cannot break navigation", () => {
     for (const value of ["{bad", '"root"', "null", "{}", '["root",7]']) {
       const local = storage();
       local.setItem("vb.tree.a", value);
       expect([
-        ...get(createNavigationSession("a", false, local).state).closed,
+        ...get(createNavigationSession("a", null, local).state).closed,
       ]).toEqual([]);
     }
     const unavailable = {
@@ -295,7 +300,7 @@ describe("room-owned navigation session", () => {
         throw Error("denied");
       },
     };
-    const session = createNavigationSession("a", false, unavailable);
+    const session = createNavigationSession("a", null, unavailable);
     toggleNavigationBranch(session, "root");
     expect([...get(session.state).closed]).toEqual(["root"]);
   });
@@ -323,4 +328,199 @@ test("sidebar epics: pinned first in their order, then newest activity first", (
     "new",
     "old",
   ]);
+});
+
+test("a drag names its landing by id, and its order follows a list that changed mid-drag (#4020)", async () => {
+  const { current, landing } = await import("../web/lib/components/sortOrder");
+  // A room arrived (N, at index 2) and one left (X) while A was dragged after C.
+  expect(current(["B", "C", "A", "X", "D"], ["A", "B", "N", "C", "D"])).toEqual(
+    ["B", "C", "N", "A", "D"],
+  );
+  expect(current(null, ["A", "B"])).toEqual(["A", "B"]);
+  // Before the next peer; after the previous one when it lands last; rows of another group are skipped.
+  const peer = (id: string) => id !== "s";
+  expect(landing(["B", "A", "s", "C"], "A", peer)).toEqual({
+    to: "C",
+    after: false,
+  });
+  expect(landing(["B", "C", "s", "A"], "A", peer)).toEqual({
+    to: "C",
+    after: true,
+  });
+  expect(landing(["A"], "A", peer)).toBe(null);
+});
+
+test("a dragged row whose node moved shows above the page again (Gimenes #4232)", async () => {
+  const { relift } = await import("../web/lib/components/sortOrder");
+  const row = (o: {
+    open?: boolean;
+    popover?: boolean;
+    connected?: boolean;
+  }) => {
+    const shown: number[] = [];
+    return {
+      shown,
+      isConnected: o.connected ?? true,
+      hasAttribute: (name: string) => name === "popover" && (o.popover ?? true),
+      matches: () => o.open ?? false,
+      showPopover: () => void shown.push(1),
+    };
+  };
+  // Svelte moved the node: it left the top layer, so it shows again.
+  const moved = row({});
+  expect(relift(moved)).toBe(true);
+  expect(moved.shown).toHaveLength(1);
+  // Still shown, not lifted (a row without dnd-kit's popover), or gone: nothing to do.
+  for (const other of [
+    row({ open: true }),
+    row({ popover: false }),
+    row({ connected: false }),
+  ]) {
+    expect(relift(other)).toBe(false);
+    expect(other.shown).toHaveLength(0);
+  }
+  expect(relift(null)).toBe(false);
+});
+
+describe("thread tabs: Mine, Open, Done", () => {
+  const owned = (id: string, owner?: string, extra: Partial<Epic> = {}) => ({
+    ...epic(id),
+    owner,
+    ...extra,
+  });
+  test("Mine keeps the threads you own, in the order of the list it filters", () => {
+    const list = [
+      owned("b", "ana@example.test"),
+      owned("a", "bia@example.test"),
+      owned("c", "Ana@Example.test"),
+      owned("d"),
+      owned("e", "ai"),
+    ];
+    expect(mineEpics(list, "ana@example.test").map((row) => row.id)).toEqual([
+      "b",
+      "c",
+    ]);
+    expect(mineEpics(list, "ANA@example.test ").map((row) => row.id)).toEqual([
+      "b",
+      "c",
+    ]);
+    expect(mineEpics(list, "")).toEqual([]);
+  });
+  test("Mine has no done thread except the one you have open, as Open does", () => {
+    const epics = [
+      owned("open", "ana@example.test"),
+      owned("done", "ana@example.test", { done: true }),
+      owned("seen", "ana@example.test", { done: true }),
+      owned("child", "ana@example.test", { parent: "other" }),
+      owned("other", "bia@example.test"),
+    ];
+    const open = sidebarEpics(activeEpics(epics, "seen"), []);
+    expect(mineEpics(open, "ana@example.test").map((row) => row.id)).toEqual([
+      "open",
+      "seen",
+      "child",
+    ]);
+  });
+  test("the tab stays per room on the device; Open when nothing or something unknown is stored", () => {
+    const local = storage();
+    expect(storedThreadView("a", local)).toBe("open");
+    const a = createNavigationSession("a", null, local);
+    expect(get(a.state).view).toBe("open");
+    a.state.update((state) => ({ ...state, suggestions: true }));
+    setNavigationView(a, "mine");
+    expect(get(a.state).view).toBe("mine");
+    expect(get(a.state).suggestions).toBe(false);
+    expect(get(createNavigationSession("a", null, local).state).view).toBe(
+      "mine",
+    );
+    expect(get(createNavigationSession("b", null, local).state).view).toBe(
+      "open",
+    );
+    expect(get(createNavigationSession("a", "done", local).state).view).toBe(
+      "done",
+    );
+    for (const value of ["active", "true", "", "MINE"]) {
+      local.setItem("vb.threads.a", value);
+      expect(storedThreadView("a", local)).toBe("open");
+    }
+    expect(isThreadView("done")).toBe(true);
+    expect(isThreadView("active")).toBe(false);
+  });
+  test("unavailable storage keeps the tab in memory", () => {
+    const unavailable = {
+      getItem(): string | null {
+        throw Error("denied");
+      },
+      setItem() {
+        throw Error("denied");
+      },
+    };
+    const session = createNavigationSession("a", null, unavailable);
+    expect(get(session.state).view).toBe("open");
+    setNavigationView(session, "done");
+    expect(get(session.state).view).toBe("done");
+  });
+});
+
+test("sidebar epics: your last threads go first after the pinned ones", () => {
+  const epic = (id: string, extra: Partial<Epic> = {}): Epic => ({
+    id,
+    title: id,
+    tasks: [],
+    ...extra,
+  });
+  const epics = [
+    epic("old", { last: 10 }),
+    epic("pin", { pinned: true, last: 1 }),
+    epic("new", { last: 30 }),
+    epic("mine", { last: 2 }),
+    epic("gone", { last: 3 }),
+  ];
+  expect(
+    sidebarEpics(epics, [], ["mine", "old", "deleted"]).map((e) => e.id),
+  ).toEqual(["pin", "mine", "old", "new", "gone"]);
+});
+
+test("room visits: the room reopens the thread you left, and the recent three keep their order", async () => {
+  const { createRoomVisits, recordRecent } =
+    await import("../web/features/navigation/recent");
+  expect(recordRecent(["a", "b", "c"], "b")).toEqual(["a", "b", "c"]);
+  expect(recordRecent(["a", "b", "c"], "d")).toEqual(["d", "a", "b"]);
+  expect(recordRecent(["a"], "main")).toEqual(["a"]);
+  const saved = new Map<string, string>();
+  const storage = {
+    getItem: (k: string) => saved.get(k) ?? null,
+    setItem: (k: string, v: string) => void saved.set(k, v),
+  };
+  const visits = createRoomVisits(storage, () => 1);
+  visits.enter("me@x.com", "room1", "e1");
+  visits.enter("me@x.com", "room1", "e2");
+  visits.enter("me@x.com", "room1", "main");
+  visits.enter("me@x.com", "room1", "pre:0");
+  expect(visits.last("me@x.com", "room1")).toBe("main");
+  expect(visits.recent("me@x.com", "room1")).toEqual(["e2", "e1"]);
+  visits.enter("me@x.com", "room1", "e1");
+  const again = createRoomVisits(storage);
+  expect(again.last("me@x.com", "room1")).toBe("e1");
+  expect(again.recent("me@x.com", "room1")).toEqual(["e2", "e1"]);
+  expect(again.last("other@x.com", "room1")).toBeNull();
+  // The room's old call chat ("call") is never where a room reopens, nor a recent thread; a visit saved in it
+  // before reads as none (Gimenes, 2026-11-25: stuck in the call chat).
+  visits.enter("me@x.com", "room1", "call");
+  expect(visits.last("me@x.com", "room1")).toBe("e1");
+  expect(recordRecent(["a"], "call")).toEqual(["a"]);
+  const old = createRoomVisits({
+    getItem: () =>
+      JSON.stringify({ room1: { last: "call", recent: [], at: 1 } }),
+    setItem: () => {},
+  });
+  expect(old.last("me@x.com", "room1")).toBeNull();
+  const broken = createRoomVisits({
+    getItem: () => "{not json",
+    setItem: () => {
+      throw new Error("full");
+    },
+  });
+  broken.enter("me@x.com", "room1", "e1");
+  expect(broken.last("me@x.com", "room1")).toBe("e1");
 });

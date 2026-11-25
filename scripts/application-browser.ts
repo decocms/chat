@@ -20,7 +20,7 @@ import {
   OkResult,
   PostMessageResult,
 } from "../shared/schemas";
-import { parseRoomEvent, record } from "../shared/validation";
+import { parseRoomEvent, record, toRoomEvent } from "../shared/validation";
 import { createRoomStore } from "../web/app/roomStore";
 import { createRoomApi } from "../web/app/transport";
 import type { FetchLike } from "../web/app/transport";
@@ -258,6 +258,20 @@ function observe(page: Page, roomId: string) {
     sent: Record<string, number> = {},
     received: Record<string, number> = {};
   page.on("pageerror", (error) => errors.push(localBrowserError(error, base)));
+  // A light socket sends `hello`, and the app reads the room's `state` over HTTP (GET /api/books/:id/room): the
+  // store takes that state too, as the app does.
+  page.on("response", async (response) => {
+    if (new URL(response.url()).pathname !== `/api/books/${roomId}/room`)
+      return;
+    if (!response.ok()) return;
+    try {
+      const event = toRoomEvent(await response.json());
+      received[event.t] = (received[event.t] ?? 0) + 1;
+      store.apply(event, roomId);
+    } catch {
+      errors.push({ name: "InvalidRealBookSnapshot", locations: [] });
+    }
+  });
   const active = new Map<object, keyof ApplicationSockets>();
   const activeCounts: ApplicationSockets = { book: 0, personal: 0, yjs: 0 };
   const observedAt = Date.now();
@@ -405,7 +419,7 @@ async function documentEdit(page: Page) {
   const editor = page.locator("[data-document-editor] .cm-content");
   if (!(await editor.isVisible()))
     await page
-      .locator("[data-document] > footer")
+      .locator("[data-document-bar]")
       .getByRole("button", { name: /^(Edit|Editar)$/ })
       .click();
   await expect(editor).toBeVisible();
@@ -492,7 +506,7 @@ try {
       );
       assert(joined.ok(), `Join status ${joined.status()}`);
       epic = z.object({ epic_id: z.string() }).parse(
-        await agent("start_epic", {
+        await agent("start_thread", {
           room_id: roomA,
           title: `Integrated thread ${token}`,
           why: "Real RootScope browser verification",
@@ -624,7 +638,7 @@ try {
       await expect(composer).toHaveValue(`Root draft ${token}`);
       await a
         .locator('[data-view="room-navigation"]')
-        .getByRole("button", { name: "Your rooms", exact: true })
+        .getByRole("button", { name: "Inbox", exact: true })
         .click();
       await expect(a.locator('[data-view="home"]')).toBeVisible();
       await a
@@ -710,9 +724,6 @@ try {
             visible: node.getClientRects().length > 0,
             pane: layout?.getAttribute("data-pane"),
             sheet: layout?.getAttribute("data-sheet"),
-            boardPressed: document
-              .querySelector("[data-board-toggle]")
-              ?.getAttribute("aria-pressed"),
             mountedRows: rows.length,
             rowIds: rows.map((row) => row.id),
             firstId: rows[0]?.id,
@@ -757,13 +768,7 @@ try {
         );
         reading.before = before;
         assert(before.top > 150);
-        await checkpoint("hide-with-full-board");
-        await a.locator("[data-board-toggle]").click();
-        await expect(scroller).toBeHidden();
-        await expect(
-          a.locator('[data-room-board][data-placement="full"]'),
-        ).toBeVisible();
-        await checkpoint("peer-post-while-hidden");
+        await checkpoint("peer-post-while-unpinned");
         const id = await post(
           peer.context,
           roomA,
@@ -776,7 +781,7 @@ try {
             aWire.store.get()?.messages.some((message) => message.id === id),
           )
           .toBe(true);
-        await checkpoint("hidden-canonical-update-keeps-reading-window");
+        await checkpoint("unpinned-canonical-update-keeps-reading-window");
         // Give the actual application its DOM flush before checking that the
         // new canonical tail remains deferred while this reader is unpinned.
         await a.evaluate(
@@ -793,9 +798,6 @@ try {
           "Canonical append must not roll the unpinned DOM window",
         );
         await expect(a.locator(`[data-room-chat] #m${id}`)).toHaveCount(0);
-        await checkpoint("restore-chat-visibility");
-        await a.locator("[data-board-toggle]").click();
-        await expect(scroller).toBeVisible();
         await checkpoint("restore-visible-anchor-y");
         await expect
           .poll(() =>
@@ -1107,8 +1109,14 @@ try {
             '[data-view="room-navigation"] [data-room-id="' + id + '"] a',
           )
           .click();
-        await expectThread(a, id);
+        await expect.poll(() => new URL(a.url()).pathname).toBe("/b/" + id);
         await expect(a.locator("[data-room-layout]")).toBeVisible();
+        // A room opened from the rail reopens the thread you left there (#473); the room's name goes to main.
+        if (!thread && new URL(a.url()).searchParams.has("t")) {
+          await openIntegratedSidebar(a);
+          await a.locator("[data-room-home]").first().click();
+        }
+        await expectThread(a, id);
         await expect(a.locator("[data-composer] #input")).toBeVisible();
         if (thread) {
           await openIntegratedSidebar(a);
@@ -1121,7 +1129,7 @@ try {
       },
       async closeEditor() {
         await a
-          .locator("[data-document] > footer")
+          .locator("[data-document-bar]")
           .getByRole("button", { name: "Done", exact: true })
           .click();
         await expect(

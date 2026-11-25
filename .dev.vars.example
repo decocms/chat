@@ -9,3 +9,11 @@ GITHUB_CLIENT_SECRET=
 # Local only: skips login; identity from the dev_as cookie (or this default).
 DEV_EMAIL=you@example.com
 MCP_AUTH_TOKEN=
+# Optional: voice calls (Cloudflare Realtime SFU app). Without them the app shows no call button.
+REALTIME_SFU_APP_ID=
+REALTIME_SFU_APP_SECRET=
+# Optional: the call recorder (recorder/). Without them no call is recorded.
+RECORDER_URL=
+RECORDER_SECRET=
+# Room ids with commas, or * for every room.
+CALL_RECORD_ROOMS=

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { readable } from "svelte/store";
+  import { get, readable } from "svelte/store";
   import type { ConnectionMode } from "./directTypes";
   import Badge from "../../lib/studio/Badge.svelte";
   import type { Connection } from "../../../shared/schemas";
@@ -12,6 +12,7 @@
     type AppTarget,
   } from "./model";
   import AppFrame from "./AppFrame.svelte";
+  import { externalFileURL } from "../file-viewer/model";
   import Button from "../../lib/studio/Button.svelte";
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
@@ -24,6 +25,9 @@
   import { paneIcons } from "../documents/paneIcons";
   import LoadingState from "../../lib/components/LoadingState.svelte";
   import PaneLoading from "../../lib/components/PaneLoading.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { appFocusRequest, paneFocus } from "../room-layout/focus";
   let { props }: { props: AppsProps } = $props();
   const owner = untrack(() => props.owner),
     view = untrack(() => owner.state),
@@ -75,12 +79,39 @@
       (item) =>
         item.id === intent.id && item.mine && item.owner === intent.owner,
     );
+  // Expand ends with the app: Esc, going back to the list, or leaving the pane.
+  $effect(() => {
+    if (!target) paneFocus.set(false);
+  });
+  $effect(() => () => paneFocus.set(false));
+  // The chat's app card asked for this app expanded: turn Expand on after this frame's pane switch.
+  // No cleanup: clearing the request re-runs this effect, and that must not cancel the frame.
+  $effect(() => {
+    const wanted = $appFocusRequest,
+      opened = target;
+    if (!wanted || !opened) return;
+    appFocusRequest.set(null);
+    if (opened.connection !== "room" || opened.tool !== wanted) return;
+    requestAnimationFrame(() => {
+      const now = get(view).target;
+      if (current() && now?.connection === "room" && now.tool === wanted)
+        paneFocus.set(true);
+    });
+  });
+  const escape = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && $paneFocus && !event.defaultPrevented)
+      paneFocus.set(false);
+  };
 </script>
 
+<svelte:window onkeydown={escape} />
 {#if $view.room}
   <section
     data-apps
-    class="flex min-h-0 flex-1 flex-col gap-3 p-3 font-sans text-foreground"
+    class={[
+      "flex min-h-0 flex-1 flex-col font-sans text-foreground",
+      target ? "[&>[role=status]]:px-3 [&>[role=alert]]:px-3" : "gap-3 p-3",
+    ]}
   >
     {#if $pinView.phase === "pending" || $pinView.phase === "waiting"}<p
         role="status"
@@ -109,28 +140,37 @@
           value={{ target, revision: $view.frameRevision }}
         >
           {#snippet children(rendered)}
-            <div class="flex flex-wrap items-center gap-2">
-              <Button
-                variant="ghost"
+            <header
+              data-app-bar
+              class="flex h-12 shrink-0 items-center gap-0.5 border-b border-border px-2"
+            >
+              <IconButton
+                label={props.t("Voltar para os apps")}
+                tooltipSide="bottom"
+                size="icon"
                 onclick={(event) => {
                   if (
                     live(event) &&
                     owner.ownsTarget(rendered.target, rendered.revision)
-                  )
+                  ) {
+                    paneFocus.set(false);
                     owner.back();
-                }}>← Apps</Button
+                  }
+                }}><Icon icon="chevron-left" size={18} /></IconButton
               >
               <h2
-                class="m-0 font-sans font-semibold tracking-normal min-w-0 flex-1 break-words text-base"
+                class="m-0 min-w-0 flex-1 truncate px-1 font-sans text-sm font-semibold tracking-normal"
+                title={app?.title || target.tool}
               >
                 {app?.title || target.tool}
               </h2>
-              <span class="rounded-control bg-muted px-2 py-1 text-xs"
-                >{connection?.scope === "me"
-                  ? props.t("minha")
-                  : props.t("da sala")}</span
-              ><Button
-                variant="ghost"
+              <IconButton
+                label={pin ? props.t("Desafixar") : props.t("Fixar na lateral")}
+                tooltipSide="bottom"
+                size="icon"
+                class={pin
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground"}
                 disabled={$pinView.phase !== "idle" || !identity}
                 aria-pressed={!!pin}
                 onclick={(event) => {
@@ -140,30 +180,63 @@
                     pinRef
                   )
                     owner.pin.toggle(pinRef, props.request);
-                }}
-                >{pin
-                  ? props.t("Desafixar")
-                  : props.t("Fixar na lateral")}</Button
-              >{#if props.putInDocument}<Button
-                  variant="ghost"
+                }}><Icon icon="pin-02" size={18} /></IconButton
+              >{#if props.putInDocument}<IconButton
+                  label={props.t("Pôr no doc")}
+                  tooltipSide="bottom"
+                  size="icon"
+                  class="text-muted-foreground hover:text-foreground"
                   onclick={(event) => {
                     if (
                       live(event) &&
                       owner.ownsTarget(rendered.target, rendered.revision)
                     )
                       props.putInDocument?.(rendered.target);
-                  }}>{props.t("Pôr no doc")}</Button
-                >{/if}<Button
-                variant="ghost"
+                  }}><Icon icon="file-plus-02" size={18} /></IconButton
+                >{/if}<IconButton
+                label={props.t("Recarregar")}
+                tooltipSide="bottom"
+                size="icon"
+                class="text-muted-foreground hover:text-foreground"
                 onclick={(event) => {
                   if (
                     live(event) &&
                     owner.ownsTarget(rendered.target, rendered.revision)
                   )
                     owner.reload();
-                }}>{props.t("Recarregar")}</Button
+                }}><Icon icon="refresh-cw-01" size={18} /></IconButton
+              >{#if app && "file" in app}<!-- A room app is an HTML file: it opens alone in a new tab like any HTML, so its link can be sent (Gui #4273). --><IconButton
+                  label={props.t("Abrir em outra aba")}
+                  tooltipSide="bottom"
+                  size="icon"
+                  class="text-muted-foreground hover:text-foreground"
+                  href={externalFileURL(
+                    { roomId: props.room.id, id: app.file.id },
+                    location.origin,
+                    false,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  ><Icon icon="link-external-01" size={18} /></IconButton
+                >{/if}
+              <span aria-hidden="true" class="mx-1 h-5 w-px bg-border"></span>
+              <IconButton
+                label={$paneFocus
+                  ? props.t("Sair da tela cheia")
+                  : props.t("Expandir")}
+                tooltipSide="bottom"
+                size="icon"
+                aria-pressed={$paneFocus}
+                data-app-expand
+                onclick={(event) => {
+                  if (live(event)) paneFocus.update((on) => !on);
+                }}
+                ><Icon
+                  icon={$paneFocus ? "minimize-01" : "expand-01"}
+                  size={18}
+                /></IconButton
               >
-            </div>
+            </header>
           {/snippet}</Snapshot
         >{/key}
       {#if $view.error}<p
@@ -308,30 +381,43 @@
           }}>{props.t("Revisar e tentar de novo")}</Button
         >{/if}
       {#if apps.length}
-        <section class="space-y-2 rounded-control border border-border p-3">
-          <div class="flex items-center gap-2">
-            <h3 class="m-0 font-sans font-semibold tracking-normal text-base">
-              {props.t("Esta sala")}
-            </h3>
-          </div>
-          <div class="grid gap-2">
-            {#each apps as app (app.file.id)}<Button
-                variant="outline"
-                class="h-auto justify-start whitespace-normal text-left"
-                onclick={(event) => {
-                  if (live(event))
-                    owner.open({ connection: "room", tool: app.tool });
-                }}
-                ><span
-                  ><strong class="block">{app.title}</strong><small
-                    class="block text-muted-foreground"
-                    >{props.name(app.file.author)} · {props.ago(
-                      app.file.ts,
-                    )}</small
-                  ></span
-                ></Button
-              >{/each}
-          </div>
+        <!-- A plain list, not a box of pills: a label, then one row per app (tile, name, who and when, ›). -->
+        <section data-room-apps class="space-y-2.5">
+          <h3
+            class="m-0 px-2 font-sans text-xs font-medium tracking-normal text-muted-foreground"
+          >
+            {props.t("Esta sala")}
+          </h3>
+          <ul class="m-0 grid list-none gap-0.5 p-0">
+            {#each apps as app (app.file.id)}<li>
+                <button
+                  type="button"
+                  data-room-app={app.tool}
+                  class="group flex w-full cursor-pointer items-center gap-3 rounded-lg border-0 bg-transparent px-2 py-2 text-left font-sans text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+                  onclick={(event) => {
+                    if (live(event))
+                      owner.open({ connection: "room", tool: app.tool });
+                  }}
+                  ><span
+                    aria-hidden="true"
+                    class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors duration-150 group-hover:bg-background"
+                    ><Icon icon="bar-chart-square-02" size={18} /></span
+                  ><span class="min-w-0 flex-1"
+                    ><span class="block truncate text-sm font-medium"
+                      >{app.title}</span
+                    ><span class="block truncate text-xs text-muted-foreground"
+                      >{props.name(app.file.author)} · {props.ago(
+                        app.file.ts,
+                      )}</span
+                    ></span
+                  ><Icon
+                    icon="chevron-right"
+                    size={16}
+                    class="shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                  /></button
+                >
+              </li>{/each}
+          </ul>
         </section>{/if}
       {#each $view.connections || [] as item (item.id)}{@const all =
           connectionApps(item)}{@const screens = all.filter(
@@ -340,13 +426,13 @@
           screens.length && !$view.more.has(item.id) ? screens : all}
         <section
           data-connection-card={item.id}
-          class="space-y-3 rounded-control border border-border p-3"
+          class="space-y-2.5 border-t border-border pt-3"
         >
-          <header class="flex items-start gap-2">
+          <header class="flex items-start gap-2 px-2">
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-1.5">
                 <h3
-                  class="m-0 truncate font-sans text-base font-semibold tracking-normal"
+                  class="m-0 truncate font-sans text-xs font-medium tracking-normal text-muted-foreground"
                 >
                   {item.title}
                 </h3>

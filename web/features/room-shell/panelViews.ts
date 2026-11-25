@@ -10,34 +10,48 @@ export function isPanelToggleKey(event: KeyboardEvent, mac: boolean) {
   );
 }
 
-/** The phone room's bottom bar: five tabs over the room's panes. */
-export type PhoneTab = "chat" | "doc" | "board" | "files" | "claude";
+/** The panes a desktop room's top bar offers, in its order (DocumentToolbar). */
+const roomPanes = [
+  "doc",
+  "files",
+  "apps",
+  "decisions",
+  "reminders",
+  "people",
+  "agents",
+] as const satisfies readonly DocumentPane[];
 
-/** The panes each phone tab holds; the doc sheet's tab row shows only these. */
-export const phoneTabPanes: Record<
-  Exclude<PhoneTab, "chat" | "board">,
-  readonly DocumentPane[]
-> = {
-  doc: ["doc", "decisions"],
-  files: ["files", "apps", "view"],
-  claude: ["agents", "reminders"],
-};
-
-/** Which tab a pane belongs to (the board is its own full-screen tab). */
-export function phoneTabOf(pane: DocumentPane): PhoneTab {
-  if (pane === "board") return "board";
-  for (const tab of ["doc", "files", "claude"] as const)
-    if (phoneTabPanes[tab].includes(pane)) return tab;
-  return "doc";
+/**
+ * A phone room's panes: the drawer's tab row and the doc sheet's, the same
+ * panes in the same order as the desktop (Gimenes #4076, #4088). A DM has no
+ * doc, people or agents.
+ */
+export function phonePanes(dm: boolean): readonly DocumentPane[] {
+  return dm
+    ? roomPanes.filter(
+        (pane) => pane !== "doc" && pane !== "people" && pane !== "agents",
+      )
+    : roomPanes;
 }
 
-/** The tab shown as selected for a phone layout state. */
-export function phoneTab(state: {
-  boardFull: boolean;
-  sheet: "side" | "doc" | null;
-  pane: DocumentPane;
-}): PhoneTab {
-  if (state.boardFull) return "board";
-  if (state.sheet === "doc") return phoneTabOf(state.pane);
-  return "chat";
+/**
+ * A phone room's strip under the top bar, always there (A2, Gimenes #4309, #4331): Doc, Arquivos, Decisões and
+ * Lembretes ("Notas"). People are the avatars at the bar's end, not a tab. A DM has no doc.
+ */
+export function phoneStripPanes(dm: boolean): readonly DocumentPane[] {
+  return phonePanes(dm).filter(
+    (pane) =>
+      pane === "doc" ||
+      pane === "files" ||
+      pane === "decisions" ||
+      pane === "reminders",
+  );
+}
+
+/** The phone drawer's tab row keeps only what the strip and the avatars do not show: Apps and Agents. */
+export function phoneDrawerPanes(dm: boolean): readonly DocumentPane[] {
+  const strip = phoneStripPanes(dm);
+  return phonePanes(dm).filter(
+    (pane) => pane !== "people" && !strip.includes(pane),
+  );
 }

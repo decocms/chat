@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { waitIndicator, type WaitReference } from "../waits/model";
+  import type { WaitReference } from "../waits/model";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
@@ -7,12 +7,17 @@
   import type { AvatarSize } from "../../lib/studio/avatar";
   import {
     roomIcon,
+    roomStatus,
     targetHref,
     unread,
     type RoomSummary,
     type RoomTarget,
   } from "./model";
-  import { homeText, type HomeLanguage } from "./copy";
+  import type { HomeLanguage } from "./copy";
+  import {
+    roomMenuTrigger,
+    type MenuPoint,
+  } from "../app-navigation/roomMenuTrigger";
   /** A room in the home grid: the same RoomAvatar as the rail, with its name under it. */
   let {
     room,
@@ -22,7 +27,7 @@
     waits = [],
     size = "md",
     onnavigate,
-    onsettings,
+    onmenu,
   }: {
     room: RoomSummary;
     lang: HomeLanguage;
@@ -31,44 +36,24 @@
     waits?: readonly WaitReference[];
     size?: AvatarSize;
     onnavigate: (target: RoomTarget) => void;
-    onsettings?: (id: string, trigger: HTMLElement) => void;
+    /** Opens the room's menu (a right-click, a long press, Shift+F10). */
+    onmenu?: (id: string, trigger: HTMLElement, point?: MenuPoint) => void;
   } = $props();
   const news = $derived(unread(room, seen));
-  const waiting = $derived(waitIndicator(waits));
   const title = $derived(room.title ?? "deco.chat");
   const busy = $derived((room.busy_until ?? 0) > now);
-  const text = (
-    key: Parameters<typeof homeText>[1],
-    vars?: Record<string, string | number>,
-  ) => homeText(lang, key, vars);
+  // The same words, in the same order, as the rail's tooltip.
   const description = $derived(
-    [
-      title,
-      news ? text(news === "human" ? "newHuman" : "newAgent") : "",
-      busy ? text("busy") : "",
-      room.sandboxes_running ? text("cloud") : "",
-      waiting.asks
-        ? text("waiting", { n: waiting.asks })
-        : waiting.tasks
-          ? text("taskPending")
-          : "",
-    ]
-      .filter(Boolean)
-      .join(" · "),
+    [title, ...roomStatus(room, seen, waits, now, lang)].join(" · "),
   );
 </script>
 
 <article
   data-room-id={room.id}
   class="min-w-0"
-  oncontextmenu={(event) => {
-    if (!event.currentTarget.isConnected || !onsettings) return;
-    event.preventDefault();
-    onsettings(
-      room.id,
-      event.currentTarget.querySelector("a") ?? event.currentTarget,
-    );
-  }}
+  use:roomMenuTrigger={onmenu
+    ? (trigger, point) => onmenu(room.id, trigger, point)
+    : undefined}
 >
   <Tooltip
     ><TooltipTrigger
@@ -98,7 +83,6 @@
             surface="background"
             unread={news}
             {busy}
-            cloud={!!room.sandboxes_running}
             {waits}
           /><span class="w-full truncate text-center text-xs leading-4"
             >{title}</span

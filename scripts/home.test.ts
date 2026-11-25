@@ -1,7 +1,7 @@
 // Pure owners/protocol fixtures. These assertions do not represent Worker or browser acceptance.
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import { waitIndicator } from "../web/features/waits/model";
+import { waitCount } from "../web/features/waits/model";
 import { tabTitle } from "../web/features/notifications/title";
 import { avatarKey, avatarUrl } from "../shared/avatar";
 import { dmPeer, roomAvatarVersion } from "../web/features/room-scope/model";
@@ -47,6 +47,7 @@ import {
   titleOwnDm,
   personVersion,
   roomLabel,
+  roomStatus,
 } from "../web/features/home/model";
 import {
   contacts,
@@ -1023,8 +1024,10 @@ test("navigation account reset releases private rename draft and return-focus re
     });
   const trigger = { isConnected: true } as HTMLElement;
   controller.syncPath("https://vb.test/b/aaaaaa/");
-  controller.openSettings("aaaaaa", trigger);
+  controller.openMenu("aaaaaa", trigger, { x: 10, y: 20 });
+  expect(get(controller.state).menu).toEqual({ id: "aaaaaa", x: 10, y: 20 });
   controller.askRename("aaaaaa");
+  expect(get(controller.state).menu).toBeNull();
   expect(get(controller.state).renameDraft).toBe("Private A title");
   expect(controller.returnFocus(null)).toBe(trigger);
   current = me({ email: "b@test.com" });
@@ -1036,27 +1039,48 @@ test("navigation account reset releases private rename draft and return-focus re
   personal.dispose();
 });
 
-test("canonical asks are numbered, task-review waits are a dot, and Claude questions retain their signal", () => {
-  expect(waitIndicator([{ ref: "t1" }, { ref: "t2" }])).toEqual({
-    asks: 0,
-    tasks: true,
-    claude: false,
-  });
+test("a room's number counts the messages that ask you, not work: tasks and Claude's questions stay in the Inbox", () => {
+  expect(waitCount([{ ref: "t1" }, { ref: "t2" }])).toBe(0);
   expect(
-    waitIndicator([{ ref: "m1" }, { ref: "a2" }, { ref: "b3" }, { ref: "t4" }]),
-  ).toEqual({ asks: 3, tasks: true, claude: true });
-  expect(waitIndicator([{ ref: "m1" }])).toEqual({
-    asks: 1,
-    tasks: false,
-    claude: false,
-  });
-  // A refreshed server list after a human reply removes the ask, not their task.
-  expect(waitIndicator([{ ref: "t4" }])).toEqual({
-    asks: 0,
-    tasks: true,
-    claude: false,
-  });
-  expect(waitIndicator([])).toEqual({ asks: 0, tasks: false, claude: false });
+    waitCount([{ ref: "m1" }, { ref: "a2" }, { ref: "b3" }, { ref: "t4" }]),
+  ).toBe(1);
+  // Reading the message (or replying) removes the ask; the task stays, without a number on the room.
+  expect(waitCount([{ ref: "t4" }])).toBe(0);
+  expect(waitCount([])).toBe(0);
+});
+
+test("a room's tooltip lists the three signals in their order, then the cloud sandbox that has no mark", () => {
+  const room = {
+    id: "r1",
+    last_human_id: 9,
+    last_agent_id: 12,
+    read_id: 4,
+    busy_until: 2_000,
+    sandboxes_running: 1,
+  } as never;
+  expect(
+    roomStatus(
+      room,
+      0,
+      [{ ref: "m1" }, { ref: "m2" }, { ref: "t3" }],
+      1_000,
+      "en",
+    ),
+  ).toEqual([
+    "2 waiting for you",
+    "new messages from people",
+    "an agent is working here",
+    "cloud sandbox running",
+  ]);
+  expect(
+    roomStatus(
+      { ...(room as object), last_human_id: 3 } as never,
+      0,
+      [],
+      3_000,
+      "pt",
+    ),
+  ).toEqual(["só agents escreveram", "sandbox na nuvem rodando"]);
 });
 
 test("phone triage groups waits by room: a blocked Claude first, then the newest ask", () => {
@@ -1320,4 +1344,54 @@ test("the tab's name starts with the Inbox count, and stays plain when the Inbox
   expect(tabTitle("deco.chat", 0)).toBe("deco.chat");
   expect(tabTitle("Sala · deco.chat", 3)).toBe("(3) Sala · deco.chat");
   expect(tabTitle("deco.chat", 150)).toBe("(99+) deco.chat");
+});
+
+test("the phone's chat list: newest first, and who wrote last before the line", async () => {
+  const { chatList, lastLine } = await import("../web/features/home/model");
+  const a = room("aaaaaa", {
+    updated_at: 100,
+    last_by: "me@test.com",
+    last_text: "**Oi** [site](https://x.com)",
+  });
+  const b = room("bbbbbb", {
+    updated_at: 300,
+    last_by: "ana@test.com",
+    last_by_name: "Ana Souza",
+    last_text: "Pronto",
+  });
+  const c = room("cccccc", {
+    updated_at: 200,
+    last_by: "me@test.com",
+    last_agent: 1,
+    last_text: "Subi o PR",
+  });
+  const d = room("dddddd", {
+    updated_at: 50,
+    last_by: "ai",
+    last_text: "Lembrete",
+  });
+  const e = room("eeeeee", { updated_at: 80, summary: "Sobre o site" });
+  const account = me({ books: [a, b, c, d, e] });
+  expect(chatList(account).map((row) => row.room.id)).toEqual([
+    "bbbbbb",
+    "cccccc",
+    "aaaaaa",
+    "eeeeee",
+    "dddddd",
+  ]);
+  expect(lastLine(a, account, "pt")).toBe("Você: Oi site");
+  expect(lastLine(b, account, "en")).toBe("Ana: Pronto");
+  expect(lastLine(c, account, "pt")).toBe("Claude: Subi o PR");
+  expect(lastLine(d, account, "pt")).toBe("@vibe: Lembrete");
+  // No stored line yet (a room from before): its summary.
+  expect(lastLine(e, account, "pt")).toBe("Sobre o site");
+  // A DM leaves out the other person's name: the row is theirs.
+  expect(
+    lastLine(b, account, "pt", {
+      email: "ana@test.com",
+      name: "Ana",
+      room: b,
+      self: false,
+    }),
+  ).toBe("Pronto");
 });

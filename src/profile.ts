@@ -2,7 +2,7 @@
 // UTC day in D1 `user_stats`, shown as a profile with titles (shared/titles.ts). A profile never carries the email.
 // Who can see one: yourself, anyone who shares a room with you (the hover card), and anyone at all once you turn the
 // public page on (/u/<handle>).
-import type { ProfileResult, ProfileSettingsResult } from "../shared/schemas";
+import { HANDLE_RE, type ProfileResult, type ProfileSettingsResult } from "../shared/schemas";
 
 type Db = D1Database;
 export type StatField = "messages" | "deploys";
@@ -37,6 +37,27 @@ export function recordUsage(db: Db, email: string, agent: string, header: string
     ])
     .then(() => {})
     .catch(() => {});
+}
+
+/** usage_backfill from the CLI: tokens per UTC day from this machine's Claude Code transcripts older than the live
+ *  counter. Set per (person, machine, day) to the largest value seen: rerunning never adds twice. Only the last 2 years,
+ *  no future days, at most 1e11 a day (a model can't spend more). Returns how many days were kept. */
+export async function recordBackfill(db: Db, email: string, machine: string, days: unknown): Promise<number> {
+  if (!Array.isArray(days)) throw new Error("days must be a list of {day, tokens}");
+  const oldest = new Date(Date.now() - 730 * 864e5).toISOString().slice(0, 10), newest = today();
+  const ok = days.slice(0, 800).flatMap((d) => {
+    const day = typeof d?.day === "string" ? d.day : "", tokens = Number(d?.tokens);
+    return /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= oldest && day <= newest && Number.isInteger(tokens) && tokens > 0 && tokens <= 1e11 ? [{ day, tokens }] : [];
+  });
+  for (let i = 0; i < ok.length; i += 50)
+    await db.batch(
+      ok.slice(i, i + 50).map((d) =>
+        db
+          .prepare(`INSERT INTO usage_backfill (email, machine, day, tokens) VALUES (?, ?, ?, ?) ON CONFLICT(email, machine, day) DO UPDATE SET tokens = max(tokens, excluded.tokens)`)
+          .bind(email, machine, d.day, d.tokens),
+      ),
+    );
+  return ok.length;
 }
 
 /** A plan limit at 100% counts once per window (its reset time). `limits` = the validated JSON the agent row keeps. */
@@ -74,7 +95,7 @@ const slug = (s: string) =>
     .slice(0, 24) || "pessoa";
 
 /** The person's handle, made once from their name (else the email's local part), unique with a number. */
-async function ensureHandle(db: Db, email: string, name: string | null, handle: string | null) {
+export async function ensureHandle(db: Db, email: string, name: string | null, handle: string | null) {
   if (handle) return handle;
   const base = slug(name || email.split("@")[0] || "");
   for (let i = 0; i < 20; i++) {
@@ -108,8 +129,9 @@ export async function profileFor(db: Db, viewer: string | null, who: string): Pr
   const handle = await ensureHandle(db, u.email, u.name, u.handle);
   const since = new Date(Date.now() - 29 * 864e5).toISOString().slice(0, 10);
   const [tot, days, agent, hits] = await Promise.all([
-    db.prepare(`SELECT sum(tokens) AS tokens, sum(messages) AS messages, sum(deploys) AS deploys, sum(limits_hit) AS limits FROM user_stats WHERE email = ?`).bind(u.email).first<Record<string, number | null>>(),
-    db.prepare(`SELECT day, tokens FROM user_stats WHERE email = ? AND day >= ? ORDER BY day`).bind(u.email, since).all<{ day: string; tokens: number }>(),
+    // Tokens = the live counter plus what each machine's old transcripts had (usage_backfill).
+    db.prepare(`SELECT coalesce(sum(tokens), 0) + coalesce((SELECT sum(tokens) FROM usage_backfill WHERE email = ?1), 0) AS tokens, sum(messages) AS messages, sum(deploys) AS deploys, sum(limits_hit) AS limits FROM user_stats WHERE email = ?1`).bind(u.email).first<Record<string, number | null>>(),
+    db.prepare(`SELECT day, sum(tokens) AS tokens FROM (SELECT day, tokens FROM user_stats WHERE email = ?1 AND day >= ?2 UNION ALL SELECT day, tokens FROM usage_backfill WHERE email = ?1 AND day >= ?2) GROUP BY day`).bind(u.email, since).all<{ day: string; tokens: number }>(),
     db.prepare(`SELECT ctx_limits FROM agents WHERE email = ? AND ctx_limits IS NOT NULL AND ctx_at > ? ORDER BY ctx_at DESC LIMIT 1`).bind(u.email, Date.now() - 6 * 3600_000).first<{ ctx_limits: string }>(),
     db.prepare(`SELECT kind, at FROM limit_hits WHERE email = ? ORDER BY at DESC LIMIT 10`).bind(u.email).all<{ kind: string; at: number }>(),
   ]);
@@ -141,6 +163,18 @@ export async function setProfilePublic(db: Db, email: string, on: boolean): Prom
   const handle = await ensureHandle(db, email, u?.name ?? null, u?.handle ?? null);
   await db.prepare(`UPDATE users SET profile_public = ? WHERE email = ?`).bind(on ? 1 : 0, email).run();
   return { handle, public: on };
+}
+
+/** Change your @handle: folded, checked, and only if no one else has it ("taken"). */
+export async function setHandle(db: Db, email: string, wanted: string): Promise<{ handle: string } | { error: "invalid" | "taken" }> {
+  const handle = wanted.trim().replace(/^@/, "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!HANDLE_RE.test(handle)) return { error: "invalid" };
+  const r = await db
+    .prepare(`UPDATE users SET handle = ?1 WHERE email = ?2 AND NOT EXISTS (SELECT 1 FROM users WHERE handle = ?1 AND email != ?2)`)
+    .bind(handle, email)
+    .run()
+    .catch(() => null);
+  return r?.meta.changes ? { handle } : { error: "taken" };
 }
 
 /** Whose avatar a public /u/<handle>/avatar serves: only a profile the viewer may see. */

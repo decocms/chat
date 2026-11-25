@@ -1,7 +1,9 @@
 <script lang="ts">
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import { CALL_THREAD } from "../../../shared/call";
   import { onMount } from "svelte";
   import Message from "./Message.svelte";
+  import CallLine from "./CallLine.svelte";
   import type { ChatProps } from "../../app/chatTypes";
   import {
     foldMessages,
@@ -10,15 +12,18 @@
     messageFooters,
     threadWorkers,
     prettyModel,
+    messageAuthor,
   } from "./model";
+  import { selectedMessages, transcriptText } from "./clipboard";
   import Button from "../../lib/studio/Button.svelte";
-  import AgentMark from "../../lib/components/AgentMark.svelte";
   import {
     AGENT_TILES,
     agentMark,
     agentProvider,
   } from "../../lib/components/agent";
   import { productionStatuses } from "./production";
+  import { startedThread, THREAD_UNDO_MS } from "./threadUndo";
+  import Icon from "../../lib/studio/Icon.svelte";
   let {
     room,
     thread,
@@ -31,10 +36,6 @@
     actions,
     onloadolder,
   }: ChatProps = $props();
-  // "O que precisa de mim aqui" (Gui #3011): your latest ask in this thread, answered by your Claude; only you get it.
-  const brief = $derived(
-    room.briefs?.filter((item) => item.thread === thread).at(-1),
-  );
   let now = $state(Date.now());
   onMount(() => {
     const timer = setInterval(() => {
@@ -53,10 +54,89 @@
       : undefined,
   );
   const production = $derived(productionStatuses(room).get(thread));
+  // "Thread criada · Desfazer" (Gimenes #4310): only in the thread that you just started from a message in main,
+  // for THREAD_UNDO_MS, and only while nobody wrote in it.
+  const undoable = $derived(
+    !!origin &&
+      replyCount === 0 &&
+      $startedThread?.id === thread &&
+      Date.now() - $startedThread.at < THREAD_UNDO_MS,
+  );
+  $effect(() => {
+    const started = $startedThread;
+    if (!started || started.id !== thread) return;
+    const timer = setTimeout(
+      () => startedThread.update((s) => (s?.id === started.id ? null : s)),
+      Math.max(0, started.at + THREAD_UNDO_MS - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  });
+  async function undoThread() {
+    const from = origin;
+    startedThread.set(null);
+    const outcome = await actions.request({ t: "epic.del", id: thread });
+    if (outcome.ok && from) actions.navigate(from.id, from.thread);
+  }
+  // A copy that takes in more than one message's text (names, avatars, marks,
+  // reactions) becomes "[time, date] name: text" lines, as WhatsApp copies
+  // (Gimenes #3955), each with only the selected part of the message's text.
+  // A selection in one message's text, also one that ends past it, copies only
+  // the selected text. Inside one message's text and in a field, the browser
+  // copies as usual.
+  function copySelection(event: ClipboardEvent) {
+    const selection = window.getSelection();
+    if (!event.clipboardData || !selection?.rangeCount || selection.isCollapsed)
+      return;
+    if (
+      event.target instanceof Element &&
+      event.target.closest(
+        "input, textarea, [contenteditable]:not([contenteditable='false'])",
+      )
+    )
+      return;
+    const picked = selectedMessages(
+      selection.getRangeAt(0),
+      event.currentTarget as Element,
+    );
+    if (!picked) return;
+    const byId = new Map(
+      list
+        .flatMap((m) => [m, ...(m.group ?? [])])
+        .map((m) => [String(m.id), m]),
+    );
+    const only = picked.length === 1 ? picked[0] : null;
+    const text =
+      only && !only.head && only.text
+        ? only.text
+        : transcriptText(
+            picked.flatMap((part) => {
+              const m = byId.get(part.id);
+              if (!m) return [];
+              return [
+                {
+                  when: `${vb.hhmm(m.ts)}, ${new Date(m.ts).toLocaleDateString(vb.locale)}`,
+                  who: messageAuthor(m, vb),
+                  text: part.whole
+                    ? m.text ||
+                      m.files?.map((f) => f.name).join(", ") ||
+                      part.text
+                    : part.text,
+                },
+              ];
+            }),
+          );
+    if (!text) return;
+    event.clipboardData.setData("text/plain", text);
+    event.preventDefault();
+  }
 </script>
 
 {#key room.id + ":" + thread}
-  <section data-chat-timeline class="pb-4 font-sans text-sm text-foreground">
+  <section
+    data-chat-timeline
+    class="pb-4 font-sans text-sm text-foreground"
+    oncopy={copySelection}
+  >
     {#if more}<div class="flex justify-center p-3">
         <Button variant="outline" size="sm" id="olderBtn" onclick={onloadolder}
           >{vb.t("Carregar mensagens anteriores")}</Button
@@ -77,11 +157,23 @@
         <div
           class="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground"
         >
-          <span
-            >{replyCount === 1
-              ? vb.t("1 resposta")
-              : vb.t("{n} respostas", { n: replyCount })}</span
-          ><Button
+          {#if undoable}<span
+              data-thread-undo
+              role="status"
+              class="flex items-center gap-1 text-foreground"
+              ><Icon icon="check-circle" size={14} />{vb.t(
+                "Thread criada",
+              )}<Button
+                variant="link"
+                size="sm"
+                class="h-auto px-1"
+                onclick={undoThread}>{vb.t("Desfazer")}</Button
+              ></span
+            >{:else}<span
+              >{replyCount === 1
+                ? vb.t("1 resposta")
+                : vb.t("{n} respostas", { n: replyCount })}</span
+            >{/if}<Button
             variant="ghost"
             size="sm"
             data-origin-id={origin.id}
@@ -98,15 +190,19 @@
             class="my-3 flex items-center gap-3 px-3 text-xs font-medium text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
           >
             {dayLabel(message.ts, Date.now(), vb.locale, (text) => vb.t(text))}
-          </div>{/if}<Message
-          {message}
-          previous={newDay(before, message) ? undefined : before}
-          typing={room.typing[message.id]}
-          {vb}
-          {room}
-          {actions}
-          footer={footers.get(message.id)}
-        />{/each}
+          </div>{/if}{#if message.tag === "call"}<CallLine
+            {message}
+            {room}
+            {vb}
+          />{:else}<Message
+            {message}
+            previous={newDay(before, message) ? undefined : before}
+            typing={room.typing[message.id]}
+            {vb}
+            {room}
+            {actions}
+            footer={footers.get(message.id)}
+          />{/if}{/each}
     {:else if !workers.length}<p
         data-chat-empty
         class="m-0 p-6 text-center leading-6 text-muted-foreground"
@@ -114,12 +210,14 @@
         {thread === "main"
           ? vb
               .t(
-                "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em épicos: site novo, aluguéis e domínio</i>.",
+                "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em threads: site novo, aluguéis e domínio</i>.",
               )
               .replace(/<\/?i>/g, "")
-          : vb.t(
-              "Discussão deste épico. Os agents leem as tarefas, o doc e a sala principal.",
-            )}
+          : thread === CALL_THREAD
+            ? vb.t("Chat da call. Fica para as próximas calls desta sala.")
+            : vb.t(
+                "Discussão desta thread. Os agents leem as tarefas, o doc e a sala principal.",
+              )}
       </p>{/if}
     {#if workers.length}<!-- Who is working here, in the agent's own color (a full block, like its tile): the agent is the
          squircle, the person it works for the small round picture on its corner. -->
@@ -184,7 +282,7 @@
           >✻</span
         >
       </div>{/if}
-    {#if epic?.archived}<div
+    {#if epic?.done}<div
         data-chat-end
         class="mx-3 mt-4 space-y-1 rounded-surface border border-border p-4"
       >
@@ -220,47 +318,5 @@
             {vb.t("Falta o agent verificar em prod.")}
           </p>{/if}
       </div>{/if}
-    {#if brief}<section
-        data-brief
-        aria-label={vb.t("O que precisa de mim aqui?")}
-        class="mx-3 mt-4 space-y-1.5 rounded-surface border border-dashed border-border bg-muted/40 p-3"
-      >
-        <div class="flex flex-wrap items-center gap-2 text-xs">
-          <AgentMark size="2xs" />
-          <b class="font-semibold">{vb.t("O que precisa de mim aqui?")}</b>
-          <span class="rounded-full bg-muted px-2 py-0.5"
-            >{vb.t("só você vê")}</span
-          >
-          <span class="flex-1"></span><Button
-            size="sm"
-            variant="ghost"
-            onclick={(event) => {
-              if (event.currentTarget.isConnected)
-                void actions.request({ t: "brief.dismiss", id: brief.id });
-            }}>{vb.t("Dispensar")}</Button
-          >
-        </div>
-        {#if brief.text}<p
-            data-brief-text
-            class="m-0 whitespace-pre-wrap break-words text-sm leading-6"
-          >
-            {brief.text}
-          </p>
-          <p class="m-0 text-xs text-muted-foreground">
-            {brief.answered_at
-              ? [
-                  brief.model ? prettyModel(brief.model) : "",
-                  new Date(brief.answered_at).toLocaleTimeString(
-                    vb.locale || "pt-BR",
-                    { hour: "2-digit", minute: "2-digit" },
-                  ),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : ""}
-          </p>{:else}<p role="status" class="m-0 text-sm text-muted-foreground">
-            {vb.t("Pedi pro seu Claude… ele responde quando estiver ouvindo.")}
-          </p>{/if}
-      </section>{/if}
   </section>
 {/key}

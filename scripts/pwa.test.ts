@@ -8,11 +8,18 @@ import type { PushApi } from "../web/features/notifications/api";
 import { createPushApi } from "../web/features/notifications/api";
 import { notificationPolicy } from "../web/features/notifications/policy";
 import {
+  notificationFrom,
+  notificationTitle,
+} from "../shared/notificationTitle";
+import {
+  ASKED_KEY,
   LEGACY_MUTE_KEY,
   NOTIFY_KEY,
   SOUND_KEY,
   enableDeviceNotifications,
   notificationAvailability,
+  notificationOffer,
+  readAsked,
   readDeviceAlerts,
 } from "../web/features/notifications/device";
 import { installOutcome } from "../web/features/pwa/platform";
@@ -486,4 +493,62 @@ test("the notifications switch says why it cannot turn on", () => {
   expect(notificationAvailability({ ...view, permission: "unsupported" })).toBe(
     "unsupported",
   );
+});
+
+test("a device that never chose gets one notifications offer (Gimenes #4363)", () => {
+  const fresh = {
+    permission: "default" as const,
+    iosWeb: false,
+    pushSupported: true,
+    notifications: false,
+    asked: false,
+  };
+  expect(notificationOffer(fresh)).toBe(true);
+  // Asked once (banner, x or first send), already decided, already on, or no push here: no offer.
+  expect(notificationOffer({ ...fresh, asked: true })).toBe(false);
+  expect(notificationOffer({ ...fresh, permission: "granted" })).toBe(false);
+  expect(notificationOffer({ ...fresh, permission: "denied" })).toBe(false);
+  expect(notificationOffer({ ...fresh, notifications: true })).toBe(false);
+  expect(notificationOffer({ ...fresh, iosWeb: true })).toBe(false);
+  expect(notificationOffer({ ...fresh, pushSupported: false })).toBe(false);
+  const items = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => items.get(key) ?? null,
+    setItem: (key: string, value: string) => void items.set(key, value),
+    removeItem: (key: string) => void items.delete(key),
+  };
+  expect(readAsked(storage)).toBe(false);
+  storage.setItem(ASKED_KEY, "1");
+  expect(readAsked(storage)).toBe(true);
+  // Storage that throws (some private modes): never nag.
+  expect(
+    readAsked({
+      ...storage,
+      getItem: () => {
+        throw new Error("blocked");
+      },
+    }),
+  ).toBe(true);
+});
+test("a notification's title is who wrote, then the room; an agent is just Agente, a DM has no room (Gimenes #4253)", () => {
+  const title = (
+    message: { author: string; kind?: string | null },
+    room: string | null,
+    en = false,
+  ) =>
+    notificationTitle({
+      from: notificationFrom(message),
+      name: "Ana",
+      room,
+      en,
+    });
+  expect(title({ author: "ana@x.test" }, "Produto")).toBe("Ana · Produto");
+  expect(title({ author: "ana@x.test", kind: "agent" }, "Produto")).toBe(
+    "Agente · Produto",
+  );
+  expect(title({ author: "ana@x.test", kind: "agent" }, "Produto", true)).toBe(
+    "Agent · Produto",
+  );
+  expect(title({ author: "ai" }, "Produto")).toBe("@vibe · Produto");
+  expect(title({ author: "ana@x.test" }, null)).toBe("Ana");
 });

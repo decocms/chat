@@ -145,10 +145,10 @@ const rootRoles: StudioRenderedRole[] = [
   },
   {
     role: "Composer input fill",
-    // The rounded box is the filled input surface; its textarea is transparent.
+    // The rounded box is the filled input surface (muted, as the search field); its textarea is transparent.
     selector: "[data-composer] [data-composer-field]",
     property: "background-color",
-    cssVariable: "--studio-input-background",
+    cssVariable: "--muted",
   },
   {
     role: "Composer input label",
@@ -278,8 +278,10 @@ async function renderedFonts(page: Page) {
       [
         "Room title",
         phone
-          ? "[data-room-bar] [data-phone-title] > span:last-child > span:first-child"
-          : "[data-room-bar] [data-thread-title] span.truncate",
+          ? "[data-room-bar] [data-phone-title] [data-phone-thread]"
+          : // The desktop main thread's bar holds the search, so the room's
+            // name in the sidebar's header carries the title glyphs.
+            "[data-room-home] h2",
         "Inter",
       ],
       ["Canonical code", "[data-chat-message] pre code", "CommitMono"],
@@ -367,19 +369,22 @@ async function keyboardOverlays(
   evidence: ApplicationProfileEvidence,
 ) {
   const t = createApplicationCopy(profile.lang);
-  // Phones carry Search in the room header, which the thread sheet covers when
-  // it drops from the top (#80); desktop keeps it in the sidebar.
+  // Phones have no Search shortcut in the title's menu (#4075): with a
+  // keyboard, Ctrl+K opens Search from the title, and focus comes back to the
+  // title. Desktop keeps it in the sidebar.
   const phone = profile.width <= 900;
   if (!phone) await fixture.openSidebar(page);
-  const search = page
-    .getByRole("button", {
-      name: homeText(profile.lang, "search"),
-      exact: true,
-    })
-    .filter({ visible: true })
-    .first();
+  const search = phone
+    ? page.locator("[data-room-bar] [data-phone-title]")
+    : page
+        .getByRole("button", {
+          name: homeText(profile.lang, "search"),
+          exact: true,
+        })
+        .filter({ visible: true })
+        .first();
   await search.focus();
-  await page.keyboard.press("Enter");
+  await page.keyboard.press(phone ? "Control+K" : "Enter");
   const searchDialog = page.getByRole("dialog", {
     name: homeText(profile.lang, "search"),
     exact: true,
@@ -449,44 +454,41 @@ async function keyboardOverlays(
       "Escape closes the mobile side sheet with confirmed history departure",
     );
   }
-  const inbox = page.locator("[data-inbox-toggle]");
-  const composer = page.locator("[data-composer] textarea");
-  const originalDraft = await composer.inputValue();
-  const inboxDraft = "Inbox profile draft";
-  await composer.fill(inboxDraft);
+  // A room has no Inbox of its own: the Inbox is global. Desktop opens it
+  // from the rail's logo, as the Home (`/`, Gimenes #3967); phones by `/?inbox`.
+  await expect(page.locator("[data-inbox-toggle]")).toHaveCount(0);
   const roomUrl = page.url();
-  await inbox.focus();
-  await page.keyboard.press("Enter");
-  const roomInbox = page.locator("[data-room-inbox]");
-  await expect(roomInbox).toBeVisible();
+  const railInbox = page
+    .locator("[data-app-navigation]")
+    .getByRole("button", { name: t("Caixa de entrada"), exact: true });
+  const byRail = !phone && (await railInbox.count()) > 0;
+  if (byRail) {
+    await railInbox.focus();
+    await page.keyboard.press("Enter");
+    await page.waitForURL((url) => url.pathname === "/");
+  } else {
+    await page.goto(new URL("/?inbox", roomUrl).href);
+    await page.waitForURL((url) => url.searchParams.has("inbox"));
+  }
+  const homeInbox = page.locator("[data-home-inbox]");
+  await expect(homeInbox).toBeVisible();
+  await expect(homeInbox.locator("[data-room-inbox]")).toBeVisible();
   await expect(
     page.getByRole("dialog", {
       name: t("Caixa de entrada"),
       exact: true,
     }),
   ).toHaveCount(0);
-  await expect(composer).toBeHidden();
-  assert.equal(
-    page.url(),
-    roomUrl,
-    "In-room Inbox does not change the thread URL",
-  );
-  await expect(roomInbox.locator("[data-room-inbox-chat]")).toBeVisible();
-  // The Inbox's scope and "Resolve all": in the top bar (desktop) or atop the list (phones).
+  // "Resolve all": in the home Inbox's bar (desktop) or atop the list (phones).
   await expect(
     page.locator("[data-inbox-controls]:visible").first(),
   ).toBeVisible();
-  await axe(page, "in-place room Inbox open", evidence);
-  // Phones: the bar hides while the Inbox is open, so its ✕ closes it. Desktop: the sidebar's Inbox button.
-  await (phone ? roomInbox.locator("[data-room-inbox-close]") : inbox).focus();
-  await page.keyboard.press("Enter");
-  await expect(roomInbox).toHaveCount(0);
-  await expect(composer).toBeVisible();
-  await expect(composer).toHaveValue(inboxDraft);
-  await expect(inbox).toBeFocused();
-  await composer.fill(originalDraft);
+  await axe(page, "global Inbox open", evidence);
+  await page.goBack();
+  await page.waitForURL(roomUrl);
+  await expect(page.locator("[data-composer] textarea")).toBeVisible();
   evidence.keyboard.push(
-    "Room Inbox opens in place with its list and controls, unchanged URL and hidden composer; keyboard close restores the draft and opening trigger",
+    `Global Inbox opens ${byRail ? "from the rail by keyboard" : "at /?inbox"} with its list and controls; Back returns to the room`,
   );
 }
 
@@ -520,6 +522,8 @@ async function applicationGeometry(page: Page) {
       height: innerHeight,
       documentWidth: document.documentElement.scrollWidth,
       navigation: read("[data-app-navigation]"),
+      // Phones: a Home with conversations draws its own bar (data-home-bar) instead.
+      homeBar: read("[data-home-bar]"),
       route: read("[data-application-route]"),
       room: read("[data-room-layout]"),
       chat: read("[data-room-chat]"),
@@ -575,17 +579,26 @@ export async function auditApplicationProfiles(
               timeout: 120_000,
             });
             await expect(page.locator('[data-view="home"]')).toBeVisible();
-            await expect(page.locator("[data-app-navigation]")).toBeVisible();
+            // Phones: a Home with conversations hides the global bar and draws its own.
+            const homeBar =
+              profile.width <= 900 &&
+              (await page.locator('[data-home-layout="chats"]').count()) > 0;
+            await expect(
+              page.locator(
+                homeBar ? "[data-home-bar]" : "[data-app-navigation]",
+              ),
+            ).toBeVisible();
             const homeGeometry = await applicationGeometry(page);
             assert(
               homeGeometry.documentWidth <= homeGeometry.width + 1,
               "Home must fit the phone, tablet and desktop viewport without page overflow",
             );
             if (profile.width <= 900) {
+              const bar = homeBar
+                ? homeGeometry.homeBar
+                : homeGeometry.navigation;
               assert(
-                homeGeometry.navigation &&
-                  homeGeometry.navigation.height > 0 &&
-                  homeGeometry.navigation.height <= 80,
+                bar && bar.height > 0 && bar.height <= 80,
                 "Mobile Home keeps reachable navigation controls in a compact horizontal header",
               );
             } else
@@ -720,6 +733,13 @@ export async function auditApplicationProfiles(
               evidence.servedFonts = await actualFontAssets(fixture, page);
               fontsVerified = true;
             }
+            // Send shows only when there is something to send (#3692): a draft makes it visible to measure.
+            const draft = page.locator("[data-composer] #input");
+            await draft.fill("Profile");
+            await expect(
+              page.locator("[data-composer] [data-composer-send]"),
+            ).toBeVisible();
+            await settleAnimations(page);
             evidence.palettes.push({
               surface: "Room/Composer/canonical code",
               evidence: await verifyStudioPalette(
@@ -728,13 +748,15 @@ export async function auditApplicationProfiles(
                 frameRoles(width),
               ),
             });
+            await draft.fill("");
+            await draft.blur();
+            await settleAnimations(page);
             await axe(page, "Room initial", evidence);
             await page.screenshot({
               path: `${fixture.output}/${key}-room.png`,
             });
             for (const pane of [
               "doc",
-              "board",
               "files",
               "apps",
               "agents",
@@ -748,8 +770,7 @@ export async function auditApplicationProfiles(
               )
                 continue;
               await fixture.openPane(page, pane);
-              const selector =
-                pane === "board" ? "[data-room-board]" : "[data-room-document]";
+              const selector = "[data-room-document]";
               await expect(page.locator(selector)).toBeVisible();
               evidence.paneFonts.push({
                 surface: pane,

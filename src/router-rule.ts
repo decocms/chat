@@ -1,3 +1,5 @@
+// HARD RULE (AGENTS.md, rule 14): a change here needs `bun scripts/router-bench.ts` before the pull request, with the
+// scores before and after in the pull request. A score must not go down. New behavior gets new bench cases.
 // The router's fixed rules (src/router.ts), apart so scripts/router-check.ts can run them without the Worker.
 export type RuleMsg = { author: string; agent: boolean; tag: string | null; for_who: string | null; mentions_you: boolean; reply_author: string | null; epic_owner: string | null };
 /** Decisions that need no model: whose message it is, and what it answers. null = ask the arm. */

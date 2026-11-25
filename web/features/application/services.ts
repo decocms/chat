@@ -9,6 +9,8 @@ import { createAccountLogout, personalLogoutIdentity } from "../account/logout";
 import type { DeviceLock } from "../account/device";
 import { createAgentsService } from "../agents/service";
 import type { AgentsApi } from "../agents/api";
+import type { MessagesApi } from "../root-room/api";
+import type { RoomCache } from "../room-cache/store";
 import type { PwaService } from "../pwa/service";
 import { createAppNavigationSession } from "../app-navigation/controller";
 import {
@@ -25,6 +27,7 @@ import {
 } from "../root-room/session";
 import { createAppsAuthority } from "../apps/authority";
 import { createApplicationPersonalChannel } from "./personal-channel";
+import { ringNotice } from "../call/ring";
 import type { createPersonalConnection } from "../home/connection";
 import { copyRoomTarget, titleOwnDm, type RoomTarget } from "../home/model";
 import { settingsHref, type SettingsSection } from "../account/settings";
@@ -37,6 +40,9 @@ import type {
   ApplicationRoomIntent,
 } from "./types";
 import type { FetchLike } from "../../app/transport";
+import { browserDrafts } from "../composer/draftStore";
+import { createRoomVisits, type RoomVisits } from "../navigation/recent";
+import { isRoomMember, roomHasThread } from "../../../shared/call";
 
 export type ApplicationPwa = Pick<
   PwaService,
@@ -48,6 +54,10 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   homeApi?: HomeApi;
   accountApi?: AccountApi;
   agentsApi?: AgentsApi;
+  /** Scroll-back and the room's snapshot over HTTP; without it, "older" and the state go on the socket. */
+  messagesApi?: MessagesApi;
+  /** Rooms saved in IndexedDB (cache plan PR 3); without it, rooms live in memory only. */
+  roomCache?: RoomCache;
   runnerFetch?: FetchLike;
   device?: Pick<DeviceLock, "cancel" | "dispose" | "visibility">;
   roomConnection?: Parameters<typeof createRootRoomSession>[0]["connection"];
@@ -56,8 +66,11 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   ) => ReturnType<typeof createPersonalConnection>;
   /** Account-owned document drafts outside these services reset here, once. */
   onIdentityReset?: () => void;
+  /** Where you were in each room (the thread to reopen, your last threads); without it, kept in memory only. */
+  visits?: RoomVisits;
 }) {
   const browser = options.browser;
+  const visits = options.visits ?? createRoomVisits(null);
   const state = writable<ApplicationState>({
     route: applicationRoute(browser.href()),
     href: browser.href(),
@@ -128,12 +141,49 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     runnerFetch: options.runnerFetch,
     onUnauthorized: denySession,
   });
+  // Saved rooms that are not yours any more (you left, were removed, or another account) go when /api/me says so.
+  let keptRooms = "";
+  const stopRoomPrune = options.roomCache
+    ? personal.state.subscribe((value) => {
+        if (!value.me) return;
+        const ids = value.me.books.map((book) => book.id);
+        const key = `${value.me.email}\n${ids.join(",")}`;
+        if (key === keptRooms) return;
+        keptRooms = key;
+        options.roomCache!.keep(value.me.email, ids);
+      })
+    : () => {};
   const root = createRootRoomSession({
-    url: (id, thread, code) =>
+    url: (id, thread, code, resume, lite) =>
       browser.socketUrl(
-        `/ws/${id}?t=${encodeURIComponent(thread)}${code ? `&rc=${encodeURIComponent(code)}` : ""}`,
+        `/ws/${id}?t=${encodeURIComponent(thread)}${lite ? "&lite=1" : ""}${code ? `&rc=${encodeURIComponent(code)}` : ""}${
+          resume
+            ? `&since=${resume.since}&at=${resume.at}${resume.eh ? `&eh=${encodeURIComponent(resume.eh)}` : ""}`
+            : ""
+        }`,
       ),
     connection: options.roomConnection,
+    ...(options.roomCache
+      ? {
+          persist: options.roomCache,
+          whenAccount: (found: (email: string) => void) =>
+            personal.state.subscribe((value) => {
+              if (value.me) found(value.me.email);
+            }),
+        }
+      : {}),
+    ...(options.messagesApi
+      ? {
+          older: (roomId: string, thread: string, before?: number) =>
+            options.messagesApi!.page(roomId, { thread, before, limit: 100 }),
+          // The room's snapshot over HTTP: the socket opens light (lite=1) and carries live events only.
+          room: (
+            roomId: string,
+            thread: string,
+            resume?: { since: number; at: number; eh?: string },
+          ) => options.messagesApi!.room(roomId, { thread, resume }),
+        }
+      : {}),
     present: (room) => titleOwnDm(room, browser.language ?? "pt"),
     acceptIdentity: (value) => personal.acceptIdentity(value),
     // This executes before RootRoomSession cache insertion AND state publication.
@@ -319,6 +369,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     },
     refreshRoom: refreshRoomAgents,
     alert: () => pwa.alert(),
+    ring: ringNotice,
     url: () => browser.socketUrl("/ws-me"),
     visible: browser.visible,
     listenVisibility: browser.listenVisibility,
@@ -331,7 +382,12 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     failure: browser.logoutFailure,
     reload: browser.reload,
     // Signed out: the login page (out=1), not "/", which goes on to Studio and can sign the same person in again.
-    success: () => browser.navigateDocument("/login?out=1"),
+    // Drafts kept in the browser (composer/draftStore.ts) leave with the session, so a shared device keeps none.
+    success: () => {
+      browserDrafts().clear();
+      options.roomCache?.clear();
+      browser.navigateDocument("/login?out=1");
+    },
   });
   const stopPersonal = personal.state.subscribe((value) => {
     if (!active) return;
@@ -362,7 +418,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       room &&
       value.connection &&
       room.id === currentRoomId() &&
-      room.members.includes(room.me)
+      isRoomMember(room)
       ? {
           roomId: room.id,
           account: room.me,
@@ -431,9 +487,8 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       room = root.read().room!;
     const suggestion = /^pre:(\d+)$/.exec(requested);
     const thread =
-      requested === "main" ||
       (suggestion && Number(suggestion[1]) < room.suggestions.length) ||
-      room.epics.some((epic) => epic.id === requested)
+      roomHasThread(room, requested)
         ? requested
         : "main";
     if (
@@ -449,6 +504,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         return;
     }
     root.selectThread(thread);
+    visits.enter(scope.account, scope.roomId, thread);
     if (
       !owns(scope) ||
       currentLease() !== current ||
@@ -518,11 +574,29 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       };
       return;
     }
+    value = resumeRoom(value);
     const to =
       typeof value === "string"
         ? applicationRoute(new URL(value, browser.href()).href)
         : ({ kind: "room", target: value } as const);
     animated(to, () => router.go(value, replace, presentationThread));
+  }
+  /** Opening another room by itself (the rail, the home, search) goes back to the thread you left there. A link to
+   *  a thread, a message, a file or a pane goes where it says. */
+  function resumeRoom(value: string | RoomTarget) {
+    if (
+      typeof value === "string" ||
+      value.thread !== undefined ||
+      value.messageId !== undefined ||
+      value.fileId !== undefined ||
+      value.document ||
+      value.app ||
+      value.roomId === currentRoomId()
+    )
+      return value;
+    const me = get(personal.state).me?.email,
+      thread = me ? visits.last(me, value.roomId) : null;
+    return thread && thread !== "main" ? { ...value, thread } : value;
   }
   function resetIdentity() {
     const revision = get(personal.state).identityRevision;
@@ -587,6 +661,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   function denySession() {
     if (!active || sessionDenied) return;
     sessionDenied = true;
+    options.roomCache?.clear();
     // Clear canonical private data and synchronously run the ordinary identity
     // reset before redirecting. These document owners cannot recover from old
     // Room/member projections or controls that remain connected until a flush.
@@ -665,6 +740,10 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       openAccount,
       logout,
       sessionLost: denySession,
+      /** An @mention clicked in a room: the DM with that person (a room member, so it opens at once). */
+      openPerson(email: string) {
+        void navigation.callbacks.connect?.(email).catch(() => {});
+      },
       selectThread(
         thread: string,
         options: { replace?: boolean; transient?: boolean } = {},
@@ -682,10 +761,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
             options.replace,
             `pre:${index}`,
           );
-        } else if (
-          !options.transient &&
-          (thread === "main" || room.epics.some((epic) => epic.id === thread))
-        ) {
+        } else if (!options.transient && roomHasThread(room, thread)) {
           navigate({ roomId: scope.roomId, thread }, options.replace);
         }
       },
@@ -735,6 +811,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       stopPersonal();
       channel.dispose();
       logout.dispose();
+      stopRoomPrune();
       router.dispose();
       root.dispose();
       navigation.dispose();

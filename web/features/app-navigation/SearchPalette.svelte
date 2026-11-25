@@ -76,7 +76,7 @@
       group: "epics",
       target: epicTarget(epic),
       title: epic.title,
-      detail: epic.room + (epic.archived ? " · " + text("archive") : ""),
+      detail: epic.room + (epic.done ? " · " + text("doneThread") : ""),
     })),
     ...($view.result?.messages ?? []).map((message): Row => ({
       key: "msg:" + message.room_id + ":" + message.id,

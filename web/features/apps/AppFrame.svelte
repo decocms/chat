@@ -155,8 +155,8 @@
       return current() ? result.connections : [];
     },
     call: callRemote,
-    metric: (kind, roomOnly) =>
-      props.metric(kind, roomOnly).catch((error: unknown) => {
+    metric: (kind, roomOnly, days) =>
+      props.metric(kind, roomOnly, days).catch((error: unknown) => {
         if (error instanceof AppsFailure && error.sessionDenied)
           props.owner.revoke();
         throw error;
@@ -233,6 +233,11 @@
           : (name, args) => callRemote(selected.connection, name, args),
         message: (text) =>
           tools("vibebook_post", { text, thread: props.thread }),
+        compose: props.compose
+          ? (draft) => {
+              if (current()) props.compose?.(draft);
+            }
+          : undefined,
         ask,
         open: (url) => {
           if (current()) props.openLink(url);

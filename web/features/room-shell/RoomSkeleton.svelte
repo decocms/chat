@@ -1,6 +1,12 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import Skeleton from "../../lib/studio/Skeleton.svelte";
+  import {
+    COMPOSER_BOX,
+    COMPOSER_FRAME,
+    COMPOSER_ROW,
+    COMPOSER_SLOT,
+  } from "../composer/shape";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
@@ -8,18 +14,17 @@
   import { isDmId } from "../../../shared/dm";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
-  import Count from "../../lib/components/Count.svelte";
-  import { paneIcons, paneLabel } from "../documents/paneIcons";
   import { roomIcon, switcherDms } from "../home/model";
   import { homeText } from "../home/copy";
-  import { roomDocumentWidth } from "../room-layout/preview";
+  import { roomDocumentOpen, roomDocumentWidth } from "../room-layout/preview";
+  import { EPIC_PROGRESS, MESSAGE_AVATAR, MESSAGE_ROW } from "./shape";
+  import { storedThreadView } from "../navigation/session";
   import type { BrowserApplicationServices } from "../application/browser";
   /** A room that is still connecting, drawn in the room's own frame (the cells of
    * RoomLayoutFrame: sidebar, chat with its header and composer, the doc on the
    * right) with the name and icon the home already knows, so nothing moves when
-   * the state lands. On a phone it is RoomHeader's one row (back, the room's
-   * avatar with its name over the thread, search, inbox, you) and PhoneTabBar
-   * under the composer. */
+   * the state lands. On a phone it is RoomHeader's one row (back, the thread
+   * over the room, centered, you) and the composer alone at the bottom. */
   let {
     roomId,
     thread = "main",
@@ -53,22 +58,24 @@
         : peer.name
       : (room?.title ?? ""),
   );
-  const waits = $derived(me?.waits.length ?? 0);
   const en = $derived(services.language === "en");
   const t = (text: string, vars?: Record<string, string | number>) =>
     services.t(text, vars);
-  // PhoneTabBar's tabs, Chat selected (a room opens on its chat).
-  const tabs = $derived([
-    { id: "chat", label: "Chat", icon: "message-circle-01" as const },
-    { id: "doc", label: "Doc", icon: paneIcons.doc },
-    { id: "board", label: en ? "Board" : "Quadro", icon: paneIcons.board },
-    { id: "files", label: en ? "Files" : "Arquivos", icon: paneIcons.files },
-    {
-      id: "claude",
-      label: paneLabel("agents", en),
-      icon: paneIcons.agents,
-    },
+  // The pane as the room will open it: closed if you left it closed (room-layout/model.ts, Gimenes #3938).
+  const documentOpen = roomDocumentOpen(
+    typeof window === "undefined" ? undefined : window,
+  );
+  // The threads tabs (EpicTree) on the tab this device kept for the room.
+  const threadView = $derived(roomId ? storedThreadView(roomId) : "open");
+  const threadTabs = $derived([
+    { value: "mine", label: t("Mine") },
+    { value: "open", label: t("Open") },
+    { value: "done", label: t("Done") },
   ]);
+  // The main thread's top bar holds the room's search where the thread's name was (RoomHeader, #318).
+  const searchLabel = $derived(
+    title ? t("Buscar em {room}", { room: title }) : t("Buscar nesta sala"),
+  );
 </script>
 
 {#snippet mark(size: string, square = "")}
@@ -98,16 +105,16 @@
   <div
     class="contents md:grid md:min-h-0 md:grid-cols-[auto_minmax(0,1fr)_auto] md:grid-rows-[52px_minmax(0,1fr)] md:overflow-hidden md:rounded-surface md:bg-background md:shadow-edge"
   >
-    <!-- Sidebar: the room's name, the main thread, epics, Pinned, People, then
+    <!-- Sidebar: the room's name (the main thread), epics, Pinned, People, then
        your Claude and you at its foot. -->
     <aside
       aria-hidden={dm ? undefined : "true"}
-      class="hidden w-room-sidebar min-h-0 flex-col gap-6 border-r border-border bg-sidebar px-2 pb-4 text-sidebar-foreground md:row-span-2 md:flex"
+      class="hidden w-room-sidebar min-h-0 flex-col gap-6 border-r border-border bg-sidebar px-2 pb-2 text-sidebar-foreground md:row-span-2 md:flex"
     >
       {#if dm}<div class="flex min-h-0 flex-col pt-2">
           <DmNav controller={services.navigation} lang={services.language} />
         </div>{:else}<div class="flex flex-col gap-3">
-          <!-- The room's name row (SidebarHeader) as it will land. -->
+          <!-- The room's name row (SidebarHeader) as it will land, then the epic list's tabs (EpicTree). -->
           <div
             class="-mx-2 flex h-[52px] shrink-0 items-center gap-2 border-b border-border pr-2 pl-4 font-semibold"
           >
@@ -116,33 +123,27 @@
               >{:else}{@render line("w-32")}{/if}
           </div>
           <div
-            class={[
-              "flex h-9 min-w-0 items-center gap-2 rounded-lg px-2 font-medium",
-              thread === "main" && "bg-sidebar-accent",
-            ]}
+            class="grid grid-cols-3 rounded-lg bg-sidebar-accent/60 p-0.5 text-center text-xs text-muted-foreground"
           >
-            <Icon
-              icon="message-circle-01"
-              size={16}
-              class="shrink-0 text-muted-foreground"
-            />
-            <span class="min-w-0 flex-1 truncate">{t("Sala principal")}</span>
+            {#each threadTabs as tab (tab.value)}<span
+                class={tab.value === threadView
+                  ? "rounded-md bg-background py-1 text-foreground"
+                  : "py-1"}>{tab.label}</span
+              >{/each}
           </div>
-          <Skeleton class="h-9 w-full rounded-lg opacity-60" />
-          {#each ["w-3/5", "w-2/5", "w-1/2"] as width (width)}
-            <div class="flex h-9 items-center gap-2 px-2">
-              <Skeleton class="size-5 shrink-0 rounded-full" />
-              {@render line(width, "h-2.5")}
-            </div>
-          {/each}
-        </div>
-        <div class="flex flex-col gap-3 px-2">
-          {@render line("w-14", "h-2.5")}
-          <Skeleton class="h-8 w-full rounded-lg opacity-60" />
-        </div>
-        <div class="flex flex-col gap-3 px-2">
-          {@render line("w-24", "h-2.5")}
-          <Skeleton class="h-8 w-full rounded-lg opacity-60" />
+          <!-- Epic rows (EpicTree): avatar, title, the status at the end, the task bar under. -->
+          <div class="-mt-1 flex flex-col gap-1">
+            {#each ["w-3/5", "w-2/5", "w-1/2"] as width (width)}
+              <div class="relative flex h-10 items-center gap-2.5 px-2.5">
+                <Skeleton class="size-6 shrink-0 rounded-full" />
+                <span class="flex min-w-0 flex-1"
+                  >{@render line(width, "h-2.5")}</span
+                >
+                <Skeleton class="size-3.5 shrink-0 rounded-full" />
+                <span class={EPIC_PROGRESS}></span>
+              </div>
+            {/each}
+          </div>
         </div>{/if}
       <div
         class="mt-auto flex flex-col gap-0.5 rounded-xl bg-sidebar-accent/50 p-1"
@@ -178,19 +179,27 @@
       aria-hidden="true"
       class="hidden min-w-0 items-center gap-1 border-b border-border pr-3 pl-5 md:col-span-2 md:flex"
     >
-      {@render mark("size-6")}
-      {#if title}<span class="min-w-0 flex-1 truncate px-2 text-sm font-medium"
-          >{title}</span
-        >{:else}<div class="flex min-w-0 flex-1 items-center px-2">
-          {@render line("w-40")}
-        </div>{/if}
-      {#each [0, 1] as slot (slot)}
-        <span class="grid size-8 shrink-0 place-items-center"
-          ><Skeleton class="size-4 rounded-full" /></span
-        >
-      {/each}
-      <Skeleton class="h-7 w-16 shrink-0 rounded-full" />
-      {#each [0, 1, 2, 3, 4, 5] as slot (slot)}
+      <!-- What RoomHeader puts there: on the main thread the room's search; in an epic, its face and name. -->
+      <div class="flex min-w-0 flex-1 items-center">
+        {#if thread === "main" && !dm}<span
+            class="flex h-8 w-full max-w-80 items-center gap-1.5 rounded-lg bg-muted px-2.5 text-muted-foreground"
+            ><Icon icon="search-md" size={14} /><span class="truncate"
+              >{searchLabel}</span
+            ></span
+          >{:else}{@render mark("size-6")}<span
+            class="flex min-w-0 flex-1 items-center px-2"
+            >{#if dm && title}<span class="truncate font-medium">{title}</span
+              >{:else}{@render line("w-40")}{/if}</span
+          >{/if}
+      </div>
+      <!-- The pane's tabs (DocumentToolbar): Doc with its name, then five icons. -->
+      {#if !dm}<span class="flex h-8 shrink-0 items-center gap-1.5 px-2"
+          ><Skeleton class="size-4 rounded-full" />{@render line(
+            "w-7",
+            "h-2.5",
+          )}</span
+        >{/if}
+      {#each [0, 1, 2, 3, 4] as slot (slot)}
         <span class="grid size-8 shrink-0 place-items-center"
           ><Skeleton class="size-4 rounded-full" /></span
         >
@@ -206,30 +215,26 @@
         <IconButton
           label={t("Suas salas")}
           size="icon"
-          class="rounded-full"
-          onclick={onhome}><Icon icon="arrow-left" size={16} /></IconButton
+          class="size-10 rounded-full"
+          onclick={onhome}><Icon icon="arrow-left" size={20} /></IconButton
         >
         <div
-          class="flex min-w-0 flex-1 basis-0 items-center gap-2.5 px-1.5 py-1"
+          class="flex min-w-0 flex-1 basis-0 items-center justify-start gap-2 px-1.5 py-1"
         >
-          {#if title}<RoomAvatar
+          {#if peer && title}<RoomAvatar
               {title}
               {icon}
               person={peer}
               lang={en ? "en" : "pt"}
               surface="background"
-            />{:else}<Skeleton class="size-8 shrink-0 rounded-lg" />{/if}
-          <span class="flex min-w-0 flex-1 flex-col">
-            {#if title}<span
-                class="truncate text-xs leading-4 text-muted-foreground"
-                >{title}</span
-              >{:else}<span class="flex h-4 items-center"
-                >{@render line("w-20", "h-2.5")}</span
-              >{/if}
+            />{/if}
+          <!-- Left, right after ←, like RoomHeader's title (Gimenes #3796). -->
+          <span class="flex min-w-0 flex-col items-start">
             <span
-              class="flex min-w-0 items-center gap-1 text-base leading-5 font-semibold"
-              >{#if thread === "main"}<span class="truncate"
-                  >{t(dm ? "Conversa" : "Sala principal")}</span
+              class="flex max-w-full min-w-0 items-center gap-1 text-base leading-5 font-semibold"
+              >{#if dm && title}<span class="truncate">{title}</span
+                >{:else if thread === "main" && !dm}<span class="truncate"
+                  >{t("Sala principal")}</span
                 >{:else}<span class="flex h-5 items-center"
                   >{@render line("w-32")}</span
                 >{/if}<Icon
@@ -238,28 +243,22 @@
                 class="shrink-0"
               /></span
             >
+            {#if !dm}{#if title}<span
+                  class="max-w-full truncate text-xs leading-4 text-muted-foreground"
+                  >{title}</span
+                >{:else}<span class="flex h-4 items-center"
+                  >{@render line("w-20", "h-2.5")}</span
+                >{/if}{/if}
           </span>
         </div>
         <span
           aria-hidden="true"
-          class="grid size-8 shrink-0 place-items-center text-muted-foreground"
-          ><Icon icon="search-md" size={16} /></span
-        >
-        <span
-          aria-hidden="true"
-          class="relative grid size-8 shrink-0 place-items-center text-muted-foreground"
-          ><Icon icon="inbox-01" size={16} />{#if waits}<Count
-              value={waits}
-              label={t("Esperando você: {n}", { n: waits })}
-              class="absolute -top-1 -right-1 shadow-[0_0_0_2px_var(--vb-background)]"
-            />{/if}</span
-        >
-        <span aria-hidden="true" class="grid size-8 shrink-0 place-items-center"
+          class="grid size-10 shrink-0 place-items-center"
           >{#if me}<PersonAvatar
               email={me.email}
               version={me.avatar}
-              size="2xs"
-            />{:else}<Skeleton class="size-4 rounded-full" />{/if}</span
+              size="sm"
+            />{:else}<Skeleton class="size-8 rounded-full" />{/if}</span
         >
       </header>
 
@@ -278,57 +277,61 @@
             {t("Carregando…")}
           </p>
         </div>
-        <div aria-hidden="true" class="flex flex-col gap-5 pb-4">
-          {#each [["w-24", "w-3/5"], ["w-32", "w-2/5"], ["w-20", "w-1/2"]] as [name, body] (name)}
-            <div class="flex items-start gap-3">
-              <Skeleton class="size-8 shrink-0 rounded-full" />
-              <div class="flex min-w-0 flex-1 flex-col gap-2 pt-1">
-                {@render line(name, "h-2.5")}
-                {@render line(body)}
+        <!-- Messages as Message.svelte draws them: a 40px avatar, the name and time, the text (room-shell/shape.ts). -->
+        <div aria-hidden="true" class="flex flex-col gap-1 pb-4">
+          {#each [["w-24", "w-3/5", "w-2/5"], ["w-32", "w-4/5", ""], ["w-20", "w-1/2", ""]] as [name, body, more] (name)}
+            <!-- pb-6: the reaction row every message keeps under it. -->
+            <div class="px-3 pt-1 pb-6">
+              <div class={MESSAGE_ROW}>
+                <div class={MESSAGE_AVATAR}>
+                  <Skeleton class="size-10 rounded-full" />
+                </div>
+                <div class="flex min-w-0 flex-1 flex-col gap-2 pt-1">
+                  <span class="flex items-center gap-2"
+                    >{@render line(name, "h-3")}{@render line(
+                      "w-10",
+                      "h-2.5",
+                    )}</span
+                  >
+                  {@render line(body)}
+                  {#if more}{@render line(more)}{/if}
+                </div>
               </div>
             </div>
           {/each}
         </div>
       </div>
 
-      <!-- The composer; on phones the tab bar under it carries the home-bar inset. -->
-      <div aria-hidden="true" class="shrink-0">
-        <div class="px-3 pt-1 pb-3 md:pb-2 md:px-4">
-          <div
-            class="mb-2 flex h-14 items-center gap-2 rounded-2xl bg-[var(--vb-studio-input-background)] pr-3 pl-4 text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--vb-foreground)_13%,transparent),0_4px_16px_0_#0000000d]"
-          >
-            <span class="min-w-0 flex-1 truncate">{t("Mensagem…")}</span>
-            <Skeleton class="h-8 w-16 rounded-full" />
+      <!-- The composer, alone at the bottom on phones: it carries the home-bar inset. -->
+      <div
+        aria-hidden="true"
+        class="shrink-0 max-md:pb-[env(safe-area-inset-bottom)]"
+      >
+        <!-- The composer's own shape (composer/shape.ts), so nothing moves when it loads. -->
+        <div class={["max-md:contents", COMPOSER_SLOT]}>
+          <div class={COMPOSER_FRAME}>
+            <div
+              class={[
+                "flex items-center gap-2 text-muted-foreground",
+                COMPOSER_BOX,
+                COMPOSER_ROW,
+              ]}
+            >
+              <span class="min-w-0 flex-1 truncate pl-2.5"
+                >{t("Mensagem…")}</span
+              >
+              <Skeleton class="h-8 w-16 rounded-full" />
+            </div>
           </div>
         </div>
       </div>
-
-      <!-- Phones: PhoneTabBar, Chat selected. -->
-      <nav
-        aria-hidden="true"
-        class="grid shrink-0 grid-cols-5 border-t border-border bg-background px-1 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] md:hidden"
-      >
-        {#each tabs as tab (tab.id)}
-          {@const on = tab.id === "chat"}
-          <span
-            class={[
-              "flex min-w-0 flex-col items-center gap-0.5 py-1 text-[0.6875rem] leading-4 text-muted-foreground",
-              on && "font-semibold text-foreground",
-            ]}
-            ><span
-              class={[
-                "flex h-7 w-12 items-center justify-center rounded-full",
-                on && "bg-accent",
-              ]}><Icon icon={tab.icon} size={18} /></span
-            ><span class="max-w-full truncate">{tab.label}</span></span
-          >
-        {/each}
-      </nav>
     </main>
 
     <!-- Doc: a few lines at the width the room opens with (vb.docW, the same
-       width animation the room's doc cell seeks); its tabs are in the top bar. -->
-    {#if !dm}<section
+       width animation the room's doc cell seeks); its tabs are in the top bar.
+       None when you left the pane closed, as the room will open (vb.docClosed). -->
+    {#if !dm && documentOpen}<section
+        data-room-skeleton-document
         aria-hidden="true"
         use:roomDocumentWidth
         class="hidden min-h-0 animate-room-document-width flex-col border-l border-border md:flex"

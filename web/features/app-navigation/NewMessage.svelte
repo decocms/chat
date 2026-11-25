@@ -13,6 +13,7 @@
   import { isEmail } from "../people/model";
   import type { MeResult } from "../../../shared/schemas";
   import { contacts, matchContacts } from "./contacts";
+  import type { Snippet } from "svelte";
   /**
    * The `+` on "Mensagens diretas". Someone from your rooms opens the DM at
    * once; an email outside them goes as a message request with a first
@@ -24,9 +25,17 @@
     lang,
     onconnect,
     ondismiss,
+    trigger,
+    onroom,
+    side = "bottom",
   }: {
     me: MeResult;
     lang: HomeLanguage;
+    /** Another button that opens it (the phone's home `+`), instead of the small `+`. */
+    trigger?: Snippet<[{ props: Record<string, unknown> }]>;
+    /** A "Nova sala" row on top: the phone's `+` makes a DM or a room (Gui #4572). */
+    onroom?: (trigger?: HTMLElement) => void;
+    side?: "bottom" | "top";
     /** Resolves with the DM's id when it opened, or nothing when it went as a request. */
     onconnect?: (email: string, text?: string) => Promise<string | undefined>;
     ondismiss?: (email: string) => Promise<void>;
@@ -78,21 +87,35 @@
 
 <Popover bind:open>
   <PopoverTrigger>
-    {#snippet child({ props })}<IconButton
-        {...props}
-        size="icon-xs"
-        tooltipSide="bottom"
-        label={text("newMessage")}
-        data-new-message><Icon icon="plus" /></IconButton
-      >{/snippet}
+    {#snippet child({ props })}{#if trigger}{@render trigger({
+          props,
+        })}{:else}<IconButton
+          {...props}
+          size="icon-xs"
+          tooltipSide="bottom"
+          label={text("newMessage")}
+          data-new-message><Icon icon="plus" /></IconButton
+        >{/if}{/snippet}
   </PopoverTrigger>
   <PopoverContent
-    side="bottom"
+    {side}
     align="end"
     sideOffset={6}
     data-new-message-panel
     class="flex w-80 max-w-[calc(100vw-16px)] flex-col gap-2 p-2 font-sans"
   >
+    {#if onroom}<button
+        type="button"
+        data-new-room
+        class={navRow({ class: "w-full text-left" })}
+        onclick={(event) => {
+          open = false;
+          onroom(event.currentTarget);
+        }}
+        ><Icon icon="plus" class="size-5 shrink-0" /><span
+          class="min-w-0 flex-1 truncate">{text("new")}</span
+        ></button
+      >{/if}
     <p class="m-0 px-1 text-sm font-medium">
       {text("newMessage")}
     </p>
@@ -171,6 +194,11 @@
                     class="block truncate text-xs text-muted-foreground"
                     >{text("inRooms", {
                       rooms: person.rooms.join(", "),
+                    })}</span
+                  >{:else if person.domain}<span
+                    class="block truncate text-xs text-muted-foreground"
+                    >{text("sameDomain", {
+                      domain: person.email.split("@")[1] ?? "",
                     })}</span
                   >{/if}</span
               ></button

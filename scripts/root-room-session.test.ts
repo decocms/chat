@@ -27,6 +27,8 @@ function snapshot(value: Room): RoomEvent {
 function harness(
   acceptIdentity: (account: string) => boolean = () => false,
   cacheAllowed: (room: Room) => boolean = () => true,
+  older?: Parameters<typeof createRootRoomSession>[0]["older"],
+  roomRead?: Parameters<typeof createRootRoomSession>[0]["room"],
 ) {
   const sockets: {
     callbacks: RoomConnectionOptions;
@@ -41,9 +43,12 @@ function harness(
     terminals: RootRoomSnapshot[] = [];
   let outcome: Promise<CommandOutcome> = Promise.resolve({ ok: true });
   const owner = createRootRoomSession({
-    url: (id, thread, code) => `${id}/${thread}/${code}`,
+    url: (id, thread, code, resume, lite) =>
+      `${id}/${thread}/${code}${resume ? `/since=${resume.since}` : ""}${lite ? "/lite" : ""}`,
     acceptIdentity,
     cacheAllowed,
+    ...(older ? { older } : {}),
+    ...(roomRead ? { room: roomRead } : {}),
     onOpen: (value) => opens.push(value),
     onTransition: (value) => transitions.push(value),
     onTerminal: (value) => terminals.push(value),
@@ -101,6 +106,160 @@ function harness(
     },
   };
 }
+test("scroll-back goes over HTTP and lands as the socket's events; a failed read falls back to the socket (cache plan, PR 1)", async () => {
+  const asked: unknown[] = [];
+  let answer: Awaited<ReturnType<NonNullable<Parameters<typeof harness>[2]>>> =
+    {
+      thread: "main",
+      messages: [
+        { id: 3, author: "b@test", text: "old one", ts: 1, thread: "main" },
+      ],
+      acks: [
+        { msg_id: 3, email: "a@test", who: "a@test", status: "done", ts: 2 },
+      ],
+      more: true,
+    };
+  const h = harness(
+    () => false,
+    () => true,
+    async (roomId, thread, before) => {
+      asked.push({ roomId, thread, before });
+      return answer;
+    },
+  );
+  h.owner.open("aaaaaa");
+  const socket = h.sockets[0]!;
+  socket.callbacks.onEvent(snapshot(room()));
+  expect(h.owner.send({ t: "older", thread: "main", before: 9 })).toBe(true);
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(asked).toEqual([{ roomId: "aaaaaa", thread: "main", before: 9 }]);
+  expect(socket.commands).toEqual([]);
+  expect(h.transitions.map((t) => t.event.t).slice(-2)).toEqual([
+    "ackRows",
+    "older",
+  ]);
+  expect(h.owner.read().room?.messages.map((m) => m.id)).toEqual([3]);
+  // Other commands still use the socket.
+  h.owner.send({ t: "call.leave" });
+  expect(socket.commands).toEqual([{ t: "call.leave" }]);
+  answer = null;
+  h.owner.send({ t: "older", thread: "main", before: 3 });
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(socket.commands.at(-1)).toEqual({
+    t: "older",
+    thread: "main",
+    before: 3,
+  });
+  h.owner.dispose();
+});
+type StateEvent = Extract<RoomEvent, { t: "state" }>;
+const flush = async () => {
+  for (let i = 0; i < 4; i++) await Promise.resolve();
+};
+test("a light socket reads the room over HTTP on hello; events that come before it are applied after it", async () => {
+  const asked: unknown[] = [];
+  const answers: ((state: StateEvent | null) => void)[] = [];
+  const h = harness(
+    () => false,
+    () => true,
+    undefined,
+    (roomId, thread, resume) => {
+      asked.push({ roomId, thread, resume });
+      return new Promise((resolve) => answers.push(resolve));
+    },
+  );
+  h.owner.open("aaaaaa");
+  const socket = h.sockets[0]!;
+  expect(socket.callbacks.url("")).toBe("aaaaaa/main//lite");
+  socket.callbacks.onEvent({ t: "hello", at: 1 });
+  expect(asked).toEqual([
+    { roomId: "aaaaaa", thread: "main", resume: undefined },
+  ]);
+  const message = (id: number, text: string) => ({
+    id,
+    author: "b@test",
+    text,
+    ts: id,
+    thread: "main",
+  });
+  // Live events while the read is on its way: they wait, nothing is drawn yet.
+  socket.callbacks.onEvent({ t: "msg", m: message(5, "in the state too") });
+  socket.callbacks.onEvent({ t: "msg", m: message(7, "after the state") });
+  socket.callbacks.onEvent({ t: "msgEdit", id: 5, text: "edited", edited: 9 });
+  socket.callbacks.onEvent({ t: "online", online: ["a@test", "b@test"] });
+  expect(h.owner.read().room).toBeNull();
+  expect(h.owner.read().phase).toBe("loading");
+  expect(h.transitions).toHaveLength(0);
+  answers[0]!({
+    ...(snapshot({
+      ...room(),
+      messages: [message(5, "in the state too")],
+    }) as StateEvent),
+    at: 100,
+    eh: "h1",
+  });
+  await flush();
+  const live = h.owner.read();
+  expect(live.phase).toBe("live");
+  expect(h.transitions.map((t) => t.event.t)).toEqual([
+    "state",
+    "msg",
+    "msg",
+    "msgEdit",
+    "online",
+  ]);
+  expect(live.room?.messages.map((m) => [m.id, m.text])).toEqual([
+    [5, "edited"],
+    [7, "after the state"],
+  ]);
+  expect(live.room?.online).toEqual(["a@test", "b@test"]);
+  // After the state, events apply at once.
+  socket.callbacks.onEvent({ t: "msg", m: message(8, "live") });
+  expect(h.owner.read().room?.messages.at(-1)?.id).toBe(8);
+  // A reconnect resumes over HTTP with the params this socket was opened with; an answer of an older hello is dropped.
+  expect(socket.callbacks.url("1006")).toBe("aaaaaa/main/1006/since=8/lite");
+  socket.callbacks.onEvent({ t: "hello", at: 2 });
+  socket.callbacks.onEvent({ t: "hello", at: 3 });
+  expect(asked.at(-1)).toEqual({
+    roomId: "aaaaaa",
+    thread: "main",
+    resume: { since: 8, at: 100, eh: "h1" },
+  });
+  answers[1]!(snapshot(room()) as StateEvent);
+  await flush();
+  expect(h.transitions).toHaveLength(6);
+  h.owner.dispose();
+});
+test("a failed HTTP read of the room reconnects without lite, and that socket's state applies as before", async () => {
+  let reads = 0;
+  const h = harness(
+    () => false,
+    () => true,
+    undefined,
+    async () => {
+      reads++;
+      return null;
+    },
+  );
+  h.owner.open("aaaaaa");
+  const socket = h.sockets[0]!;
+  socket.callbacks.onEvent({ t: "hello", at: 1 });
+  socket.callbacks.onEvent({ t: "online", online: ["a@test"] });
+  await flush();
+  expect(reads).toBe(1);
+  expect(socket.resyncs).toBe(1);
+  expect(socket.callbacks.url("1000")).toBe("aaaaaa/main/1000");
+  // A stray hello does not read again; the socket's state is the room.
+  socket.callbacks.onEvent({ t: "hello", at: 2 });
+  await flush();
+  expect(reads).toBe(1);
+  socket.callbacks.onEvent(snapshot(room()));
+  expect(h.owner.read().phase).toBe("live");
+  expect(h.transitions.map((t) => t.event.t)).toEqual(["state"]);
+  h.owner.dispose();
+});
 test("cache first paint is distinct from authoritative reconnect state and cannot mark reads", () => {
   const h = harness();
   h.owner.open("aaaaaa");

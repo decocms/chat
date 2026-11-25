@@ -1,6 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import { COMPOSER_SLOT } from "../composer/shape";
   import Button from "../../lib/studio/Button.svelte";
+  import { paneFocus } from "./focus";
   import type { RoomLayoutProps, RoomLayoutCells, RoomSheet } from "./types";
   let props: RoomLayoutProps = $props();
   const owner = untrack(() => props.controller),
@@ -15,7 +17,6 @@
     composer = $state<HTMLDivElement>(),
     documentToolbar = $state<HTMLDivElement>(),
     documentCell = $state<HTMLElement>(),
-    board = $state<HTMLDivElement>(),
     scrim = $state<HTMLButtonElement>();
   const widthClass = $derived(
     $view.sidebarCollapsed
@@ -25,10 +26,14 @@
   // The phone room's bottom bar: a sixth grid row, absent on desktop.
   const tabs = $derived($view.mobile && !!props.tabbar);
   const docPresented = $derived(
-    $view.presentedSheet === "doc" || $view.draggingSheet === "doc",
+    $view.presentedSheet === "doc" ||
+      $view.draggingSheet === "doc" ||
+      $view.leavingSheet === "doc",
   );
   const sidePresented = $derived(
-    $view.presentedSheet === "side" || $view.draggingSheet === "side",
+    $view.presentedSheet === "side" ||
+      $view.draggingSheet === "side" ||
+      $view.leavingSheet === "side",
   );
   const docLive = $derived(
     !$view.mobile || $view.sheet === "doc" || $view.draggingSheet === "doc",
@@ -36,22 +41,49 @@
   const sideLive = $derived(
     !$view.mobile || $view.sheet === "side" || $view.draggingSheet === "side",
   );
-  const rightVisible = $derived(
-    $view.documentVisible && !($view.boardFull && $view.pane === "board"),
-  );
+  const rightVisible = $derived($view.documentVisible);
   // Desktop: one frame (sidebar, chat and the open pane on one surface, hairlines
   // between them); with the pane open the top bar runs across chat and pane.
   const split = $derived(!$view.mobile && rightVisible && !props.overlayOpen);
+  const people = $derived($view.pane === "people");
+  // Expand: the pane fills the room and the composer floats over its foot.
+  const focus = $derived($paneFocus && split);
+  // The call's stage takes the left of the chat column; the chat cells keep a fixed column at its right.
+  const staged = $derived(!$view.mobile && !!props.stage);
+  const beside = $derived(
+    staged &&
+      (props.stageOnly
+        ? "hidden"
+        : "w-96 justify-self-end border-l border-border"),
+  );
+  // Another pane (or none) ends Expand: it belongs to the pane that asked for it.
+  let focusedPane = $view.pane;
+  $effect(() => {
+    const pane = $view.pane;
+    if (pane !== focusedPane) {
+      focusedPane = pane;
+      paneFocus.set(false);
+    }
+  });
   const paneClass = $derived(
     tabs
       ? // A tab, not a floor: it fills the space between the header and the bar.
         "col-start-2 row-start-3 row-end-6 z-20 h-full w-full animate-room-sheet"
       : $view.mobile
-        ? "col-start-2 row-start-3 row-end-6 z-20 h-room-document-sheet w-full self-start animate-room-sheet rounded-b-surface shadow-lg has-[form:focus-within]:h-full has-[[contenteditable=true]:focus]:h-full has-[form:focus-within]:rounded-none"
-        : [
-            "col-start-3 row-start-2 row-end-6 mr-2 mb-2 rounded-br-surface border-l border-border",
-            widthClass,
-          ],
+        ? // Phones: the pane takes the chat's place (under the top bar and the files strip), not a drawer.
+          "col-start-2 row-start-3 row-end-6 z-20 h-full w-full animate-room-pane pb-[env(safe-area-inset-bottom)]"
+        : focus
+          ? // The width animation stays (a new one would start unseeked and come back narrow); the !important width wins over it.
+            [
+              "col-start-1 col-end-4 row-start-1 row-end-6 m-2 ml-px w-auto! rounded-surface",
+              widthClass,
+            ]
+          : [
+              "col-start-3 row-start-2 row-end-6 mr-2 mb-2 rounded-br-surface border-l border-border",
+              widthClass,
+              // A member list is a column of names: it never needs more than this, whatever width the pane was dragged to (Valls).
+              people && "max-w-[330px]!",
+            ],
   );
   function handle(
     node: HTMLElement,
@@ -84,7 +116,6 @@
       !composer ||
       !documentToolbar ||
       !documentCell ||
-      !board ||
       !scrim
     )
       return;
@@ -99,7 +130,6 @@
       composer,
       documentToolbar,
       document: documentCell,
-      board,
       scrim,
     };
     const stop = owner.mount(cells);
@@ -118,7 +148,6 @@
   data-room-layout
   data-pane={$view.pane}
   data-sheet={$view.sheet ?? undefined}
-  data-board-full={$view.boardFull}
   class={[
     "relative h-full min-h-0 w-full min-w-0 overflow-hidden font-sans text-sm text-foreground",
     $view.mobile ? "bg-background" : "bg-sidebar",
@@ -149,6 +178,7 @@
           : [
               "relative z-10 col-start-1 row-start-1 row-end-6 my-2 ml-px overflow-hidden rounded-l-surface border-r border-border",
               $view.sidebarCollapsed ? "w-room-sidebar-rail" : "w-room-sidebar",
+              (focus || (staged && props.stageFull)) && "hidden!",
             ],
       ]}
     >
@@ -179,7 +209,7 @@
       ></div>{/if}
     <div
       bind:this={header}
-      inert={$view.mobile && (props.overlayOpen || $view.sheet === "side")}
+      inert={$view.mobile && $view.sheet === "side"}
       data-room-header
       class={[
         "relative z-30 col-start-2 row-start-1 min-w-0",
@@ -188,9 +218,8 @@
           : [
               "mt-2 mr-2 flex h-[52px] items-center rounded-tr-surface border-b border-border pr-3 pl-5",
               (split || props.overlayOpen) && "col-end-4",
+              (focus || (staged && props.stageFull)) && "hidden!",
             ],
-        // Desktop keeps the top bar over the inbox (it fills the middle, like the board).
-        $view.mobile && props.overlayOpen && "hidden",
       ]}
     >
       {@render props.header()}
@@ -202,13 +231,25 @@
       data-room-peek
       class={!props.overlayOpen &&
       $view.mobile &&
-      !$view.boardFull &&
-      $view.sheet === "doc"
+      // The doc sheet's height is a share of the rows under this strip, so the
+      // strip stays until the slide out ends: the sheet keeps one height.
+      ($view.sheet === "doc" || docPresented)
         ? "relative z-30 col-start-2 row-start-2 min-w-0 touch-none border-b border-border bg-background"
         : "hidden"}
     >
       {@render props.peek()}
     </div>
+    {#if staged}<div
+        data-room-stage
+        inert={props.overlayOpen}
+        class={[
+          "col-start-2 row-start-3 row-end-6 mb-2 min-h-0 min-w-0",
+          props.stageOnly ? "mr-2" : "mr-96",
+          (props.overlayOpen || focus) && "hidden",
+        ]}
+      >
+        {@render props.stage?.()}
+      </div>{/if}
     <div
       bind:this={attention}
       inert={props.overlayOpen || ($view.mobile && !!$view.sheet)}
@@ -221,7 +262,8 @@
             split
             ? "px-2"
             : "mr-2 px-2",
-        props.overlayOpen && "hidden",
+        beside,
+        (props.overlayOpen || focus) && "hidden",
       ]}
     >
       {@render props.attention?.()}
@@ -230,14 +272,15 @@
       bind:this={chat}
       inert={props.overlayOpen || ($view.mobile && !!$view.sheet)}
       data-room-chat
-      class={props.overlayOpen || $view.boardFull
+      class={props.overlayOpen || focus
         ? "hidden"
         : [
             "col-start-2 row-start-4 min-h-0 min-w-0 overflow-y-auto overscroll-contain px-4",
             // Its own layer in a room switch, so the conversation lifts in (browser.viewTransition).
             "vt-room:[view-transition-name:room-chat]",
             // Full width as in Discord and Slack, with 24px gutters (16px on mobile) lined up with the composer and the cards above.
-            !$view.mobile && "mr-2 px-6",
+            !$view.mobile && (staged ? "mr-2 px-4" : "mr-2 px-6"),
+            beside,
           ]}
     >
       {@render props.chat()}
@@ -246,18 +289,26 @@
       bind:this={composer}
       inert={props.overlayOpen || ($view.mobile && !!$view.sheet)}
       data-room-composer
-      class={props.overlayOpen || $view.boardFull
+      class={props.overlayOpen
         ? "hidden"
-        : [
-            "col-start-2 row-start-5 min-w-0",
-            tabs
-              ? "" // The bar under it carries the home-bar inset.
-              : $view.mobile
-                ? "pb-[env(safe-area-inset-bottom)]"
-                : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
-                  "mr-2 mb-2 rounded-br-surface [&>[data-composer]]:rounded-br-surface px-2",
-          ]}
+        : focus
+          ? // Floating over the pane's foot, as a card: you keep prompting while you look.
+            "pointer-events-none absolute inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 px-6 [&>[data-composer]]:pointer-events-auto [&>[data-composer]]:w-full [&>[data-composer]]:max-w-[720px] [&>[data-composer]]:bg-transparent [&>[data-composer]]:p-0 [&_[data-composer-field]]:shadow-[0_4px_16px_-6px_rgb(0_0_0/0.14)] [&_[data-composer-field]:focus-within]:shadow-[inset_0_0_0_1px_var(--vb-input),0_4px_16px_-6px_rgb(0_0_0/0.14)]"
+          : [
+              "col-start-2 row-start-5 min-w-0",
+              tabs
+                ? "" // The bar under it carries the home-bar inset.
+                : $view.mobile
+                  ? "pb-[env(safe-area-inset-bottom)]"
+                  : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
+                    [
+                      "mb-2 rounded-br-surface [&>[data-composer]]:rounded-br-surface",
+                      COMPOSER_SLOT,
+                      beside,
+                    ],
+            ]}
     >
+      {#if focus}{@render props.focusPeek?.()}{/if}
       {@render props.composer()}
     </div>
     <div
@@ -275,7 +326,7 @@
       class={[
         "relative min-h-0 min-w-0 flex-col overflow-hidden",
         $view.mobile && "bg-background",
-        rightVisible && $view.pane !== "board" ? "flex" : "hidden",
+        rightVisible ? "flex" : "hidden",
         paneClass,
         props.overlayOpen || ($view.mobile && !docPresented)
           ? "invisible"
@@ -291,58 +342,12 @@
         type="button"
         use:handle={{ sheet: "doc", opening: false }}
         aria-label={props.labels.closeDocument}
-        disabled={!$view.active ||
-          $view.sheet !== "doc" ||
-          $view.pane === "board"}
+        disabled={!$view.active || $view.sheet !== "doc"}
         onclick={close}
-        class={$view.mobile && !tabs
-          ? "flex h-6 shrink-0 touch-none items-center justify-center border-0 bg-background"
-          : "hidden"}
+        class="hidden"
         ><span class="h-1 w-10 rounded-full bg-border"></span></button
       >
     </section>
-    <div
-      bind:this={board}
-      inert={props.overlayOpen ||
-        ($view.mobile &&
-          ($view.sheet === "side" || (!$view.boardFull && !docLive)))}
-      data-room-board
-      data-placement={$view.boardFull ? "full" : "pane"}
-      class={[
-        "relative min-h-0 min-w-0 flex-col overflow-hidden",
-        $view.mobile && "bg-background",
-        $view.boardFull
-          ? [
-              "col-start-2 row-start-4 row-end-6 flex h-full",
-              $view.mobile ? "w-full" : "mr-2 mb-2 h-auto rounded-br-surface",
-            ]
-          : $view.pane === "board" && rightVisible
-            ? ["flex", paneClass]
-            : "hidden",
-        props.overlayOpen || ($view.mobile && !$view.boardFull && !docPresented)
-          ? "invisible"
-          : "visible",
-      ]}
-    >
-      <div
-        class="flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain p-4"
-      >
-        {@render props.board()}
-      </div>
-      <button
-        type="button"
-        use:handle={{ sheet: "doc", opening: false }}
-        aria-label={props.labels.closeDocument}
-        disabled={!$view.active ||
-          $view.sheet !== "doc" ||
-          $view.pane !== "board"}
-        onclick={close}
-        class={$view.mobile && !$view.boardFull
-          ? "flex h-6 shrink-0 touch-none items-center justify-center border-0 bg-background"
-          : "hidden"}
-        ><span class="h-1 w-10 rounded-full bg-border"></span></button
-      >
-    </div>
     {#if tabs}<div
         data-room-tabbar
         inert={$view.sheet === "side"}
@@ -355,9 +360,9 @@
         inert={$view.mobile && $view.sheet === "side"}
         class={[
           "z-30 col-start-2 col-end-4 row-end-6 min-h-0 min-w-0 overflow-hidden bg-background",
-          // Phones: over the whole room. Desktop: under the top bar, in the frame.
+          // Under the top bar, which keeps its Inbox button pressed (phones) or runs across (desktop).
           $view.mobile
-            ? "row-start-1"
+            ? "row-start-2"
             : "row-start-2 mr-2 mb-2 rounded-br-surface",
         ]}
       >
@@ -373,7 +378,11 @@
       disabled={!$view.active || props.overlayOpen}
       aria-label={props.labels.documentWidth}
       data-room-width
-      class={!props.overlayOpen && !$view.mobile && rightVisible
+      class={!props.overlayOpen &&
+      !people &&
+      !focus &&
+      !$view.mobile &&
+      rightVisible
         ? "z-30 col-start-3 row-start-2 row-end-6 mb-2 -ml-1 h-auto w-2 cursor-col-resize touch-none appearance-none rounded-full border-0 bg-transparent bg-clip-content px-[3px] py-0 outline-none transition-colors duration-150 hover:bg-ring/50 focus-visible:bg-ring [&::-moz-range-thumb]:size-0 [&::-moz-range-thumb]:border-0 [&::-webkit-slider-thumb]:size-0 [&::-webkit-slider-thumb]:appearance-none"
         : "hidden"}
     />
@@ -384,17 +393,18 @@
       aria-label={props.labels.closeSheet}
       disabled={!$view.active || !$view.sheet}
       onclick={close}
+      use:handle={{ sheet: "side", opening: false }}
       data-room-scrim
       class={!$view.mobile
         ? "hidden"
         : [
-            "col-start-2 row-start-3 animate-room-scrim border-0 bg-scrim p-0",
+            // Glass (Gimenes #3781): the room behind the title menu blurs as it dims; a tap on it closes the menu.
+            "col-start-2 row-start-3 animate-room-scrim touch-none border-0 bg-scrim p-0 backdrop-blur-sm",
             // The thread sheet dims the bottom bar too.
             tabs ? "row-end-7" : "row-end-6",
             $view.presentedSheet === "side" ? "absolute inset-0 z-40" : "z-10",
-            $view.presentedSheet || $view.draggingSheet
-              ? "visible"
-              : "invisible",
+            // The doc pane covers the chat; only the side sheet dims the room.
+            sidePresented ? "visible" : "invisible",
             $view.sheet ? "pointer-events-auto" : "pointer-events-none",
           ]}
     ></button>

@@ -248,6 +248,9 @@ test("actual Book messages/older use validated rows and raw pagination count rem
     files: () => [file],
     acksList: () => [],
     sql: { exec: () => ({ toArray: () => raw }) },
+    // "older" reads through the real page (GET /messages shares it).
+    messagesPage: (query: unknown): unknown =>
+      invoke("messagesPage", receiver, query),
     messageRows: (rows: readonly unknown[]) =>
       storedMessageRows(rows, "abcdef", (id) =>
         id === file.id ? file : undefined,
@@ -290,7 +293,7 @@ test("actual closeAsk rejects malformed choices before mutation and preserves te
         return { toArray: () => [{ choices: raw }] };
       },
     },
-    broadcast: (value: unknown) => events.push(value),
+    broadcastAbout: (_id: number, value: unknown) => events.push(value),
     ctx: { waitUntil: () => {} },
     askWait: async () => {},
   };

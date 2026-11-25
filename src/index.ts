@@ -11,7 +11,7 @@ import { ensureAgent, markDelivered, openMade, unreadRooms } from "./agent";
 import { roomAccess, roomMeta } from "./access";
 import { openDm } from "./dm";
 import { authPage, connectionSignedOutPage } from "./auth-page";
-import { auth, authServices, EMAIL_RE, identify } from "./auth";
+import { auth, authServices, EMAIL_RE, identify, startSession, safeEqual } from "./auth";
 import type { Book } from "./book";
 import { connect, providerFor } from "./connect";
 import { handleMcp, isAdminMcp } from "./mcp";
@@ -26,6 +26,10 @@ import { jwks } from "./mcpauth";
 import { avatarEmail, profileFor } from "./profile";
 import { bookStub, createBook, setRoomIcon, docRoomName, docRoomStub, FILE_TYPES, fileHeaders, inviteMember, isMember, maxBytes, searchRooms, sizeError, TYPES_ERROR, storeFile, waitsFor } from "./rooms";
 import { requestContext, track } from "./track";
+import { bookSocketUrl } from "./bookSocket";
+import { callRecorded, recorderLinkValid } from "./calls";
+import { recorderEmail } from "../shared/call";
+import { RecordedBody } from "../shared/schemas";
 import { pushTo } from "./webpush";
 export { Book } from "./book";
 export { Person } from "./person";
@@ -80,6 +84,16 @@ export type Env = {
   FIRE_API?: string;
   DEV_EMAIL?: string;
   MCP_AUTH_TOKEN?: string;
+  /** Voice calls (src/calls.ts): the Realtime SFU app (var) and its secret. Missing: no calls. */
+  REALTIME_SFU_APP_ID?: string;
+  REALTIME_SFU_APP_SECRET?: string;
+  /** The call recorder (recorder/, src/calls.ts): its Worker's address, the secret the two share, and the rooms
+   *  whose calls are recorded (ids with commas, or "*"). Missing: no call is recorded. */
+  RECORDER_URL?: string;
+  RECORDER_SECRET?: string;
+  CALL_RECORD_ROOMS?: string;
+  /** GB of call traffic in a month after which a screen share goes to Google Meet (default CALL_SCREEN_LIMIT_GB). */
+  CALL_SCREEN_LIMIT_GB?: string;
 };
 
 export type Ctx = { Bindings: Env; Variables: { email: string; svc: ApiServices; auth: AuthServices } };
@@ -90,6 +104,9 @@ const SCHEMA = [
   // (for the delta), and each time a plan limit hit 100% (once per window).
   `CREATE TABLE IF NOT EXISTS user_stats (email TEXT, day TEXT, tokens INTEGER DEFAULT 0, messages INTEGER DEFAULT 0, deploys INTEGER DEFAULT 0, limits_hit INTEGER DEFAULT 0, PRIMARY KEY (email, day))`,
   `CREATE TABLE IF NOT EXISTS usage_sessions (agent TEXT, sid TEXT, tokens INTEGER, PRIMARY KEY (agent, sid))`,
+  // Tokens spent before the live counter (CLI 1.7.7 scans the machine's old Claude Code transcripts once): per machine and
+  // day, kept at the largest value sent, so a rerun never counts twice.
+  `CREATE TABLE IF NOT EXISTS usage_backfill (email TEXT, machine TEXT, day TEXT, tokens INTEGER, PRIMARY KEY (email, machine, day))`,
   `CREATE TABLE IF NOT EXISTS limit_hits (email TEXT, kind TEXT, reset INTEGER, at INTEGER, PRIMARY KEY (email, kind, reset))`,
   `CREATE TABLE IF NOT EXISTS books (id TEXT PRIMARY KEY, title TEXT, folder TEXT, summary TEXT, owner TEXT, created_at INTEGER, updated_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS members (book_id TEXT, email TEXT, PRIMARY KEY (book_id, email))`,
@@ -109,9 +126,19 @@ const SCHEMA = [
   // The hub's router (src/router.ts): one decision per message and person, for the A/B and its room app.
   `CREATE TABLE IF NOT EXISTS router_log (book_id TEXT, msg_id INTEGER, email TEXT, arm TEXT, decision TEXT, why TEXT, source TEXT, reply_id INTEGER, ms INTEGER, cost REAL, text TEXT, ts INTEGER, PRIMARY KEY (book_id, msg_id, email))`,
   `CREATE INDEX IF NOT EXISTS router_log_email ON router_log (email, ts)`,
-  // The router's bench (scripts/router-bench.ts): messages the router got wrong for someone, with what it should have
-  // done, written by their agent when they say so (MCP router_feedback). Every change to the router runs against them.
+  // The first table of wake cases. Its rows are copied into router_feedback (below) and nothing writes to it now.
   `CREATE TABLE IF NOT EXISTS router_cases (book_id TEXT, msg_id INTEGER, email TEXT, own INTEGER, name TEXT, sender TEXT, text TEXT, topic TEXT, recent TEXT, memory TEXT, decided TEXT, expected TEXT, note TEXT, ts INTEGER, PRIMARY KEY (book_id, msg_id, email))`,
+  // The router's bench (scripts/router-bench.ts, Gimenes #4481, #4483, #4485): messages the router got wrong, for every
+  // part of it. action: "wake" (did it wake the right agent), a router action (mark_done, answer_thread…) or a reading
+  // (waits). who: for wake, the person whose agent it is; for waits, the person who waits (or not); else "". expected:
+  // wake/ignore for wake, acts/no for the rest. status: "case" (a person said so, MCP router_feedback) runs in the
+  // bench; "suggested" (the room saw an undo: a thread opened again right after the router closed it, a reply thread
+  // the router made and a person deleted, a wait the router read and its person cleared) waits until the person's
+  // agent asks them. people: the room's other people as JSON [{email, name}], for the readings.
+  `CREATE TABLE IF NOT EXISTS router_feedback (book_id TEXT, msg_id INTEGER, action TEXT, who TEXT, status TEXT, reporter TEXT, own INTEGER, name TEXT, sender TEXT, text TEXT, thread TEXT, topic TEXT, recent TEXT, memory TEXT, people TEXT, decided TEXT, expected TEXT, note TEXT, ts INTEGER, PRIMARY KEY (book_id, msg_id, action, who))`,
+  `CREATE INDEX IF NOT EXISTS router_feedback_reporter ON router_feedback (reporter, status)`,
+  `INSERT OR IGNORE INTO router_feedback (book_id, msg_id, action, who, status, reporter, own, name, sender, text, topic, recent, memory, decided, expected, note, ts)
+     SELECT book_id, msg_id, 'wake', email, 'case', email, own, name, sender, text, topic, recent, memory, decided, expected, note, ts FROM router_cases`,
   `CREATE TABLE IF NOT EXISTS agent_reads (agent TEXT, book_id TEXT, email TEXT, last_id INTEGER, delivered_id INTEGER, PRIMARY KEY (agent, book_id))`,
   `CREATE INDEX IF NOT EXISTS agent_reads_email ON agent_reads (email, book_id)`,
   `CREATE TABLE IF NOT EXISTS notify_agents (key TEXT PRIMARY KEY, email TEXT, agent TEXT, created_at INTEGER)`,
@@ -164,10 +191,12 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS machine_rooms (machine_id TEXT, book_id TEXT, on_ INTEGER, PRIMARY KEY (machine_id, book_id))`,
   `CREATE TABLE IF NOT EXISTS agent_rooms (agent TEXT, book_id TEXT, delivery INTEGER, PRIMARY KEY (agent, book_id))`,
   `CREATE INDEX IF NOT EXISTS push_subs_email ON push_subs (email)`,
+  // Calls (src/calls.ts): the bytes that browsers in calls received, per month ("2026-11").
+  `CREATE TABLE IF NOT EXISTS call_usage (month TEXT PRIMARY KEY, bytes INTEGER)`,
 ];
 let schemaReady: Promise<unknown> | undefined;
 // Columns added after launch; ALTER fails harmlessly once they exist.
-const ALTERS = [`ALTER TABLE sandboxes ADD COLUMN state TEXT`, `ALTER TABLE sandboxes ADD COLUMN run_s INTEGER`, `ALTER TABLE sandboxes ADD COLUMN rate REAL`, `ALTER TABLE sandboxes ADD COLUMN disk_rate REAL`, `ALTER TABLE sandboxes ADD COLUMN checked_at INTEGER`, `ALTER TABLE users ADD COLUMN name TEXT`, `ALTER TABLE books ADD COLUMN last_msg_id INTEGER`, `ALTER TABLE members ADD COLUMN archived_at INTEGER`, `ALTER TABLE books ADD COLUMN epics TEXT`, `ALTER TABLE books ADD COLUMN last_human_id INTEGER`, `ALTER TABLE books ADD COLUMN last_agent_id INTEGER`, `ALTER TABLE agents ADD COLUMN listening_at INTEGER`, `ALTER TABLE agents ADD COLUMN listen_room TEXT`, `ALTER TABLE agents ADD COLUMN repo TEXT`, `ALTER TABLE agent_reads ADD COLUMN seen_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar INTEGER`, `ALTER TABLE users ADD COLUMN mention_mail INTEGER`, `ALTER TABLE members ADD COLUMN claude_on INTEGER`, `ALTER TABLE members ADD COLUMN position INTEGER`, `ALTER TABLE members ADD COLUMN tint TEXT`, `ALTER TABLE books ADD COLUMN icon INTEGER`, `ALTER TABLE books ADD COLUMN busy_until INTEGER`, `ALTER TABLE members ADD COLUMN opened_at INTEGER`, `ALTER TABLE users ADD COLUMN lang TEXT`, `ALTER TABLE agents ADD COLUMN ctx_tokens INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_window INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_at INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_limits TEXT`, `ALTER TABLE users ADD COLUMN session_after INTEGER`, `ALTER TABLE users ADD COLUMN router INTEGER`, `ALTER TABLE members ADD COLUMN fire_at INTEGER`, `ALTER TABLE books ADD COLUMN dm TEXT`, `ALTER TABLE agents ADD COLUMN machine_id TEXT`, `ALTER TABLE agents ADD COLUMN role TEXT`, `ALTER TABLE books ADD COLUMN roles TEXT`, `ALTER TABLE friends ADD COLUMN msg TEXT`, `ALTER TABLE friends ADD COLUMN declined_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar_src TEXT`, `ALTER TABLE users ADD COLUMN handle TEXT`, `ALTER TABLE users ADD COLUMN profile_public INTEGER`, `CREATE UNIQUE INDEX IF NOT EXISTS users_handle ON users (handle)`];
+const ALTERS = [`ALTER TABLE sandboxes ADD COLUMN state TEXT`, `ALTER TABLE sandboxes ADD COLUMN run_s INTEGER`, `ALTER TABLE sandboxes ADD COLUMN rate REAL`, `ALTER TABLE sandboxes ADD COLUMN disk_rate REAL`, `ALTER TABLE sandboxes ADD COLUMN checked_at INTEGER`, `ALTER TABLE users ADD COLUMN name TEXT`, `ALTER TABLE books ADD COLUMN last_msg_id INTEGER`, `ALTER TABLE members ADD COLUMN archived_at INTEGER`, `ALTER TABLE books ADD COLUMN epics TEXT`, `ALTER TABLE books ADD COLUMN last_human_id INTEGER`, `ALTER TABLE books ADD COLUMN last_agent_id INTEGER`, `ALTER TABLE agents ADD COLUMN listening_at INTEGER`, `ALTER TABLE agents ADD COLUMN listen_room TEXT`, `ALTER TABLE agents ADD COLUMN repo TEXT`, `ALTER TABLE agent_reads ADD COLUMN seen_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar INTEGER`, `ALTER TABLE users ADD COLUMN mention_mail INTEGER`, `ALTER TABLE members ADD COLUMN claude_on INTEGER`, `ALTER TABLE members ADD COLUMN position INTEGER`, `ALTER TABLE members ADD COLUMN tint TEXT`, `ALTER TABLE books ADD COLUMN icon INTEGER`, `ALTER TABLE books ADD COLUMN busy_until INTEGER`, `ALTER TABLE members ADD COLUMN opened_at INTEGER`, `ALTER TABLE users ADD COLUMN lang TEXT`, `ALTER TABLE agents ADD COLUMN ctx_tokens INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_window INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_at INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_limits TEXT`, `ALTER TABLE users ADD COLUMN session_after INTEGER`, `ALTER TABLE users ADD COLUMN router INTEGER`, `ALTER TABLE members ADD COLUMN fire_at INTEGER`, `ALTER TABLE books ADD COLUMN dm TEXT`, `ALTER TABLE agents ADD COLUMN machine_id TEXT`, `ALTER TABLE agents ADD COLUMN role TEXT`, `ALTER TABLE books ADD COLUMN roles TEXT`, `ALTER TABLE friends ADD COLUMN msg TEXT`, `ALTER TABLE friends ADD COLUMN declined_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar_src TEXT`, `ALTER TABLE users ADD COLUMN handle TEXT`, `ALTER TABLE users ADD COLUMN profile_public INTEGER`, `CREATE UNIQUE INDEX IF NOT EXISTS users_handle ON users (handle)`, `ALTER TABLE books ADD COLUMN last_by TEXT`, `ALTER TABLE books ADD COLUMN last_text TEXT`, `ALTER TABLE books ADD COLUMN last_agent INTEGER`];
 // Only when the schema text changed since the last run (a cold isolate used to send ~60 DDL writes to the primary).
 const schemaKey = (alters: string[]) => { let h = 0; for (const ch of [...SCHEMA, ...alters].join(";")) h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0; return String(h); };
 export const ensureSchema = (db: D1Database) =>
@@ -212,6 +241,22 @@ app.use("/auth/*", async (c, next) => { c.set("auth", authServices(c, { roomAcce
 app.route("/", authApi);
 app.route("/auth", auth);
 app.route("/", connect);
+// The call's recorder (src/calls.ts). No person's session on these two: the first is trusted by its signed link,
+// the second by the secret that the chat and the recorder Worker share.
+app.get("/api/calls/recorder/enter", async (c) => {
+  const room = c.req.query("room") ?? "";
+  if (!(await recorderLinkValid(c.env, room, Number(c.req.query("exp")), c.req.query("sig") ?? ""))) return c.text("forbidden", 403);
+  await startSession(c, recorderEmail(room));
+  return c.redirect(`/b/${room}`);
+});
+app.post("/api/calls/recorded", async (c) => {
+  const secret = c.env.RECORDER_SECRET;
+  if (!secret || !safeEqual(c.req.header("authorization") ?? "", `Bearer ${secret}`)) return c.text("forbidden", 403);
+  const body = RecordedBody.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.text("bad request", 400);
+  // The people of the call: the recorder shares the recording in Grain with them.
+  return c.json({ emails: await callRecorded(c.env, body.data) });
+});
 
 // Page views are counted server-side (no client script, no cookie), off the response path.
 const pageview = async (c: Context<Ctx>, res: Response, user?: string | null) => {
@@ -500,6 +545,7 @@ app.get("/api/books/:id/files/:fid", async (c) => {
     if (fileLink(c) && /^[a-z0-9]{6,40}$/.test(id) && /^[0-9a-f]{1,64}$/.test(c.req.param("fid"))) return authPage(c.env, c.req.raw, "file-access", { status: 403 });
     return c.json({ error: "forbidden" }, 403);
   }
+  if (await bookStub(c.env, id).fileHidden(id, c.req.param("fid"), c.get("email"))) return c.notFound();
   // Range: iOS Safari's <audio> plays only what answers 206 to a byte range (also lets any player seek).
   const ranged = !!c.req.header("range");
   const obj = await c.env.FILES.get(`${id}/${c.req.param("fid")}`, ranged ? { range: c.req.raw.headers } : undefined);
@@ -542,10 +588,10 @@ app.get("/ws/:id", async (c) => {
   if (!(await isMember(c.env.DB, id, c.get("email"))) && !(await openDm(c.env, id, c.get("email")))) return c.json({ error: "forbidden" }, 403);
   // When you last opened the room: the phone home lists rooms by it.
   // When you last opened the room (the phone home's order) and what you've read: your cached /api/me is stale now.
-  c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE members SET opened_at = ? WHERE book_id = ? AND email = ?`).bind(Date.now(), id, c.get("email")).run().then(() => poke(c.env, [c.get("email")], { t: "me" })));
+  // The call's own socket (Book.isCallSocket) is not the person opening the room.
+  if (c.req.query("call") !== "1") c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE members SET opened_at = ? WHERE book_id = ? AND email = ?`).bind(Date.now(), id, c.get("email")).run().then(() => poke(c.env, [c.get("email")], { t: "me" })));
   // t = the thread the app opens on: only it comes with its 60 newest messages and its doc (Book.roomWindow).
-  const rc = (c.req.query("rc") ?? "").replace(/\D/g, "").slice(0, 4); // a reconnect's previous close code (ws_state)
-  const req = new Request(`https://book/ws?book=${id}&t=${encodeURIComponent(c.req.query("t") ?? "main")}${rc ? `&rc=${rc}` : ""}`, c.req.raw);
+  const req = new Request(bookSocketUrl(id, (name) => c.req.query(name)), c.req.raw);
   req.headers.set("x-email", c.get("email"));
   return bookStub(c.env, id).fetch(req);
 });

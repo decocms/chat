@@ -8,6 +8,7 @@
 | Durable Objects (SQLite) | `Book` (room), `DocRoom` (document), `Person` (person). |
 | D1, R2, KV | Shared index, files, OAuth. See [architecture.md](architecture.md). |
 | Workers AI | Speech-to-text (`@cf/openai/whisper-large-v3-turbo`). |
+| Realtime SFU | Voice, camera and screen share in a room's call (`src/calls.ts`). No SDK: the Worker calls its HTTPS API. |
 | Email Sending | Invites and mention emails. |
 | OpenRouter | Text models and Jev (`MODEL_*` variables). |
 
@@ -16,9 +17,12 @@
 | Area | Libraries |
 |---|---|
 | Server | TypeScript, Hono, zod, `@cloudflare/workers-oauth-provider`, `y-durableobjects`, Vercel AI SDK |
-| Browser | Svelte 5, TypeScript, Vite, Tailwind CSS 4, bits-ui, tailwind-variants |
+| Browser | Svelte 5, TypeScript, Vite, Tailwind CSS 4, bits-ui, tailwind-variants, @dnd-kit/svelte (drag to sort) |
 | Document editor | CodeMirror 6, Yjs, y-codemirror.next, y-websocket (`web/features/documents/`) |
+| Call | `@sapphi-red/web-noise-suppressor` 0.4.2 (MIT): RNNoise in an AudioWorklet, takes the noise around the person out of the microphone before it goes to the call. It loads when a person joins a call with the noise suppression on (300 KB of WebAssembly). |
+| Call | `@mediapipe/tasks-vision` 1.2.3 (Apache 2.0): finds the person in the camera's picture for the background blur. It loads only when a person turns the blur on. |
 | Terminal | xterm.js 5.5.0 and addon-fit 0.10.0 (licenses in `public/licenses/`) |
+| Menu bar app (`tray/`) | Rust, Tauri 2 (`tauri` 2.12, `serde`, `serde_json`; versions in `tray/Cargo.lock`). The release workflow runs the Tauri CLI with `bunx @tauri-apps/cli@2.12.6`. It is not a dependency in `package.json`. |
 
 ## Type safety and RPC
 
@@ -86,5 +90,8 @@
 | `public/fonts/studio/InterVariable*.woff2` | Inter, SIL Open Font License 1.1. Keep `Inter-LICENSE.txt`. |
 | `public/fonts/studio/CommitMono-*.woff2` | Commit Mono, SIL Open Font License 1.1. Keep `CommitMono-LICENSE.txt`. |
 | `web/lib/studio/icons.ts` | Untitled UI icons, MIT, from `@untitledui/icons` 0.0.23 (`d` of each path, copied, not a dependency). Names that start with `app-` are our own drawings. |
+| `public/vendor/mediapipe/selfie_multiclass_256x256.tflite` | MediaPipe selfie multiclass (float32), Apache 2.0, from https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite (2026-11-25, 16371837 bytes, SHA-256 `c6748b12…e0e0`). License in `public/licenses/`. |
+| `web/lib/studio/icons.ts`: `microphone-off-01`, `monitor-01`, `video-recorder`, `video-recorder-off` | Untitled UI icons 0.0.23, MIT, copied as the other icons. |
 | `scripts/data/font-assets.json` | Source URL, size and SHA-256 of each font. The file names contain a digest prefix. Do not change a font without a new name. |
 | `scripts/fixtures/entities/whatwg-entities.json` | WHATWG HTML named character references, from https://html.spec.whatwg.org/entities.json (2026-11-14, 145897 bytes, SHA-256 `d741d877…62e6`). Test data only. Do not reformat it. A test checks its digest. |
+| herdr 0.9.5 in the menu bar app (`tray/binaries/`, not in git) | herdr, Apache 2.0, from https://github.com/herdrdev/herdr/releases/tag/v0.9.5. `scripts/tray-bins.ts` downloads it and checks the SHA-256 of each file. License in `tray/licenses/herdr-LICENSE.txt` (from commit `2ecf19a9`, SHA-256 `c71d239d…0ab4`). |

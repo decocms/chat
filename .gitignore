@@ -12,3 +12,11 @@ cli/cli.mjs
 migration-dump/
 dist
 dist-gallery
+.screens/
+# Local secrets: every copy of .dev.vars stays out of git, except the example.
+.dev.vars.*
+!.dev.vars.example
+# The menu bar app (tray/): Cargo and Tauri build output, and the programs that scripts/tray-bins.ts fetches
+tray/target/
+tray/gen/
+tray/binaries/

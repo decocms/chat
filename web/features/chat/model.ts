@@ -1,5 +1,5 @@
 import type { Ack, Room } from "../../../shared/room";
-import type { ChatMessage } from "../../app/chatTypes";
+import type { ChatBridge, ChatMessage } from "../../app/chatTypes";
 type Receipt = NonNullable<Room["receipts"]>[number];
 function lastWhere<T>(
   rows: readonly T[],
@@ -61,6 +61,51 @@ export function foldMessages(list: readonly ChatMessage[]) {
   }
   return out;
 }
+/** A new thread's title from its message (Gimenes #4123): the first line, no Markdown, at most 60 characters,
+ *  cut at a word. */
+export function threadTitle(text: string) {
+  const line = (text.split("\n").find((part) => part.trim()) ?? "")
+    .replace(/\*\*|`|^[#>]+ ?|\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (line.length <= 60) return line;
+  const cut = line.slice(0, 60);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 30 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+/** A thread id the client picks (8 hex, as the server's own): the app opens it, and a retry does not make two. */
+export const newThreadId = () =>
+  crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+/** A message can start a thread: not in a DM, not a status line, and not the start of a thread already, either
+ *  itself or through the line in main that replies to it (a thread from inside a thread). The room's `origins`
+ *  carry every live thread's origin, so a thread view knows main's lines without loading main. */
+/** The thread this message already started, if any: from it, or from the line in main that links it (a request
+ *  inside a thread). One thread per message (Gimenes #5068). */
+export const threadFrom = (room: Room, m: ChatMessage) => {
+  const direct = room.epics.find((epic) => epic.from_msg === m.id);
+  if (direct) return direct.id;
+  const lines = new Set(
+    [...room.messages, ...(room.origins ?? [])]
+      .filter((line) => line.reply_to === m.id && line.thread === "main")
+      .map((line) => line.id),
+  );
+  return room.epics.find((epic) => epic.from_msg && lines.has(epic.from_msg))
+    ?.id;
+};
+export const canStartThread = (room: Room, m: ChatMessage) =>
+  !room.book.dm && !m.tag && m.author !== "ai" && !threadFrom(room, m);
+/** Your own message (Gui #4276): you can change its text. */
+export const canEditMessage = (room: Room, m: ChatMessage) =>
+  m.author === room.me && m.kind !== "agent" && !m.deleted && !!m.text;
+/** ArrowUp in an empty composer edits this one: your last message in the thread you write in, like Discord. */
+export const lastEditable = (room: Room, thread: string) =>
+  lastWhere(
+    room.messages,
+    (m) => m.thread === thread && canEditMessage(room, m),
+  );
+/** A thread started from this message: it keeps its origin, so it has no delete (Gimenes #4621; the server refuses it too). */
+export const startsThread = (room: Room, m: ChatMessage) =>
+  room.epics.some((epic) => epic.from_msg === m.id);
 /** `poll` names a poll with no text, in the app's language. */
 export const messageSnippet = (m: ChatMessage, poll = "votação") =>
   (m.text || m.files?.map((f) => f.name).join(", ") || (m.poll ? poll : ""))
@@ -89,7 +134,12 @@ export type MessageStatus = {
   owners: string[];
 };
 export type Reader = { receipt: Receipt; read: boolean };
-export type MessageFooter = { statuses: MessageStatus[]; readers: Reader[] };
+export type MessageFooter = {
+  statuses: MessageStatus[];
+  readers: Reader[];
+  /** Agents that looked and did nothing: a face beside the read receipts, "stopped" only on hover. */
+  passed: MessageStatus[];
+};
 export function messageFooters(
   room: Room,
   thread: string,
@@ -100,7 +150,7 @@ export function messageFooters(
   const at = (id: number) => {
     let value = footers.get(id);
     if (!value) {
-      value = { statuses: [], readers: [] };
+      value = { statuses: [], readers: [], passed: [] };
       footers.set(id, value);
     }
     return value;
@@ -111,11 +161,10 @@ export function messageFooters(
     if (latest.has(key)) continue;
     latest.add(key);
     if (ack.status === "dismissed") continue;
-    seen.add(key);
     const owners = [
       ...new Set(
         room.epics
-          .filter((e) => e.from_msg === ack.msg_id && !e.archived)
+          .filter((e) => e.from_msg === ack.msg_id && !e.done)
           .flatMap((e) =>
             e.tasks
               .filter((t) => t.status !== "done" && t.owner)
@@ -133,7 +182,11 @@ export function messageFooters(
             : owners.length
               ? "waiting"
               : "idle";
-    at(ack.msg_id).statuses.push({ ack, kind, owners });
+    seen.add(key);
+    // An agent that looked and did nothing (a router passing, or work that went quiet) is not a line under the
+    // message: it is a face beside the read receipts, and "stopped" shows on hover. No gaps between messages.
+    if (kind === "idle") at(ack.msg_id).passed.push({ ack, kind, owners });
+    else at(ack.msg_id).statuses.push({ ack, kind, owners });
   }
   const list = room.messages.filter(
     (m) => m.thread === thread && m.tag !== "fire",
@@ -190,7 +243,7 @@ function ackEpic(
       m.thread === "main"
     )
       continue;
-    const epic = room.epics.find((e) => e.id === m.thread && !e.archived);
+    const epic = room.epics.find((e) => e.id === m.thread && !e.done);
     if (epic) return { id: epic.id, title: epic.title };
   }
   return undefined;
@@ -243,7 +296,7 @@ export function threadWorkers(
 ): Worker[] {
   if (thread.startsWith("pre:")) return [];
   const epic = room.epics.find((e) => e.id === thread);
-  if (epic?.archived) return [];
+  if (epic?.done) return [];
   const messages = [
     ...room.messages,
     ...(room.origins || []).filter(
@@ -342,4 +395,19 @@ export function dayLabel(
     month: "short",
     ...(d.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }),
   });
+}
+
+/** Who wrote a message, as its row names them and as a copy of it reads. */
+export function messageAuthor(
+  message: ChatMessage,
+  vb: Pick<ChatBridge, "t" | "name">,
+) {
+  return message.author === "ai"
+    ? "@vibe"
+    : message.kind === "agent"
+      ? vb.t("{via} de {who}", {
+          via: message.via || "agent",
+          who: vb.name(message.author),
+        })
+      : vb.name(message.author);
 }

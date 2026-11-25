@@ -1,11 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
-import {
-  chromium,
-  expect as baseExpect,
-  type Page,
-  type WebSocketRoute,
-} from "@playwright/test";
+import { chromium, expect as baseExpect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import * as z from "zod/mini";
 import { browserFixtures, openRoomSidebar } from "./browser-fixtures";
@@ -83,7 +78,7 @@ try {
       message = posted.id;
     }
     return z.object({ epic_id: z.string() }).parse(
-      await agent("start_epic", {
+      await agent("start_thread", {
         room_id: id,
         title,
         why: "Verify the hierarchy, navigation and persistence against real room state.",
@@ -96,39 +91,32 @@ try {
   const child = await newEpic("Child workflow", parent);
   const leaf = await newEpic("Leaf workflow", child);
   const other = await newEpic("Second branch");
-  const oldParent = await newEpic("Archived parent");
-  const oldChild = await newEpic("Archived child", oldParent);
-  await agent("update_epic", {
+  const oldParent = await newEpic("Done parent");
+  const oldChild = await newEpic("Done child", oldParent);
+  await agent("update_thread", {
     room_id: id,
     epic_id: oldParent,
-    archived: true,
+    done: true,
   });
-  await agent("update_epic", {
+  await agent("update_thread", {
     room_id: id,
     epic_id: oldChild,
-    archived: true,
+    done: true,
   });
   result.epics = { parent, child, leaf, other, oldParent, oldChild };
-  let disconnected = false;
   let ready = false;
-  const sockets: WebSocketRoute[] = [];
   await context.routeWebSocket(
     (url) => url.pathname === `/ws/${id}`,
     async (socket) => {
-      if (disconnected) {
-        await socket.close({ code: 1012, reason: "local verification" });
-        return;
-      }
       const server = socket.connectToServer();
       server.onMessage((message) => {
         ready = true;
         socket.send(message);
       });
-      sockets.push(socket);
     },
   );
   const nav = page.getByRole("region", {
-    name: "Epics",
+    name: "Threads",
     exact: true,
     includeHidden: true,
   });
@@ -147,17 +135,16 @@ try {
     await show();
     await expect.poll(() => ready).toBe(true);
   };
-  const draft = nav.getByRole("textbox", { name: "New epic", exact: true });
-  const submit = nav.getByRole("button", { name: "Create epic", exact: true });
   await navigate();
-  step("Checking the flat list, live updates and draft retention");
+  step("Checking the flat list and live updates");
   // Sub-epics are plain rows: nothing nests, indents or collapses.
   for (const epic of [parent, child, leaf, other])
     await expect(row(epic)).toBeVisible();
   await expect(nav.locator("[data-depth]")).toHaveCount(0);
   await expect(nav.getByRole("button", { name: /branch:/ })).toHaveCount(0);
-  await draft.fill("Draft survives live updates");
-  await agent("update_epic", {
+  // No "New thread" in the list (Gimenes #4286): a thread starts from a message.
+  await expect(nav.locator("[data-new-epic]")).toHaveCount(0);
+  await agent("update_thread", {
     room_id: id,
     epic_id: leaf,
     title: "Leaf initial live update",
@@ -165,11 +152,10 @@ try {
   await expect(row(leaf).locator("[data-epic-title]")).toContainText(
     "Leaf initial live update",
   );
-  await expect(draft).toHaveValue("Draft survives live updates");
   await navigate(leaf);
   await expect(row(leaf)).toBeVisible();
   await expect(title(leaf)).toHaveAttribute("aria-current", "page");
-  await agent("update_epic", {
+  await agent("update_thread", {
     room_id: id,
     epic_id: leaf,
     title: "Leaf updated remotely",
@@ -180,12 +166,12 @@ try {
   await title(parent).click();
   await expect(title(parent)).toHaveAttribute("aria-current", "page");
   await expect(row(child)).toBeVisible();
-  step("Checking the archived list and keyboard ordering");
-  await nav.getByRole("tab", { name: /^Archived/ }).click();
+  step("Checking the done list and keyboard ordering");
+  await nav.getByRole("tab", { name: /^Done/ }).click();
   await expect(row(oldParent)).toBeVisible();
   await expect(row(oldChild)).toBeVisible();
-  await expect(nav.locator("#newEpic")).toHaveCount(0);
-  await nav.getByRole("tab", { name: /^Epics/ }).click();
+  await expect(nav.locator("[data-new-epic]")).toHaveCount(0);
+  await nav.getByRole("tab", { name: /^Open/ }).click();
   const roots = () =>
     nav
       .locator("li[data-epic]:not([hidden])")
@@ -221,34 +207,6 @@ try {
   await expect.poll(roots).toEqual([parent, child, leaf, other]);
   await navigate();
   await expect.poll(roots).toEqual([parent, child, leaf, other]);
-  step("Checking disconnected draft retention and retry");
-  disconnected = true;
-  await Promise.all(
-    sockets
-      .splice(0)
-      .map((socket) =>
-        socket.close({ code: 1012, reason: "local verification" }),
-      ),
-  );
-  await draft.fill("Retained navigation draft");
-  await submit.click();
-  await expect(nav.getByRole("alert")).toContainText("Couldn't send it now");
-  await expect(draft).toHaveValue("Retained navigation draft");
-  disconnected = false;
-  await expect
-    .poll(
-      async () => {
-        await submit.click();
-        return draft.inputValue();
-      },
-      { timeout: 60_000 },
-    )
-    .toBe("");
-  await expect(
-    nav
-      .locator("[data-epic-title]")
-      .filter({ hasText: "Retained navigation draft" }),
-  ).toBeVisible();
   step("Checking responsive Studio tokens and navigation accessibility");
   const audit = async (name: string, region = nav) => {
     await show(region);
@@ -288,53 +246,6 @@ try {
   await audit("navigation-dark-768");
   await page.setViewportSize({ width: 390, height: 844 });
   await audit("navigation-dark-390");
-  for (const width of [900, 390]) {
-    await page.setViewportSize({ width, height: 844 });
-    step("Checking the mobile form stays reachable with expanded epic actions");
-    await draft.scrollIntoViewIfNeeded();
-    await expect(draft).toBeInViewport({ ratio: 0.95 });
-    await page.evaluate(() => {
-      if (document.activeElement instanceof HTMLElement)
-        document.activeElement.blur();
-    });
-    await submit.hover();
-    const sheetHeight: number = await page
-      .locator("#side")
-      .evaluate((el) => el.clientHeight);
-    const sheetScroll: number = await page
-      .locator("#side")
-      .evaluate((el) => el.scrollTop);
-    const submitBounds = await submit.boundingBox();
-    await page.mouse.down();
-    assert.equal(
-      await page.locator("#side").evaluate((el) => el.clientHeight),
-      sheetHeight,
-    );
-    assert.equal(
-      await page.locator("#side").evaluate((el) => el.scrollTop),
-      sheetScroll,
-    );
-    assert.deepEqual(await submit.boundingBox(), submitBounds);
-    await page.mouse.up(); // Empty submission focuses the field without writing a new epic.
-    await expect(draft).toBeFocused();
-    assert.equal(
-      await page.locator("#side").evaluate((el) => el.clientHeight),
-      sheetHeight,
-      "Focusing the mobile form must not resize its scrollport mid-click",
-    );
-    await expect(submit).toBeInViewport({ ratio: 0.95 });
-    result[`mobileForm${width}`] = {
-      sheetHeight,
-      bounds: await draft.boundingBox(),
-      viewport: page.viewportSize(),
-      focused: await draft.evaluate(
-        (element) => element === document.activeElement,
-      ),
-    };
-    await page.screenshot({
-      path: `${output}/navigation-form-dark-${width}.png`,
-    });
-  }
   step(
     "Checking mobile sandbox presence opens Agents and reuses the sidebar history entry",
   );
@@ -394,31 +305,21 @@ try {
     fixture:
       "read-only typed sandbox presence metadata; no sandbox backend setup/mutation is claimed",
   };
-  step("Checking Portuguese input and navigation accessibility");
+  step("Checking Portuguese navigation accessibility");
   await context.addCookies([{ name: "vb_lang", value: "pt", url: base }]);
   await page.reload();
   const portuguese = page.getByRole("region", {
-    name: "Épicos",
+    name: "Threads",
     exact: true,
     includeHidden: true,
   });
   await show(portuguese);
-  await portuguese
-    .getByRole("textbox", { name: "Novo épico", exact: true })
-    .fill("Navegação verificada");
-  await portuguese
-    .getByRole("button", { name: "Criar épico", exact: true })
-    .click();
-  await expect(
-    portuguese
-      .locator("[data-epic-title]")
-      .filter({ hasText: "Navegação verificada" }),
-  ).toBeVisible();
+  await expect(portuguese.locator("[data-epic-title]").first()).toBeVisible();
   await audit("navigation-pt-390", portuguese);
   assert.deepEqual(errors, []);
   result.status = "pass";
   console.log(
-    "PASS epic navigation: flat list, live draft state, archive, ordering/drag, persistence, disconnect/retry, responsive EN/PT axe",
+    "PASS epic navigation: flat list, live updates, done, ordering/drag, persistence, responsive EN/PT axe",
   );
 } catch (error) {
   result.status = "fail";

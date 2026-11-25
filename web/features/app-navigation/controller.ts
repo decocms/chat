@@ -4,7 +4,7 @@ import type { CommandOutcome } from "../../../shared/commands";
 import type { PersonalSession } from "../home/personal";
 import type { RoomsSession } from "../rooms/session";
 import type { RoomTarget } from "../home/model";
-import { orderedRooms } from "../home/model";
+import { orderedRooms, roomsOnly } from "../home/model";
 import { createNewRoomSession } from "../home/session";
 import { createSearchSession } from "./search";
 import { authClock, type AuthClock } from "../auth/owner";
@@ -24,6 +24,8 @@ export type AppNavigationCallbacks = {
   /** Cancels your message request to someone. */
   dismiss?: (email: string) => Promise<void>;
 };
+/** Where a room's menu opens (the pointer, or under the row from the keyboard) and for which room. */
+export type RoomMenuAnchor = Readonly<{ id: string; x: number; y: number }>;
 export function createAppNavigationSession(
   personal: PersonalSession,
   rooms: RoomsSession,
@@ -34,7 +36,8 @@ export function createAppNavigationSession(
     roomId: null as string | null,
     /** The home shows your Inbox (`/?inbox`). */
     inbox: false,
-    settingsId: null as string | null,
+    /** The room (or DM) whose context menu is open. */
+    menu: null as RoomMenuAnchor | null,
     archiveId: null as string | null,
     renameId: null as string | null,
     renameDraft: "",
@@ -47,10 +50,13 @@ export function createAppNavigationSession(
   let trigger: HTMLElement | null = null,
     active = true,
     path = "";
+  /** The rooms on the rail, in its order: your DMs are listed apart, so they are not there. */
+  const railRooms = () =>
+    orderedRooms(roomsOnly(get(personal.state).me?.books ?? []));
   const close = () =>
     state.update((s) => ({
       ...s,
-      settingsId: null,
+      menu: null,
       archiveId: null,
       renameId: null,
       renameBusy: false,
@@ -97,25 +103,44 @@ export function createAppNavigationSession(
       trigger = element ?? null;
       creator.open();
     },
-    openSettings(id: string, element?: HTMLElement) {
-      if (!get(personal.state).me?.books.some((room) => room.id === id)) return;
+    /** Opens a room's menu: at `point` (a right-click or a long press), else under `element` (the keyboard). */
+    openMenu(
+      id: string,
+      element?: HTMLElement,
+      point?: { x: number; y: number },
+    ) {
+      if (
+        !active ||
+        !get(personal.state).me?.books.some((room) => room.id === id)
+      )
+        return;
       trigger = element ?? null;
-      state.update((s) => ({ ...s, settingsId: id }));
+      const box = point ? null : element?.getBoundingClientRect();
+      const at = point ?? (box ? { x: box.left + 12, y: box.bottom } : null);
+      state.update((s) => ({
+        ...s,
+        menu: Object.freeze({ id, x: at?.x ?? 0, y: at?.y ?? 0 }),
+      }));
+    },
+    closeMenu() {
+      state.update((s) => (s.menu ? { ...s, menu: null } : s));
     },
     closeSettings() {
       close();
     },
     askArchive(id: string) {
-      state.update((s) => ({ ...s, settingsId: null, archiveId: id }));
+      state.update((s) => ({ ...s, menu: null, archiveId: id }));
+    },
+    /** The room's dot goes now; the server keeps it for your other tabs and devices. */
+    markRead(id: string) {
+      if (active) void rooms.read(id);
     },
     confirmArchive() {
       const id = get(state).archiveId;
       if (id) void rooms.archive(id);
     },
     move(id: string, delta: number) {
-      const ids = orderedRooms(get(personal.state).me?.books ?? []).map(
-          (room) => room.id,
-        ),
+      const ids = railRooms().map((room) => room.id),
         from = ids.indexOf(id),
         to = from + delta;
       if (from < 0 || to < 0 || to >= ids.length) return;
@@ -123,21 +148,23 @@ export function createAppNavigationSession(
       ids.splice(to, 0, id);
       void rooms.order(ids);
     },
-    drop(from: string, to: string, after: boolean) {
-      const ids = orderedRooms(get(personal.state).me?.books ?? []).map(
-        (room) => room.id,
-      );
-      if (from === to || !ids.includes(from) || !ids.includes(to)) return;
-      const rest = ids.filter((id) => id !== from);
-      rest.splice(rest.indexOf(to) + (after ? 1 : 0), 0, from);
-      void rooms.order(rest);
+    /** The rail's rooms in a new order (a drop): only a reorder of the rooms there are now. Your DMs are not on the rail, so they are not in `ids`. */
+    order(ids: readonly string[]) {
+      const known = railRooms().map((room) => room.id);
+      if (
+        ids.length !== known.length ||
+        new Set(ids).size !== ids.length ||
+        !ids.every((id) => known.includes(id))
+      )
+        return;
+      void rooms.order([...ids]);
     },
     askRename(id: string) {
       const room = get(personal.state).me?.books.find((room) => room.id === id);
       if (!room || get(state).roomId !== id || !callbacks.rename) return;
       state.update((s) => ({
         ...s,
-        settingsId: null,
+        menu: null,
         renameId: id,
         renameDraft: room.title ?? "",
         renameError: "",

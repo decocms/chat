@@ -70,11 +70,19 @@ export function createHomeApi(fetcher?: FetchLike) {
       api.books.start
         .$post({ json: { text } }, { init: { signal } })
         .then((response) => read(response, StartRoomResult)),
-    post: (id: string, text: string, thread: string) =>
-      createRoomApi(id, fetcher).postMessage({ text, thread }),
+    post: (id: string, text: string, thread: string, clientId?: string) =>
+      createRoomApi(id, fetcher).postMessage({
+        text,
+        thread,
+        client_id: clientId,
+      }),
     archive: (id: string, archived: boolean, signal?: AbortSignal) =>
       room.archive
         .$post({ param: param(id), json: { archived } }, { init: { signal } })
+        .then((response) => read(response, OkResult)),
+    read: (id: string, signal?: AbortSignal) =>
+      room.read
+        .$post({ param: param(id) }, { init: { signal } })
         .then((response) => read(response, OkResult)),
     order: (ids: string[], signal?: AbortSignal) =>
       api.rooms.order
@@ -99,6 +107,14 @@ export function createHomeApi(fetcher?: FetchLike) {
     resolve: (book_id: string, ref: string, signal?: AbortSignal) =>
       api.waits.resolve
         .$post({ json: { book_id, ref } }, { init: { signal } })
+        .then((response) => read(response, OkResult)),
+    /** "Marcar como feita" on an open thread of yours, from the Inbox. */
+    threadDone: (book_id: string, epic: string, signal?: AbortSignal) =>
+      room.threads[":epic"].done
+        .$post(
+          { param: { ...param(book_id), epic: encodeURIComponent(epic) } },
+          { init: { signal } },
+        )
         .then((response) => read(response, OkResult)),
     resolveMany: (
       items: { book_id: string; ref: string }[],

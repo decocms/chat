@@ -1,14 +1,18 @@
 import { get, writable, type Writable } from "svelte/store";
 import type { Room } from "../../../shared/room";
-import { epicAncestors, epicForest, type EpicForest } from "./model";
+import {
+  epicAncestors,
+  epicForest,
+  isThreadView,
+  type EpicForest,
+  type ThreadView,
+} from "./model";
 
 export type NavigationState = {
-  draft: string;
   closed: ReadonlySet<string>;
   openedFor: string | null;
-  archived: boolean;
-  /** The new-epic field under the Épicos header is open. */
-  creating: boolean;
+  /** The threads tab: Mine, Open or Done. */
+  view: ThreadView;
   /** The Plan tab (@vibe's suggestions) is the one open. */
   suggestions: boolean;
 };
@@ -57,21 +61,47 @@ function persistClosed(
   }
 }
 
-/** The room host owns this session, so rail remounts do not discard navigation drafts. */
+/** The tab this device last picked in the room (vb.threads.<room>); Open when there is none. */
+export function storedThreadView(
+  roomId: string,
+  storage: NavigationStorage | null = browserStorage(),
+): ThreadView {
+  try {
+    const value = storage?.getItem(`vb.threads.${roomId}`);
+    if (isThreadView(value)) return value;
+  } catch {
+    // Unavailable device storage opens the default tab.
+  }
+  return "open";
+}
+
+/** A tab the person picked: it stays for this room on this device. */
+export function setNavigationView(
+  session: NavigationSession,
+  view: ThreadView,
+) {
+  try {
+    session.storage?.setItem(`vb.threads.${session.roomId}`, view);
+  } catch {
+    // The current view retains its in-memory state when storage is unavailable.
+  }
+  session.state.update((state) => ({ ...state, view, suggestions: false }));
+}
+
+/** The room host owns this session, so rail remounts keep the open tab and the folded threads. */
 export function createNavigationSession(
   roomId: string,
-  archived = false,
+  /** The tab to open with; null = the one this device kept for the room. */
+  view: ThreadView | null = null,
   storage: NavigationStorage | null = browserStorage(),
 ): NavigationSession {
   return {
     roomId,
     storage,
     state: writable<NavigationState>({
-      draft: "",
       closed: readClosed(roomId, storage),
       openedFor: null,
-      archived,
-      creating: false,
+      view: view ?? storedThreadView(roomId, storage),
       suggestions: false,
     }),
   };
@@ -113,12 +143,9 @@ export function syncNavigationSession(
   current: NavigationSession | null,
   room: Pick<Room, "id" | "epics">,
   thread: string,
-  archived = false,
 ) {
   const session =
-    current?.roomId === room.id
-      ? current
-      : createNavigationSession(room.id, archived);
+    current?.roomId === room.id ? current : createNavigationSession(room.id);
   enterNavigationThread(session, epicForest(room.epics), thread);
   return session;
 }

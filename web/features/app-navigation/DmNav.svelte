@@ -44,6 +44,7 @@
   import HomeRow from "./HomeRow.svelte";
   import InboxRow from "./InboxRow.svelte";
   import RoomLink from "./RoomLink.svelte";
+  import { roomMenuTrigger } from "./roomMenuTrigger";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
   /**
    * Your home's own sidebar, built like a room's: "Mensagens diretas" names
@@ -71,7 +72,12 @@
 {#snippet dm(entry: DmEntry)}
   <!-- You are always online to yourself: this page is connected. -->
   {@const online = entry.self || $personal.online[entry.email] === true}
-  <li data-dm={entry.room.id} data-presence={online ? "online" : "offline"}>
+  <li
+    data-dm={entry.room.id}
+    data-presence={online ? "online" : "offline"}
+    use:roomMenuTrigger={(trigger, point) =>
+      controller.openMenu(entry.room.id, trigger, point)}
+  >
     <RoomLink
       room={entry.room}
       dm={entry}
@@ -105,8 +111,17 @@
       />{/if}</SidebarHeader
   >
   <ul class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto p-0">
-    <!-- Home, Inbox and You: where a room has its Main thread and Inbox. -->
-    <li>
+    <!-- Desktop: Home is the Caixa de entrada (Gimenes #3967), one row with its count. -->
+    <li data-home-inbox-desk class="max-md:hidden">
+      <InboxRow
+        selected={!current}
+        waits={$personal.me?.waits.length ?? 0}
+        {lang}
+        oninbox={controller.callbacks.home}
+      />
+    </li>
+    <!-- Phone: Home, Inbox and You, where a room has its Main thread and Inbox. -->
+    <li class="md:hidden">
       <!-- With an Inbox row under it, the count is on the Inbox (like a room's), not on Home. -->
       <HomeRow
         selected={!current && !$nav.inbox}
@@ -117,7 +132,7 @@
         onhome={controller.callbacks.home}
       />
     </li>
-    {#if controller.callbacks.inbox}<li data-home-inbox-row>
+    {#if controller.callbacks.inbox}<li data-home-inbox-row class="md:hidden">
         <InboxRow
           selected={!current && $nav.inbox}
           waits={$personal.me?.waits.length ?? 0}
@@ -126,17 +141,6 @@
         />
       </li>{/if}
     {#if dms}{@render dm(dms.self)}
-      {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<li
-          class="mt-3"
-        >
-          <Requests
-            invites={$personal.me.invites ?? []}
-            requests={$personal.me.requests}
-            {lang}
-            onjoin={controller.callbacks.answerInvite}
-            onanswer={controller.callbacks.answerRequest}
-          />
-        </li>{/if}
       {#if dms.talked.length}<li class="mt-3">
           <SectionHeader title={homeText(lang, "dmConversations")} />
         </li>{/if}

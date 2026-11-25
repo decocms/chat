@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import type { Room } from "../shared/room";
+import type { Epic, Room, Task, TaskStatus } from "../shared/room";
+import { epicStatus, isMarkDone } from "../shared/epicStatus";
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
 import { RoomCommandSchema } from "../shared/commands";
 import { matchesSuggestion, suggestionIdentity } from "../shared/suggestions";
@@ -156,14 +157,14 @@ test("epic mutations reconcile canonical before ACK and preserve uncertain opera
 });
 test("lost ACK and explicit local review release operation without retrying or synthesizing canonical state", async () => {
   const h = harness(),
-    result = h.owner.run({ t: "epic.archive", id: "e", archived: true });
+    result = h.owner.run({ t: "epic.done", id: "e", done: true });
   await Promise.resolve();
   h.pending.resolve({ ok: false, error: "disconnected" });
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
   expect(get(h.owner.state).phase).toBe("unconfirmed");
-  expect(h.r.epics[0]?.archived).toBeUndefined();
+  expect(h.r.epics[0]?.done).toBeUndefined();
   h.owner.review();
   expect(await result).toBe(false);
   expect(h.sent).toHaveLength(1);
@@ -292,4 +293,49 @@ test("duplicate room listeners exclude dedicated Fire Haiku and all-room workers
     ),
   ).toBe(1);
   expect(agentRows(presence, agent.email).slice(0, 2)).toEqual([agent, agent]);
+});
+test("epicStatus: one stored status, and done is the Done tab (Gimenes #4247)", () => {
+  const task = (status: TaskStatus): Task => ({
+    id: status,
+    title: status,
+    done: status === "done",
+    status,
+  });
+  const epic = (over: Partial<Epic> = {}): Epic => ({
+    id: "e",
+    title: "Epic",
+    tasks: [],
+    ...over,
+  });
+  expect(epicStatus(epic())).toBe("todo");
+  expect(epicStatus(epic({ status: "doing" }))).toBe("doing");
+  expect(epicStatus(epic({ status: "review" }))).toBe("review");
+  // The tasks and production do not decide it: a thread with every task done, or in production, stays open.
+  expect(epicStatus(epic({ tasks: [task("done")] }))).toBe("todo");
+  expect(
+    epicStatus(epic({ status: "review", prod: { stage: "deployed" } })),
+  ).toBe("review");
+  // done is the Done tab, so the icon and the tab agree.
+  expect(epicStatus(epic({ done: true }))).toBe("done");
+  expect(epicStatus(epic({ done: true, status: "review" }))).toBe("done");
+  expect(epicStatus(epic({ status: "done" }))).toBe("done");
+  expect(epicStatus(epic({ status: "dismissed" }))).toBe("done");
+  expect(isMarkDone("Marcar como concluída")).toBe(true);
+  expect(isMarkDone(" mark as done. ")).toBe(true);
+  expect(isMarkDone("marcar como concluida")).toBe(true);
+  expect(isMarkDone("mark as done, and ship it")).toBe(false);
+  // The status menu sends a typed room command.
+  expect(
+    RoomCommandSchema.safeParse({ t: "epic.status", id: "e", status: "done" })
+      .success,
+  ).toBe(true);
+  // No "live" status (Gimenes #3877): in production is done.
+  expect(
+    RoomCommandSchema.safeParse({ t: "epic.status", id: "e", status: "live" })
+      .success,
+  ).toBe(false);
+  expect(
+    RoomCommandSchema.safeParse({ t: "epic.status", id: "e", status: "x" })
+      .success,
+  ).toBe(false);
 });

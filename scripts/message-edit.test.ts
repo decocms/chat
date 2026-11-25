@@ -1,0 +1,486 @@
+// Edit and delete messages (Gui #4276, #4312): who may do what, and only the room owner ever gets the old text.
+// The actual Book over an in-memory SQLite (bun:sqlite) standing in for the Durable Object's storage; D1 is a fake.
+import { Database } from "bun:sqlite";
+import { expect, mock, setSystemTime, test } from "bun:test";
+import { encodeCall } from "../shared/jsonRpc";
+import type { RoomCommand } from "../shared/commands";
+import { RoomEventSchemas } from "../shared/events";
+mock.module("cloudflare:workers", () => ({
+  DurableObject: class {
+    ctx: unknown;
+    env: unknown;
+    constructor(ctx: unknown, env: unknown) {
+      this.ctx = ctx;
+      this.env = env;
+    }
+  },
+  WorkerEntrypoint: class {},
+  env: {},
+}));
+const { Book } = await import("../src/book");
+const email = "member@example.test";
+const owner = "owner@example.test";
+const other = "other@example.test";
+
+function cursor(rows: Record<string, unknown>[], written: number) {
+  return {
+    toArray: () => rows,
+    one: () => {
+      if (!rows[0]) throw Error("no row");
+      return rows[0];
+    },
+    rowsWritten: written,
+    [Symbol.iterator]: () => rows[Symbol.iterator](),
+  };
+}
+function fixture() {
+  const db = new Database(":memory:");
+  const sql = {
+    exec(query: string, ...params: (string | number | null)[]) {
+      const text = query.trim();
+      if (!params.length && /;\s*\S/.test(text)) {
+        db.exec(text);
+        return cursor([], 0);
+      }
+      const statement = db.query(text);
+      if (statement.columnNames.length)
+        return cursor(statement.all(...params) as Record<string, unknown>[], 0);
+      return cursor([], statement.run(...params).changes);
+    },
+  };
+  const frames: string[] = [];
+  const ws = { readyState: 1, send: (frame: string) => frames.push(frame) };
+  // D1 is a fake; the values bound to each statement are kept, so a test can see what was written.
+  const d1: { query: string; values: unknown[] }[] = [];
+  const statement = (query: string) => {
+    const bound = (...values: unknown[]) => {
+      d1.push({ query, values });
+      return {
+        run: async () => ({ meta: { changes: 0 } }),
+        first: async () => null,
+        all: async () => ({ results: [] }),
+      };
+    };
+    return { bind: bound, ...bound() };
+  };
+  const ctx = {
+    storage: { sql, getAlarm: async () => null, setAlarm: async () => {} },
+    waitUntil: (p: unknown) => void Promise.resolve(p).catch(() => {}),
+    getWebSockets: () => [ws],
+    acceptWebSocket: () => {},
+    getTags: () => [email],
+    blockConcurrencyWhile: (fn: () => unknown) => fn(),
+  };
+  const book = new Book(
+    ctx as unknown as ConstructorParameters<typeof Book>[0],
+    {
+      DB: { prepare: statement, batch: async () => [] },
+      DOC_ROOMS: {
+        idFromName: () => "doc",
+        get: () => ({ setText: async () => {} }),
+      },
+    } as unknown as ConstructorParameters<typeof Book>[1],
+  );
+  book.set("book_id", "abcdef");
+  book.wakeAt = async () => {};
+  book.members = async () => [email, owner, other];
+  book.isOwner = async (who: string) => who === owner;
+  let rpc = 0;
+  const run = async (command: RoomCommand) => {
+    const id = `r-${++rpc}`;
+    await book.webSocketMessage(
+      ws as unknown as WebSocket,
+      encodeCall(command, id),
+    );
+    const reply = frames
+      .map(
+        (frame) =>
+          JSON.parse(frame) as { id?: string; error?: { message: string } },
+      )
+      .find((frame) => frame.id === id);
+    if (!reply) throw Error("no reply");
+    return reply.error
+      ? { ok: false as const, error: reply.error.message }
+      : { ok: true as const };
+  };
+  return { book, run, db, frames, d1 };
+}
+const row = (db: Database, id: number) =>
+  db
+    .query(`SELECT text, files, edited, deleted FROM messages WHERE id = ?`)
+    .get(id) as {
+    text: string;
+    files: string | null;
+    edited: number | null;
+    deleted: number | null;
+  };
+
+test("the author edits; nobody else does, and the edit is filtered for secrets", async () => {
+  const { book, run, db, frames } = fixture();
+  const id = book.addMessage("main", email, "first draft").id;
+  expect(
+    await book.changeMessage(id, { email: other, agent: false }, "hijack"),
+  ).toMatchObject({ ok: false });
+  expect(
+    await book.changeMessage(id, { email: owner, agent: false }, "owner edit"),
+  ).toMatchObject({ ok: false });
+  // The author's own agent did not post it, so it cannot edit it either.
+  expect(
+    await book.changeMessage(id, { email, agent: true }, "agent edit"),
+  ).toMatchObject({ ok: false });
+  expect(
+    await book.changeMessage(
+      id,
+      { email, agent: false },
+      "AKIAIOSFODNN7EXAMPLE",
+    ),
+  ).toMatchObject({ ok: false });
+  frames.length = 0;
+  expect(await run({ t: "msg.edit", id, text: "final text" })).toEqual({
+    ok: true,
+  });
+  expect(row(db, id)).toMatchObject({ text: "final text", deleted: null });
+  expect(row(db, id).edited).toBeGreaterThan(0);
+  // What everyone receives carries the new text only.
+  expect(frames.join("\n")).not.toContain("first draft");
+});
+
+test("an agent edits and deletes only what it posted", async () => {
+  const { book, db } = fixture();
+  const id = book.addMessage("main", email, "agent said", { kind: "agent" }).id;
+  expect(
+    await book.changeMessage(id, { email, agent: false }, "human edit"),
+  ).toMatchObject({ ok: false });
+  expect(
+    await book.agentChangeMessage("abcdef", email, id, "agent fixed"),
+  ).toEqual({ ok: true });
+  expect(
+    await book.agentChangeMessage("abcdef", other, id, null),
+  ).toMatchObject({ ok: false });
+  expect(await book.agentChangeMessage("abcdef", email, id, null)).toEqual({
+    ok: true,
+  });
+  expect(row(db, id).deleted).toBeGreaterThan(0);
+});
+
+test("the author or the room owner deletes; the content goes to the owner only", async () => {
+  const { book, db, frames } = fixture();
+  const a = book.addMessage("main", email, "secret client data").id;
+  const b = book.addMessage("main", email, "another one").id;
+  expect(
+    await book.changeMessage(a, { email: other, agent: false }, null),
+  ).toMatchObject({ ok: false });
+  frames.length = 0;
+  expect(
+    await book.changeMessage(a, { email: owner, agent: false }, null),
+  ).toEqual({ ok: true });
+  expect(await book.changeMessage(b, { email, agent: false }, null)).toEqual({
+    ok: true,
+  });
+  expect(row(db, a)).toMatchObject({ text: "", files: null });
+  expect(frames.join("\n")).not.toContain("secret client data");
+  // A deleted message is not edited back to life.
+  expect(
+    await book.changeMessage(a, { email, agent: false }, "back"),
+  ).toMatchObject({ ok: false });
+  expect(await book.messageHistory(a, other)).toBeNull();
+  expect(await book.messageHistory(a, email)).toBeNull();
+  expect(await book.messageHistory(a, owner)).toEqual([
+    expect.objectContaining({
+      kind: "delete",
+      text: "secret client data",
+      by: owner,
+    }),
+  ]);
+  // Agents read a tombstone, never the old text.
+  const read = JSON.stringify(await book.agentRead("abcdef", 0, other));
+  expect(read).not.toContain("secret client data");
+  expect(read).toContain("[message deleted]");
+});
+
+test("a message that a thread started from is not deleted, by its author, the owner or an agent (Gimenes #4621)", async () => {
+  const { book, run, db } = fixture();
+  const id = book.addMessage("main", email, "vamos fazer X").id;
+  const own = book.addMessage("main", email, "done", { kind: "agent" }).id;
+  db.query(
+    `INSERT INTO epics (id, title, ts, from_msg) VALUES ('t1', 'X', 1, ?), ('t2', 'Y', 1, ?)`,
+  ).run(id, own);
+  expect(await run({ t: "msg.delete", id })).toMatchObject({ ok: false });
+  expect(
+    await book.changeMessage(id, { email: owner, agent: false }, null),
+  ).toMatchObject({ ok: false });
+  expect(
+    await book.agentChangeMessage("abcdef", email, own, null),
+  ).toMatchObject({ ok: false });
+  expect(row(db, id).deleted).toBeNull();
+  expect(row(db, own).deleted).toBeNull();
+  // Editing it still works.
+  expect(await run({ t: "msg.edit", id, text: "vamos fazer X e Y" })).toEqual({
+    ok: true,
+  });
+});
+
+test("a deleted message's files leave the room for everyone but the owner (#4383)", async () => {
+  const { book, db } = fixture();
+  const fid = "0abc1234";
+  db.query(
+    `INSERT INTO files (id, name, type, size, author, ts) VALUES (?, 'leak.txt', 'text/plain', 5, ?, 1)`,
+  ).run(fid, email);
+  const id = book.addMessage("main", email, "see file").id;
+  db.query(`UPDATE messages SET files = ? WHERE id = ?`).run(
+    JSON.stringify([{ id: fid, name: "leak.txt" }]),
+    id,
+  );
+  expect(await book.fileHidden("abcdef", fid, other)).toBe(false);
+  expect(await book.changeMessage(id, { email, agent: false }, null)).toEqual({
+    ok: true,
+  });
+  expect(await book.fileHidden("abcdef", fid, other)).toBe(true);
+  expect(await book.fileHidden("abcdef", fid, email)).toBe(true);
+  expect(await book.fileHidden("abcdef", fid, owner)).toBe(false);
+  expect(book.files().map((f) => f.id)).not.toContain(fid);
+});
+
+test("an ask you reacted to before the router read it does not wait on you (Gimenes #4604)", async () => {
+  const { book, run, d1 } = fixture();
+  const ask = book.addMessage("main", owner, "posso subir hoje?").id;
+  // You react while the router (an LLM call) is still reading the message.
+  expect(await run({ t: "react", id: ask, emoji: "👍" })).toEqual({ ok: true });
+  d1.length = 0;
+  // Then the router says the ask waits on you and on someone who did nothing.
+  await book.saveWaits(ask, [email, other]);
+  const waits = d1.filter(
+    (x) => x.values.length && x.query.includes("INSERT OR IGNORE INTO waits"),
+  );
+  expect(waits.map((x) => x.values[2])).toEqual([other]);
+});
+
+test("a page of a thread: newest, before an id, after an id, with more and in time order (cache plan, PR 1)", async () => {
+  const { book, run, frames } = fixture();
+  const ids = Array.from(
+    { length: 7 },
+    (_, i) => book.addMessage("e1", email, `m${i}`).id,
+  );
+  book.addMessage("main", email, "elsewhere");
+  const page = (q: { before?: number; after?: number; limit: number }) =>
+    book.roomMessages("abcdef", { thread: "e1", ...q }, email);
+  const texts = (p: { messages: { text: string }[] }) =>
+    p.messages.map((m) => m.text);
+  expect(texts(page({ limit: 3 }))).toEqual(["m4", "m5", "m6"]);
+  expect(page({ limit: 3 }).more).toBe(true);
+  expect(texts(page({ before: ids[4], limit: 3 }))).toEqual(["m1", "m2", "m3"]);
+  expect(texts(page({ before: ids[2], limit: 3 }))).toEqual(["m0", "m1"]);
+  expect(page({ before: ids[2], limit: 3 }).more).toBe(false);
+  // after: the oldest ones since that id, for catching up.
+  expect(texts(page({ after: ids[1], limit: 3 }))).toEqual(["m2", "m3", "m4"]);
+  expect(page({ after: ids[1], limit: 3 }).more).toBe(true);
+  expect(page({ after: ids[6], limit: 3 })).toMatchObject({
+    messages: [],
+    more: false,
+  });
+  // The socket's "older" is the same page (100), for apps from before the GET.
+  frames.length = 0;
+  await run({ t: "older", thread: "e1", before: ids[3] });
+  const older = frames
+    .map(
+      (f) =>
+        JSON.parse(f) as {
+          method?: string;
+          params?: { messages: { text: string }[] };
+        },
+    )
+    .find((f) => f.method === "older");
+  expect(older?.params?.messages.map((m) => m.text)).toEqual([
+    "m0",
+    "m1",
+    "m2",
+  ]);
+});
+
+test("a reconnect resumes: newer, edited and deleted messages plus the open thread; whole state when too old (cache plan PR 2)", async () => {
+  const { book, run, db } = fixture();
+  const ids = Array.from(
+    { length: 4 },
+    (_, i) => book.addMessage("main", email, `m${i}`).id,
+  );
+  const at = Date.now();
+  db.query(`UPDATE messages SET ts = ts - 1000`).run();
+  const fresh = book.addMessage("e1", email, "new").id;
+  expect(await run({ t: "msg.edit", id: ids[1]!, text: "m1 edited" })).toEqual({
+    ok: true,
+  });
+  expect(
+    await book.changeMessage(ids[0]!, { email, agent: false }, null),
+  ).toEqual({ ok: true });
+  const url = (q: string) => new URL(`https://x.test/ws/abcdef?t=main&${q}`);
+  const window = book.roomWindow("main", email).messages;
+  const resumed = book.resumeOf(
+    url(`since=${ids[3]}&at=${at}&eh=h1`),
+    "main",
+    window,
+    "h1",
+    email,
+  );
+  expect(resumed?.epicsSame).toBe(true);
+  const texts = Object.fromEntries(
+    resumed!.messages.map((m) => [m.id, m.text]),
+  );
+  expect(texts[fresh]).toBe("new");
+  expect(texts[ids[1]!]).toBe("m1 edited");
+  expect(
+    resumed!.messages.find((m) => m.id === ids[0])?.deleted,
+  ).toBeGreaterThan(0);
+  // The open thread's window comes too (a reconnect can open another thread).
+  expect(texts[ids[3]!]).toBe("m3");
+  expect(
+    book.resumeOf(
+      url(`since=${ids[3]}&at=${at}&eh=old`),
+      "main",
+      window,
+      "h1",
+      email,
+    )?.epicsSame,
+  ).toBe(false);
+  // No params, a state older than 6 h, or a time from the future: the whole state.
+  expect(book.resumeOf(url(""), "main", window, "h1", email)).toBeNull();
+  expect(
+    book.resumeOf(
+      url(`since=${ids[3]}&at=${at - 7 * 3600_000}`),
+      "main",
+      window,
+      "h1",
+      email,
+    ),
+  ).toBeNull();
+  expect(
+    book.resumeOf(
+      url(`since=${ids[3]}&at=${Date.now() + 60_000}`),
+      "main",
+      window,
+      "h1",
+      email,
+    ),
+  ).toBeNull();
+  // More than 200 changed rows: the whole state.
+  for (let i = 0; i < 201; i++) book.addMessage("main", email, `bulk ${i}`);
+  expect(
+    book.resumeOf(url(`since=${ids[3]}&at=${at}`), "main", window, "h1", email),
+  ).toBeNull();
+});
+
+test("a light socket gets hello, not state; GET room answers the same state a socket without lite sends", async () => {
+  const { book } = fixture();
+  const first = book.addMessage("main", email, "oi").id;
+  book.addMessage("e1", email, "num fio");
+  // The runtime's WebSocketPair: the server end keeps what the Book sends to it.
+  const sent: string[] = [];
+  Object.defineProperty(globalThis, "WebSocketPair", {
+    configurable: true,
+    writable: true,
+    value: class {
+      0 = {};
+      1 = { readyState: 1, send: (frame: string) => sent.push(frame) };
+    },
+  });
+  const open = async (query: string) => {
+    sent.length = 0;
+    const response = await book.fetch(
+      new Request(`https://book/ws?book=abcdef&t=main${query}`, {
+        headers: { "x-email": email },
+      }),
+    );
+    expect(response.status).toBe(101);
+    return sent.map((frame) => {
+      const { method, params } = JSON.parse(frame) as {
+        method: string;
+        params: Record<string, unknown>;
+      };
+      return { t: method, ...params } as Record<string, unknown>;
+    });
+  };
+  const hello = await open("&lite=1");
+  expect(hello).toHaveLength(1);
+  expect(hello[0]).toMatchObject({ t: "hello" });
+  expect(RoomEventSchemas.hello.safeParse(hello[0]).success).toBe(true);
+  setSystemTime(new Date(Date.now() + 1000));
+  try {
+    const [state] = await open("");
+    expect(state?.t).toBe("state");
+    // What the route answers, as it reaches the app (JSON).
+    const answer = JSON.parse(
+      JSON.stringify(await book.roomState("abcdef", email, { t: "main" })),
+    );
+    expect(RoomEventSchemas.state.safeParse(answer).success).toBe(true);
+    expect(answer).toEqual(state);
+    // With the resume params, the same resumed state as the socket's.
+    const at = Number(state!.at),
+      eh = String(state!.eh);
+    const [resumed] = await open(`&since=${first}&at=${at}&eh=${eh}`);
+    expect(resumed).toMatchObject({ resume: true, epicsSame: true });
+    expect(
+      JSON.parse(
+        JSON.stringify(
+          await book.roomState("abcdef", email, {
+            t: "main",
+            since: first,
+            at,
+            eh,
+          }),
+        ),
+      ),
+    ).toEqual(resumed);
+  } finally {
+    setSystemTime();
+  }
+});
+
+// A Claude's hook question (⏸/❓) and its human's answer are that human's alone (src/privateAsk.ts).
+test("another member never receives a Claude's hook ask; its human sees it and answers it", async () => {
+  const { book, frames } = fixture(); // the socket is `email`'s
+  const choices = { options: ["Aprovar", "Negar"], multi: false };
+  const ask = (who: string) =>
+    book.addMessage(
+      "main",
+      who,
+      "⏸ Seu Claude pede permissão: **Bash**\n`ls /Users/x`\n\nSó vale a resposta da sua conta logada aqui.",
+      { kind: "agent", choices },
+    ).id;
+  const hello = book.addMessage("main", other, "bom dia").id;
+  frames.length = 0;
+  const theirs = ask(other);
+  // other's ask never reaches email's open tab.
+  expect(frames).toHaveLength(0);
+  const mine = ask(email);
+  expect(frames.some((f) => f.includes(`"id":${mine}`))).toBe(true);
+  const answer = book.addMessage("main", email, "Aprovar", {
+    replyTo: mine,
+  }).id;
+  const ids = (ms: { id: number }[]) => ms.map((m) => m.id);
+  // Pages, the room open, resume, read_room and search: each viewer gets only their own.
+  const page = (who: string) =>
+    ids(
+      book.roomMessages("abcdef", { thread: "main", limit: 50 }, who).messages,
+    );
+  expect(page(email)).toEqual([hello, mine, answer]);
+  expect(page(other)).toEqual([hello, theirs]);
+  expect(page(owner)).toEqual([hello]);
+  expect(ids(book.roomWindow("main", owner).messages)).toEqual([hello]);
+  expect(book.roomWindow("main", owner).counts.main).toBe(1);
+  expect(ids(book.roomWindow("main", email).messages)).toEqual([
+    hello,
+    mine,
+    answer,
+  ]);
+  const read = async (who: string) =>
+    (await book.agentRead("abcdef", 0, who)).messages.map((m) => m.id);
+  expect(await read(owner)).toEqual([hello]);
+  expect(await read(email)).toEqual([hello, mine, answer]);
+  expect(ids(book.search("abcdef", "permissão", 8, owner).messages)).toEqual(
+    [],
+  );
+  expect(ids(book.search("abcdef", "permissão", 8, email).messages)).toEqual([
+    mine,
+  ]);
+  // What permission_wait reads back for the hook.
+  expect(book.answerTo("abcdef", mine, email)).toBe("Aprovar");
+});

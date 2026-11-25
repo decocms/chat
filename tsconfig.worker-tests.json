@@ -10,6 +10,7 @@
     "scripts/service-boundaries.test.ts",
     "scripts/auth-ui.test.ts",
     "scripts/auth.test.ts",
+    "scripts/invite-mail.test.ts",
     "scripts/auth-post.test.ts",
     "scripts/mcp-connections.test.ts",
     "scripts/book-stored-boundary.test.ts",
@@ -32,6 +33,11 @@
     "scripts/grant-metadata-boundary.test.ts",
     "scripts/sandbox-rows.test.ts",
     "scripts/fire-authority.test.ts",
-    "scripts/provider-metadata.test.ts"
+    "scripts/idempotent-send.test.ts",
+    "scripts/thread-origin.test.ts",
+    "scripts/answer-epic.test.ts",
+    "scripts/message-edit.test.ts",
+    "scripts/provider-metadata.test.ts",
+    "scripts/waits-read.test.ts"
   ]
 }

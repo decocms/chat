@@ -8,6 +8,7 @@ import { messageIdentity } from "../home/model";
 import { AUTH_REQUEST_TIMEOUT, type AuthClock } from "../auth/owner";
 import { createAgentLease } from "../agents/lease";
 import { clientClock } from "../../lib/client/clock";
+import { createSendIds } from "../../lib/client/sendIds";
 export type InboxBinding = {
   account: string;
   revision: number;
@@ -56,11 +57,19 @@ export function createApplicationInbox(
       return old && JSON.stringify(old) === JSON.stringify(row) ? old : row;
     });
   };
+  // A reply that failed keeps its client_id: replying again with the same text is the same send.
+  const sends = createSendIds();
   const waitsKey = (wait: Wait) => `${wait.book_id}/${wait.ref}`;
-  const empty = (): InboxResult => ({ waits: [], mentions: [], tasks: [] });
+  const empty = (): InboxResult => ({
+    waits: [],
+    mentions: [],
+    tasks: [],
+    threads: [],
+  });
   const state = writable<InboxSnapshot>({
     binding: null,
-    all: false,
+    // One Inbox for all rooms: no "this room" scope (Gimenes #3814).
+    all: true,
     data: empty(),
     phase: "idle",
     error: null,
@@ -195,6 +204,13 @@ export function createApplicationInbox(
           value.thread === wait.thread &&
           value.author === wait.author,
       );
+  const listedThread = (wait: Wait) => {
+    const data = get(state).data;
+    return (
+      wait.ref.startsWith("e") &&
+      (data.waits.includes(wait) || (data.threads ?? []).includes(wait))
+    );
+  };
   async function refresh(binding: InboxBinding) {
     if (!owns(binding)) return;
     const ticket = ++readRevision;
@@ -225,6 +241,11 @@ export function createApplicationInbox(
               value.data.tasks,
               data.tasks,
               (row) => `${row.book_id}/${row.task_id}`,
+            ),
+            threads: reuse(
+              value.data.threads ?? [],
+              data.threads ?? [],
+              waitsKey,
             ),
           },
           phase: "ready",
@@ -318,6 +339,7 @@ export function createApplicationInbox(
               : person.waits,
           mentions: [],
           tasks: [],
+          threads: [],
         },
         phase: "idle",
         error: null,
@@ -362,6 +384,49 @@ export function createApplicationInbox(
           ? messageIdentity(wait.ref.slice(1))
           : undefined,
       );
+    },
+    /** An open thread of yours (a wait e<epic>, from "Suas threads" or "Tudo"): opens its thread. */
+    openThread(binding: InboxBinding, wait: Wait) {
+      if (owns(binding) && listedThread(wait))
+        navigate(binding, wait.book_id, wait.thread);
+    },
+    /** "Marcar como feita": the thread leaves the list now; it comes back if the server says no. */
+    async markThreadDone(binding: InboxBinding, wait: Wait) {
+      const key = waitsKey(wait);
+      if (
+        !owns(binding) ||
+        !listedThread(wait) ||
+        get(state).hidden.includes(key)
+      )
+        return false;
+      state.update((value) => ({
+        ...value,
+        hidden: [...value.hidden, key],
+        error: null,
+      }));
+      try {
+        await writer.run(
+          (signal) =>
+            services.personal.api.threadDone(wait.book_id, wait.thread, signal),
+          AUTH_REQUEST_TIMEOUT,
+        );
+      } catch (error) {
+        if (error instanceof HomeFailure && error.status === 401)
+          services.actions.sessionLost();
+        state.update((value) => ({
+          ...value,
+          hidden: value.hidden.filter((row) => row !== key),
+        }));
+        return false;
+      }
+      if (!owns(binding)) return true;
+      services.personal.invalidate();
+      await Promise.all([services.personal.refresh(), refresh(binding)]);
+      state.update((value) => ({
+        ...value,
+        hidden: value.hidden.filter((row) => row !== key),
+      }));
+      return true;
     },
     /** "Resolve" with Undo: the asks leave the list now and go to the server after INBOX_UNDO_MS. */
     resolveLater(binding: InboxBinding, waits: readonly Wait[]) {
@@ -409,12 +474,18 @@ export function createApplicationInbox(
       const body = text.trim();
       if (!owns(binding) || !body) return false;
       try {
-        await services.personal.api.post(item.book, body, item.thread);
+        await services.personal.api.post(
+          item.book,
+          body,
+          item.thread,
+          sends.take(JSON.stringify([item.book, item.thread, body])),
+        );
       } catch (error) {
         if (error instanceof HomeFailure && error.status === 401)
           services.actions.sessionLost();
         return false;
       }
+      sends.done(JSON.stringify([item.book, item.thread, body]));
       if (!owns(binding)) return true;
       services.personal.invalidate();
       void services.personal.refresh();

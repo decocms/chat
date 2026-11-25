@@ -23,7 +23,7 @@ export function pollView(poll: Poll, me: string) {
       percent: sum ? Math.round((100 * counts[index]) / sum) : 0,
       mine: !!poll.votes[index]?.includes(me),
       winner: poll.closed && counts[index] > 0 && counts[index] === max,
-      voters: (poll.votes[index] || []).slice(0, 4),
+      voters: poll.votes[index] || [],
     })),
   };
 }

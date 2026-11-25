@@ -13,8 +13,11 @@
   import AppNavigation from "../app-navigation/AppNavigation.svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
   import SettingsNav from "../app-navigation/SettingsNav.svelte";
+  import UpdateRow from "../user-center/UpdateRow.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
-  import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
+  import UserCenter from "../user-center/UserCenter.svelte";
+  import NotifyOffer from "../notifications/NotifyOffer.svelte";
+  import Requests from "../app-navigation/Requests.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Dialog from "../../lib/studio/Dialog.svelte";
@@ -28,6 +31,11 @@
   import type { HomeBridge } from "../home/types";
   import { roomAvatarVersion } from "../room-scope/model";
   import { roomLabel } from "../home/model";
+  import { MediaQuery } from "svelte/reactivity";
+  import { MOBILE_QUERY } from "../../lib/breakpoints";
+  import IncomingCall from "../call/IncomingCall.svelte";
+  import CallPanel from "../call/CallPanel.svelte";
+  import { callHub } from "../call/hub";
   let {
     services,
     roomSnippet,
@@ -40,6 +48,18 @@
   const application = untrack(() => services.state),
     personal = untrack(() => services.personal.state),
     room = untrack(() => services.rootRoom.state);
+  // The call I am in is the app's (callHub): off a room (Home, the archive, the settings), the DM list's foot shows
+  // its panel; opening it goes back to the call's room, whose view opens the stage.
+  const calls = callHub(),
+    liveCall = calls.live;
+  $effect(() => calls.setMe($personal.me?.email ?? ""));
+  // The panel takes me to the call's room with the stage open (the room's view takes the ask: hub.openStage).
+  function openLiveCall(camera: boolean) {
+    const live = get(liveCall);
+    if (!current() || !live) return;
+    calls.openStage(live.room, camera);
+    services.actions.navigate(`/b/${live.room}`);
+  }
   const inbox = untrack(() => createApplicationInbox(services)),
     inboxView = inbox.state;
   const openInbox = (trigger?: HTMLElement) =>
@@ -99,9 +119,15 @@
     AccountSettings = $derived($accountModuleView.component),
     Inbox = $derived($inboxModuleView.component),
     HomeInbox = $derived($homeInboxModuleView.component);
-  // `/?inbox`: the home shows your Inbox for all rooms (HomeInbox).
+  // `/?inbox`, and `/` on a desktop: the home shows your Inbox for all rooms
+  // (HomeInbox; Gimenes #3967). On a desktop, only someone with no rooms yet
+  // keeps the Home, for its first-room and connect-agent steps. A phone keeps
+  // its list of conversations at `/`.
+  const phone = new MediaQuery(MOBILE_QUERY);
   const homeInbox = $derived(
-    $application.route.kind === "home" && !!$application.route.inbox,
+    $application.route.kind === "home" &&
+      (!!$application.route.inbox ||
+        (!phone.current && ($personal.me?.books.length ?? 1) > 0)),
   );
   const accountView = untrack(() => services.account.state);
   // The page owns the Inbox while it's open: a route change closes it (inbox.ts), this opens it again.
@@ -137,6 +163,22 @@
   // Home and settings share one frame: the rail, a sidebar (your DMs, or the settings' sections) and the page.
   const settings = $derived($application.route.kind === "settings"),
     paged = $derived($application.route.kind === "home" || settings);
+  // Phones: Settings has only a back in its bar (Gimenes #4068). It returns to the page you came
+  // from in this app; a Settings page that was the first page loaded goes to Home instead.
+  let landing: string | undefined,
+    moved = $state(false);
+  $effect(() => {
+    const href = $application.href;
+    untrack(() => {
+      if (landing === undefined) landing = href;
+      else if (href !== landing) moved = true;
+    });
+  });
+  function settingsBack() {
+    if (!current()) return;
+    if (moved) effects.back();
+    else services.actions.home();
+  }
   const settingsRoom = $derived(
     $application.route.kind === "settings"
       ? new URL($application.href).searchParams.get("room")
@@ -188,8 +230,8 @@
     onnew: (trigger) => {
       if (current()) services.navigation.openCreate(trigger);
     },
-    onroomsettings: (id, trigger) => {
-      if (current()) services.navigation.openSettings(id, trigger);
+    onroommenu: (id, trigger, point) => {
+      if (current()) services.navigation.openMenu(id, trigger, point);
     },
     oninbox: (trigger) => {
       if (current()) openInbox(trigger);
@@ -197,7 +239,10 @@
     onsearch: () => {
       if (current()) services.navigation.openSearch();
     },
-    onlanguage: language,
+    onjoin: services.navigation.callbacks.answerInvite,
+    onanswer: services.navigation.callbacks.answerRequest,
+    onconnect: services.navigation.callbacks.connect,
+    ondismiss: services.navigation.callbacks.dismiss,
   });
   onMount(() => {
     effects.documentLanguage(services.language);
@@ -251,7 +296,7 @@
             ? "md:grid-cols-[68px_273px_minmax(0,1fr)]"
             : "md:grid-cols-[68px_minmax(0,1fr)]",
         ],
-    "bg-background font-sans text-sm leading-6 text-foreground",
+    "group/shell bg-background font-sans text-sm leading-6 text-foreground",
     // Scrollbars stay invisible until you point at (or focus into) what scrolls, like the classic app: with a
     // mouse attached, macOS otherwise draws a full track on every scroller (Gui #2893).
     "[&_*]:[scrollbar-color:transparent_transparent] [&_*:hover]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent] [&_*:focus-within]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent]",
@@ -262,6 +307,7 @@
         controller={services.navigation}
         inRoom={$application.route.kind === "room"}
         accountInSidebar={paged}
+        onback={settings ? settingsBack : undefined}
         lang={services.language}
         onreload={() => {
           if (current()) services.actions.reload();
@@ -275,12 +321,13 @@
         class="hidden md:col-start-2 md:col-end-4 md:row-start-1 md:my-2 md:mr-2 md:ml-px md:block md:rounded-surface md:bg-background md:shadow-edge"
       ></div>
       <!-- Your DMs (or the settings' sections): beside the page on desktop (the sidebar of that surface); the DMs
-        go under the home on a phone, where the settings need no list. -->
+        go under the home on a phone, where the settings need no list. A phone's list of conversations
+        (data-home-layout="chats") already holds the DMs, so the list is not drawn under it. -->
       <aside
         data-home-dms
         class="{settings
           ? 'hidden md:flex'
-          : ''} col-start-1 row-start-3 min-w-0 px-4 pt-2 pb-8 md:relative md:z-10 md:col-start-2 md:row-start-1 md:my-2 md:ml-px md:flex md:min-h-0 md:flex-col md:rounded-l-surface md:border-r md:border-border md:bg-sidebar md:px-2 md:py-2"
+          : ''} max-md:group-has-[[data-home-layout=chats]]/shell:hidden col-start-1 row-start-3 min-w-0 px-4 pt-2 pb-8 md:relative md:z-10 md:col-start-2 md:row-start-1 md:my-2 md:ml-px md:flex md:min-h-0 md:flex-col md:rounded-l-surface md:border-r md:border-border md:bg-sidebar md:px-2 md:py-2"
       >
         {#if settings}<SettingsNav
             lang={services.language}
@@ -291,8 +338,31 @@
             controller={services.navigation}
             lang={services.language}
           />{/if}
-        <SidebarFoot
-          ><AccountRow me={$personal.me} current={settings} /></SidebarFoot
+        {#snippet liveCallPanel()}{#if $liveCall}<CallPanel
+              call={$liveCall.session}
+              title={$liveCall.title}
+              onopen={() => openLiveCall(false)}
+              oncamera={() => openLiveCall(true)}
+              t={services.t}
+            />{/if}{/snippet}
+        <UserCenter above={$liveCall ? liveCallPanel : undefined}
+          >{#if $personal.updateAvailable}<UpdateRow
+              lang={services.language === "en" ? "en" : "pt"}
+            />{/if}<NotifyOffer
+            owner={services.pwa}
+            lang={services.language}
+            row
+          />{#if $personal.me}<Requests
+              center
+              invites={$personal.me.invites ?? []}
+              requests={$personal.me.requests}
+              lang={services.language === "en" ? "en" : "pt"}
+              onjoin={services.navigation.callbacks.answerInvite}
+              onanswer={services.navigation.callbacks.answerRequest}
+            />{/if}<AccountRow
+            me={$personal.me}
+            current={settings}
+          /></UserCenter
         >
       </aside>{/if}
     <div
@@ -324,6 +394,7 @@
           />{:else if $homeModuleView.phase !== "error"}<HomeSkeleton
             page
             label={services.language === "en" ? "Loading…" : "Carregando…"}
+            title={services.language === "en" ? "Chats" : "Conversas"}
           />{:else}<DeferredRouteStatus
             phase={$homeModuleView.phase}
             lang={services.language}
@@ -378,7 +449,7 @@
           data-room-root
           class="h-full min-h-0 min-w-0 overflow-hidden"
         >
-          {@render roomSnippet({ services, openInbox, inbox })}
+          {@render roomSnippet({ services })}
         </div>{/if}
     </div>
     {#if $inboxView.binding && !$inboxView.binding.roomScope && !homeInbox}{#key $inboxView.binding}<Snapshot
@@ -395,14 +466,11 @@
                 onretry={() => inbox.refresh(binding)}
                 onmention={(mention) => inbox.openMention(binding, mention)}
                 ontask={(task) => inbox.openTask(binding, task)}
-                roomId={binding.roomId}
-                all={$inboxView.all}
                 vb={{ t: services.t, ago }}
                 {displayName}
                 avatarVersion={avatar}
                 roomLabel={(roomId, title) =>
                   roomLabel($personal.me, roomId, title, services.language)}
-                ontab={(all) => inbox.tab(binding, all)}
                 onclose={() => inbox.close(binding)}
                 onresolve={(wait) => inbox.resolve(binding, wait)}
                 onopen={(wait, event) => {
@@ -454,5 +522,11 @@
           {/snippet}
         </Snapshot>{/key}{/if}
   {/if}
+  <IncomingCall
+    current={$room.roomId ?? null}
+    navigate={(path) => services.actions.navigate(path)}
+    chime={() => services.pwa.alert()}
+    t={services.t}
+  />
   <DeviceLockScreen owner={services.device} lang={services.language} />
 </div>

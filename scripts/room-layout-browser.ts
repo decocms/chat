@@ -27,7 +27,7 @@ const report: Record<string, unknown> = {
     "Physical touch, hardware keyboard/AT, safe-area hardware and Safari/WebKit are not represented",
     "Synthetic pointercancel/input events are named explicitly",
     "Actual FileViewer/RootApp navigation ordering needs the separate integrated browser gate",
-    "No real room/editor/Board business state is represented by neutral snippet text",
+    "No real room/editor business state is represented by neutral snippet text",
   ],
 };
 const checkpoint = (phase: string) => {
@@ -100,7 +100,6 @@ try {
   const root = page.locator("[data-room-layout]"),
     slider = page.getByRole("slider", { name: "Document width" }),
     documentCell = page.locator("[data-room-document]"),
-    board = page.locator("[data-layout-fixture-board]"),
     scrim = page.locator("[data-room-scrim]");
   const width = () =>
     documentCell.evaluate((node) => node.getBoundingClientRect().width);
@@ -144,45 +143,9 @@ try {
     nativeInput: "Home/End plus declared synthetic input473",
     persisted: await width(),
   };
-  checkpoint("desktop/board-identity");
-  await page.getByRole("button", { name: "Board pane", exact: true }).click();
-  await board
-    .getByLabel("Retained Board draft")
-    .fill("Retained 🧪 Board draft");
-  const before = await board.elementHandle();
-  assert(before);
-  await board.getByLabel("Retained Board draft").evaluate((node) => {
-    if (node instanceof HTMLTextAreaElement) node.setSelectionRange(3, 8);
-  });
-  await page.getByRole("button", { name: "Full Board", exact: true }).click();
-  await expect(page.locator("[data-room-board]")).toHaveAttribute(
-    "data-placement",
-    "full",
-  );
-  assert.equal(
-    await board.evaluate((node, witness) => node === witness, before),
-    true,
-  );
-  await page.getByRole("button", { name: "Board pane", exact: true }).click();
-  await expect(page.locator("[data-room-board]")).toHaveAttribute(
-    "data-placement",
-    "pane",
-  );
-  assert.equal(
-    await board.evaluate((node, witness) => node === witness, before),
-    true,
-  );
-  await expect(board.getByLabel("Retained Board draft")).toHaveValue(
-    "Retained 🧪 Board draft",
-  );
-  await expect(page.locator("[data-layout-mounts]")).toHaveText("1");
-  checkpoint("desktop/inbox-overlay-retains-board-and-owned-document-width");
-  // The document cell is hidden while Board occupies its pane. Measure the
-  // visible pane that currently owns the shared document width.
-  const retainedWidth = await page
-    .locator("[data-room-board]")
-    .evaluate((node) => node.getBoundingClientRect().width);
-  assert(retainedWidth > 0, "The visible Board pane must own a positive width");
+  checkpoint("desktop/inbox-overlay-retains-owned-document-width");
+  const retainedWidth = await width();
+  assert(retainedWidth > 0, "The open document pane must own a positive width");
   await page.getByRole("button", { name: "Inbox view", exact: true }).click();
   const inboxDocument = page.locator("[data-layout-inbox-document]");
   await expect(inboxDocument).toBeVisible();
@@ -190,58 +153,17 @@ try {
   await expect(retainedResize).toHaveCount(1);
   await expect(retainedResize).toBeHidden();
   await expect(retainedResize).toBeDisabled();
-  await expect(page.locator("[data-room-board]")).toHaveAttribute("inert", "");
+  await expect(documentCell).toHaveAttribute("inert", "");
   await expect
     .poll(() =>
       inboxDocument.evaluate((node) => node.getBoundingClientRect().width),
     )
     .toBeCloseTo(retainedWidth, 1);
-  assert.equal(
-    await board.evaluate((node, witness) => node === witness, before),
-    true,
-  );
-  await expect(board).toBeHidden();
-  await expect(page.locator("[data-layout-mounts]")).toHaveText("1");
   await page.getByRole("button", { name: "Inbox view", exact: true }).click();
   await expect(page.locator("[data-layout-inbox]")).toHaveCount(0);
-  await expect(board).toBeVisible();
-  assert.equal(
-    await board.evaluate((node, witness) => node === witness, before),
-    true,
-  );
-  await expect(board.getByLabel("Retained Board draft")).toHaveValue(
-    "Retained 🧪 Board draft",
-  );
+  await expect(documentCell).toBeVisible();
+  await expect.poll(width).toBeCloseTo(retainedWidth, 1);
   await expect(page.getByRole("alert")).toHaveCount(0);
-  // Programmatic placement changes must preserve an actively edited Board;
-  // trusted pointer clicks intentionally move focus to their clicked control.
-  const retainedDraft = board.getByLabel("Retained Board draft");
-  await retainedDraft.focus();
-  await page
-    .getByRole("button", { name: "Full Board", exact: true })
-    .evaluate((node) => {
-      if (!(node instanceof HTMLButtonElement))
-        throw Error("Expected a native button");
-      node.click();
-    });
-  await expect(retainedDraft).toBeFocused();
-  await page
-    .getByRole("button", { name: "Sidebar rail", exact: true })
-    .evaluate((node) => {
-      if (!(node instanceof HTMLButtonElement))
-        throw Error("Expected a native button");
-      node.click();
-    });
-  await expect(retainedDraft).toBeFocused();
-  await page
-    .getByRole("button", { name: "Board pane", exact: true })
-    .evaluate((node) => {
-      if (!(node instanceof HTMLButtonElement))
-        throw Error("Expected a native button");
-      node.click();
-    });
-  await expect(retainedDraft).toBeFocused();
-  report.boardIdentity = true;
   checkpoint("mobile/one-sheet-entry-back-forward");
   await page
     .getByRole("button", { name: "Document pane", exact: true })
@@ -266,6 +188,28 @@ try {
     .click();
   await expect.poll(sheet).toBe("closed");
   await expect.poll(alpha).toBe(0);
+  // A tap on the blurred room under the title menu closes it (Gimenes #3781).
+  await page.getByRole("button", { name: "Open sidebar", exact: true }).click();
+  await expect.poll(sheet).toBe("side");
+  await expect.poll(alpha).toBe(1);
+  assert.match(
+    await scrim.evaluate((node) => getComputedStyle(node).backdropFilter),
+    /blur/,
+  );
+  await page.mouse.click(195, 990);
+  await expect.poll(sheet).toBe("closed");
+  await expect.poll(alpha).toBe(0);
+  // A swipe up on the glass slides the menu away too (Gimenes #3786).
+  await page.getByRole("button", { name: "Open sidebar", exact: true }).click();
+  await expect.poll(sheet).toBe("side");
+  await expect.poll(alpha).toBe(1);
+  await page.mouse.move(195, 990);
+  await page.mouse.down();
+  for (let step = 1; step <= 10; step++)
+    await page.mouse.move(195, 990 - step * 60);
+  await page.mouse.up();
+  await expect.poll(sheet).toBe("closed");
+  await expect.poll(alpha).toBe(0);
   // Closing changes presentation before Back completes. Do not let a pending
   // sheet traversal contaminate this independent media-query transition.
   const historyPage = page;
@@ -277,42 +221,7 @@ try {
       );
     });
   await expect.poll(hasSheetEntry).toBe(false);
-  checkpoint("mobile/full-board-to-desktop-pane");
-  await page.getByRole("button", { name: "Full Board", exact: true }).click();
-  await expect(page.locator("[data-room-layout]")).toHaveAttribute(
-    "data-board-full",
-    "true",
-  );
-  await expect(page.locator("[data-room-board]")).toHaveAttribute(
-    "data-placement",
-    "full",
-  );
-  assert.equal(
-    await board.evaluate((node, witness) => node === witness, before),
-    true,
-  );
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await expect(page.locator("[data-room-layout]")).toHaveAttribute(
-    "data-board-full",
-    "false",
-  );
-  await expect(page.locator("[data-room-layout]")).toHaveAttribute(
-    "data-pane",
-    "board",
-  );
-  await expect(page.locator("[data-room-board]")).toHaveAttribute(
-    "data-placement",
-    "pane",
-  );
-  assert.equal(
-    await board.evaluate((node, witness) => node === witness, before),
-    true,
-  );
-  await expect(page.locator("[data-layout-mounts]")).toHaveText("1");
-  await expect(board.getByLabel("Retained Board draft")).toHaveValue(
-    "Retained 🧪 Board draft",
-  );
-  report.mobileFullBoardToDesktop = true;
   // Restore the document pane while still desktop so no new mobile sheet or
   // pending Back is created before the following drag proof.
   await page
@@ -323,35 +232,32 @@ try {
   await expect.poll(hasSheetEntry).toBe(false);
   const samples: unknown[] = [];
   report.samples = samples;
-  checkpoint("mobile/drag-to-close");
-  // The peek strip (and its opening drag) shows only while the doc sheet is
-  // open (#80): a closed phone room opens the document with its button.
+  checkpoint("mobile/pane-in-place-of-chat");
+  // Phones (#3767): the doc is a pane in the chat's place, not a drawer: no
+  // handle to drag, no backdrop, and Escape (like Back) returns to the chat.
   await expect(page.locator("[data-layout-open-drag]")).toBeHidden();
-  const height = await documentCell.evaluate(
-    (node) => node.getBoundingClientRect().height,
-  );
-  assert(height > 0);
   await page
     .getByRole("button", { name: "Open document", exact: true })
     .click();
   await expect.poll(alpha).toBe(1);
-  const close = page
+  await expect(
+    page
       .getByRole("button", { name: "Close document", exact: true })
       .filter({ visible: true }),
-    closeBox = await close.boundingBox();
-  assert(closeBox);
-  const distance = Math.max(139.2, height * 0.4);
-  samples.push({
-    closeDistance: distance,
-    measuredHeight: height,
-    quarterThreshold: height / 4,
+  ).toHaveCount(0);
+  await expect(page.locator("[data-room-scrim]")).toBeHidden();
+  const pane = await documentCell.evaluate((node) => {
+    const box = node.getBoundingClientRect(),
+      root = node.closest("[data-room-layout]")!.getBoundingClientRect();
+    return { bottom: box.bottom, rootBottom: root.bottom, height: box.height };
   });
-  await page.mouse.move(closeBox.x + 10, closeBox.y + 5);
-  await page.mouse.down();
-  await page.mouse.move(closeBox.x + 10, closeBox.y + 5 - distance, {
-    steps: 5,
-  });
-  await page.mouse.up();
+  samples.push(pane);
+  assert(pane.height > 0);
+  assert(
+    Math.abs(pane.bottom - pane.rootBottom) < 1,
+    "The phone pane reaches the bottom of the room, where the chat was",
+  );
+  await page.keyboard.press("Escape");
   await expect.poll(alpha).toBe(0);
   await expect.poll(sheet).toBe("closed");
   checkpoint("mobile/cancel-form-focus-dialog-escape");
@@ -388,23 +294,6 @@ try {
   await expect(page.getByRole("alertdialog")).toBeHidden();
   await expect.poll(sheet).toBe("doc");
   await page.keyboard.press("Escape");
-  await expect.poll(sheet).toBe("closed");
-  checkpoint("mobile/open-sheet-to-full-board-no-stale-seek");
-  await page
-    .getByRole("button", { name: "Open document", exact: true })
-    .click();
-  await expect.poll(sheet).toBe("doc");
-  await page.getByRole("button", { name: "Full Board", exact: true }).click();
-  await expect.poll(sheet).toBe("closed");
-  await expect(page.locator("[data-room-board]")).toHaveAttribute(
-    "data-placement",
-    "full",
-  );
-  await page.waitForTimeout(31_000); // Exceeds the owned CSS-discovery deadline; negative regression, not readiness.
-  await expect(page.getByRole("alert")).toHaveCount(0);
-  await page.getByRole("button", { name: "Board pane", exact: true }).click();
-  await expect.poll(sheet).toBe("doc");
-  await page.getByRole("button", { name: "Full Board", exact: true }).click();
   await expect.poll(sheet).toBe("closed");
   await page
     .getByRole("button", { name: "Document pane", exact: true })
@@ -451,7 +340,6 @@ try {
   await expect(capacityRoot).toBeVisible();
   await expect(page.locator("[data-setup-instructions]")).toBeVisible();
   await expect(capacityRoot).not.toHaveAttribute("data-sheet", /.+/);
-  await expect(capacityRoot).toHaveAttribute("data-board-full", "false");
   await expect
     .poll(() =>
       capacityRoot.evaluate(

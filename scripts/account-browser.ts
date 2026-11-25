@@ -63,7 +63,7 @@ try {
     .getByRole("button", { name: "Got it", exact: true })
     .click({ timeout: 10_000 })
     .catch(() => {});
-  // You, at the sidebar's foot, is a link to the settings page.
+  // You, in the user center, are a link to the settings page.
   await page.locator("[data-account-row]:visible").first().click();
   await expect(page).toHaveURL(/\/settings/);
   const dialog = page.locator("[data-account]");

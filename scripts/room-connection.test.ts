@@ -175,6 +175,17 @@ test("access denial and removal stop retries; normal initial closes still retry"
   expect(normal.sockets).toHaveLength(2);
 });
 
+test("a light socket's hello counts as let in: a drop after it reconnects, it is not unavailable", () => {
+  const h = harness();
+  h.sockets[0]!.open();
+  h.sockets[0]!.message({ t: "hello", at: 1 });
+  h.sockets[0]!.end(1006);
+  expect(h.terminals).toEqual([]);
+  h.run(1000);
+  expect(h.sockets).toHaveLength(2);
+  expect(h.events.map((event) => event.t)).toEqual(["hello"]);
+});
+
 test("resync closes the owned socket and retries with a new snapshot", () => {
   const h = harness();
   h.sockets[0]!.open();

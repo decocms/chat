@@ -6,7 +6,6 @@
   import Button from "../../lib/studio/Button.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Textarea from "../../lib/studio/Textarea.svelte";
-  import RoomLayoutFixtureBoard from "./RoomLayoutFixtureBoard.svelte";
   import SetupInstructions from "../../features/agents/SetupInstructions.svelte";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   const capacityProbe =
@@ -16,7 +15,6 @@
   let active = true,
     rail = $state(false),
     tallHeader = $state(false),
-    boardMounts = $state(0),
     navigations = $state(0),
     docMode = $state("preview"),
     docDraft = $state(""),
@@ -100,9 +98,9 @@
       >
       <Button size="sm" onclick={() => owner.setPane("doc", { open: true })}
         >Document pane</Button
-      ><Button size="sm" onclick={() => owner.setPane("board", { open: true })}
-        >Board pane</Button
-      ><Button size="sm" onclick={() => owner.toggleBoard()}>Full Board</Button>
+      ><Button size="sm" onclick={() => owner.setPane("files", { open: true })}
+        >Files pane</Button
+      >
       <Button size="sm" onclick={() => (inboxOpen = !inboxOpen)}
         >Inbox view</Button
       >
@@ -142,11 +140,9 @@
           alertOpen = true;
         }}>Open nested confirmation</Button
       >
-      <output data-layout-mounts>{boardMounts}</output><output
-        data-layout-navigations>{navigations}</output
-      ><output data-layout-cancels>{cancelClicks}</output><output
-        data-layout-sheet>{$view.sheet ?? "closed"}</output
-      >
+      <output data-layout-navigations>{navigations}</output><output
+        data-layout-cancels>{cancelClicks}</output
+      ><output data-layout-sheet>{$view.sheet ?? "closed"}</output>
     {/if}
   </div>
   <div
@@ -197,8 +193,8 @@
             >Doc tab</Button
           ><Button
             size="sm"
-            onclick={() => owner.setPane("board", { open: true, toggle: true })}
-            >Board tab</Button
+            onclick={() => owner.setPane("files", { open: true, toggle: true })}
+            >Files tab</Button
           ><span
             data-layout-open-drag
             class="ml-auto flex w-16 items-center justify-center">Drag</span
@@ -233,8 +229,8 @@
       {#snippet documentToolbar()}<div class="flex gap-1 p-2">
           <Button size="sm" onclick={() => owner.setPane("doc")}
             >Desktop Doc</Button
-          ><Button size="sm" onclick={() => owner.setPane("board")}
-            >Desktop Board</Button
+          ><Button size="sm" onclick={() => owner.setPane("files")}
+            >Desktop Files</Button
           >
         </div>{/snippet}
       {#snippet document()}<div class="flex min-h-0 flex-1 flex-col gap-2 p-3">
@@ -255,11 +251,6 @@
               >
             </form>{:else}<p>Readonly fixture preview</p>{/if}
         </div>{/snippet}
-      {#snippet board()}<RoomLayoutFixtureBoard
-          mounted={() => {
-            boardMounts++;
-          }}
-        />{/snippet}
     </RoomLayout>
   </div>
 </main>

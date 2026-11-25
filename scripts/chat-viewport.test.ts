@@ -57,6 +57,7 @@ function harness(count = 120) {
     scroll = () => {},
     growth = () => {},
     revealHook = () => {},
+    centered = true,
     listeners = 0;
   const time = clock(),
     commands: RoomCommand[] = [],
@@ -64,6 +65,7 @@ function harness(count = 120) {
     notices: string[] = [],
     revealed: number[] = [],
     highlighted: number[] = [],
+    instant: number[] = [],
     visible = new Set<number>();
   const metrics = { top: 900, height: 1000, client: 100 };
   const surface: ChatSurface = {
@@ -78,13 +80,14 @@ function harness(count = 120) {
     message(id) {
       return visible.has(id)
         ? {
-            reveal() {
-              revealed.push(id);
+            reveal(now) {
+              (now ? instant : revealed).push(id);
               revealHook();
             },
             highlight() {
               highlighted.push(id);
             },
+            centered: () => centered,
           }
         : null;
     },
@@ -132,7 +135,11 @@ function harness(count = 120) {
     notices,
     revealed,
     highlighted,
+    instant,
     visible,
+    centered(next: boolean) {
+      centered = next;
+    },
     metrics,
     surface,
     scroll: () => scroll(),
@@ -292,6 +299,48 @@ test("loaded off-window message expands only as needed then reveals/highlights a
   expect(h.highlighted).toEqual([1]);
   expect(h.view.pinned()).toBe(false);
   expect(h.commands).toHaveLength(0);
+  h.view.dispose();
+});
+test("a render captured with bottom intent before a message link reveal does not pull the reader back down", () => {
+  // A copied #m link (Gimenes #4843): the room opened pinned at the bottom, a render was queued with bottom intent,
+  // the link revealed the message, then that render flushed and scrolled to the bottom again.
+  const h = harness(),
+    presentation = createChatPresentation(h.view);
+  h.draw(true);
+  h.view.go(110);
+  presentation.capture(undefined, true);
+  h.view.go(1);
+  h.metrics.top = 0; // where the reveal scrolled to
+  expect(presentation.rendered(true)).toBe(true);
+  expect(h.revealed.at(-1)).toBe(1);
+  expect(h.view.pinned()).toBe(false);
+  expect(h.metrics.top).toBe(0);
+  h.view.dispose();
+});
+test("a link search keeps going when the cached room is replaced by the live one", () => {
+  // A #m link opens the room from IndexedDB, the search asks for an older page, then the socket's snapshot replaces
+  // the room (a new connection): the page of the old connection is dropped, so the search must ask again (#4843).
+  const h = harness(5);
+  h.view.go(5000);
+  expect(h.commands).toHaveLength(1);
+  h.sync(room(5), false, "main", 2);
+  h.time.flush();
+  expect(h.commands).toHaveLength(2);
+  expect(h.commands.at(-1)).toMatchObject({ t: "older", thread: "main" });
+  h.view.dispose();
+});
+test("a late scroll event at the bottom right after a message link reveal does not pin the reader again", () => {
+  const h = harness();
+  h.draw(true);
+  h.view.go(1);
+  expect(h.view.pinned()).toBe(false);
+  // The scroll event of the room's first bottom scroll arrives while the smooth scroll is still at the bottom.
+  h.metrics.top = h.metrics.height - h.metrics.client;
+  h.scroll();
+  expect(h.view.pinned()).toBe(false);
+  h.time.flush(); // the reveal settled: at the bottom pins again, as before
+  h.scroll();
+  expect(h.view.pinned()).toBe(true);
   h.view.dispose();
 });
 test("old render captures and canonical nonmember data cannot affect a replacement viewport", () => {
@@ -514,5 +563,98 @@ test("force-bottom completion releases an end refrozen by intervening scroll bef
   h.sync(room(122));
   expect(h.view.selection().list.at(-1)?.id).toBe(122);
   expect(h.view.selection().list).toHaveLength(60);
+  h.view.dispose();
+});
+
+const inThread = (id: number, thread: string): Message => ({
+  ...message(id),
+  thread,
+});
+test("a jump to a loaded message owns the scroll until it lands: a late scroll at the bottom does not pull it back", () => {
+  const h = harness();
+  h.draw(true);
+  h.view.go(100);
+  expect(h.revealed).toEqual([100]);
+  expect(h.highlighted).toEqual([100]);
+  expect(h.view.pinned()).toBe(false);
+  // The scroll event of the position before the jump (still at the bottom) arrives after the smooth scroll began.
+  const renders = h.renders.length;
+  h.metrics.top = 900;
+  h.scroll();
+  expect(h.view.pinned()).toBe(false);
+  expect(h.renders).toHaveLength(renders);
+  h.growth();
+  expect(h.metrics.top).toBe(900);
+  // A render that holds the reader's place would write scrollTop and cancel the smooth scroll.
+  const before = h.view.capture();
+  h.metrics.top = 500;
+  h.view.afterRender("stay", before);
+  expect(h.metrics.top).toBe(500);
+  // Near the top of the history, the scroll-back waits too.
+  h.metrics.top = 20;
+  h.scroll();
+  expect(h.commands).toHaveLength(0);
+  // Landed off the middle (something moved it): centered at once.
+  h.centered(false);
+  h.time.flush();
+  expect(h.instant).toEqual([100]);
+  // After landing, the chat behaves as before: reaching the bottom pins it.
+  h.metrics.top = 900;
+  h.scroll();
+  expect(h.view.pinned()).toBe(true);
+  h.view.dispose();
+});
+test("a jump that lands centered is left alone, and an own send ends the jump", () => {
+  const h = harness();
+  h.draw(true);
+  h.view.go(100);
+  h.time.flush();
+  expect(h.instant).toEqual([]);
+  h.view.go(90);
+  h.view.followLatest();
+  h.centered(false);
+  h.time.flush();
+  expect(h.instant).toEqual([]);
+  expect(h.view.pinned()).toBe(true);
+  h.view.dispose();
+});
+test("a quote in another thread switches to it, loads its history and then reveals the message", () => {
+  const h = harness(5);
+  h.view.go(7, "other");
+  expect(h.commands.at(-1)).toEqual({ t: "older", thread: "other", before: 0 });
+  expect(h.notices.at(-1)).toBe("searching");
+  const quoted = inThread(7, "other");
+  h.sync({ ...room(5), messages: [...room(5).messages, quoted] });
+  h.view.older({
+    t: "older",
+    thread: "other",
+    messages: [quoted],
+    more: false,
+  });
+  h.visible.add(7);
+  h.time.flush();
+  expect(h.revealed).toEqual([7]);
+  expect(h.highlighted).toEqual([7]);
+  expect(h.view.pinned()).toBe(false);
+  h.view.dispose();
+});
+test("a quote not loaded in this thread pages back until it is found, then reveals it", () => {
+  const h = harness(0);
+  const recent = Array.from({ length: 5 }, (_, index) => message(50 + index));
+  h.sync({ ...room(0), messages: recent });
+  h.view.go(10);
+  expect(h.commands.at(-1)).toEqual({ t: "older", thread: "main", before: 50 });
+  const first = Array.from({ length: 30 }, (_, index) => message(20 + index));
+  h.sync({ ...room(0), messages: [...first, ...recent] });
+  h.view.older({ t: "older", thread: "main", messages: first, more: true });
+  expect(h.commands.at(-1)).toEqual({ t: "older", thread: "main", before: 20 });
+  const second = Array.from({ length: 10 }, (_, index) => message(10 + index));
+  h.sync({ ...room(0), messages: [...second, ...first, ...recent] });
+  h.view.older({ t: "older", thread: "main", messages: second, more: true });
+  h.draw(true);
+  h.time.flush();
+  expect(h.revealed).toEqual([10]);
+  expect(h.highlighted).toEqual([10]);
+  expect(h.commands).toHaveLength(2);
   h.view.dispose();
 });

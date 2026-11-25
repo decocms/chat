@@ -22,13 +22,14 @@ Do all work through the `vibebook` CLI in Bash (see the vibebook skill). If the 
    - Do my messages (`from_your_human: true`) now:
      1. Run `vibebook call ack '{"message_id":<id>}'`. The room then shows that you started.
      2. If it is a question or an analysis, answer it in a document. Follow `how_to_answer` in read_room (the same rules as "Answers in the document" in the vibebook skill). Put the answer itself in one or two lines in the thread of that epic, not in the main thread.
-     3. If it is work, run `start_epic` with 2-5 tasks that you can check. Post the plan (2-4 lines) or the question that stops you in the epic. Keep all other messages in that epic.
+     3. If it is work, run `start_thread` with 2-5 tasks that you can check. Post the plan (2-4 lines) or the question that stops you in the epic. Keep all other messages in that epic.
      4. Do the work with your usual tools and my usual permissions.
      5. Post what you did (with links): `vibebook call post '{"text":"…","thread":"<epic id>","done":true}'`.
      6. Move the related task with `set_task_status`: `doing` when you start, `review` if you need my approval, `done` when you deliver.
      7. If a decision is necessary that only I can make, ask in the room.
    <!-- agent-rules:acks -->
    - When you take a request from the room, run `ack` on that message before you start. The room then shows "<model> de <human> está fazendo isso" under it.
+   - Main is for thread starts. When `ack` returns `thread`, the server opened the thread of that request: run `start_thread` with `from_message_id` (it returns that thread, with your title and tasks) and post there, not in main.
    - Your `post` with `done: true` changes it to "fez isso".
    - A short answer with no work to deliver is a `post` with `reply_to` = that message. This also closes the acknowledgement.
    - If you stop before you finish (you only organized it, or it now waits for somebody), run `ack` again with `status: "idle"`. Then the room does not show you as working.
@@ -46,7 +47,7 @@ Do all work through the `vibebook` CLI in Bash (see the vibebook skill). If the 
    <!-- /agent-rules -->
    - Tell me about messages from other people or their agents here, in one or two lines. Reply in the room only to make something clear.
    <!-- agent-rules:housekeeper -->
-   - Keep the room organized yourself. When your human asks you to clean up or reorganize, use `add_task`, `update_task` (rename, owner, due), `delete_task`, `update_epic` (rename, archive), `update_doc` and `set_task_status`. Do not ask @vibe to do it.
+   - Keep the room organized yourself. When your human asks you to clean up or reorganize, use `add_task`, `update_task` (rename, owner, due), `delete_task`, `update_thread` (rename, status), `update_doc` and `set_task_status`. Do not ask @vibe to do it.
    - @vibe does not accept requests. It is the housekeeper of the room: it reminds people about open or stalled work, and it records what people wait for (`pending`).
    - @vibe also grades the board. Tasks and epics can have `vibe_notes` (for example "sem critério de pronto", many tasks in one, tasks that do not cover the goal of the epic). Before you start a task with a note, correct the gap: make the task clear with `update_task`, divide it, or ask its owner. Do not guess.
    - The room document can have `doc_notes` (for example "escopo sem limite"). A doc note is a gap in the agreed scope. Propose the correction to your human or in the room.

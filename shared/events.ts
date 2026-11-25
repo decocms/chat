@@ -9,6 +9,7 @@ import {
   DecisionSchema,
   EpicSchema,
   MessageSchema,
+  MessageVersionSchema,
   PinSchema,
   PollSchema,
   ReceiptSchema,
@@ -16,6 +17,9 @@ import {
   RoomSnapshotSchema,
   SuggestionSchema,
   BriefSchema,
+  CallPeerSchema,
+  RingSchema,
+  CallConsentSchema,
   TaskSchema,
 } from "./room";
 
@@ -49,6 +53,9 @@ export type DocumentInvalidationEvent = z.infer<
 
 export const RoomEventSchemas = {
   state: z.extend(RoomSnapshotSchema, { t: z.literal("state") }),
+  // A light socket (`lite=1`) gets this instead of `state`: the app then reads the room over HTTP
+  // (GET /api/books/:id/room, the same state, compressed). at = when the Book sent it.
+  hello: event("hello", { at: num }),
   msg: event("msg", { m: MessageSchema }),
   moved: event("moved", { id: num, thread: str }),
   // A message's card replaced (Modo Fire updates its live card): the app redraws that message.
@@ -98,6 +105,8 @@ export const RoomEventSchemas = {
     declined: z.optional(strings),
     requests: z.optional(z.array(AccessRequestSchema)),
     names: z.optional(z.record(str, str)),
+    /** email → @handle (shared/mention.ts) */
+    handles: z.optional(z.record(str, str)),
     avatars: z.optional(z.record(str, num)),
   }),
   files: event("files", { files: z.array(AttachmentSchema) }),
@@ -124,9 +133,28 @@ export const RoomEventSchemas = {
     id: num,
     reactions: z.record(str, strings),
   }),
+  // A message was edited (its new text) or deleted (text "", its files and card gone): everyone gets only this.
+  msgEdit: event("msgEdit", {
+    id: num,
+    text: str,
+    edited: z.optional(num),
+    deleted: z.optional(num),
+  }),
+  // A message's earlier versions, sent only to the room owner's tab that asked (msg.history).
+  history: event("history", {
+    id: num,
+    versions: z.array(MessageVersionSchema),
+  }),
   ackRows: event("ackRows", { acks: z.array(AckSchema) }),
   poll: event("poll", { poll: PollSchema }),
   online: event("online", { online: strings }),
+  // Who is in the room's call and what each one publishes (src/calls.ts).
+  call: event("call", {
+    call: z.array(CallPeerSchema),
+    thread: z.optional(str),
+    ring: z.optional(RingSchema),
+    consent: z.optional(CallConsentSchema),
+  }),
   conns: event("conns", {}),
   error: event("error", { error: z.optional(str) }),
   blocked: event("blocked", { text: str, reason: str }),
@@ -135,6 +163,9 @@ type Schemas = typeof RoomEventSchemas;
 export type RoomEvent = {
   [K in keyof Schemas]: z.infer<Schemas[K]>;
 }[keyof Schemas];
+
+/** The room's snapshot: the socket's first frame, or the answer of GET /api/books/:id/room. */
+export type RoomStateEvent = Extract<RoomEvent, { t: "state" }>;
 
 export function isRoomEventValue(value: unknown): value is RoomEvent {
   if (typeof value !== "object" || value === null || Array.isArray(value))

@@ -95,54 +95,6 @@ function button(name: string) {
   if (!node) throw Error(`Missing fixture control ${name}`);
   return node;
 }
-test("Board node, draft and component owner survive full/pane placement and rail updates", async () => {
-  const target = document.createElement("div");
-  document.body.append(target);
-  const component = flushSync(() => mount(Fixture, { target }));
-  cleanup = async () => {
-    await unmount(component);
-  };
-  await settle();
-  const board = target.querySelector("[data-layout-fixture-board]"),
-    draft = target.querySelector<HTMLTextAreaElement>(
-      "#layout-fixture-board-draft",
-    );
-  expect(board).not.toBeNull();
-  expect(draft).not.toBeNull();
-  draft!.value = "Owned Board Unicode 🧪";
-  draft!.dispatchEvent(new InputEvent("input", { bubbles: true }));
-  await settle();
-  button("Board pane").click();
-  await settle();
-  const chat = target.querySelector("[data-room-chat]")!;
-  const foreign = document.createElement("div");
-  foreign.id = "kanban";
-  foreign.className = "doc";
-  foreign.textContent = "Untrusted duplicate legacy identity";
-  chat.append(foreign);
-  draft!.focus();
-  draft!.setSelectionRange(3, 8);
-  button("Full Board").click();
-  await settle();
-  expect(document.activeElement === draft).toBe(true);
-  button("Sidebar rail").click();
-  await settle();
-  expect(document.activeElement === draft).toBe(true);
-  button("Board pane").click();
-  await settle();
-  expect(target.querySelector("[data-layout-fixture-board]") === board).toBe(
-    true,
-  );
-  expect(target.querySelector("#layout-fixture-board-draft") === draft).toBe(
-    true,
-  );
-  expect(document.activeElement === draft).toBe(true);
-  expect(draft!.selectionStart).toBe(3);
-  expect(draft!.selectionEnd).toBe(8);
-  expect(foreign.parentElement === chat).toBe(true);
-  expect(draft!.value).toBe("Owned Board Unicode 🧪");
-  expect(target.querySelector("[data-layout-mounts]")?.textContent).toBe("1");
-});
 test("native range has a real input path; detached/disposed callbacks cannot change geometry owner", async () => {
   const target = document.createElement("div");
   document.body.append(target);

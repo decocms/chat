@@ -14,7 +14,7 @@
   /**
    * Home, every room in the rail's order, then your DMs (`dms`), each with the
    * rail's RoomAvatar (unread dot, ✻, waits). The phone's room switcher sheet
-   * and the thread sheet's All rooms tab both draw it.
+   * draws it.
    */
   let {
     rooms,

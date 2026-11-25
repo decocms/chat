@@ -40,7 +40,6 @@ export type RoomScopePresentation = {
   document: { owner: DocumentSession; props: DocumentProps };
   toolbar: ComponentProps<typeof DocumentToolbar>;
   peek: ComponentProps<typeof DocumentToolbar>;
-  board: PanelProps;
   files: FilesProps;
   decisions: PanelProps;
   reminders: PanelProps;
@@ -86,7 +85,6 @@ export type RoomScope = {
   readonly viewer: FileViewer;
   readonly richFiles: RichFileReader;
   current(): boolean;
-  setInboxVisible(value: boolean): void;
   attachChat(element: HTMLElement): () => void;
   attachFiles(element: HTMLElement): () => void;
   attachAttention(element: HTMLElement): () => void;

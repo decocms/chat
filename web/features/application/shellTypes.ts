@@ -1,11 +1,9 @@
 import type { BrowserApplicationServices } from "./browser";
 import type { ApplicationLanguage } from "./copy";
 export type ApplicationTheme = "auto" | "light" | "dark";
+/** A room has no Inbox of its own: the Inbox is global (`/?inbox`). */
 export type ApplicationRoomPresentation = {
   services: BrowserApplicationServices;
-  openInbox(trigger?: HTMLElement): void;
-  /** The AppShell's sole global Inbox owner; absent only in isolated fixtures. */
-  inbox?: import("./inbox").ApplicationInbox;
 };
 /** Browser presentation effects; account/transport ownership remains in services. */
 export type ApplicationShellEffects = {
@@ -18,4 +16,6 @@ export type ApplicationShellEffects = {
   listenNavigation(
     callback: (event: MouseEvent, anchor: HTMLAnchorElement) => void,
   ): () => void;
+  /** The browser's back: the page this app showed before. */
+  back(): void;
 };

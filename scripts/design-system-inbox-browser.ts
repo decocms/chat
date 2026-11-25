@@ -192,35 +192,40 @@ export async function auditDesignSystemInbox(
     await page.route("**/api/inbox", inboxRoute);
     await page.route(meUrl, meRoute);
     await page.route("**/api/waits/resolve", resolveRoute);
-    const trigger = page.locator("[data-inbox-toggle]");
-    const roomInbox = page.locator("[data-room-inbox]");
+    const roomInbox = page.locator("[data-home-inbox] [data-room-inbox]");
     const composer = page.locator("[data-composer] textarea");
     const roomUrl = `${base}/b/${first.id}`;
+    const inboxUrl = `${base}/?inbox`;
     async function enterRoom() {
       await page.goto(roomUrl);
-      await expect(trigger).toBeVisible();
       await expect(composer).toBeVisible();
+      // A room has no Inbox of its own: the Inbox is global (`/?inbox`).
+      await expect(page.locator("[data-inbox-toggle]")).toHaveCount(0);
     }
-    async function openRoomInbox() {
+    /** The global Inbox. This audit is at 390 px, where the rail is hidden: open it by its URL. */
+    async function openInbox(loaded = true) {
       const before = result.inboxReads;
-      await trigger.click();
+      await page.goto(inboxUrl);
       await expect(roomInbox).toBeVisible();
       await expect.poll(() => result.inboxReads).toBeGreaterThan(before);
       // The read landed: the "Suas tarefas" chip shows only when you have tasks.
-      await expect(
-        roomInbox.locator('[data-inbox-filter="task"]'),
-      ).toBeVisible();
+      if (loaded)
+        await expect(
+          roomInbox.locator('[data-inbox-filter="task"]'),
+        ).toBeVisible();
     }
-    result.phase = "in-place Inbox and three input sections";
+    async function leaveInbox() {
+      await page.goBack();
+      await expect(page).toHaveURL(roomUrl);
+      await expect(roomInbox).toHaveCount(0);
+      await expect(composer).toBeVisible();
+    }
+    result.phase = "global Inbox and three input sections";
     await enterRoom();
-    const originalUrl = page.url();
-    await composer.fill("Preserved Inbox draft");
-    await openRoomInbox();
+    await openInbox();
     await expect(
       page.getByRole("dialog", { name: "Inbox", exact: true }),
     ).toHaveCount(0);
-    await expect(page).toHaveURL(originalUrl);
-    await expect(composer).toBeHidden();
     await expect(roomInbox.locator("[data-room-inbox-chat]")).toBeVisible();
     await expect(
       roomInbox.getByText(initial.text, { exact: true }),
@@ -235,12 +240,13 @@ export async function auditDesignSystemInbox(
         .filter({ hasText: "Controlled review approval" }),
     ).toBeVisible();
     await expect(roomInbox.locator('[data-inbox-filter="task"]')).toBeVisible();
+    // One Inbox for all rooms: no "This room" scope, and other rooms' waits show here too.
     await expect(
       roomInbox.getByRole("button", { name: "This room", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+    ).toHaveCount(0);
     await expect(
       roomInbox.getByText("Cross-room target message", { exact: true }),
-    ).toHaveCount(0);
+    ).toBeVisible();
     await settleAnimations(page);
     const axe = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
@@ -254,18 +260,13 @@ export async function auditDesignSystemInbox(
       path: `${output}/room-inbox-390.png`,
       fullPage: true,
     });
-    // Phones (this audit is at 390 px): the bar hides while the Inbox is open, so its ✕ closes it.
-    const close = roomInbox.locator("[data-room-inbox-close]");
-    await close.focus();
-    await page.keyboard.press("Enter");
-    await expect(roomInbox).toHaveCount(0);
-    await expect(composer).toHaveValue("Preserved Inbox draft");
-    await expect(trigger).toBeFocused();
+    // Back returns to the room the person came from.
+    await leaveInbox();
     result.phases.push(result.phase);
 
     result.phase = "recoverable Inbox read and retry";
     readFailures = 1;
-    await trigger.click();
+    await openInbox(false);
     await expect(roomInbox.getByRole("alert")).toContainText(
       "Could not load your inbox.",
     );
@@ -291,12 +292,11 @@ export async function auditDesignSystemInbox(
     await expect(
       roomInbox.locator("[data-inbox-resolve]").first(),
     ).toBeEnabled();
-    await roomInbox.locator("[data-room-inbox-close]").click();
-    await expect(trigger).toBeFocused();
+    await leaveInbox();
     result.phases.push(result.phase);
 
     result.phase = "mention and task navigation";
-    await openRoomInbox();
+    await openInbox();
     await roomInbox
       .locator("[data-room-inbox-message]")
       .filter({ hasText: "Controlled Inbox mention" })
@@ -311,7 +311,7 @@ export async function auditDesignSystemInbox(
     await expect(page.locator("[data-room-chat]")).toContainText(
       "Controlled Inbox mention",
     );
-    await openRoomInbox();
+    await openInbox();
     await roomInbox.locator('[data-inbox-filter="task"]').click();
     await roomInbox
       .locator('[data-room-inbox-message][data-kind="task"]')
@@ -329,13 +329,7 @@ export async function auditDesignSystemInbox(
     result.phases.push(result.phase);
 
     result.phase = "all-room navigation preserves selected UI";
-    await openRoomInbox();
-    await roomInbox
-      .getByRole("button", { name: "All rooms", exact: true })
-      .click();
-    await expect(
-      roomInbox.getByRole("button", { name: "All rooms", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+    await openInbox();
     const crossRoomOpen = roomInbox
       .locator("[data-room-inbox-message]")
       .filter({ hasText: "Cross-room target message" })
@@ -352,8 +346,7 @@ export async function auditDesignSystemInbox(
     await expect(crossRoomMessage).toContainText("Cross-room target message");
     result.phases.push(result.phase);
 
-    // The desk home (#97) shows what waits as cards, with no Inbox button:
-    // the Inbox lives in the room (above). Search still closes with Escape.
+    // Search still closes with Escape.
     result.phase = "search Escape";
     await page.keyboard.press("Control+k");
     const search = page.getByRole("dialog", {

@@ -5,11 +5,14 @@ import {
   definiteMessageFailure,
   type ComposerClock,
 } from "../web/features/composer/drafts";
+import { MAX_STORED, storageDrafts } from "../web/features/composer/draftStore";
 import {
   mediaType,
   normalizeFile,
   fileIssue,
   mentionPicks,
+  roomPicks,
+  roomReference,
   knownMention,
   mentionSpans,
   mentionSegments,
@@ -19,6 +22,18 @@ import {
   insertAt,
   matchingMessage,
 } from "../web/features/composer/model";
+import {
+  linkEdit,
+  shortcutFor,
+  toggleCodeBlock,
+  toggleMark,
+  asUrl,
+  toggleLink,
+  toggleQuote,
+  urlLabel,
+  type MarkEdit,
+  type MarkdownMark,
+} from "../web/features/composer/markdownShortcuts";
 import {
   createSpeechController,
   type SpeechRecognizer,
@@ -232,14 +247,14 @@ test("account room/thread draft scopes stay separate and reset invalidates old o
   expect(get(h.entry.state).text).toBe("");
   expect(get(h.drafts.entry(h.scope).state).text).toBe("");
 });
-test("message ACK and exact new canonical row are both required before clearing unchanged draft", async () => {
+test("the box empties as a message is sent; ACK and the exact new canonical row settle it", async () => {
   const h = harness();
   h.entry.edit("post me");
   const pending = h.entry.submit();
   h.reply.resolve({ ok: true });
   await pending;
   expect(get(h.entry.state).phase).toBe("pending");
-  expect(get(h.entry.state).text).toBe("post me");
+  expect(get(h.entry.state).text).toBe("");
   h.entry.sync(
     {
       ...room(),
@@ -252,13 +267,14 @@ test("message ACK and exact new canonical row are both required before clearing 
     h.request,
     h.upload,
   );
-  expect(get(h.entry.state).text).toBe("post me");
+  expect(get(h.entry.state).phase).toBe("pending");
   h.entry.sync(
     { ...room(), messages: [message(13, "post me")] },
     h.request,
     h.upload,
   );
   expect(get(h.entry.state).text).toBe("");
+  expect(get(h.entry.state).phase).toBe("idle");
   expect(h.timer.jobs.size).toBe(0);
   expect(h.commands).toHaveLength(1);
 });
@@ -271,7 +287,7 @@ test("canonical-before-ACK settles only after ACK and keeps edits made while sen
     h.request,
     h.upload,
   );
-  expect(get(h.entry.state).text).toBe("submitted");
+  expect(get(h.entry.state).text).toBe("");
   h.entry.edit("next draft");
   h.reply.resolve({ ok: true });
   await pending;
@@ -699,4 +715,488 @@ test("deleted-thread drafts remain reviewable only in their original account/roo
   bag.reset();
   expect(bag.orphans(removed)).toEqual([]);
   bag.dispose();
+});
+test("each send carries a client_id; a resend of the unchanged draft reuses it, an edited draft gets a new one", async () => {
+  const timer = clock(),
+    drafts = createComposerDrafts(timer.api),
+    entry = drafts.entry({
+      account: "me@test",
+      roomId: "abc123",
+      thread: "main",
+    }),
+    sent: Extract<RoomCommand, { t: "msg" }>[] = [],
+    replies: ReturnType<typeof deferred<CommandOutcome>>[] = [];
+  const request = (command: RoomCommand) => {
+    if (command.t === "msg") sent.push(command);
+    const reply = deferred<CommandOutcome>();
+    replies.push(reply);
+    return reply.promise;
+  };
+  const upload = async () => meta();
+  entry.sync(room(), request, upload);
+  const unconfirmed = async () => {
+    const pending = entry.submit();
+    replies.at(-1)?.resolve({ ok: false, error: "timeout" });
+    await pending;
+    expect(get(entry.state).phase).toBe("unconfirmed");
+    entry.review(true);
+  };
+  entry.edit("oi");
+  await unconfirmed();
+  expect(sent[0].client_id).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+  // Sent again without a change: the same id, so the room answers with the first message if it got there.
+  await unconfirmed();
+  expect(sent[1].client_id).toBe(sent[0].client_id);
+  // A changed draft is another message.
+  entry.edit("oi!");
+  await unconfirmed();
+  expect(sent[2].client_id).not.toBe(sent[0].client_id);
+  // The room had the first "oi!" (older than this send's baseline): its client_id settles this resend.
+  const pending = entry.submit();
+  expect(sent[3].client_id).toBe(sent[2].client_id);
+  replies.at(-1)?.resolve({ ok: true });
+  await pending;
+  entry.sync(
+    {
+      ...room(),
+      messages: [message(10, "oi!", { client_id: sent[2].client_id })],
+    },
+    request,
+    upload,
+  );
+  expect(get(entry.state).text).toBe("");
+  expect(get(entry.state).notice).toBe("sent");
+  // After a send that is in the room, the same text again is a new message.
+  entry.edit("oi!");
+  void entry.submit();
+  expect(sent[4].client_id).not.toBe(sent[2].client_id);
+  drafts.dispose();
+});
+test("a resend refused as an idempotency conflict is a definite failure, and the next send gets a new id", async () => {
+  expect(definiteMessageFailure("idempotency conflict")).toBe(true);
+  const timer = clock(),
+    drafts = createComposerDrafts(timer.api),
+    entry = drafts.entry({
+      account: "me@test",
+      roomId: "abc123",
+      thread: "main",
+    }),
+    sent: Extract<RoomCommand, { t: "msg" }>[] = [],
+    outcomes: CommandOutcome[] = [
+      { ok: false, error: "timeout" },
+      { ok: false, error: "idempotency conflict" },
+      { ok: false, error: "timeout" },
+    ];
+  const request = async (command: RoomCommand) => {
+    if (command.t === "msg") sent.push(command);
+    return outcomes.shift() ?? { ok: true };
+  };
+  entry.sync(room(), request, async () => meta());
+  entry.edit("oi");
+  await entry.submit();
+  entry.review(true);
+  await entry.submit();
+  expect(sent[1].client_id).toBe(sent[0].client_id);
+  expect(get(entry.state).phase).toBe("error");
+  expect(get(entry.state).text).toBe("oi");
+  await entry.submit();
+  expect(sent[2].client_id).not.toBe(sent[0].client_id);
+  drafts.dispose();
+});
+test("a discarded unconfirmed draft does not lend its client_id to the same text typed again", async () => {
+  const h = harness();
+  h.entry.edit("de novo");
+  const pending = h.entry.submit();
+  h.reply.resolve({ ok: false, error: "timeout" });
+  await pending;
+  h.entry.review(false);
+  h.entry.edit("de novo");
+  await h.entry.submit();
+  const ids = h.commands.map((c) => (c.t === "msg" ? c.client_id : ""));
+  expect(ids).toHaveLength(2);
+  expect(ids[1]).not.toBe(ids[0]);
+  h.drafts.dispose();
+});
+test("matching by client_id: another tab's row with the same text is not this send", () => {
+  const r = room(),
+    snapshot = {
+      text: "ok",
+      fileIds: [],
+      baseline: 10,
+      revision: 1,
+      clientId: "mine-1234",
+    };
+  expect(
+    matchingMessage(
+      { ...r, messages: [message(11, "ok", { client_id: "other-1234" })] },
+      "main",
+      snapshot,
+    ),
+  ).toBeUndefined();
+  expect(
+    matchingMessage(
+      { ...r, messages: [message(9, "ok", { client_id: "mine-1234" })] },
+      "main",
+      snapshot,
+    )?.id,
+  ).toBe(9);
+  // A row without a client_id (an older server) still matches by content.
+  expect(
+    matchingMessage({ ...r, messages: [message(11, "ok")] }, "main", snapshot)
+      ?.id,
+  ).toBe(11);
+});
+
+/** A Storage over a Map, as the browser's localStorage (the drafts' store). */
+function memoryStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    get length() {
+      return map.size;
+    },
+    key: (i: number) => [...map.keys()][i] ?? null,
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => void map.set(k, String(v)),
+    removeItem: (k: string) => void map.delete(k),
+    clear: () => map.clear(),
+  };
+}
+
+test("a draft's text and reply come back from storage after the drafts are gone (leave, reload), and a cleared draft leaves storage (Gimenes #4172)", () => {
+  const storage = memoryStorage();
+  const r = room();
+  const scope = { account: r.me, roomId: r.id, thread: "main" };
+  const first = createComposerDrafts(undefined, storageDrafts(storage));
+  first.entry(scope).edit("half a thought");
+  first.entry(scope).state.update((s) => ({ ...s, replyId: 7 }));
+  first.dispose();
+  // A new page: a new drafts bag reads the same storage.
+  const again = createComposerDrafts(undefined, storageDrafts(storage));
+  const state = get(again.entry(scope).state);
+  expect(state.text).toBe("half a thought");
+  expect(state.replyId).toBe(7);
+  // Another account or thread does not get it.
+  expect(get(again.entry({ ...scope, account: "other@test" }).state).text).toBe(
+    "",
+  );
+  expect(get(again.entry({ ...scope, thread: "epic" }).state).text).toBe("");
+  again
+    .entry(scope)
+    .state.update((s) => ({ ...s, text: "", replyId: undefined }));
+  expect(storage.length).toBe(0);
+});
+
+test("an app's quotes are chips: sent before the typed text, put back on a failure, kept in storage", async () => {
+  const h = harness();
+  const quote = {
+    label: "«o medo mais comum»",
+    text: "Revisão · Post · §3\n> «o medo mais comum»",
+  };
+  h.entry.quote(quote);
+  h.entry.quote(quote);
+  h.entry.quote({ label: "«outro»", text: "> «outro»" });
+  h.entry.removeQuote(1);
+  expect(get(h.entry.state).quotes).toEqual([quote]);
+  h.entry.edit("  trocaria por outra frase ");
+  const failing = h.entry.submit();
+  expect(get(h.entry.state).quotes).toEqual([]);
+  h.reply.resolve({ ok: false, error: "offline" });
+  await failing;
+  expect(get(h.entry.state).quotes).toEqual([quote]);
+  expect(get(h.entry.state).text).toBe("  trocaria por outra frase ");
+  expect(h.commands[0]).toMatchObject({
+    t: "msg",
+    text: "Revisão · Post · §3\n> «o medo mais comum»\n\ntrocaria por outra frase",
+  });
+  // A quote alone is a message too.
+  const alone = harness();
+  alone.entry.quote(quote);
+  const sent = alone.entry.submit();
+  alone.reply.resolve({ ok: true });
+  await sent;
+  expect(alone.commands[0]).toMatchObject({ text: quote.text });
+  alone.entry.sync(
+    { ...room(), messages: [message(11, quote.text)] },
+    alone.request,
+    alone.upload,
+  );
+  expect(get(alone.entry.state).notice).toBe("sent");
+  expect(get(alone.entry.state).quotes).toEqual([]);
+  const storage = memoryStorage();
+  const r = room();
+  const scope = { account: r.me, roomId: r.id, thread: "main" };
+  const first = createComposerDrafts(undefined, storageDrafts(storage));
+  first.entry(scope).quote(quote);
+  first.dispose();
+  const again = createComposerDrafts(undefined, storageDrafts(storage));
+  expect(get(again.entry(scope).state).quotes).toEqual([quote]);
+  again.entry(scope).removeQuote(0);
+  expect(storage.length).toBe(0);
+  const store = storageDrafts(storage);
+  storage.setItem(
+    "vb:draft:bad",
+    JSON.stringify({ text: "x", quotes: [quote, { label: 1 }, null, "no"] }),
+  );
+  expect(store.read("bad")?.quotes).toEqual([quote]);
+  h.drafts.dispose();
+  alone.drafts.dispose();
+  again.dispose();
+});
+test("the drafts' storage keeps the newest MAX_STORED drafts and survives a storage that throws", () => {
+  const storage = memoryStorage();
+  let clock = 0;
+  const store = storageDrafts(storage, () => ++clock);
+  for (let i = 0; i < MAX_STORED + 3; i++)
+    store.write(`k${i}`, { text: `t${i}` });
+  expect(storage.length).toBe(MAX_STORED);
+  expect(store.read("k0")).toBeUndefined();
+  expect(store.read(`k${MAX_STORED + 2}`)?.text).toBe(`t${MAX_STORED + 2}`);
+  const blocked = () => {
+    throw new Error("blocked");
+  };
+  const broken = {
+    get length(): number {
+      return blocked();
+    },
+    key: blocked,
+    getItem: blocked,
+    setItem: blocked,
+    removeItem: blocked,
+    clear() {},
+  } as unknown as Storage;
+  const safe = storageDrafts(broken);
+  expect(() => safe.write("k", { text: "x" })).not.toThrow();
+  expect(safe.read("k")).toBeUndefined();
+  expect(() => safe.remove("k")).not.toThrow();
+});
+
+test("# picks rooms (folded, capped) then open threads of this room, and writes their plain link", () => {
+  const room = {
+    id: "abcdef12",
+    book: { title: "Sala", owner: "me@test" },
+    epics: [
+      { id: "e1", title: "Ágil", tasks: [] },
+      { id: "e2", title: "Fechada", tasks: [], done: true },
+    ],
+  };
+  const rooms = [
+    { id: "abcdef12", title: "Sala", icon: 0 },
+    { id: "zzzzzz99", title: "Projeto Ágil", icon: 3 },
+  ];
+  const origin = "https://chat.decocms.com";
+  expect(roomPicks("a#ag", 4, rooms, room, origin)).toBeNull();
+  expect(roomPicks("# x", 3, rooms, room, origin)).toBeNull();
+  const picks = roomPicks("veja #ag", 8, rooms, room, origin)!;
+  expect(picks.start).toBe(5);
+  expect(picks.items.map((item) => item.url)).toEqual([
+    `${origin}/b/zzzzzz99`,
+    `${origin}/b/abcdef12?t=e1`,
+  ]);
+  expect(roomReference(picks.items[1]!)).toBe(`${origin}/b/abcdef12?t=e1`);
+  expect(roomPicks("#", 1, rooms, room, origin)?.items).toHaveLength(3);
+  expect(roomPicks("#nada", 5, rooms, room, origin)).toBeNull();
+});
+
+const applyMark = (text: string, edit: MarkEdit) => ({
+  text: text.slice(0, edit.from) + edit.insert + text.slice(edit.to),
+  selected: [edit.selectionStart, edit.selectionEnd],
+});
+
+test("a Markdown shortcut wraps the selection and keeps the words selected", () => {
+  const text = "1. Preview\nStatus";
+  const edit = toggleMark(text, 11, 17, "**");
+  expect(applyMark(text, edit)).toEqual({
+    text: "1. Preview\n**Status**",
+    selected: [13, 19],
+  });
+});
+
+test("a Markdown shortcut leaves the spaces at the ends of the selection outside", () => {
+  expect(applyMark("say hi now", toggleMark("say hi now", 3, 7, "_"))).toEqual({
+    text: "say _hi_ now",
+    selected: [5, 7],
+  });
+});
+
+test("a second Markdown shortcut removes the marks, inside or outside the selection", () => {
+  expect(applyMark("a **b** c", toggleMark("a **b** c", 4, 5, "**"))).toEqual({
+    text: "a b c",
+    selected: [2, 3],
+  });
+  expect(applyMark("a ~~b~~ c", toggleMark("a ~~b~~ c", 2, 7, "~~"))).toEqual({
+    text: "a b c",
+    selected: [2, 3],
+  });
+});
+
+test("a Markdown shortcut with no selection puts the caret between the marks", () => {
+  expect(applyMark("x ", toggleMark("x ", 2, 2, "`"))).toEqual({
+    text: "x ``",
+    selected: [3, 3],
+  });
+});
+
+test("Markdown shortcuts use Cmd on a Mac and Ctrl elsewhere", () => {
+  const key = (key: string, patch: Partial<KeyboardEvent> = {}) => ({
+    key,
+    code: "",
+    metaKey: false,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    ...patch,
+  });
+  const mark = (value: MarkdownMark) => ({
+    kind: "mark" as const,
+    mark: value,
+  });
+  expect(shortcutFor(key("b", { metaKey: true }), true)).toEqual(mark("**"));
+  expect(shortcutFor(key("i", { metaKey: true }), true)).toEqual(mark("_"));
+  expect(shortcutFor(key("u", { metaKey: true }), true)).toEqual(mark("__"));
+  expect(shortcutFor(key("e", { metaKey: true }), true)).toEqual(mark("`"));
+  expect(
+    shortcutFor(key("X", { metaKey: true, shiftKey: true }), true),
+  ).toEqual(mark("~~"));
+  expect(
+    shortcutFor(key("E", { metaKey: true, shiftKey: true }), true),
+  ).toEqual({ kind: "codeBlock" });
+  // ⇧9 is "(" on most layouts: the physical key counts.
+  expect(
+    shortcutFor(
+      key("(", { code: "Digit9", metaKey: true, shiftKey: true }),
+      true,
+    ),
+  ).toEqual({ kind: "quote" });
+  expect(
+    shortcutFor(key("K", { metaKey: true, shiftKey: true }), true),
+  ).toEqual({ kind: "link" });
+  // Ctrl+B and Ctrl+E move the caret on a Mac.
+  expect(shortcutFor(key("b", { ctrlKey: true }), true)).toBeNull();
+  expect(shortcutFor(key("b", { ctrlKey: true }), false)).toEqual(mark("**"));
+  expect(shortcutFor(key("b", { metaKey: true }), false)).toBeNull();
+  expect(shortcutFor(key("k", { metaKey: true }), true)).toBeNull();
+  expect(shortcutFor(key("b"), true)).toBeNull();
+});
+
+test("italic does not take one underscore of an underline", () => {
+  expect(applyMark("a __b__ c", toggleMark("a __b__ c", 4, 5, "_"))).toEqual({
+    text: "a ___b___ c",
+    selected: [5, 6],
+  });
+  expect(applyMark("a __b__ c", toggleMark("a __b__ c", 4, 5, "__"))).toEqual({
+    text: "a b c",
+    selected: [2, 3],
+  });
+});
+
+test("a code block shortcut fences the selected lines, and a second press removes the fences", () => {
+  const text = "antes\nlet x = 1\nlet y = 2\ndepois";
+  const fenced = applyMark(text, toggleCodeBlock(text, 8, 20));
+  expect(fenced.text).toBe("antes\n```\nlet x = 1\nlet y = 2\n```\ndepois");
+  const [from, to] = fenced.selected;
+  expect(fenced.text.slice(from, to)).toBe("let x = 1\nlet y = 2");
+  expect(
+    applyMark(fenced.text, toggleCodeBlock(fenced.text, from!, to!)).text,
+  ).toBe(text);
+  expect(applyMark("", toggleCodeBlock("", 0, 0))).toEqual({
+    text: "```\n\n```",
+    selected: [4, 4],
+  });
+});
+
+test("a quote shortcut puts > on each selected line, and a second press removes it", () => {
+  const text = "um\ndois\n\ntrês";
+  const quoted = applyMark(text, toggleQuote(text, 1, text.length));
+  expect(quoted.text).toBe("> um\n> dois\n>\n> três");
+  expect(applyMark(quoted.text, toggleQuote(quoted.text, 0, 3)).text).toBe(
+    "um\n> dois\n>\n> três",
+  );
+  expect(
+    applyMark(quoted.text, toggleQuote(quoted.text, 0, quoted.text.length))
+      .text,
+  ).toBe("um\ndois\n\ntrês");
+});
+
+test("a URL pasted over selected text makes a Markdown link", () => {
+  expect(
+    applyMark(
+      "veja o doc",
+      linkEdit("veja o doc", 7, 10, " https://x.org/a ")!,
+    ),
+  ).toEqual({ text: "veja o [doc](https://x.org/a)", selected: [29, 29] });
+  expect(linkEdit("veja", 0, 0, "https://x.org")).toBeNull();
+  expect(linkEdit("veja", 0, 4, "não é url")).toBeNull();
+  expect(linkEdit("https://a.org", 0, 13, "https://x.org")).toBeNull();
+  expect(linkEdit("a\nb", 0, 3, "https://x.org")).toBeNull();
+});
+
+test("a link gets a name from its URL only", () => {
+  expect(urlLabel("https://github.com/decocms/chat/pull/447")).toBe(
+    "decocms/chat #447",
+  );
+  expect(
+    urlLabel(
+      "https://www.figma.com/design/AbC123xyz/Stone-Migration?node-id=1",
+    ),
+  ).toBe("Stone Migration (figma.com)");
+  expect(
+    urlLabel(
+      "https://www.notion.so/deco/Plano-de-lancamento-0123456789abcdef0123456789abcdef",
+    ),
+  ).toBe("Plano de lancamento (notion.so)");
+  expect(urlLabel("https://docs.google.com/document/d/1AbCdEf123/edit")).toBe(
+    "Document (docs.google.com)",
+  );
+  expect(urlLabel("https://chat.decocms.com/b/f94aedb83899")).toBe(
+    "chat.decocms.com",
+  );
+  expect(urlLabel("https://example.org/blog/meu_post.html")).toBe(
+    "Meu post (example.org)",
+  );
+});
+
+test("⌘⇧K turns a selected URL into a named link, and a second press turns it back", () => {
+  const text = "veja https://github.com/decocms/chat/pull/447 hoje";
+  const linked = applyMark(text, toggleLink(text, 5, 45)!);
+  expect(linked.text).toBe(
+    "veja [decocms/chat #447](https://github.com/decocms/chat/pull/447) hoje",
+  );
+  const [from, to] = linked.selected;
+  // The name is selected: typing replaces it.
+  expect(linked.text.slice(from, to)).toBe("decocms/chat #447");
+  expect(applyMark(linked.text, toggleLink(linked.text, 5, 66)!).text).toBe(
+    text,
+  );
+});
+
+test("⌘⇧K on text waits for the URL, and does nothing on several lines", () => {
+  expect(applyMark("o doc", toggleLink("o doc", 2, 5)!)).toEqual({
+    text: "o [doc]()",
+    selected: [8, 8],
+  });
+  expect(applyMark("", toggleLink("", 0, 0)!)).toEqual({
+    text: "[]()",
+    selected: [1, 1],
+  });
+  expect(toggleLink("a\nb", 0, 3)).toBeNull();
+});
+
+test("⌘⇧K takes an address with no https://, and a paste needs https:// or www.", () => {
+  expect(
+    applyMark("www.decocms.com", toggleLink("www.decocms.com", 0, 15)!),
+  ).toEqual({
+    text: "[decocms.com](https://www.decocms.com)",
+    selected: [1, 12],
+  });
+  expect(asUrl("decocms.com/blog/meu-post")).toBe(
+    "https://decocms.com/blog/meu-post",
+  );
+  expect(asUrl("www.decocms.com", false)).toBe("https://www.decocms.com");
+  expect(asUrl("file.ts", false)).toBeNull();
+  expect(asUrl("não é url")).toBeNull();
+  expect(linkEdit("Deco", 0, 4, "www.decocms.com")!.insert).toBe(
+    "[Deco](https://www.decocms.com)",
+  );
+  // A selected address is the URL, not the name: pasting over it is a normal paste.
+  expect(linkEdit("www.decocms.com", 0, 15, "https://x.org")).toBeNull();
 });

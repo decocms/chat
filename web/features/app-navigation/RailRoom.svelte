@@ -15,7 +15,8 @@
   } from "../home/model";
   import RailPill from "./RailPill.svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
-  /** One room in the rail: its icon or marbled tile, the bar when current, and what waits there. */
+  import { roomMenuTrigger, type MenuPoint } from "./roomMenuTrigger";
+  /** One room in the rail: its icon or marbled tile, the edge mark (the bar when current, a dot when new), and what waits there. */
   let {
     room,
     lang,
@@ -23,15 +24,8 @@
     seen = 0,
     waits = [],
     selected = false,
-    dropping = false,
-    dragging = false,
     onnavigate,
-    onsettings,
-    ondragstart,
-    ondragend,
-    ondragover,
-    ondragleave,
-    ondrop,
+    onmenu,
   }: {
     room: RoomSummary;
     lang: HomeLanguage;
@@ -39,62 +33,27 @@
     seen?: number;
     waits?: readonly WaitReference[];
     selected?: boolean;
-    /** Another room is being dragged over this one. */
-    dropping?: boolean;
-    /** This room is the one being dragged. */
-    dragging?: boolean;
     onnavigate: (target: RoomTarget) => void;
-    onsettings?: (id: string, trigger: HTMLElement) => void;
-    ondragstart?: (event: DragEvent) => void;
-    ondragend?: (event: DragEvent) => void;
-    ondragover?: (event: DragEvent) => void;
-    ondragleave?: (event: DragEvent) => void;
-    ondrop?: (event: DragEvent) => void;
+    /** Opens the room's menu (a right-click, a long press, Shift+F10). */
+    onmenu?: (id: string, trigger: HTMLElement, point?: MenuPoint) => void;
   } = $props();
+  // New messages are the rail's edge mark (like Discord), not a number: the open room shows its bar instead.
   const news = $derived(unread(room, seen));
-  // About how many are new (message ids are per room): the red badge's number, like an unread DM's.
-  const fresh = $derived(
-    news === "human"
-      ? Math.max(
-          1,
-          Math.max(room.last_human_id, room.last_agent_id) -
-            Math.max(room.read_id, seen),
-        )
-      : 0,
-  );
+  const pill = $derived(selected ? "selected" : (news ?? "idle"));
   const title = $derived(room.title ?? "deco.chat");
   const busy = $derived((room.busy_until ?? 0) > now);
   const details = $derived(roomStatus(room, seen, waits, now, lang));
   const icon = $derived(roomIcon(room));
 </script>
 
+<!-- Sorted by dnd-kit from the rail's list (AppNavigation); the browser's own drag of the link is off. -->
 <article
   data-room-id={room.id}
-  class="relative flex items-center justify-center"
-  draggable={!!ondragstart}
-  ondragstart={(event) => {
-    if (event.currentTarget.isConnected) ondragstart?.(event);
-  }}
-  ondragend={(event) => {
-    if (event.currentTarget.isConnected) ondragend?.(event);
-  }}
-  ondragover={(event) => {
-    if (event.currentTarget.isConnected) ondragover?.(event);
-  }}
-  ondragleave={(event) => {
-    if (event.currentTarget.isConnected) ondragleave?.(event);
-  }}
-  ondrop={(event) => {
-    if (event.currentTarget.isConnected) ondrop?.(event);
-  }}
-  oncontextmenu={(event) => {
-    if (!event.currentTarget.isConnected || !onsettings) return;
-    event.preventDefault();
-    onsettings(
-      room.id,
-      event.currentTarget.querySelector("a") ?? event.currentTarget,
-    );
-  }}
+  class="relative flex touch-pan-y items-center justify-center select-none"
+  ondragstart={(event) => event.preventDefault()}
+  use:roomMenuTrigger={onmenu
+    ? (trigger, point) => onmenu(room.id, trigger, point)
+    : undefined}
 >
   <Tooltip>
     <TooltipTrigger>
@@ -102,13 +61,13 @@
         <a
           {...props}
           href={targetHref({ roomId: room.id })}
+          draggable="false"
           aria-label={[title, ...details].join(" · ")}
           aria-current={selected ? "page" : undefined}
+          aria-keyshortcuts={onmenu ? "Shift+F10" : undefined}
           data-room-tint={room.tint ?? undefined}
           class={cn(
             "relative flex size-9 shrink-0 rounded-xl outline-offset-2 transition-opacity duration-150 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring motion-reduce:transition-none",
-            dropping && "outline-2 outline-dashed outline-ring",
-            dragging && "opacity-50",
           )}
           onclick={(event) => {
             if (
@@ -124,17 +83,8 @@
             onnavigate({ roomId: room.id });
           }}
         >
-          <RailPill state={selected ? "selected" : "idle"} />
-          <RoomAvatar
-            {title}
-            {icon}
-            {lang}
-            unread={selected ? null : news}
-            count={fresh}
-            {busy}
-            cloud={!!room.sandboxes_running}
-            {waits}
-          />
+          <RailPill state={pill} />
+          <RoomAvatar {title} {icon} {lang} {busy} {waits} />
         </a>
       {/snippet}
     </TooltipTrigger>

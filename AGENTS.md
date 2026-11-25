@@ -35,6 +35,11 @@ This file contains only the global rules. Read the specific document before you 
 11. Style the browser app only with Tailwind CSS v4 classes and shadcn-svelte components, arranged as atoms, molecules and organisms. Use the built-in theme tokens (`md`, `p-4`, `text-sm`, `bg-background`), not hard-coded values. Do not write other CSS. Do not load external CSS, except CSS that a dependency ships.
 12. Keep the public security text true: `README.md` (Security model) and `public/llms.txt`.
 13. Take every icon from the design system: the `Icon` component (`web/lib/studio/Icon.svelte`) with an Untitled UI name from its sprite. Do not use an emoji, a text character (`×`, `✓`, `→`) or a control that the browser draws as an icon. For example, a search field is `type="text"` with an `x` icon button that clears it, not `type="search"`. Emoji reactions and the agent marks drawn by `AgentMark` (`✻`, `✦`) are content, not icons. `bun run check:guidelines` fails on a new `type="search"`.
+14. If you change the router, run the router bench and report its result. The router is `src/router.ts`, `src/router-rule.ts`, `src/router-jev.ts`, `src/routerActions.ts`, `src/jev.ts` and the bench cases (`scripts/router-cases.json`, `scripts/router-action-cases.json`).
+    - The "Router bench" workflow (`.github/workflows/router-bench.yml`) runs it on each pull request that touches these files. It runs the bench on main and on the branch, with the repository cases and the production cases in D1, comments the scores on the pull request, and fails when a case fails or a score goes down. You can also run `bun scripts/router-bench.ts` locally with `OPENROUTER_API_KEY`.
+    - Put the scores before and after your change in the "Router bench" part of the pull request (copy the workflow's comment).
+    - Every case must pass, and a score must not go down. If a case fails or a score goes down, stop and ask a human.
+    - A new router action or a new rule gets new bench cases, both cases that it must catch and cases that it must not catch.
 
 ## Procedure for a change
 
@@ -43,11 +48,12 @@ This file contains only the global rules. Read the specific document before you 
 3. Make a branch from `main`. Do not commit to `main` directly.
 4. Make the change. Keep it small.
 5. Run `bun run check`. If it fails, fix the cause. Do not skip a check.
-6. Build and commit the generated files that the change affects (see [docs/workflow.md](docs/workflow.md)). Do not commit `dist/`.
-7. If a person can see the change, tell the room in the release message.
-8. If you made a deliberate decision, add an entry to `docs/agents_deliberate_decisions.md`.
-9. If your change makes a document wrong, update that document in the same commit.
-10. Release it with the release procedure in [docs/workflow.md](docs/workflow.md): rebase, automerge, then watch `main`.
+6. If a person can see the change, test it on local development and take screens (`bun run screens`, see [docs/workflow.md](docs/workflow.md), "Screens"). Look at them. Put them in the pull request before you enable automerge. A visible change without screens does not merge.
+7. Build and commit the generated files that the change affects (see [docs/workflow.md](docs/workflow.md)). Do not commit `dist/`.
+8. If a person can see the change, tell the room in the release message.
+9. If you made a deliberate decision, add an entry to `docs/agents_deliberate_decisions.md`.
+10. If your change makes a document wrong, update that document in the same commit.
+11. Release it with the release procedure in [docs/workflow.md](docs/workflow.md): rebase, automerge, then watch `main`.
 
 **Warning: Never leave `main` red.** If a check fails on `main`, fix it with a new pull request before you do other work.
 

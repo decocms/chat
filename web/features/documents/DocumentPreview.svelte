@@ -34,14 +34,11 @@
     epic,
     props,
     owner,
-    aside,
   }: {
     text: string;
     epic: string | null;
     props: DocumentProps;
     owner: DocumentSession;
-    /** Floats right of the title, e.g. the version picker (Gui #2779). */
-    aside?: import("svelte").Snippet;
   } = $props();
   const idPrefix = $props.id();
   // A question just became this epic and its Claude is on it, but the doc is still the seed (Gui #2720): show that
@@ -96,6 +93,9 @@
     },
     openFileReference: (file) => {
       if (current()) props.actions.openFileReference?.(file);
+    },
+    openAppLink: (link) => {
+      if (current()) props.actions.openAppLink?.(link);
     },
     ensureFileIndex: () => {
       if (current()) props.actions.ensureFileIndex?.();
@@ -222,9 +222,6 @@
     >
       {#each props.room.docNotes as note}<p class="m-0">{note}</p>{/each}
     </aside>{/if}
-  {#if aside}<div class="float-right mb-1 ml-3 mt-1">
-      {@render aside()}
-    </div>{/if}
   {#if !text.trim()}{@const en =
       props.lang ===
       "en"}{#snippet write()}{#if props.room.members.includes(props.room.me)}<Button
@@ -236,23 +233,23 @@
       icon={paneIcons.doc}
       title={epic
         ? en
-          ? "This epic has no doc yet"
-          : "Este épico ainda não tem doc"
+          ? "This thread has no doc yet"
+          : "Esta thread ainda não tem doc"
         : en
           ? "Write what this room is for"
           : "Escreva pra que serve esta sala"}
       description={epic
         ? en
           ? "The plan, the decisions and what was delivered in this epic."
-          : "O plano, as decisões e o que foi entregue neste épico."
+          : "O plano, as decisões e o que foi entregue nesta thread."
         : en
           ? "The goal, what's in and what's out, and how you'll know it worked. Every Claude in the room reads this first."
           : "O objetivo, o que entra e o que fica de fora, e como saber que deu certo. Todo Claude da sala lê isto primeiro."}
       action={write}
       ask={epic
         ? en
-          ? "Write this epic's doc: the plan, what's decided and what's left."
-          : "Escreve o doc deste épico: o plano, o que já foi decidido e o que falta."
+          ? "Write this thread's doc: the plan, what's decided and what's left."
+          : "Escreve o doc desta thread: o plano, o que já foi decidido e o que falta."
         : en
           ? "Read the project and write the room doc: goal, scope, success criterion and next steps."
           : "Lê o projeto e escreve o doc da sala: objetivo, escopo, critério de sucesso e próximos passos."}

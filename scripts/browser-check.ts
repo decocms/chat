@@ -12,6 +12,7 @@ import {
   tasksRegion,
   openTasksPanel,
   documentMode,
+  startThreadFromMessage,
 } from "./browser-fixtures";
 const expect = baseExpect.configure({ timeout: 60_000 });
 const base = process.env.TEST_BASE_URL || "http://127.0.0.1:8797";
@@ -87,11 +88,10 @@ try {
   });
   await expect(a.locator("#composer")).toBeVisible({ timeout: 120_000 });
   await openRoomSidebar(a);
-  await expect(a.locator("#side [data-new-epic]")).toBeAttached();
+  // No "Nova thread" in the sidebar (Gimenes #4286): a thread starts from a message.
+  await expect(a.locator("#side [data-new-epic]")).toHaveCount(0);
   const readyMs = Date.now() - opened;
-  await a.locator("#side [data-new-epic]").click();
-  await a.locator("#newEpic input").fill("Verify live Svelte");
-  await a.locator("#newEpic input").press("Enter");
+  await startThreadFromMessage(a, "Verify live Svelte");
   const epic = a
     .locator("#side [data-epic-thread]")
     .filter({ hasText: "Verify live Svelte" });
@@ -202,31 +202,12 @@ try {
   await expect(b.locator("[data-pins]")).toContainText("verification.txt", {
     timeout: 90_000,
   });
-  await openRoomPane(a, "board");
-  const board = a.getByRole("region", { name: "Task board", exact: true });
-  const card = board.locator(`[data-board-task="${taskId}"]`);
-  await expect(card).toBeVisible();
-  const openCard = card.locator("[data-board-open]");
-  await openCard.focus();
-  await openCard.press("ArrowRight");
-  await expect(card).toHaveAttribute("data-status", "doing", {
-    timeout: 90_000,
-  });
-  await board.getByRole("tab", { name: "List", exact: true }).click();
-  await expect(
-    board.getByRole("tab", { name: "List", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
-  await expect(
-    board
-      .locator(`[data-board-task="${taskId}"]`)
-      .filter({ hasText: "Check two-session updates" }),
-  ).toHaveCount(1);
   await openRoomPane(a, "doc");
   await a.locator("#inboxBtn").click();
   const inbox = a.getByRole("dialog", { name: "Inbox", exact: true });
   await expect(inbox).toBeVisible();
   await inbox.getByRole("button", { name: "Close", exact: true }).click();
-  console.log("PASS files/pins, board keyboard/list and Inbox");
+  console.log("PASS files/pins and Inbox");
   await a.screenshot({ path: `${output}/desktop-after.png`, fullPage: true });
   await b.screenshot({ path: `${output}/mobile-after.png`, fullPage: true });
   // Both CodeMirror instances edit the same Yjs document; the backend mirrors it to Book.

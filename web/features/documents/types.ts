@@ -6,7 +6,6 @@ import type { DocumentTarget } from "./model";
 import type { AppsProps } from "../apps/types";
 export type DocumentPane =
   | "doc"
-  | "board"
   | "files"
   | "apps"
   | "decisions"

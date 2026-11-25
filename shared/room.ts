@@ -11,6 +11,15 @@ const strings = z.array(str);
 
 export const TASK_STATUSES = ["todo", "doing", "review", "done"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
+/** An epic's status, in the order of its menu. `dismissed` is an old client's done. */
+export const EPIC_STATUSES = [
+  "todo",
+  "doing",
+  "review",
+  "done",
+  "dismissed",
+] as const;
+export type EpicStatus = (typeof EPIC_STATUSES)[number];
 
 export const BookMetaSchema = z.object({
   title: str,
@@ -33,8 +42,32 @@ export const DecisionSchema = z.object({
   who: str,
   kind: str,
   ts: num,
+  /** The message it was decided in, when the agent that logged it said so. */
+  msg: opt(num),
+  /** Whose decision it is (their avatar and name). */
+  email: opt(str),
+  /** Set when an agent logged it: the agent's model, or "agent". */
+  via: opt(str),
 });
 export type Decision = z.infer<typeof DecisionSchema>;
+/** Someone in the room's call: their SFU session and the names of the tracks they publish ("mic", "screen"). */
+export const CallPeerSchema = z.object({
+  email: str,
+  session: str,
+  tracks: strings,
+  /** The person's microphone is off. */
+  muted: opt(bool),
+});
+export type CallPeer = z.infer<typeof CallPeerSchema>;
+/** A DM's call ringing the other person (`to`) until `until` (shared/call.ts RING_MS). */
+export const RingSchema = z.object({ from: str, to: str, until: num });
+/** A DM's call is recorded only when both people said yes (Book.callConsent); one no: not this call. */
+export const CallConsentSchema = z.object({
+  yes: z.array(str),
+  no: z.array(str),
+});
+export type CallConsent = z.infer<typeof CallConsentSchema>;
+export type Ring = z.infer<typeof RingSchema>;
 export const PinSchema = z.object({
   id: str,
   kind: str,
@@ -69,7 +102,7 @@ export const EpicSchema = z.object({
   id: str,
   title: str,
   tasks: z.array(TaskSchema),
-  archived: opt(bool),
+  done: opt(bool),
   owner: maybe(str),
   from_msg: maybe(num),
   parent: maybe(str),
@@ -77,7 +110,9 @@ export const EpicSchema = z.object({
   files: opt(z.array(z.object({ id: str, name: str, type: str, n: num }))),
   flags: opt(strings),
   prod: maybe(z.object({ stage: str, note: opt(str), at: opt(num) })),
-  // An epic that answers a question (start_epic answer: true or answerIntent, Gui #2767).
+  /** The status a person or an agent chose; null = worked out by epicStatus (shared/epicStatus.ts). */
+  status: maybe(z.enum(EPIC_STATUSES)),
+  // An epic that answers a question (start_thread answer: true or answerIntent, Gui #2767).
   answer: opt(bool),
   /** When its thread last spoke (or it was made): the sidebar sorts by it. */
   last: opt(num),
@@ -106,6 +141,9 @@ export const MessageSchema = z.object({
   tag: maybe(str),
   via: maybe(str),
   reply_to: maybe(num),
+  // The thread of the message it answers, only when that is another thread: a click on the quote opens it there
+  // even when the quoted message isn't loaded (it may be weeks back, or in a thread the room open didn't send).
+  reply_thread: opt(str),
   choices: maybe(str),
   poll: maybe(str),
   card: maybe(str),
@@ -113,11 +151,25 @@ export const MessageSchema = z.object({
   cut: opt(bool),
   answers_ask: opt(bool),
   for_who: maybe(str),
+  // The sender's random id for this send (commands.ts msg): a tab settles its pending send by it. Absent = none.
+  client_id: maybe(str),
   files: opt(z.array(AttachmentSchema)),
   // Emoji reactions (Gui #2724): emoji → who reacted (emails; "<email>#agent" = that person's Claude). Absent = none.
   reactions: opt(z.record(str, z.array(str))),
+  // When it was last edited / deleted (Gui #4276). A deleted message keeps its place with no text, files or card.
+  edited: maybe(num),
+  deleted: maybe(num),
 });
 export type Message = z.infer<typeof MessageSchema>;
+/** An earlier version of a message (message_edits), which only the room owner gets. */
+export const MessageVersionSchema = z.object({
+  kind: z.enum(["edit", "delete"]),
+  text: str,
+  files: z.array(str),
+  by: str,
+  ts: num,
+});
+export type MessageVersion = z.infer<typeof MessageVersionSchema>;
 export const AckSchema = z.object({
   msg_id: num,
   agent: opt(str),
@@ -178,7 +230,19 @@ export const RoomSnapshotSchema = z.object({
   roomTasks: opt(z.array(TaskSchema)),
   members: strings,
   online: strings,
+  /** Who is in the room's call. Missing = calls are not set up on this server (src/calls.ts). */
+  call: opt(z.array(CallPeerSchema)),
+  /** The thread of the call that is on (its own thread, made when the call starts): the chat beside the stage. */
+  callThread: opt(str),
+  /** A DM's call that rings someone now. */
+  ring: opt(RingSchema),
+  /** A DM's call: who said yes or no to the recording. */
+  consent: opt(CallConsentSchema),
+  /** This room's calls are recorded (CALL_RECORD_ROOMS): a call here without the recorder shows a warning. */
+  callRecorded: opt(bool),
   names: opt(z.record(str, str)),
+  /** email → @handle: what a mention picked from the list inserts (shared/mention.ts). */
+  handles: opt(z.record(str, str)),
   avatars: opt(z.record(str, num)),
   pending: opt(strings),
   /** Invited and not in (src/rooms.ts invites): waiting for their yes, then the ones who said no. Not members. */
@@ -205,11 +269,20 @@ export const RoomSnapshotSchema = z.object({
   pins: opt(z.array(PinSchema)),
   polls: opt(z.record(str, PollSchema)),
   briefs: opt(z.array(BriefSchema)),
+  /** When the Book built this state, and the hash of its epics: a reconnect sends them back (since/at/eh) to resume. */
+  at: opt(num),
+  eh: opt(str),
+  /** A resumed state (cache plan PR 2): only what changed since the app's last one, merged into the room it has.
+   *  epicsSame = the threads did not change, so epics is empty and the app keeps its own. */
+  resume: opt(bool),
+  epicsSame: opt(bool),
 });
 /** The room as the browser keeps it: the snapshot plus its id and who is typing. */
 export type Room = z.infer<typeof RoomSnapshotSchema> & {
   id: string;
   typing: Record<string, string>;
+  /** Earlier versions of messages the room owner asked for (msg.history), by message id. */
+  history?: Record<number, MessageVersion[]>;
 };
 
 export type {

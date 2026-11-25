@@ -14,6 +14,12 @@ export type ComposerAgent = Pick<
   AgentsResult["sandboxes"][number],
   "name" | "email"
 >;
+/** A room you can mention with `#` (your rooms from /api/me, not DMs). */
+export type ComposerRoom = Readonly<{
+  id: string;
+  title: string;
+  icon: number;
+}>;
 export type ComposerProps = {
   room: Room;
   thread: string;
@@ -23,11 +29,18 @@ export type ComposerProps = {
   upload: ComposerUpload;
   navigate: (id: number) => void;
   agents?: readonly ComposerAgent[];
+  /** The rooms `#` suggests. */
+  rooms?: readonly ComposerRoom[];
   hidden?: boolean;
   speechFactory?: SpeechFactory | null;
   mediaFactory?: FireCaptureFactory | null;
   voice?: ComposerVoicePort;
+  /** Called in the send gesture, before the send. The room uses it to ask for notifications on the first send. */
+  onsend?: () => void;
 };
+/** A passage that an app put next to the draft (the content-os reader, for example). It shows as a chip above
+ *  the field, and its `text` goes before the typed text when the message is sent. */
+export type ComposerQuote = Readonly<{ label: string; text: string }>;
 export type ComposerScope = Readonly<{
   account: string;
   roomId: string;

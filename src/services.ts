@@ -12,16 +12,19 @@ import { routeMessage } from "./route-home";
 import { startRoom } from "./start-room";
 import { canDm, dmIds, openDmWith } from "./dm";
 import { findSecret } from "./secrets";
-import { isDmId, MUTUAL } from "../shared/dm";
+import { corporateDomain, isDmId, MUTUAL } from "../shared/dm";
 import { answerInvite, befriend, bookStub, invitesFor, joinRoom, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, typesError, waitsFor } from "./rooms";
+import { sendInviteEmail } from "./invite-mail";
 import { track } from "./track";
+import { callAnswer, callClose, callJoin, callsOn, callTracks, startRecorder } from "./calls";
 import { pushTo } from "./webpush";
 import { checkFreestyleKey, sandboxOps, saveKey } from "./sandbox";
 import { connOps } from "./mcpconn";
 import { consentContext, grantOps } from "./connect";
 import { routerStats } from "./router";
-import { setProfilePublic } from "./profile";
-import { aiSpend } from "./reports";
+import { setHandle, setProfilePublic } from "./profile";
+import { aiSpend, infraMonitor } from "./reports";
+import { resolveLink } from "./linkTarget";
 
 // The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
 let appVersion: string | undefined;
@@ -54,11 +57,15 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     const hit = MeData.safeParse(await cached.json().catch(() => null));
     if (hit.success) return { ...hit.data, v: await currentVersion(env, req.url), cached: true };
   }
-  // One round trip's worth: the four reads run together.
-  const [books, friends, requests, sent, invites, people, me, waits] = await Promise.all([
+  // Colleagues for "Nova mensagem": everyone with an account and your company email domain (shared/dm.ts), after the
+  // people from your rooms. Free providers (gmail.com…) have none (Gimenes #5006).
+  const domain = corporateDomain(email);
+  // One round trip's worth: the reads run together.
+  const [books, friends, requests, sent, invites, people, me, waits, colleagues] = await Promise.all([
     db.prepare(
       `SELECT b.id, b.title, b.folder, b.summary, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
-         coalesce(r.last_id, 0) AS read_id,
+         coalesce(r.last_id, 0) AS read_id, b.last_by, b.last_text, b.last_agent,
+         (SELECT u.name FROM users u WHERE u.email = b.last_by) AS last_by_name,
          (SELECT count(*) FROM sandboxes s WHERE s.book_id = b.id AND s.state = 'running') AS sandboxes_running,
          (SELECT group_concat(email) FROM members m2 WHERE m2.book_id = b.id) AS members,
          -- A DM's other person, whom your other lists may not know (no shared room, no connection): name + picture.
@@ -94,7 +101,12 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     ).bind(email).all<{ email: string; name: string | null; avatar: number | null; rooms: string }>(),
     db.prepare(`SELECT name, avatar, lang FROM users WHERE email = ?`).bind(email).first<Record<string, unknown>>(),
     waitsFor(db, email),
+    domain
+      ? db.prepare(`SELECT email, name, avatar FROM users WHERE email LIKE '%@' || ?2 AND email != ?1 ORDER BY coalesce(name, email) LIMIT 200`)
+          .bind(email, domain).all<{ email: string; name: string | null; avatar: number | null }>().then((r) => r.results)
+      : Promise.resolve([]),
   ]);
+  const inRooms = new Set(people.results.map((r) => r.email));
   // Remember the language for emails sent later (mentions, invites): an explicit choice wins, else the browser's, once.
   // Your DM with each friend and your own ("Você"): src/dm.ts. An empty DM is left out of `books` above.
   const dms = await dmIds(env, email, friends.results.map((f) => String(f.email)));
@@ -127,7 +139,10 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     requests: keep("requests", MeFriendRequest, requests.results),
     sent: keep("sent", MeSentRequest, sent.results.map((r) => ({ ...r, declined: Number(r.declined ?? 0) }))),
     invites: keep("invites", MeInvite, invites),
-    people: keep("people", MePerson, people.results.map((r) => ({ ...r, rooms: roomTitles(r.rooms) }))),
+    people: keep("people", MePerson, [
+      ...people.results.map((r) => ({ ...r, rooms: roomTitles(r.rooms) })),
+      ...colleagues.filter((r) => !inRooms.has(r.email)).map((r) => ({ ...r, rooms: [], domain: true })),
+    ]),
     waits: keep("waits", MeWait, waits.map((w) => ({ ...w, room: w.room ?? "", thread: w.thread ?? "main", author: w.author ?? "", text: w.text ?? "", ts: w.ts ?? 0 }))),
   });
   if (dropped.length) console.error("/api/me dropped rows off schema", dropped);
@@ -143,7 +158,38 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     isMember: (roomId) => isMember(env.DB, roomId, email),
     allowStt:async()=> (await env.UPLOAD_LIMIT.limit({key:`stt:${email}`})).success,
     transcribe:(audio,query)=>transcribeSpeech(audio,query,input=>env.AI.run(WHISPER_MODEL,input)),
-    humanPost: (roomId, text, thread) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en),
+    callsOn: callsOn(env),
+    allowCall: async () => (await env.AGENT_LIMIT.limit({ key: `call:${email}` })).success,
+    // The thread the person has open is not the call's: the call is the room's, its chat the room's call chat.
+    callJoin: async (roomId) => {
+      const { session, record } = await callJoin(env, roomId, email, new URL(req0.url).origin);
+      // The second person makes it a call to record: the recorder joins it, after the response.
+      if (record) ctx.waitUntil(startRecorder(env, new URL(req0.url).origin, roomId));
+      return { session };
+    },
+    callTracks: (roomId, body) => callTracks(env, roomId, email, body),
+    callAnswer: (roomId, session, answer) => callAnswer(env, roomId, email, session, answer),
+    callClose: (roomId, session, mids, names) => callClose(env, roomId, email, session, mids, names),
+    callLeave: (roomId, session) => bookStub(env, roomId).callLeave(email, session),
+    callDecline: (roomId) => bookStub(env, roomId).callDecline(roomId, email),
+    humanPost: (roomId, text, thread, clientId) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId }),
+    roomMessages: (roomId, query) => bookStub(env, roomId).roomMessages(roomId, query, email),
+    roomState: (roomId, query) => bookStub(env, roomId).roomState(roomId, email, query),
+    linkTarget: (roomId, query) =>
+      resolveLink(
+        {
+          isMember: () => isMember(env.DB, roomId, email),
+          book: () => env.DB.prepare(`SELECT title, dm, icon FROM books WHERE id = ?`).bind(roomId).first<{ title: string | null; dm: string | null; icon: number | null }>().then((b) => (b ? { title: b.title ?? "", dm: b.dm, icon: b.icon } : null)),
+          peek: (q) => bookStub(env, roomId).linkPeek(roomId, q),
+          people: async (emails) =>
+            Object.fromEntries(
+              (await env.DB.prepare(`SELECT email, name, avatar FROM users WHERE email IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(emails)).all<{ email: string; name: string | null; avatar: number | null }>()).results.map((u) => [u.email, { name: u.name, avatar: u.avatar }]),
+            ),
+        },
+        roomId,
+        email,
+        query,
+      ),
     storeFile: (roomId, type, body, name) => storeFile(env, roomId, email, type, body, name, { requireMember: true }, en),
     fileTypes: FILE_TYPES,
     maxBytes,
@@ -153,6 +199,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     sqlBatch: async (query, rows) => { const st = env.DB.prepare(query); await env.DB.batch(rows.map((r) => st.bind(...r))); return; },
     track: (name, dims) => ctx.waitUntil(track(env, name, { user: email, ...(dims ? { dims } : {}) })),
     pokeMe: () => ctx.waitUntil(poke(env, [email], { t: "me" })),
+    waitCleared: (bookId, ref) => ctx.waitUntil(bookStub(env, bookId).waitCleared(ref, email).catch((e) => console.error("wait cleared", String(e)))),
     vapidKey: env.VAPID_PUBLIC_KEY ?? null,
     pushToMe: (p, endpoint) => pushTo(env, [email], p, endpoint),
     sqlAll: async (query, ...binds) => (await env.DB.prepare(query).bind(...binds).all()).results,
@@ -163,6 +210,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       return out;
     },
     inbox: () => inbox(env, email),
+    threadDone: (roomId, epicId) => bookStub(env, roomId).inboxDone(roomId, epicId, email),
     isEmail: (s) => EMAIL_RE.test(s),
     // Writing to someone (the + "Nova mensagem"): their request to you → accept it (their first message lands in the DM);
     // someone you can DM (a room in common, a connection, yourself) → the DM opens now; anyone else → a message request
@@ -188,10 +236,15 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       }
       if (!(await env.LOGIN_LIMIT.limit({ key: `dmreq:${email}` })).success) return { error: "rate" };
       // A request they turned down stays closed; sending again changes nothing (and says nothing).
+      const before = await env.DB.prepare(`SELECT 1 FROM friends WHERE a = ? AND b = ?`).bind(email, who).first();
       await env.DB.prepare(`INSERT INTO friends (a, b, created_at, msg) VALUES (?, ?, ?, ?) ON CONFLICT (a, b) DO UPDATE SET msg = excluded.msg, created_at = excluded.created_at WHERE friends.declined_at IS NULL`)
         .bind(email, who, Date.now(), msg || null)
         .run();
       ctx.waitUntil(poke(env, [email, who], { t: "me" }));
+      // Someone not on deco.chat yet can't see Pedidos: the first request to them goes out as an invite email
+      // (src/invite-mail.ts). The answer here is the same either way, so it never says whether the email has an account.
+      if (!before && !(await env.DB.prepare(`SELECT 1 FROM users WHERE email = ?`).bind(who).first()))
+        ctx.waitUntil(sendInviteEmail(env, ctx, { origin: new URL(req0.url).origin, inviter: email, who, lang: reqLang(req0) }));
       ctx.waitUntil(track(env, "dm_request_sent", { user: email }));
       return {};
     },
@@ -293,7 +346,9 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     consentContext: () => consentContext(env, req0, email),
     routerStats: (room) => routerStats(env.DB, email, room),
     setProfilePublic: (on) => setProfilePublic(env.DB, email, on),
+    setHandle: (handle) => setHandle(env.DB, email, handle),
     reportRoom: (room) => (env.METRICS_ROOMS ?? "").split(",").map((x) => x.trim()).includes(room),
     aiSpend: () => aiSpend(env),
+    infraMonitor: (window) => infraMonitor(env, window),
   };
 }

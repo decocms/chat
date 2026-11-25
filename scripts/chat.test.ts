@@ -4,6 +4,7 @@ import { expect, test } from "bun:test";
 import { visibleChatMessages } from "../web/features/chat/privacy";
 import type { Room, Message } from "../shared/room";
 import {
+  canStartThread,
   continues,
   foldMessages,
   messageFooters,
@@ -28,6 +29,30 @@ const room = (messages: Message[]): Room => ({
   typing: {},
   suggestions: [],
   epics: [],
+});
+test("a message that already started a thread, itself or through its line in main, offers no second thread", () => {
+  const inner = message(5, "inside", "e1");
+  const line = { ...message(6, "Nova thread"), reply_to: 5 };
+  const fresh = message(7, "other", "e1");
+  const epic = (id: string, from_msg: number) =>
+    ({
+      id,
+      title: id,
+      from_msg,
+      tasks: [],
+    }) as unknown as Room["epics"][number];
+  // A thread view: main's line is not loaded, only the room's origins carry it.
+  const r: Room = {
+    ...room([inner, fresh]),
+    origins: [line],
+    epics: [epic("e1", 1), epic("e2", 6)],
+  };
+  expect(canStartThread(r, inner)).toBe(false);
+  expect(canStartThread(r, fresh)).toBe(true);
+  expect(canStartThread(r, message(1))).toBe(false);
+  expect(
+    canStartThread({ ...r, book: { ...r.book, dm: true } } as Room, fresh),
+  ).toBe(false);
 });
 test("chat folds only adjacent matching reminders/issues and never mutates canonical records", () => {
   const one = { ...message(1, "⏰ **daily** me\n\nbody"), tag: "reminder" },
@@ -108,7 +133,9 @@ test("expired doing statuses become task-owner waiting or idle while blocked not
     kind: "waiting",
     owners: ["owner@test"],
   });
-  expect(result.get(2)?.statuses[0].kind).toBe("idle");
+  // Idle (here a "doing" older than 20 minutes) is not a line under the message: it goes with the read receipts.
+  expect(result.get(2)?.statuses).toEqual([]);
+  expect(result.get(2)?.passed[0].kind).toBe("idle");
   expect(result.get(3)?.statuses[0].ack.note).toBe("<script>hostile</script>");
 });
 test("worker state excludes branched origins, respects latest completion and falls back to recent epic agent activity", () => {
@@ -129,7 +156,7 @@ test("worker state excludes branched origins, respects latest completion and fal
   expect(threadWorkers(r, "e", 12000)).toEqual([
     { who: "Codex", email: "me@test" },
   ]);
-  r.epics[0].archived = true;
+  r.epics[0].done = true;
   expect(threadWorkers(r, "e", 12000)).toEqual([]);
   expect(threadWorkers(r, "pre:0", 12000)).toEqual([]);
   expect(agentMark("Codex")).toBe("◎");
@@ -282,20 +309,20 @@ test("production changes cue requires this reader’s later human message in the
   expect(r.epics[0]!.prod?.stage).toBe("verified");
   expect(r.epics[0]!.prod?.note).toBe("Verified before");
 });
-test("production cue keeps archive/deploy semantics and resets when the next version catches up", () => {
+test("production cue keeps done/deploy semantics and resets when the next version catches up", () => {
   const r = room([{ ...message(2, "change", "e"), ts: 2000 }]);
   r.epics = [
     {
       id: "e",
       title: "Epic",
       tasks: [],
-      archived: true,
+      done: true,
       prod: { stage: "verified", at: 1000, note: "Verified" },
     },
   ];
   expect(productionStatuses(r).get("e")).toBe("verified");
   r.epics = [
-    { ...r.epics[0]!, archived: false, prod: { stage: "deployed", at: 1000 } },
+    { ...r.epics[0]!, done: false, prod: { stage: "deployed", at: 1000 } },
   ];
   expect(productionStatuses(r).get("e")).toBe("changes");
   r.epics = [{ ...r.epics[0]!, prod: { stage: "deployed", at: 2000 } }];

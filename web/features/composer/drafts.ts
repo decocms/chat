@@ -6,18 +6,23 @@ import {
   POLL_MIN_OPTIONS,
   POLL_MAX_OPTIONS,
 } from "../../../shared/composition";
+import { roomHasThread } from "../../../shared/call";
 import { visibleMessage } from "../chat/privacy";
 import { get, writable, type Writable } from "svelte/store";
 import type { Room, Message, Attachment, Poll } from "../../../shared/room";
 import type { CommandOutcome } from "../../../shared/commands";
 import type { RequestRoomCommand } from "../../app/roomConnection";
-import type { ComposerScope, ComposerUpload } from "./types";
+import type { ComposerQuote, ComposerScope, ComposerUpload } from "./types";
+import type { DraftStore } from "./draftStore";
 import {
+  composedText,
+  MAX_COMPOSER_QUOTES,
   mediaType,
   fileIssue,
   matchingMessage,
   maxMessageId,
   normalizeFile,
+  payloadKey,
   type MessageSnapshot,
   type PendingAttachment,
 } from "./model";
@@ -30,6 +35,7 @@ export type PollDraft = {
 };
 export type ComposerState = {
   text: string;
+  quotes: ComposerQuote[];
   replyId?: number;
   attachments: PendingAttachment[];
   revision: number;
@@ -44,12 +50,13 @@ export type ComposerState = {
 };
 const blankPoll = (): PollDraft => ({
   question: "",
-  options: ["", "", ""],
+  options: ["", ""],
   multi: false,
   revision: 0,
 });
 const blank = (): ComposerState => ({
   text: "",
+  quotes: [],
   attachments: [],
   revision: 0,
   phase: "idle",
@@ -76,23 +83,26 @@ export const MAX_COMPOSER_DRAFTS = 64;
 // These msg Refused paths all precede addMessage; other errors may follow a durable write.
 /** The draft still holds what was sent (the same text, reply and files), even if its revision moved. */
 const sameDraft = (s: ComposerState, sent: MessageSnapshot) =>
-  s.text.trim() === sent.text &&
-  s.replyId === sent.replyId &&
-  s.attachments
-    .flatMap((item) => (item.meta ? [item.meta.id] : []))
-    .sort()
-    .join(",") === sent.fileIds.slice().sort().join(",");
+  payloadKey({
+    text: composedText(s),
+    replyId: s.replyId,
+    fileIds: s.attachments.flatMap((item) => (item.meta ? [item.meta.id] : [])),
+  }) === payloadKey(sent);
 export const definiteMessageFailure = (error: string) =>
   error === "offline" ||
   error === "invalid command" ||
   error === "empty message" ||
   error === "unknown thread" ||
+  // The room refused this client_id for another text: nothing was stored. A resend gets a new id.
+  error === "idempotency conflict" ||
   error.startsWith("blocked:");
 type MessageOperation = {
   token: symbol;
   snapshot: MessageSnapshot;
   ack: boolean;
   timer?: unknown;
+  /** What the box held when it was sent (it empties at once): put back if the send fails or you keep it. */
+  restore: Pick<ComposerState, "text" | "quotes" | "replyId" | "attachments">;
 };
 type PollOperation = {
   token: symbol;
@@ -108,6 +118,9 @@ export interface ComposerEntry {
   available(): boolean;
   sync(room: Room, request: RequestRoomCommand, upload: ComposerUpload): void;
   edit(text: string): void;
+  /** Adds an app's quote (the same text once), up to MAX_COMPOSER_QUOTES. */
+  quote(quote: ComposerQuote): void;
+  removeQuote(index: number): void;
   reply(message: Message, text?: string): void;
   clearReply(): void;
   focus(): void;
@@ -126,8 +139,20 @@ export interface ComposerEntry {
   reviewPoll(): void;
   dispose(): void;
 }
-/** Account-owned in-memory drafts. A component attaches only a focus callback; it does not own canonical room data. */
-export function createComposerDrafts(clock = defaultClock) {
+/** No persistence: the drafts live in memory only (tests, and a browser without storage). */
+const memoryOnly: DraftStore = {
+  read: () => undefined,
+  write: () => {},
+  remove: () => {},
+  clear: () => {},
+};
+/** Account-owned drafts. A component attaches only a focus callback; it does not own canonical room data. The text
+ *  and the reply of each draft are also kept in `store` (localStorage in the app), so they come back after the person
+ *  leaves the room or the thread, reloads, or closes the app (Gimenes #4172). */
+export function createComposerDrafts(
+  clock = defaultClock,
+  store: DraftStore = memoryOnly,
+) {
   let active = true,
     epoch = 0,
     nextAttachment = 0,
@@ -139,8 +164,7 @@ export function createComposerDrafts(clock = defaultClock) {
   const orphaned = (scope: ComposerScope, room: Room) =>
     scope.account === room.me &&
     scope.roomId === room.id &&
-    scope.thread !== "main" &&
-    !room.epics.some((epic) => epic.id === scope.thread);
+    !roomHasThread(room, scope.thread);
   const uploadQueue: {
     entry: ComposerEntry;
     id: number;
@@ -223,6 +247,9 @@ export function createComposerDrafts(clock = defaultClock) {
       focusToken: symbol | undefined;
     let operation: MessageOperation | undefined,
       pollOperation: PollOperation | undefined;
+    // The unconfirmed send the person kept (review(true)): sending the same draft again reuses its client_id, so the
+    // room answers with that message if it got there (docs/architecture.md, "One send, one message").
+    let kept: MessageSnapshot | undefined;
     const uploadOwners = new Map<number, AbortController>();
     const valid = () =>
       storageAvailable &&
@@ -231,8 +258,7 @@ export function createComposerDrafts(clock = defaultClock) {
       room?.id === scope.roomId &&
       room.me === scope.account &&
       room.members.includes(scope.account) &&
-      (scope.thread === "main" ||
-        room.epics.some((epic) => epic.id === scope.thread));
+      roomHasThread(room, scope.thread);
     const cancel = (op: { timer?: unknown } | undefined) => {
       if (op?.timer !== undefined) clock.cancel(op.timer);
     };
@@ -255,6 +281,7 @@ export function createComposerDrafts(clock = defaultClock) {
           ? {
               ...s,
               text: "",
+              quotes: [],
               replyId: undefined,
               attachments: s.attachments.filter(
                 (item) => item.phase === "error",
@@ -313,11 +340,38 @@ export function createComposerDrafts(clock = defaultClock) {
         notice: "poll-created",
       }));
     }
+    /** The sent text, reply and files back in the box, unless you already typed something new there. */
+    function putBack(s: ComposerState, op: MessageOperation): ComposerState {
+      if (
+        s.revision !== op.snapshot.revision ||
+        s.text.trim() ||
+        s.quotes.length
+      )
+        return s;
+      return {
+        ...s,
+        text: op.restore.text,
+        quotes: op.restore.quotes,
+        replyId: op.restore.replyId,
+        attachments: [
+          ...op.restore.attachments,
+          ...s.attachments.filter(
+            (item) => !op.restore.attachments.some((a) => a.id === item.id),
+          ),
+        ],
+        revision: s.revision + 1,
+      };
+    }
     function uncertain(op: MessageOperation, error: string) {
       if (ownMessage(op)) {
         cancel(op);
         op.timer = undefined;
-        state.update((s) => ({ ...s, phase: "unconfirmed", error }));
+        // Not sure it arrived: the text is back in the box, with the question whether it went (review).
+        state.update((s) => ({
+          ...putBack(s, op),
+          phase: "unconfirmed",
+          error,
+        }));
       }
     }
     function uncertainPoll(op: PollOperation, error: string) {
@@ -363,6 +417,28 @@ export function createComposerDrafts(clock = defaultClock) {
           text,
           revision: s.revision + 1,
           notice: "",
+        }));
+      },
+      quote(quote: ComposerQuote) {
+        if (!storageAvailable || !alive || !active) return;
+        state.update((s) =>
+          s.quotes.length >= MAX_COMPOSER_QUOTES ||
+          s.quotes.some((item) => item.text === quote.text)
+            ? s
+            : {
+                ...s,
+                quotes: [...s.quotes, quote],
+                revision: s.revision + 1,
+                notice: "",
+              },
+        );
+      },
+      removeQuote(index: number) {
+        if (!alive || !active || !get(state).quotes[index]) return;
+        state.update((s) => ({
+          ...s,
+          quotes: s.quotes.filter((_, at) => at !== index),
+          revision: s.revision + 1,
         }));
       },
       reply(message: Message, text?: string) {
@@ -520,7 +596,7 @@ export function createComposerDrafts(clock = defaultClock) {
       async submit() {
         if (!valid() || !request || operation) return;
         const draft = get(state),
-          text = draft.text.trim();
+          text = composedText(draft);
         if (
           draft.attachments.some(
             (item) => item.phase === "queued" || item.phase === "uploading",
@@ -549,20 +625,37 @@ export function createComposerDrafts(clock = defaultClock) {
           state.update((s) => ({ ...s, error: "reply-missing" }));
           return;
         }
+        const payload = { text, fileIds, replyId: reply?.id };
         const op: MessageOperation = {
           token: Symbol(),
+          restore: {
+            text: draft.text,
+            quotes: draft.quotes,
+            replyId: draft.replyId,
+            attachments: draft.attachments,
+          },
           snapshot: {
-            text,
-            fileIds,
-            replyId: reply?.id,
+            ...payload,
             baseline: maxMessageId(room!),
-            revision: draft.revision,
+            // The box empties as the message leaves (the next revision): a message you send looks sent right away,
+            // even when the room takes a moment to confirm it (Valls #4167).
+            revision: draft.revision + 1,
+            clientId:
+              kept?.clientId && payloadKey(kept) === payloadKey(payload)
+                ? kept.clientId
+                : crypto.randomUUID(),
           },
           ack: false,
         };
         operation = op;
+        kept = undefined;
         state.update((s) => ({
           ...s,
+          text: "",
+          quotes: [],
+          replyId: undefined,
+          attachments: s.attachments.filter((item) => item.phase === "error"),
+          revision: s.revision + 1,
           phase: "pending",
           error: "",
           candidate: undefined,
@@ -575,13 +668,14 @@ export function createComposerDrafts(clock = defaultClock) {
             text,
             files: fileIds,
             reply_to: reply?.id,
+            client_id: op.snapshot.clientId,
           });
           if (!ownMessage(op)) return;
           if (!result.ok) {
             if (definiteMessageFailure(result.error)) {
               operation = undefined;
               state.update((s) => ({
-                ...s,
+                ...putBack(s, op),
                 phase: "error",
                 error: result.error,
               }));
@@ -603,7 +697,7 @@ export function createComposerDrafts(clock = defaultClock) {
           ) {
             operation = undefined;
             state.update((s) => ({
-              ...s,
+              ...putBack(s, op),
               phase: "error",
               error: error.message,
             }));
@@ -613,14 +707,18 @@ export function createComposerDrafts(clock = defaultClock) {
       },
       review(keep: boolean) {
         if (!alive || !operation || get(state).phase !== "unconfirmed") return;
-        const snapshot = operation.snapshot;
+        const snapshot = operation.snapshot,
+          restoreOf = operation;
         cancel(operation);
         operation = undefined;
+        // Kept: a resend of it is the same send. Discarded: the same text typed later is a new message.
+        kept = keep ? snapshot : undefined;
         state.update((s) =>
           !keep && s.revision === snapshot.revision
             ? {
                 ...s,
                 text: "",
+                quotes: [],
                 replyId: undefined,
                 attachments: s.attachments.filter(
                   (item) => item.phase === "error",
@@ -632,7 +730,7 @@ export function createComposerDrafts(clock = defaultClock) {
                 notice: "reviewed-discarded",
               }
             : {
-                ...s,
+                ...(keep ? putBack(s, restoreOf) : s),
                 phase: "idle",
                 error: "",
                 candidate: undefined,
@@ -734,6 +832,7 @@ export function createComposerDrafts(clock = defaultClock) {
         cancel(pollOperation);
         operation = undefined;
         pollOperation = undefined;
+        kept = undefined;
         for (const controller of uploadOwners.values()) controller.abort();
         uploadOwners.clear();
         focus = undefined;
@@ -755,6 +854,7 @@ export function createComposerDrafts(clock = defaultClock) {
             orphaned(entry.scope, room) &&
             !!(
               s.text ||
+              s.quotes.length ||
               s.replyId ||
               s.attachments.length ||
               s.poll.question ||
@@ -791,6 +891,7 @@ export function createComposerDrafts(clock = defaultClock) {
             const s = get(candidate.state);
             return (
               !s.text &&
+              !s.quotes.length &&
               !s.replyId &&
               !s.attachments.length &&
               (s.phase === "idle" || s.phase === "error") &&
@@ -809,7 +910,36 @@ export function createComposerDrafts(clock = defaultClock) {
         }
         entry = makeEntry(scope);
         entries.set(id, entry);
-        subscriptions.set(id, entry.state.subscribe(changed));
+        const saved = store.read(id);
+        if (
+          saved &&
+          (saved.text || saved.quotes.length || saved.replyId !== undefined)
+        )
+          entry.state.update((s) => ({
+            ...s,
+            text: saved.text,
+            quotes: saved.quotes,
+            replyId: saved.replyId,
+          }));
+        let last = JSON.stringify([
+          saved?.text ?? "",
+          saved?.quotes ?? [],
+          saved?.replyId,
+        ]);
+        const unsubscribe = entry.state.subscribe((s) => {
+          changed();
+          const now = JSON.stringify([s.text, s.quotes, s.replyId]);
+          if (now === last) return;
+          last = now;
+          if (s.text || s.quotes.length || s.replyId !== undefined)
+            store.write(id, {
+              text: s.text,
+              quotes: s.quotes,
+              replyId: s.replyId,
+            });
+          else store.remove(id);
+        });
+        subscriptions.set(id, unsubscribe);
       }
       return entry;
     },

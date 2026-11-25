@@ -3,7 +3,6 @@ import type { DocumentPane } from "./types";
 
 export const paneIcons: Record<DocumentPane, IconName> = {
   doc: "file-02",
-  board: "columns-03",
   files: "paperclip",
   apps: "bar-chart-square-02",
   decisions: "check",
@@ -18,8 +17,6 @@ export function paneLabel(pane: DocumentPane, en: boolean): string {
   switch (pane) {
     case "doc":
       return "Doc";
-    case "board":
-      return en ? "Tasks" : "Tarefas";
     case "files":
       return en ? "Files" : "Arquivos";
     case "apps":

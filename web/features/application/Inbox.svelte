@@ -1,6 +1,5 @@
 <script lang="ts">
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
-  import { untrack } from "svelte";
   import type { Wait, InboxMention, InboxTask, Bridge } from "../../app/types";
   import Dialog from "../../lib/studio/Dialog.svelte";
   import DialogContent from "../../lib/studio/DialogContent.svelte";
@@ -9,25 +8,19 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
-  import Tabs from "../../lib/studio/Tabs.svelte";
-  import TabsContent from "../../lib/studio/TabsContent.svelte";
-  import TabsList from "../../lib/studio/TabsList.svelte";
-  import TabsTrigger from "../../lib/studio/TabsTrigger.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import EmptyState from "../../lib/components/EmptyState.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
+  import { waitText } from "../waits/model";
 
   let {
     waits,
     mentions = [],
     tasks = [],
-    roomId,
-    all: startAll = false,
     vb,
     avatarVersion,
     displayName,
     roomLabel = (_roomId: string, title: string) => title,
-    ontab,
     onopen,
     onnav,
     onmention,
@@ -42,14 +35,11 @@
     waits: Wait[];
     mentions?: InboxMention[];
     tasks?: InboxTask[];
-    roomId: string | null;
-    all?: boolean;
     vb: Pick<Bridge, "t" | "ago">;
     avatarVersion?: (email: string) => number | null | undefined;
     displayName?: (email: string) => string;
     /** A room's name in the All tab (a DM reads as the other person: home/model `roomLabel`). */
     roomLabel?: (roomId: string, title: string) => string;
-    ontab?: (all: boolean) => void;
     onopen: (wait: Wait, event: MouseEvent) => void;
     onnav?: (bookId: string, thread: string, msgId: number) => void;
     onmention?: (mention: InboxMention) => void;
@@ -61,35 +51,20 @@
     onresolve: (wait: Wait) => void | Promise<void>;
     onclose: () => void;
   } = $props();
-  let selected = $state(untrack(() => (startAll || !roomId ? "all" : "room")));
   let open = $state(true);
   let pending = $state<string | null>(null);
   let error = $state("");
-  const showAll = $derived(selected === "all" || !roomId);
-  const mine = <T extends { book_id: string }>(xs: T[]) =>
-    showAll ? xs : xs.filter((x) => x.book_id === roomId);
-  const waitList = $derived(mine(waits));
-  const mentionList = $derived(mine(mentions));
-  const taskList = $derived(mine(tasks));
-  const total = (scopeAll: boolean) => {
-    const f = <T extends { book_id: string }>(xs: T[]) =>
-      scopeAll ? xs.length : xs.filter((x) => x.book_id === roomId).length;
-    return f(waits) + f(mentions) + f(tasks);
-  };
-  const items = $derived([
-    { value: "room", label: `${vb.t("Esta sala")} (${total(false)})` },
-    { value: "all", label: `${vb.t("Todas")} (${total(true)})` },
-  ]);
+  // One Inbox for all rooms: each row says its room.
+  const showAll = true;
+  const waitList = $derived(waits);
+  const mentionList = $derived(mentions);
+  const taskList = $derived(tasks);
   const anything = $derived(
     waitList.length + mentionList.length + taskList.length > 0,
   );
   const key = (wait: Wait) => `${wait.book_id}:${wait.ref}`;
   const kind = (wait: Wait) =>
-    wait.ref.startsWith("t")
-      ? "task"
-      : /^[ab]/.test(wait.ref)
-        ? "agent"
-        : "ask";
+    /^[te]/.test(wait.ref) ? "task" : /^[ab]/.test(wait.ref) ? "agent" : "ask";
   const author = (a: string, name: string | null) =>
     name || displayName?.(a) || a.split("@")[0];
   const statusLabel = (s: string) =>
@@ -169,21 +144,7 @@
         }}
         retryLabel={vb.t("Tentar de novo")}
       />{/if}
-    {#if roomId}
-      <Tabs
-        bind:value={selected}
-        onValueChange={(value) => ontab?.(value === "all")}
-      >
-        <TabsList aria-label={vb.t("Caixa de entrada")}>
-          {#each items as item (item.value)}<TabsTrigger value={item.value}
-              >{item.label}</TabsTrigger
-            >{/each}
-        </TabsList>
-        {#each items as item (item.value)}<TabsContent value={item.value}
-            >{@render content()}</TabsContent
-          >{/each}
-      </Tabs>
-    {:else}{@render content()}{/if}
+    {@render content()}
   </DialogContent>
 </Dialog>
 
@@ -239,7 +200,7 @@
                             ? vb.t("Seu agent espera você:")
                             : `${author(wait.author, wait.author_name).split(" ")[0]}:`}</strong
                       >
-                      {wait.text}
+                      {waitText(wait, vb.t)}
                     </span>
                     <span class="text-xs leading-4 text-muted-foreground"
                       >{showAll

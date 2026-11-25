@@ -12,6 +12,7 @@ import {
   browserFixtures,
   tasksRegion,
   openTasksPanel,
+  startThreadFromMessage,
 } from "./browser-fixtures";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
@@ -76,11 +77,8 @@ try {
     if (message.type() === "error") errors.push(message.text());
   });
   await page.goto(`${base}/b/${id}`);
-  await page.locator("[data-new-epic]").click();
-  await page
-    .getByRole("textbox", { name: "New epic", exact: true })
-    .fill("Task workflow");
-  await page.locator("#newEpic").getByRole("button").click();
+  // A thread starts from a message (Gimenes #4286).
+  await startThreadFromMessage(page, "Task workflow");
   const epic = page
     .locator("button[data-epic-thread]")
     .filter({ hasText: "Task workflow" });

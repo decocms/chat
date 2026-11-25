@@ -5,6 +5,11 @@
 
 <script lang="ts">
   import { visibleMessage, messageById } from "../chat/privacy";
+  import { lastEditable } from "../chat/model";
+  import { startEditing } from "../chat/editing";
+  import { roomHasThread } from "../../../shared/call";
+  import { COMPOSER_FRAME } from "./shape";
+  import { MARK_DONE } from "../../../shared/epicStatus";
   import { browserSpeech } from "./speech";
   import { browserFireCapture } from "./fireAudio";
   import { onDestroy, onMount, untrack } from "svelte";
@@ -16,6 +21,10 @@
     knownMention,
     mentionPicks,
     emojiTyped,
+    roomPicks,
+    roomReference,
+    roomLinks,
+    appLinksIn,
     quoteSnippet,
     composerError,
   } from "./model";
@@ -26,8 +35,11 @@
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
+  import Chip from "../../lib/studio/Chip.svelte";
+  import RoomMark from "../room-sidebar/RoomMark.svelte";
   import OrphanDrafts from "./OrphanDrafts.svelte";
   import ChatField from "./ChatField.svelte";
+  import { linkResolver } from "../rich-text/linkResolver";
   import PollCreateDialog from "./PollCreateDialog.svelte";
   let {
     room,
@@ -38,10 +50,12 @@
     upload,
     navigate,
     agents = [],
+    rooms = [],
     hidden = false,
     speechFactory,
     mediaFactory,
     voice: voicePort,
+    onsend,
   }: ComposerProps = $props();
   const entry = untrack(() =>
     drafts.entry({ account: room.me, roomId: room.id, thread }),
@@ -82,7 +96,7 @@
     $draft.error !== "draft-limit" &&
       entry.available() &&
       room.members.includes(room.me) &&
-      (thread === "main" || room.epics.some((epic) => epic.id === thread)),
+      roomHasThread(room, thread),
   );
   const reply = $derived(
     $draft.replyId
@@ -108,13 +122,34 @@
       ? mentionPicks($draft.text, caret, room, vb.knownNames, agents)
       : null,
   );
-  // `:sho` suggests emoji the same way `@par` suggests people (same list, keys and close rules).
-  const emojis = $derived(
+  // Any link to this app in the draft asks the chat's resolver where it goes, so the field draws its chip (the plain
+  // link shows until the answer comes). A link still being typed at the end of the text waits for what comes after
+  // it; a paste or a drop asks at once.
+  let linkText = "";
+  $effect(() => {
+    const text = $draft.text,
+      grew = text.length - linkText.length > 1;
+    linkText = text;
+    untrack(() => {
+      for (const { end, link } of appLinksIn(text, window.location.href))
+        if (end < text.length || grew) linkResolver.request(link, room);
+    });
+  });
+  // `#sal` suggests rooms and this room's threads, `:sho` emoji, the same way `@par` suggests people (same list,
+  // keys and close rules).
+  const places = $derived(
     !hidden && !mentionClosed && !mentions
+      ? roomPicks($draft.text, caret, rooms, room, window.location.origin)
+      : null,
+  );
+  const emojis = $derived(
+    !hidden && !mentionClosed && !mentions && !places
       ? emojiTyped($draft.text, caret)
       : null,
   );
-  const items = $derived(mentions?.items || emojis?.items || []);
+  const items = $derived(
+    mentions?.items || places?.items || emojis?.items || [],
+  );
   const selected = $derived(items.length ? pickAt % items.length : 0);
   const busy = $derived(
     $draft.phase === "pending" || $draft.phase === "unconfirmed",
@@ -193,6 +228,15 @@
       field?.insert(`${pick.emoji} `);
       return;
     }
+    if (places) {
+      const pick = places.items[index];
+      if (!pick) return;
+      // Replace the typed "#sal" (from its # to the caret) with the room's link.
+      selectionEnd = caret;
+      caret = places.start;
+      field?.insert(`${roomReference(pick)} `);
+      return;
+    }
     const pick = mentions?.items[index];
     if (!mentions || !pick) return;
     // Replace the typed "@par" (from its @ to the caret) with the handle.
@@ -200,7 +244,32 @@
     caret = mentions.start;
     field?.insert(`@${pick.handle} `);
   }
+  // A thread whose tasks are all done waits on a person to mark it done (Gimenes #4249): the empty composer offers
+  // "Marcar como concluída" and Tab writes it; the server marks the thread done when a person sends it.
+  const offersDone = $derived.by(() => {
+    if (thread === "main") return false;
+    const epic = room.epics.find((item) => item.id === thread);
+    return (
+      !!epic &&
+      !epic.done &&
+      epic.tasks.length > 0 &&
+      epic.tasks.every((task) => task.status === "done")
+    );
+  });
   function keydown(event: KeyboardEvent) {
+    if (
+      offersDone &&
+      event.key === "Tab" &&
+      !event.shiftKey &&
+      !items.length &&
+      !/\S/.test($draft.text)
+    ) {
+      event.preventDefault();
+      caret = 0;
+      selectionEnd = $draft.text.length;
+      field?.insert(vb.t(MARK_DONE.pt));
+      return true;
+    }
     if (items.length) {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
@@ -221,6 +290,24 @@
         event.preventDefault();
         event.stopPropagation();
         mentionClosed = true;
+        return true;
+      }
+    }
+    // ArrowUp in an empty composer edits your last message here, in place (like Discord).
+    if (
+      event.key === "ArrowUp" &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.isComposing &&
+      !$draft.text &&
+      !$draft.attachments.length
+    ) {
+      const last = lastEditable(room, thread);
+      if (last) {
+        event.preventDefault();
+        startEditing(room.id, last.id);
         return true;
       }
     }
@@ -366,7 +453,10 @@
   {hidden}
   class={hidden
     ? "hidden"
-    : "relative shrink-0 space-y-2 bg-background px-3 pt-1 pb-3 font-sans text-sm text-foreground md:px-2 md:pb-2"}
+    : [
+        "relative flex shrink-0 flex-col gap-2 bg-background font-sans text-sm text-foreground",
+        COMPOSER_FRAME,
+      ]}
 >
   {#if dragging}<div
       role="status"
@@ -374,72 +464,14 @@
     >
       {vb.t("Anexar arquivo")}
     </div>{/if}
-  {#if $draft.attachments.length}<div class="flex flex-wrap gap-2">
-      {#each $draft.attachments as item (item.id)}{@const image = preview(item)}
-        <div
-          data-composer-attachment={item.id}
-          class="relative flex w-32 flex-col gap-1 rounded-control border border-border bg-card p-2"
-        >
-          {#if image}<img
-              src={image}
-              alt={item.name}
-              class="h-20 w-full rounded-sm object-cover"
-            />{:else}<Icon icon="file-02" size={16} />{/if}<span
-            class="break-words text-xs">{item.name}</span
-          ><span role="status" class="text-xs text-muted-foreground"
-            >{item.phase === "queued" || item.phase === "uploading"
-              ? vb.t("Enviando…")
-              : item.phase === "error"
-                ? composerError(item.error || "failed", vb.t)
-                : vb.t("Pronto")}</span
-          >{#if item.phase === "error"}<Button
-              size="sm"
-              variant="outline"
-              onclick={(event) => {
-                if (canInteract(event)) entry.retryUpload(item.id);
-              }}>{vb.t("Tentar novamente")}</Button
-            >{/if}<IconButton
-            label={vb.t("Remover anexo")}
-            size="icon-xs"
-            class="absolute right-1 top-1 rounded-full bg-card shadow-edge"
-            onclick={(event) => {
-              if (canInteract(event)) entry.removeFile(item.id);
-            }}><Icon icon="x" size={14} /></IconButton
-          >
-        </div>{/each}
-    </div>{/if}
-  {#if $draft.replyId}<div
-      data-composer-reply
-      class="flex items-center gap-2 rounded-control border-l-2 border-foreground bg-muted p-2"
-    >
-      <Icon icon="reverse-left" size={16} />
-      <div class="min-w-0 flex-1 text-xs">
-        {#if reply}<b
-            >{reply.author === "ai"
-              ? "@vibe"
-              : reply.kind === "agent"
-                ? vb.t("{via} de {who}", {
-                    via: "Agent",
-                    who: vb.name(reply.author),
-                  })
-                : vb.name(reply.author)}</b
-          ><span class="block truncate"
-            >{!reply.text && reply.poll
-              ? vb.t("votação")
-              : quoteSnippet(reply)}</span
-          >{:else}{vb.t("A mensagem não está mais disponível.")}{/if}
-      </div>
-      <IconButton
-        label={vb.t("Cancelar resposta")}
-        onclick={(event) => {
-          if (canInteract(event)) entry.clearReply();
-        }}><Icon icon="x" size={16} /></IconButton
-      >
-    </div>{/if}
   {#if items.length}<div
       id={`${uid}-mentions`}
       role="listbox"
-      aria-label={emojis ? vb.t("Emoji") : vb.t("Mencionar")}
+      aria-label={emojis
+        ? vb.t("Emoji")
+        : places
+          ? vb.t("Mencionar sala")
+          : vb.t("Mencionar")}
       class="absolute bottom-full left-3 z-20 max-h-64 max-w-[calc(100%-1.5rem)] overflow-auto rounded-xl bg-popover p-1 text-popover-foreground shadow-edge-raised"
     >
       {#if emojis}{#each emojis.items as item, index}<button
@@ -459,6 +491,46 @@
             ><span aria-hidden="true" class="w-6 text-center text-lg"
               >{item.emoji}</span
             ><span class="text-muted-foreground">:{item.name}:</span></button
+          >{/each}{:else if places}{#each places.items as item, index}<button
+            id={`${uid}-mention-${index}`}
+            type="button"
+            role="option"
+            aria-selected={selected === index}
+            data-room-pick={item.kind === "room"
+              ? item.id
+              : `${room.id}?t=${item.id}`}
+            class={selected === index
+              ? "flex min-h-8 w-full min-w-56 cursor-pointer items-center gap-2 rounded-lg bg-accent px-2 py-1.5 text-left"
+              : "flex min-h-8 w-full min-w-56 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-accent"}
+            onpointerdown={(event) => {
+              event.preventDefault();
+              choose(index);
+            }}
+            onclick={() => choose(index)}
+            ><span
+              aria-hidden="true"
+              class="flex size-4 shrink-0 items-center justify-center"
+              >{#if item.kind === "room"}<RoomMark
+                  title={item.title}
+                  src={item.icon
+                    ? `/api/books/${encodeURIComponent(item.id)}/icon?v=${item.icon}`
+                    : undefined}
+                  size="2xs"
+                />{:else}<Icon
+                  icon="message-circle-01"
+                  size={16}
+                  class="text-muted-foreground"
+                />{/if}</span
+            >{#if item.kind === "thread"}<span
+                class="min-w-12 shrink-[999] truncate font-medium text-muted-foreground"
+                >{item.room}</span
+              ><Icon
+                icon="chevron-right"
+                size={14}
+                class="-mx-0.5 shrink-0 text-muted-foreground"
+              />{/if}<span class="min-w-0 truncate font-medium"
+              >{item.title}</span
+            ></button
           >{/each}{:else}
         {#each mentions?.items || [] as item, index}<button
             id={`${uid}-mention-${index}`}
@@ -485,9 +557,12 @@
                 size="xs"
                 aria-hidden="true"
                 fallback="@"
-              />{/if}<b>@{item.handle}</b><small class="text-muted-foreground"
-              >{vb.t(item.label)}</small
-            ></button
+              />{/if}{#if item.email && !item.agent}<b class="font-medium"
+                >{item.label}</b
+              ><small class="text-muted-foreground">@{item.handle}</small
+              >{:else}<b>@{item.handle}</b><small class="text-muted-foreground"
+                >{vb.t(item.label)}</small
+              >{/if}</button
           >{/each}{/if}
     </div>{/if}
   {#if refining || voiceWaiting}<p
@@ -526,20 +601,42 @@
       }, 100);
     }}
     onsubmit={() => {
-      if (canInteract()) void entry.submit();
+      if (!canInteract()) return;
+      if (
+        /\S/.test($draft.text) ||
+        $draft.quotes.length ||
+        $draft.attachments.length
+      )
+        onsend?.();
+      void entry.submit();
     }}
     onkeydown={keydown}
     mention={(handle) => knownMention(handle, room, vb.knownNames)}
+    links={(text) =>
+      roomLinks(text, rooms, room, window.location.href, {
+        read: (link) => {
+          const state = linkResolver.read(link, room);
+          return state.status === "ready" ? state.value : null;
+        },
+        t: vb.t,
+      })}
     t={vb.t}
     locale={vb.locale || "pt-BR"}
     id="input"
     label={vb.t("Mensagem…")}
-    placeholder={vb.t("Mensagem…")}
+    placeholder={offersDone
+      ? vb.t("{action} (Tab)", { action: vb.t(MARK_DONE.pt) })
+      : vb.t("Mensagem…")}
     disabled={!allowed || hidden}
     enabled={() => canInteract()}
     {busy}
     pending={$draft.phase === "pending"}
-    sendDisabled={(!$draft.text.trim() && !$draft.attachments.length) ||
+    ready={/\S/.test($draft.text) ||
+      $draft.quotes.length > 0 ||
+      $draft.attachments.length > 0}
+    sendDisabled={(!/\S/.test($draft.text) &&
+      !$draft.quotes.length &&
+      !$draft.attachments.length) ||
       $draft.attachments.some(
         (item) => item.phase === "queued" || item.phase === "uploading",
       )}
@@ -555,6 +652,103 @@
       onfocus: () => clearTimeout(blurTimer),
     }}
   >
+    {#snippet above()}
+      {#if $draft.replyId}<div
+          data-composer-reply
+          class="flex items-center gap-2 border-b border-border py-1 pr-1.5 pl-3.5 text-xs text-muted-foreground transition-[opacity,translate] duration-150 ease-[var(--vb-ease-out-cubic)] starting:translate-y-1 starting:opacity-0"
+        >
+          <Icon icon="reverse-left" size={14} class="shrink-0" />
+          {#if reply}<span class="flex min-w-0 flex-1 items-baseline gap-1.5"
+              ><span class="shrink-0 whitespace-nowrap"
+                ><span class="hidden md:inline"
+                  >{vb.t("Respondendo a")}&nbsp;</span
+                ><b class="font-semibold text-foreground"
+                  >{reply.author === "ai"
+                    ? "@vibe"
+                    : reply.kind === "agent"
+                      ? vb.t("{via} de {who}", {
+                          via: "Agent",
+                          who: vb.name(reply.author),
+                        })
+                      : vb.name(reply.author)}</b
+                ></span
+              ><span class="min-w-0 truncate"
+                >· {!reply.text && reply.poll
+                  ? vb.t("votação")
+                  : quoteSnippet(reply)}</span
+              ></span
+            >{:else}<span class="min-w-0 flex-1 truncate"
+              >{vb.t("A mensagem não está mais disponível.")}</span
+            >{/if}
+          <IconButton
+            label={vb.t("Cancelar resposta")}
+            size="icon-xs"
+            class="shrink-0 text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
+            onclick={(event) => {
+              if (canInteract(event)) entry.clearReply();
+            }}><Icon icon="x" size={14} /></IconButton
+          >
+        </div>{/if}
+      <!-- Passages an app quoted (the content-os reader): chips, like a reference in Notion. Each goes before the
+           typed text when the message is sent. -->
+      {#if $draft.quotes.length}<div
+          data-composer-quotes
+          class="flex flex-wrap gap-1.5 px-2 pt-2"
+        >
+          {#each $draft.quotes as quote, index (quote.text)}<Chip
+              data-composer-quote
+              title={quote.text}
+              class="max-w-full pr-0.5 transition-[opacity,scale] duration-150 ease-[var(--vb-ease-out-cubic)] starting:scale-95 starting:opacity-0"
+              ><Icon icon="align-left" size={12} /><span
+                class="min-w-0 truncate text-foreground">{quote.label}</span
+              ><IconButton
+                label={vb.t("Remover trecho")}
+                size="icon-xs"
+                class="size-5 shrink-0 rounded-full text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
+                onclick={(event) => {
+                  if (canInteract(event)) entry.removeQuote(index);
+                }}><Icon icon="x" size={12} /></IconButton
+              ></Chip
+            >{/each}
+        </div>{/if}
+      {#if $draft.attachments.length}<div
+          class="flex flex-wrap gap-2 px-2 pt-2"
+        >
+          {#each $draft.attachments as item (item.id)}{@const image =
+              preview(item)}
+            <div
+              data-composer-attachment={item.id}
+              class="relative flex w-32 flex-col gap-1 rounded-control bg-card p-2 shadow-edge transition-[opacity,scale] duration-150 ease-[var(--vb-ease-out-cubic)] starting:scale-95 starting:opacity-0"
+            >
+              {#if image}<img
+                  src={image}
+                  alt={item.name}
+                  class="h-20 w-full rounded-sm object-cover"
+                />{:else}<Icon icon="file-02" size={16} />{/if}<span
+                class="break-words text-xs">{item.name}</span
+              ><span role="status" class="text-xs text-muted-foreground"
+                >{item.phase === "queued" || item.phase === "uploading"
+                  ? vb.t("Enviando…")
+                  : item.phase === "error"
+                    ? composerError(item.error || "failed", vb.t)
+                    : vb.t("Pronto")}</span
+              >{#if item.phase === "error"}<Button
+                  size="sm"
+                  variant="outline"
+                  onclick={(event) => {
+                    if (canInteract(event)) entry.retryUpload(item.id);
+                  }}>{vb.t("Tentar novamente")}</Button
+                >{/if}<IconButton
+                label={vb.t("Remover anexo")}
+                size="icon-xs"
+                class="absolute right-1 top-1 rounded-full bg-card shadow-edge"
+                onclick={(event) => {
+                  if (canInteract(event)) entry.removeFile(item.id);
+                }}><Icon icon="x" size={14} /></IconButton
+              >
+            </div>{/each}
+        </div>{/if}
+    {/snippet}
     {#snippet menu(close)}<Button
         variant="menu"
         role="menuitem"
@@ -562,7 +756,9 @@
           if (!canInteract(event)) return;
           close();
           fileInput?.click();
-        }}>{vb.t("Anexar arquivo")} <small>{vb.t("ou Cmd+V")}</small></Button
+        }}
+        ><Icon icon="paperclip" />{vb.t("Anexar arquivo")}
+        <small>{vb.t("ou Cmd+V")}</small></Button
       ><Button
         variant="menu"
         role="menuitem"
@@ -572,7 +768,17 @@
           const before = $draft.text.slice(0, caret);
           field?.insert(before && !/\s$/.test(before) ? " @" : "@");
           mentionClosed = false;
-        }}>{vb.t("Mencionar alguém")} @</Button
+        }}><Icon icon="at-sign" />{vb.t("Mencionar alguém")}</Button
+      ><Button
+        variant="menu"
+        role="menuitem"
+        onclick={(event) => {
+          if (!canInteract(event)) return;
+          close();
+          const before = $draft.text.slice(0, caret);
+          field?.insert(before && !/\s$/.test(before) ? " #" : "#");
+          mentionClosed = false;
+        }}><Icon icon="hash-02" />{vb.t("Mencionar sala")}</Button
       ><Button
         variant="menu"
         role="menuitem"
@@ -580,26 +786,8 @@
           if (!canInteract(event)) return;
           close();
           poll = true;
-        }}>{vb.t("Criar votação")}</Button
-      >{#if !thread.startsWith("pre:") && !room.briefs?.some((item) => item.thread === thread && !item.answered_at)}<Button
-          variant="menu"
-          role="menuitem"
-          class="md:hidden"
-          onclick={(event) => {
-            if (!canInteract(event)) return;
-            close();
-            void request({ t: "brief.ask", thread });
-          }}>{vb.t("O que precisa de mim aqui?")}</Button
-        >{/if}{/snippet}
-    {#snippet inside()}{#if !thread.startsWith("pre:") && !room.briefs?.some((item) => item.thread === thread && !item.answered_at)}<Button
-          variant="outline"
-          size="sm"
-          data-brief-ask
-          class="h-7 rounded-full px-2.5 text-xs text-muted-foreground hover:text-foreground"
-          onclick={(event) => {
-            if (canInteract(event)) void request({ t: "brief.ask", thread });
-          }}>{vb.t("O que precisa de mim aqui?")}</Button
-        >{/if}{/snippet}
+        }}><Icon icon="bar-chart-square-02" />{vb.t("Criar votação")}</Button
+      >{/snippet}
   </ChatField>
   <input
     bind:this={fileInput}

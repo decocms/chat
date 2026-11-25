@@ -5,6 +5,7 @@ import type { AccountSession, AccountBinding } from "../account/session";
 import { authClock, type AuthClock } from "../auth/owner";
 import {
   ONBOARDING_DONE,
+  ONBOARDING_SKIP_NAME,
   ONBOARDING_SKIP_CLAUDE,
   ONBOARDING_POLL,
   ONBOARDING_POLL_LIMIT,
@@ -43,6 +44,7 @@ export function createOnboardingSession(
   };
   let dismissed = stored(ONBOARDING_DONE),
     skipped = stored(ONBOARDING_SKIP_CLAUDE),
+    skippedName = stored(ONBOARDING_SKIP_NAME),
     back: OnboardingStep | null = null,
     connected = false,
     active = true,
@@ -211,7 +213,9 @@ export function createOnboardingSession(
     }
     const visible = !dismissed && (onboardingEligible(me, false) || creating),
       step =
-        nameTarget !== null ? 1 : onboardingStep(me, back, connected, skipped);
+        nameTarget !== null
+          ? 1
+          : onboardingStep(me, back, connected, skipped, skippedName);
     const changed = visible !== previousVisible || step !== previousStep;
     if (changed) {
       stopStep();
@@ -294,7 +298,7 @@ export function createOnboardingSession(
       if (creating && !value.busy && value.error) creating = false;
       sync();
     });
-  return {
+  const owner = {
     state,
     personal,
     profile,
@@ -367,6 +371,35 @@ export function createOnboardingSession(
       back = null;
       sync();
     },
+    skipName() {
+      if (!current() || get(state).step !== 1) return;
+      stopStep();
+      skippedName = true;
+      save(ONBOARDING_SKIP_NAME);
+      nameTarget = null;
+      back = null;
+      sync();
+    },
+    /** "Pular" in the dialog's footer: this step is left for later; the last one finishes. */
+    skip(): void {
+      const value = get(state);
+      if (!current() || !value.visible) return;
+      switch (value.step) {
+        case 1:
+          owner.skipName();
+          return;
+        case 2:
+          owner.skipClaude();
+          return;
+        case 3:
+          owner.skipHome();
+          return;
+        default: {
+          const never: never = value.step;
+          throw new Error(`Unknown onboarding step ${String(never)}`);
+        }
+      }
+    },
     skipHome() {
       if (!current()) return;
       dismissed = true;
@@ -407,5 +440,6 @@ export function createOnboardingSession(
       releaseCreator();
     },
   };
+  return owner;
 }
 export type OnboardingSession = ReturnType<typeof createOnboardingSession>;

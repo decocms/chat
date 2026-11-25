@@ -1,10 +1,14 @@
 // Runtime schemas for what the browser sends the Worker: the TypeScript types are derived from them, so a schema
 // edit changes every consumer's type. Browser-safe: zod/mini only, no Worker or database types.
 import * as z from "zod/mini";
+import { ClientIdSchema } from "./commands";
+import { AckSchema, MessageSchema } from "./room";
 
 export const PostMessageBody = z.object({
   text: z.string(),
   thread: z.optional(z.string()),
+  // The send's random id, the same on each retry: the server answers a retry with the first message (Book.byClientId).
+  client_id: z.optional(ClientIdSchema),
 });
 export type PostMessageBody = z.infer<typeof PostMessageBody>;
 
@@ -106,7 +110,7 @@ export const SearchResult = z.object({
     z.object({
       id: z.string(),
       title: z.string(),
-      archived: z.boolean(),
+      done: z.boolean(),
       ts: z.number(),
       room_id: z.string(),
       room: z.string(),
@@ -157,6 +161,80 @@ export const DecideRequestBody = z.object({
 });
 export const AccessResult = z.object({ member: z.boolean() });
 export type AccessResult = z.infer<typeof AccessResult>;
+/** GET /api/books/:id/messages: one page of a thread, by message id (ids only grow, so a cursor never breaks).
+ *  before = scroll back, after = what came since, neither = the newest. Stateless: the answer is the truth now. */
+export const MessagesQuery = z.object({
+  thread: z._default(z.string().check(z.minLength(1), z.maxLength(64)), "main"),
+  before: z.optional(z.coerce.number().check(z.positive())),
+  after: z.optional(z.coerce.number().check(z.nonnegative())),
+  limit: z._default(z.coerce.number().check(z.positive(), z.lte(100)), 50),
+});
+export type MessagesQuery = z.infer<typeof MessagesQuery>;
+export const MessagesPage = z.object({
+  thread: z.string(),
+  messages: z.array(MessageSchema),
+  /** The page's acks: the room's state carries only the loaded messages' ones. */
+  acks: z.array(AckSchema),
+  /** More messages on the far side of the page (older for before/newest, newer for after). */
+  more: z.boolean(),
+});
+export type MessagesPage = z.infer<typeof MessagesPage>;
+/** GET /api/books/:id/room: the room's snapshot over HTTP (a light socket's first read). The same params as the room
+ *  socket's: t = the open thread; since, at, eh = the room the app already has (Book.resumeOf, which checks them). */
+export const RoomStateQuery = z.object({
+  t: z._default(z.string().check(z.minLength(1), z.maxLength(64)), "main"),
+  since: z.optional(z.coerce.number().check(z.positive())),
+  at: z.optional(z.coerce.number().check(z.positive())),
+  eh: z.optional(z.string().check(z.maxLength(64), z.regex(/^[\w-]*$/))),
+});
+export type RoomStateQuery = z.infer<typeof RoomStateQuery>;
+/** GET /api/books/:id/link: where a link to this app goes (a chip in the chat, web/features/rich-text/AppLinkChip).
+ *  m = a message (#m), t = a thread (?t=, #e, #doc:); neither = the room. */
+export const LinkQuery = z.object({
+  t: z.optional(z.string().check(z.minLength(1), z.maxLength(64))),
+  m: z.optional(z.coerce.number().check(z.positive())),
+});
+export type LinkQuery = z.infer<typeof LinkQuery>;
+/** Only for a member, and only what the chip draws. Everything else (not a member, no such room, thread or message,
+ *  a message hidden from you) is the same `private`, so the answer never tells which one it was. */
+export const LinkResolution = z.union([
+  z.object({
+    kind: z.literal("message"),
+    room: z.string(),
+    id: z.number(),
+    thread: z.string(),
+    author: z.string(),
+    name: z.string(),
+    avatar: z.nullable(z.number()),
+    /** The message's thread title; null = main (the chip shows the room's title) or the call chat. */
+    threadTitle: z.nullable(z.string()),
+    roomTitle: z.string(),
+  }),
+  z.object({
+    kind: z.literal("thread"),
+    room: z.string(),
+    thread: z.string(),
+    /** Empty for the call chat (the chip says "Chat da call"). */
+    title: z.string(),
+    owner: z.nullable(z.string()),
+    ownerName: z.nullable(z.string()),
+  }),
+  z.object({
+    kind: z.literal("room"),
+    room: z.string(),
+    title: z.string(),
+    icon: z.nullable(z.number()),
+  }),
+  z.object({
+    kind: z.literal("dm"),
+    room: z.string(),
+    email: z.string(),
+    name: z.string(),
+    avatar: z.nullable(z.number()),
+  }),
+  z.object({ kind: z.literal("private") }),
+]);
+export type LinkResolution = z.infer<typeof LinkResolution>;
 
 // Your name, new rooms and the home's router.
 export const SetNameBody = z.object({ name: z.optional(z.string()) });
@@ -430,6 +508,12 @@ export const MeBook = z.object({
   /** A DM's other person's name and picture version (null in rooms and your own DM): your other lists may not know them. */
   peer_name: z.optional(str),
   peer_avatar: z.optional(num),
+  /** The newest message, for the phone's list of rooms: its author (an email, or "ai" for @vibe), that person's name and its start. */
+  last_by: z.optional(str),
+  last_by_name: z.optional(str),
+  last_text: z.optional(str),
+  /** 1 = that person's agent wrote it. */
+  last_agent: z.optional(num),
 });
 export const MeFriend = z.object({
   email: z.string(),
@@ -478,6 +562,8 @@ export const MePerson = z.object({
   avatar: num,
   /** The rooms you share, newest first (≤2 titles). */
   rooms: z.array(z.string()),
+  /** A colleague: your company email domain, with no room shared (Gimenes #5006). */
+  domain: z.optional(z.boolean()),
 });
 export type MePerson = z.infer<typeof MePerson>;
 /** Writing to someone: `id` = the DM, open now; no id = it went as a message request. */
@@ -495,7 +581,8 @@ export type MeFriendRequest = z.infer<typeof MeFriendRequest>;
 export const MeWait = z.object({
   book_id: z.string(),
   room: z.string(),
-  /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you. */
+  /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you, e<epic> an open thread
+   *  you own (text status|done/total, author "ai" once @vibe called you about it: shared/threadWait.ts). */
   ref: z.string(),
   thread: z.string(),
   topic: str,
@@ -556,6 +643,8 @@ export const InboxResult = z.object({
   waits: z.array(MeWait),
   mentions: z.array(InboxMention),
   tasks: z.array(InboxTask),
+  /** Every open thread you own (waits e<epic>), quiet ones too: the Inbox's "Suas threads". */
+  threads: z.optional(z.array(MeWait)),
 });
 export type InboxResult = z.infer<typeof InboxResult>;
 
@@ -726,6 +815,33 @@ export const AiSpend = z.object({
 });
 export type AiSpend = z.infer<typeof AiSpend>;
 
+/** The infra monitor's windows (days). */
+export const InfraWindow = z.union([
+  z.literal(7),
+  z.literal(14),
+  z.literal(30),
+]);
+export type InfraWindow = z.infer<typeof InfraWindow>;
+/** The Worker and the site, per UTC day, for 2 × window days (this window and the one before), oldest first
+ *  (src/reports.ts infraMonitor). worker_error: Cloudflare failed, so the Worker numbers are missing, not zero. */
+export const InfraMonitor = z.object({
+  window: InfraWindow,
+  days: z.array(
+    z.object({
+      day: z.string(),
+      requests: z.nullable(z.number()),
+      errors: z.nullable(z.number()),
+      bytes: z.nullable(z.number()),
+      cpu_p50_ms: z.nullable(z.number()),
+      wall_p50_ms: z.nullable(z.number()),
+      visitors: z.number(),
+    }),
+  ),
+  worker_error: z.nullable(z.string()),
+  generated_at: z.string(),
+});
+export type InfraMonitor = z.infer<typeof InfraMonitor>;
+
 export const SttQuery = z.object({
   lang: z.optional(z.string()),
   prompt: z.optional(z.string()),
@@ -736,6 +852,91 @@ export const SttResult = z.object({
   text: z.string().check(z.maxLength(65536)),
 });
 export type SttResult = z.infer<typeof SttResult>;
+// The room's call (src/calls.ts): the browser's WebRTC negotiation with the SFU goes through these routes.
+export const CallJoinResult = z.object({ session: z.string() });
+/** POST /api/calls/recorded, from the recorder Worker: the call of this room is in Grain at this address. */
+export const RecordedBody = z.object({
+  room: z.string().check(z.regex(/^[a-z0-9]{6,40}$/)),
+  /** Missing, with `error`: the recording failed. */
+  url: z.optional(
+    z.string().check(z.regex(/^https:\/\/grain\.com\/[\w\-/.?=&%]{1,400}$/)),
+  ),
+  error: z.optional(z.string().check(z.maxLength(300))),
+  minutes: z.optional(z.number()),
+  people: z.optional(
+    z.array(z.string().check(z.maxLength(80))).check(z.maxLength(100)),
+  ),
+  /** Who said what: `start` is seconds from the start of the recording. */
+  transcript: z.optional(
+    z
+      .array(
+        z.object({
+          name: z.string().check(z.maxLength(80)),
+          start: z.number(),
+          text: z.string().check(z.maxLength(4000)),
+        }),
+      )
+      .check(z.maxLength(20000)),
+  ),
+});
+export type RecordedBody = z.infer<typeof RecordedBody>;
+export type CallJoinResult = z.infer<typeof CallJoinResult>;
+export const CallDescription = z.object({
+  type: z.enum(["offer", "answer"]),
+  sdp: z.string().check(z.maxLength(200_000)),
+});
+export type CallDescription = z.infer<typeof CallDescription>;
+const callName = z.string().check(z.regex(/^[a-z]{1,16}$/));
+const callId = z.string().check(z.regex(/^[\w-]{1,128}$/));
+/** push: tracks of mine, by the transceiver's mid (needs `offer`). pull: tracks of others in the call. */
+export const CallTracksBody = z.object({
+  session: callId,
+  offer: z.optional(CallDescription),
+  push: z.optional(
+    z
+      .array(
+        z.object({ mid: z.string().check(z.maxLength(16)), name: callName }),
+      )
+      .check(z.maxLength(4)),
+  ),
+  pull: z.optional(
+    z
+      .array(z.object({ session: callId, name: callName }))
+      .check(z.maxLength(64)),
+  ),
+});
+export type CallTracksBody = z.infer<typeof CallTracksBody>;
+export const CallAnswerBody = z.object({
+  session: callId,
+  answer: CallDescription,
+});
+export const CallCloseBody = z.object({
+  session: callId,
+  mids: z.array(z.string().check(z.maxLength(16))).check(z.maxLength(64)),
+  names: z.optional(z.array(callName)),
+});
+/** Hanging up (POST /api/books/:id/call/leave): this session leaves the call, and no other session of the person. */
+export const CallLeaveBody = z.object({ session: callId });
+/** What the SFU answers to a tracks request. A pull comes with an offer the browser must answer at once. */
+export const CallSfuResult = z.object({
+  sessionDescription: z.optional(z.nullable(CallDescription)),
+  requiresImmediateRenegotiation: z.optional(z.nullable(z.boolean())),
+  tracks: z.optional(
+    z.nullable(
+      z.array(
+        z.object({
+          mid: z.optional(z.nullable(z.string())),
+          trackName: z.optional(z.nullable(z.string())),
+          sessionId: z.optional(z.nullable(z.string())),
+          errorCode: z.optional(z.nullable(z.string())),
+        }),
+      ),
+    ),
+  ),
+});
+export type CallSfuResult = z.infer<typeof CallSfuResult>;
+/** A screen share refused because the month's traffic budget is spent (409). */
+export const CALL_LIMIT = "call screen limit";
 export const STT_AUDIO_MAX = 4_000_000;
 
 // A person's profile (Gui #3526): what they and their Claudes did, as stats and a title (shared/titles.ts). Never the
@@ -770,3 +971,8 @@ export const ProfileSettingsResult = z.object({
   public: z.boolean(),
 });
 export type ProfileSettingsResult = z.infer<typeof ProfileSettingsResult>;
+/** Your @handle (Settings › Profile): 2–24 of a-z, 0-9, ".", "_", "-", unique across the app. */
+export const HANDLE_RE = /^[a-z0-9][a-z0-9._-]{1,23}$/;
+export const SetHandleBody = z.object({ handle: z.string() });
+export const SetHandleResult = z.object({ handle: z.string() });
+export type SetHandleResult = z.infer<typeof SetHandleResult>;

@@ -21,7 +21,7 @@ export function productionStatuses(
     const prod = epic.prod;
     if (!prod) continue;
     const changed =
-      !epic.archived &&
+      !epic.done &&
       typeof prod.at === "number" &&
       (updates.get(epic.id) ?? -Infinity) > prod.at;
     result.set(

@@ -61,7 +61,7 @@ const room = (
   suggestions: [],
   doc: "# Room\n\nOriginal",
   docs: { epic: "# Epic\n\nText" },
-  epics: [{ id: "epic", title: "Epic", tasks: [], archived: false }],
+  epics: [{ id: "epic", title: "Epic", tasks: [], done: false }],
 });
 const context = (policy?: RichContext["policy"]): RichContext => ({
   room: room(),

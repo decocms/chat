@@ -8,27 +8,48 @@ The room screen has five areas, from left to right.
 
 | Area | Component | Contents |
 |---|---|---|
-| Rail | `AppNavigation` | Your rooms, search, new room. |
-| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), the views (main thread, Inbox, task board), the epics, the people. |
+| Rail | `AppNavigation` | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room. |
+| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), which is also the main thread, then the epics in three tabs (Mine, Open, Done; `EpicTree`) and the people. At the bottom: the user center (`UserCenter`). |
 | Top bar | `RoomHeader` (room-shell) | The name of the view, the controls of the view, the pane tabs. |
-| Main view | `RoomScene` overlay or chat | The chat of a thread, the Inbox (`RoomInbox`) or the full task board. |
-| Pane | `DocumentToolbar` and the pane | The doc, the files, the apps, the board, beside the main view. |
+| Main view | `RoomScene` | The chat of a thread. |
+| Pane | `DocumentToolbar` and the pane | The doc, the files, the apps, beside the main view. |
 
 The sidebar names the room. The top bar names the view. Do not show the room's name two times.
+
+A room has no Inbox of its own. The Inbox is global: the home's page at `/?inbox` (`HomeInbox`, which draws `RoomInbox`). Desktop opens it from the rail. Do not add an Inbox entry to a room.
+
+## The user center
+
+The user center (`web/features/user-center/`, `UserCenter`) is the box at the bottom of the sidebar, in a room and on the home. It shows what is about the person, not about a room.
+
+- Each item is one row in the box: an icon tile, a title, one line under it and, if necessary, one button on the right. The rows have the same height and the same background as "Your agent" (`AgentFoot`) and your account (`AccountRow`).
+- The new version (`UpdateRow`) is the only row with the brand color.
+- The order is: the new version, then the person's notices, then "Your agent", then the person.
+- A notice row goes away when the person does its action.
+- Do not put a notice about a room in the user center. For example, a request to join a room stays in the room.
 
 ## The top bar
 
 The top bar has one row on desktop. Its parts are in this order:
 
-1. The name of the view (`RoomBarTitle`): "Sala principal", the epic's title, "Caixa de entrada", "Quadro de tarefas".
+1. The name of the view (`RoomBarTitle`): the epic's title. In a room's main thread, the room's search field is here in place of the name.
 2. The controls of the view.
 3. A vertical `Separator`.
-4. The room's search field ("Buscar nesta sala"). Typing opens the Search pane beside the chat with the matches. Not in a DM.
+4. In other views, the room's search field. Typing opens the Search pane beside the chat with the matches. Its placeholder is "Buscar em {room}". In a DM it is "Buscar na conversa".
 5. The pane tabs (`DocumentToolbar`): Doc, files, apps, decisions, reminders, People & agents. They are 32px buttons in the top bar (`size="icon"`, Doc `size="default"`).
 
-People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. Closing the Doc opens People & agents; closing People & agents closes the pane. The browser remembers which of the two you left open (and whether you closed the pane), so every room opens the same way. A DM always starts on its doc.
+People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. Each pane button is a toggle: a click on the button of the open pane (the Doc too) closes the pane. The browser remembers which of the two you left open (and whether you closed the pane), so every room opens the same way. A DM always starts on its doc.
 
 The separator divides two scopes. On its left, the controls change the view in the middle. On its right, the controls open parts of the room.
+
+### The top bar on phones
+
+The phone layout is A2 (Gimenes #4309, #4331):
+
+1. ← goes back to the home. The title (thread, then room) with ▾ opens the drawer with the threads.
+2. At the end of the bar, a room shows the avatars of the other people, online first: two faces, then "+N". A tap opens People. A DM shows your account there.
+3. Under the bar, a strip is always there: Doc, Arquivos, Decisões, Lembretes (`phoneStripPanes`). A DM has no Doc. A tap opens that pane in the doc sheet. While the sheet is open, the sheet's own tab row takes the strip's place.
+4. The drawer's tab row keeps only Apps and Agents (`phoneDrawerPanes`).
 
 ### Controls of the view
 
@@ -44,7 +65,7 @@ A control of the view acts on all of the view, not on one item in it. Examples: 
 
 To add controls for a view:
 
-1. Write one component for the controls, in the folder of the view. Example: `web/features/application/InboxControls.svelte`.
+1. Write one component for the controls, in the folder of the view. Example: `web/features/application/InboxControls.svelte` (in `HomeInbox`).
 2. In `RoomScene`, give that component to `RoomHeader` as the `viewControls` snippet.
 3. Give `viewControls` only while the view is open.
 4. On phones, draw the same component at the top of the view, with `md:hidden`.
@@ -53,10 +74,21 @@ The top bar on phones has no space for the controls of a view. That is why the v
 
 | View | Controls of the view | Component |
 |---|---|---|
-| Epic thread | ✎ Rename, Archive, 🗑 Delete | `EpicActions` (`bar`), in `RoomBarTitle` |
-| Inbox | "Esta sala" / "Todas as salas", "Resolver todos os pedidos (n)" | `InboxControls`, in the `viewControls` slot |
+| Epic thread | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions`, in `RoomBarTitle`. Phones have no status control (Gimenes #4065). |
 | Home Inbox (`/?inbox`, all rooms) | "Resolver todos os pedidos (n)" | `InboxControls`, in the bar of `HomeInbox` |
-| Main thread, task board | None | |
+| Each thread of a room, when calls are on and the room has no call | "Iniciar call" | `CallControls`, from `RoomScene`. Phones draw it above the chat. |
+
+### The call
+
+While a person is in the room's call, the call takes the view (`CallStage`, the `stage` of `RoomLayout`):
+
+1. Desktop: the stage is at the left and the chat is a column at the right. The sidebar goes to its rail and the pane closes. When the person leaves the call, the sidebar and the pane come back as they were.
+2. The stage shows the shared screen, or a grid of the people (camera or face). A click on a person puts that person on the stage, with the others in a row of small tiles.
+3. The controls are under the stage, with their text: microphone, camera, screen, full screen, chat, leave. They are not in the top bar, because they are more than three.
+4. A green ring marks who speaks. An icon marks a microphone that is off and a screen that is shared.
+5. Full screen is the room's layout without the sidebar and the top bar, so that the chat can open beside the stage.
+6. Phones: the stage is above the chat.
+7. A person who is not in a call that is on gets one line above the chat: who is there, and "Entrar na call (n)".
 
 ### What does not go in the top bar
 
@@ -80,6 +112,7 @@ A list of items to act on (the Inbox) follows these rules.
 ## Feedback
 
 1. While a list loads for the first time, show `Skeleton` rows with the shape of the real rows. Do not show only the word "Carregando…".
+   - A loading view takes its shapes from the same place as the real view: `composer/shape.ts` for the composer, `room-shell/shape.ts` for messages and epic rows. A loading room opens its pane as the room will (`documentClosedBefore` in `room-layout/model.ts`). If you change a shape, change it there.
 2. While an action runs, show a `Spinner` in its button and disable the button.
 3. When an item leaves a list, animate it out (`slide`, about 200 ms). Do not let it disappear in one frame.
 4. If the person set `prefers-reduced-motion`, set the duration of each animation to 0.

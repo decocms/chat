@@ -33,21 +33,18 @@ export type SidebarProps = {
   ontogglerail?: () => void;
   onrenameroom?: () => void;
   onopenside?: () => void;
-  oninbox?: (trigger?: HTMLElement) => void;
-  inboxOpen?: boolean;
-  /** Desktop: the room's views under the main thread (chat, inbox, board); toggles the full board. */
-  onboard?: () => void;
-  boardOpen?: boolean;
-  /** Your open tasks here (the board row's count) and what waits on you (the inbox row's). */
-  boardCount?: number | string;
-  inboxCount?: number;
-  onthreadintent?: () => boolean;
-  /** Desktop: the room's name or icon at the top brings the chat back. */
-  onroomhome?: () => void;
   /** Mounts the phone sheet's grab handle; returns its cleanup. */
   mountSheetHandle?: (node: HTMLElement) => () => void;
   /** RoomLayout draws the phone grab handle itself. */
   hideSheetHandle?: boolean;
+  /** Phones: the room's shortcuts (Doc, Board, Files, Agents, Search) at the top of the title menu. */
+  phoneMenu?: import("svelte").Snippet;
+  /** Phones: your avatar (a link to Settings) at the end of the room's row in the drawer. */
+  phoneAccount?: import("svelte").Snippet;
+  /** The room's call while one is on: a row under the room's name (a green phone in the narrow rail). */
+  call?: import("svelte").Snippet<[collapsed: boolean]>;
+  /** The call I am in, right above the foot (CallPanel); in the narrow rail, a green phone over the foot. */
+  callPanel?: import("svelte").Snippet<[collapsed: boolean]>;
   /** Desktop: pinned to the bottom of the sidebar (you and your Claude). */
   /** The foot: your agent, then (desktop) `rows` = your agents' rows, then you. */
   footer?: import("svelte").Snippet<
@@ -58,7 +55,10 @@ export type SidebarProps = {
   send: SendRoomCommand;
   request: RequestRoomCommand;
   onopen: (id: string) => void;
-  onarchchange: (archived: boolean) => void;
+  /** The person picked a threads tab (Mine, Open, Done). */
+  onviewchange: (
+    view: import("../features/navigation/model").ThreadView,
+  ) => void;
   navigation: NavigationSession;
   pins: PinsSession;
   onopenpinfile: (file: Attachment) => void;

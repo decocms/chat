@@ -1,7 +1,7 @@
 import { AgentDbRow, MachineDbRow, UploadHeaders } from "./apiServerSchemas";
 import { DELIVERS, deliveryJoins, MACHINE_FRESH, sandboxMachine } from "./delivery";
 import { requestBytes, RequestBytesError } from "./requestBytes";
-import { SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/schemas";
+import { SttQuery, SttResult, CallJoinResult, CallTracksBody, CallAnswerBody, CallCloseBody, CallLeaveBody, CALL_LIMIT, type CallSfuResult, type CallDescription, type CallTracksBody as CallTracksBodyType, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
 import { isDmId } from "../shared/dm";
@@ -43,6 +43,8 @@ import {
   type AgentsResult,
   type ProfileResult,
   ProfileSettingsBody,
+  SetHandleBody,
+  type SetHandleResult,
   type ProfileSettingsResult,
   ClaudeTokenBody,
   type ConnectedResult,
@@ -56,6 +58,11 @@ import {
   TextBody,
   type AccessRequestResult,
   type AccessResult,
+  MessagesQuery,
+  type MessagesPage,
+  RoomStateQuery,
+  LinkQuery,
+  type LinkResolution,
   ClaudeToggleBody,
   DeliveryBody,
   type DeliveryResult,
@@ -97,7 +104,10 @@ import {
   type ConsentError,
   type RouterStats,
   type AiSpend,
+  type InfraMonitor,
+  InfraWindow,
 } from "../shared/schemas";
+import type { RoomStateEvent } from "../shared/events";
 
 export type Bind = string | number | null;
 /** What the typed routes may do, bound to the signed-in person. Authorization stays in each route (isMember). */
@@ -108,7 +118,24 @@ export interface ApiServices {
   isMember(roomId: string): Promise<boolean>;
   allowStt():Promise<boolean>;
   transcribe(audio:Uint8Array,query:SttQueryType):Promise<unknown>;
-  humanPost(roomId: string, text: string, thread: string): Promise<PostMessageResult>;
+  /** The room's call (src/calls.ts). Each one checks that the session is the signed-in person's. */
+  callsOn: boolean;
+  allowCall(): Promise<boolean>;
+  callJoin(roomId: string, thread: string): Promise<CallJoinResult>;
+  callTracks(roomId: string, body: CallTracksBodyType): Promise<CallSfuResult | "forbidden" | "limit">;
+  callAnswer(roomId: string, session: string, answer: CallDescription): Promise<boolean>;
+  callClose(roomId: string, session: string, mids: string[], names: string[]): Promise<boolean>;
+  /** Hang up: this session leaves the room's call at once (the socket's call.leave can be lost on a reconnect). */
+  callLeave(roomId: string, session: string): Promise<void>;
+  /** A DM's call rings me: I say no (the ring stops; the caller stays in the call). */
+  callDecline(roomId: string): Promise<void>;
+  humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
+  /** One page of a thread (GET /api/books/:id/messages). The route checks membership first. */
+  roomMessages(roomId: string, query: MessagesQuery): Promise<MessagesPage>;
+  /** The room's snapshot, the socket's `state` (GET /api/books/:id/room). The route checks membership first. */
+  roomState(roomId: string, query: RoomStateQuery): Promise<RoomStateEvent>;
+  /** Where a link to this app goes (GET /api/books/:id/link): `private` unless you are a member (src/linkTarget.ts). */
+  linkTarget(roomId: string, query: LinkQuery): Promise<LinkResolution>;
   /** Validates type/size/secrets and stores the file; throws an Error whose message is user-facing. */
   storeFile(roomId: string, type: string, body: ArrayBuffer, name: string): Promise<UploadFileResult>;
   fileTypes: readonly string[];
@@ -122,6 +149,8 @@ export interface ApiServices {
   track(name: string, dims?: Record<string, string | number | boolean | undefined>): void;
   /** Tell the person's other tabs and devices to refetch /api/me (after the response). */
   pokeMe(): void;
+  /** You cleared one wait (the Inbox's ✓): the room checks if the router read it, for a suggested case (after the response). */
+  waitCleared(bookId: string, ref: string): void;
   vapidKey: string | null;
   /** Push to your devices; with `endpoint`, only to that one device. */
   pushToMe(p: { title: string; body: string; url: string; tag: string }, endpoint?: string): Promise<number>;
@@ -129,8 +158,10 @@ export interface ApiServices {
   sqlAll(query: string, ...binds: Bind[]): Promise<unknown[]>;
   /** Search the person's rooms (rate-limited per person: false = over the limit). */
   search(q: string): Promise<SearchResult | false>;
-  /** The cross-room Inbox: waits, held-back mentions, and the person's open tasks. */
+  /** The cross-room Inbox: waits, held-back mentions, the person's open tasks and open threads. */
   inbox(): Promise<InboxResult>;
+  /** Mark an open thread done from the Inbox; false = no such open thread. */
+  threadDone(roomId: string, epicId: string): Promise<boolean>;
   isEmail(s: string): boolean;
   /** Write to someone: `id` = the DM is open (a room in common, a connection, or their request accepted); `{}` = it
    *  went as a message request. Never says whether the email has an account. */
@@ -209,9 +240,13 @@ export interface ApiServices {
   routerStats(roomId?: string): Promise<RouterStats>;
   /** Turn your public profile page (/u/<handle>) on or off (src/profile.ts). */
   setProfilePublic(on: boolean): Promise<ProfileSettingsResult>;
+  /** Change your @handle (unique); "taken" when someone has it. */
+  setHandle(handle: string): Promise<{ handle: string } | { error: "invalid" | "taken" }>;
   /** vibebook's model spend (src/reports.ts aiSpend), only for members of the report rooms (METRICS_ROOMS). */
   reportRoom(roomId: string): boolean;
   aiSpend(): Promise<AiSpend>;
+  /** The Worker and the site per day (src/reports.ts infraMonitor), same rooms and people as aiSpend. */
+  infraMonitor(window: InfraWindow): Promise<InfraMonitor>;
   consentContext(): Promise<{ context: ConsentContext; headers: [string, string][] } | (ConsentError & { status: 400 })>;
 }
 /** A failed connection call and its status; sign_in = sign in on that server first (401). */
@@ -253,6 +288,7 @@ export function testPush(en: boolean, name: string | null) {
 }
 const ok = { ok: true as const } satisfies OkResult;
 const forbidden = { error: "forbidden" } satisfies ErrorBody;
+const sfuDown = (error: unknown) => ({ error: (error instanceof Error ? error.message : String(error)).slice(0, 200) }) satisfies ErrorBody;
 
 const roomPosts = new Hono<ApiCtx>()
   .post(
@@ -264,8 +300,8 @@ const roomPosts = new Hono<ApiCtx>()
     async (c) => {
       const svc = c.get("svc"), id = c.req.param("id");
       if (!(await svc.isMember(id))) return c.json({ ok: false as const, error: "forbidden" } satisfies PostMessageResult, 403);
-      const { text, thread } = c.req.valid("json");
-      const out = await svc.humanPost(id, text, thread || "main");
+      const { text, thread, client_id } = c.req.valid("json");
+      const out = await svc.humanPost(id, text, thread || "main", client_id);
       if (!out.ok) return c.json({ ok: false as const, error: out.error } satisfies PostMessageResult, 400);
       svc.track("home_route_sent", { book: id, epic: out.thread !== "main" });
       return c.json({ ok: true as const, id: out.id, thread: out.thread } satisfies PostMessageResult, 200);
@@ -328,6 +364,7 @@ export const api = roomPosts
     const { book_id, ref } = c.req.valid("json"), svc = c.get("svc");
     await svc.sql(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, book_id, ref, c.get("email"));
     svc.pokeMe(); // your other tabs and devices
+    svc.waitCleared(book_id, ref);
     svc.track("wait_resolved", { book: book_id });
     return c.json(ok, 200);
   })
@@ -337,6 +374,14 @@ export const api = roomPosts
     await svc.sqlBatch(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, items.map((item) => [item.book_id, item.ref, email]));
     svc.pokeMe();
     svc.track("wait_resolved", { n: items.length, many: 1 });
+    return c.json(ok, 200);
+  })
+  // "Marcar como feita" on an open thread in the Inbox: the thread is done, as from its own bar (src/book.ts inboxDone).
+  .post("/api/books/:id/threads/:epic/done", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    if (!(await svc.threadDone(id, c.req.param("epic")))) return c.json({ error: "no open thread" } satisfies ErrorBody, 404);
+    svc.pokeMe();
     return c.json(ok, 200);
   })
   // The rail's order, per person (drag a tile).
@@ -363,6 +408,22 @@ export const api = roomPosts
     const { archived } = c.req.valid("json");
     await svc.sql(`UPDATE members SET archived_at = ? WHERE book_id = ? AND email = ?`, archived === false ? null : Date.now(), id, c.get("email"));
     svc.track(archived === false ? "book_restored" : "book_archived", { book: id });
+    return c.json(ok, 200);
+  })
+  // "Mark as read" in a room's menu: everything in the room up to now, for you only.
+  .post("/api/books/:id/read", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    await svc.sql(
+      `INSERT INTO human_reads (email, book_id, last_id) SELECT ?, id, coalesce(last_msg_id, 0) FROM books WHERE id = ? ON CONFLICT(email, book_id) DO UPDATE SET last_id = max(last_id, excluded.last_id)`,
+      c.get("email"),
+      id,
+    );
+    // Like Discord's: marking the room read also clears what waited on you there (asks, reviews), so its number goes.
+    // Your open threads (e<epic>) stay: reading is not closing them.
+    await svc.sql(`DELETE FROM waits WHERE book_id = ? AND email = ? AND ref NOT LIKE 'e%'`, id, c.get("email"));
+    svc.pokeMe(); // your other tabs and devices
+    svc.track("book_marked_read", { book: id });
     return c.json(ok, 200);
   });
 
@@ -479,6 +540,68 @@ export const roomApi = accountApi
     svc.track(on ? "delivery_on" : "delivery_off", { book: id, which: all ? "all" : machine ? "machine" : "agent" });
     return c.json({ ok: true as const } satisfies DeliveryResult, 200);
   })
+  // The room's call (src/calls.ts): the browser negotiates WebRTC with the SFU through these routes.
+  .post("/api/books/:id/call/join", validator("query", (value) => ({ thread: (Array.isArray(value.thread) ? value.thread[0] : value.thread) ?? "main" })), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    if (!svc.callsOn) return c.json({ error: "calls are off" } satisfies ErrorBody, 404);
+    if (!(await svc.allowCall())) return c.json({ error: "rate limited: wait a minute" } satisfies ErrorBody, 429);
+    try {
+      const out = await svc.callJoin(id, c.req.valid("query").thread.slice(0, 80));
+      svc.track("call_join", { book: id });
+      return c.json(out satisfies CallJoinResult, 200);
+    } catch (error) {
+      return c.json(sfuDown(error), 502);
+    }
+  })
+  .post("/api/books/:id/call/tracks", body(CallTracksBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    try {
+      const body = c.req.valid("json"), out = await svc.callTracks(id, body);
+      if (out === "forbidden") return c.json(forbidden, 403);
+      if (out === "limit") {
+        svc.track("call_screen_limit", { book: id });
+        return c.json({ error: CALL_LIMIT } satisfies ErrorBody, 409);
+      }
+      if (body.push?.some((p) => p.name === "screen")) svc.track("call_screen", { book: id });
+      return c.json(out satisfies CallSfuResult, 200);
+    } catch (error) {
+      return c.json(sfuDown(error), 502);
+    }
+  })
+  .post("/api/books/:id/call/answer", body(CallAnswerBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    try {
+      const { session, answer } = c.req.valid("json");
+      return (await svc.callAnswer(id, session, answer)) ? c.json(ok, 200) : c.json(forbidden, 403);
+    } catch (error) {
+      return c.json(sfuDown(error), 502);
+    }
+  })
+  .post("/api/books/:id/call/close", body(CallCloseBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    try {
+      const { session, mids, names } = c.req.valid("json");
+      return (await svc.callClose(id, session, mids, names ?? [])) ? c.json(ok, 200) : c.json(forbidden, 403);
+    } catch (error) {
+      return c.json(sfuDown(error), 502);
+    }
+  })
+  .post("/api/books/:id/call/leave", body(CallLeaveBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    await svc.callLeave(id, c.req.valid("json").session);
+    return c.json(ok, 200);
+  })
+  .post("/api/books/:id/call/decline", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    await svc.callDecline(id);
+    return c.json(ok, 200);
+  })
   .post("/api/books/:id/stt", validator("query",(value,c)=>{
     const r=SttQuery.safeParse({lang:Array.isArray(value.lang)?value.lang[0]:value.lang,prompt:Array.isArray(value.prompt)?value.prompt[0]:value.prompt});
     return r.success?r.data:c.json({ok:false as const,error:"bad request"},400);
@@ -523,6 +646,49 @@ export const roomApi = accountApi
     svc.track(approve ? "access_approved" : "access_denied", { book: id });
     return c.json(ok, 200);
   })
+  .get(
+    "/api/books/:id/messages",
+    validator("query", (value, c) => {
+      const r = MessagesQuery.safeParse(value);
+      return r.success ? r.data : c.json({ error: "invalid query" } satisfies ErrorBody, 400);
+    }),
+    async (c) => {
+      const svc = c.get("svc"), id = c.req.param("id");
+      if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+      c.header("Cache-Control", "private, no-store");
+      return c.json((await svc.roomMessages(id, c.req.valid("query"))) satisfies MessagesPage, 200);
+    },
+  )
+  // The room's snapshot over HTTP, compressed (a WebSocket frame is not): a light socket (lite=1) sends only hello and
+  // the app reads this. The same `state` event as the socket sends; room_state beside ws_state compares them.
+  .get(
+    "/api/books/:id/room",
+    validator("query", (value, c) => {
+      const r = RoomStateQuery.safeParse(value);
+      return r.success ? r.data : c.json({ error: "invalid query" } satisfies ErrorBody, 400);
+    }),
+    async (c) => {
+      const svc = c.get("svc"), id = c.req.param("id");
+      if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+      const started = Date.now();
+      const state = await svc.roomState(id, c.req.valid("query"));
+      svc.track("room_state", { book: id, bytes: JSON.stringify(state).length, ms: Date.now() - started, resume: state.resume ? (state.epicsSame ? "same" : "epics") : c.req.valid("query").since ? "full" : undefined });
+      c.header("Cache-Control", "private, no-store");
+      return c.json(state satisfies RoomStateEvent, 200);
+    },
+  )
+  .get(
+    "/api/books/:id/link",
+    validator("query", (value, c) => {
+      const r = LinkQuery.safeParse(value);
+      return r.success ? r.data : c.json({ error: "invalid query" } satisfies ErrorBody, 400);
+    }),
+    async (c) => {
+      // No 403 for a non-member: the answer is the same `private` as for a room that doesn't exist.
+      c.header("Cache-Control", "private, no-store");
+      return c.json((await c.get("svc").linkTarget(c.req.param("id"), c.req.valid("query"))) satisfies LinkResolution, 200);
+    },
+  )
   .get("/api/books/:id/access", async (c) => c.json({ member: await c.get("svc").isMember(c.req.param("id")) } satisfies AccessResult, 200));
 
 const tooManyAsks = (en: boolean) => ({ error: en ? "Too many requests in a row. Wait a minute." : "Muitos pedidos seguidos. Espera um minuto." }) satisfies ErrorBody;
@@ -811,6 +977,11 @@ export const meApi = connectionsApi
     const svc = c.get("svc"), on = c.req.valid("json").public;
     svc.track("profile_public", { on });
     return c.json((await svc.setProfilePublic(on)) satisfies ProfileSettingsResult, 200);
+  })
+  .post("/api/me/handle", body(SetHandleBody), async (c) => {
+    const r = await c.get("svc").setHandle(c.req.valid("json").handle);
+    if ("error" in r) return c.json({ error: r.error } satisfies ErrorBody, r.error === "taken" ? 409 : 400);
+    return c.json(r satisfies SetHandleResult, 200);
   });
 
 // The profile picture and the room icon, raw image bytes (the app resizes them first). Same-origin only.
@@ -893,6 +1064,14 @@ export const uploadsApi = meApi
     const svc = c.get("svc"), room = c.req.query("room") ?? "";
     if (!svc.reportRoom(room) || !(await svc.isMember(room))) return c.json(forbidden, 403);
     return c.json((await svc.aiSpend()) satisfies AiSpend, 200);
+  })
+  // The Worker and the site per day, for the report rooms' app apps/infra-monitor.html (vibebook_infra).
+  .get("/api/metrics/infra", async (c) => {
+    const svc = c.get("svc"), room = c.req.query("room") ?? "";
+    if (!svc.reportRoom(room) || !(await svc.isMember(room))) return c.json(forbidden, 403);
+    const days = InfraWindow.safeParse(Number(c.req.query("days") ?? 7));
+    if (!days.success) return c.json({ error: "days must be 7, 14 or 30" } satisfies ErrorBody, 400);
+    return c.json((await svc.infraMonitor(days.data)) satisfies InfraMonitor, 200);
   });
 
 export type AppType = typeof uploadsApi;

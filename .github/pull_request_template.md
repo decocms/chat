@@ -12,10 +12,14 @@
 
 - 
 
+## Router bench
+
+<!-- Required if the change touches the router (AGENTS.md, rule 14): src/router*.ts, src/routerActions.ts, src/jev.ts or the bench cases. Paste the scores of `bun scripts/router-bench.ts` before and after the change. Else write "not touched". -->
+
 ## Deliberate decisions
 
 <!-- Link the new entries in docs/agents_deliberate_decisions.md. If there are no new entries, write "none". -->
 
 ## Screens
 
-<!-- If the UI changed, add a screenshot at 390px (mobile) and at 1440px (desktop). Use test data only. If the UI did not change, write "none". -->
+<!-- Required when a person can see the change: run `bun run screens -- --hover --publish` on local development (docs/workflow.md, "Screens") and paste its Markdown here. 390 px and 1440 px, test data only. Do not enable automerge without them. If nothing visible changed, write "none". -->

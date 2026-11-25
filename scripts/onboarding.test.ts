@@ -8,6 +8,7 @@ import { createNewRoomSession } from "../web/features/home/session";
 import { createOnboardingSession } from "../web/features/onboarding/session";
 import {
   ONBOARDING_DONE,
+  ONBOARDING_SKIP_NAME,
   ONBOARDING_SKIP_CLAUDE,
   onboardingEligible,
   onboardingStep,
@@ -90,6 +91,26 @@ test("only zero-room accounts enter; canonical name, skip and manual back recove
   expect(onboardingStep({ name: "Ada" }, null, false, false)).toBe(2);
   expect(onboardingStep({ name: "Ada" }, null, false, true)).toBe(3);
   expect(onboardingStep({ name: "Ada" }, 1, true, false)).toBe(1);
+  expect(onboardingStep({ name: "" }, null, false, false, true)).toBe(2);
+  expect(onboardingStep({ name: "" }, null, false, true, true)).toBe(3);
+});
+test("Pular moves one step on, remembers it across reloads, and the last one finishes", async () => {
+  const h = await fixture({ api: { agents: () => new Promise(() => {}) } });
+  expect(get(h.owner.state).step).toBe(1);
+  h.owner.skip();
+  expect(h.flags.get(ONBOARDING_SKIP_NAME)).toBe("1");
+  expect(get(h.owner.state).step).toBe(2);
+  expect(get(h.profile.state).binding).toBe(null);
+  h.owner.skip();
+  expect(h.flags.get(ONBOARDING_SKIP_CLAUDE)).toBe("1");
+  expect(get(h.owner.state).step).toBe(3);
+  h.owner.skip();
+  expect(h.flags.get(ONBOARDING_DONE)).toBe("1");
+  expect(get(h.owner.state).visible).toBe(false);
+  h.dispose();
+  const again = await fixture({ flags: [ONBOARDING_SKIP_NAME] });
+  expect(get(again.owner.state).step).toBe(2);
+  again.dispose();
 });
 test("name HTTP success cannot advance until canonical profile confirms", async () => {
   const h = await fixture();

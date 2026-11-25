@@ -12,6 +12,13 @@
   import Button from "../../lib/studio/Button.svelte";
   import Textarea from "../../lib/studio/Textarea.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
+  import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
+  import DropdownMenuRadioGroup from "../../lib/studio/DropdownMenuRadioGroup.svelte";
+  import DropdownMenuRadioItem from "../../lib/studio/DropdownMenuRadioItem.svelte";
+  import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
+  import { paneFocus } from "../room-layout/focus";
   let { owner, props }: { owner: DocumentSession; props: DocumentProps } =
     $props();
   const view = untrack(() => owner.state);
@@ -78,6 +85,21 @@
     JSON.stringify($view.target);
     copyNotice = "";
   });
+  const t = (key: string) => props.taskProps.vb.t(key);
+  // The doc on screen: the thread's own, or the room's (the … menu switches).
+  const name = $derived(
+    (!!$view.target?.epicId &&
+      props.room.epics.find((item) => item.id === $view.target?.epicId)
+        ?.title) ||
+      props.room.book.title ||
+      "deco.chat",
+  );
+  // Expand ends with the doc: Esc, or leaving the pane.
+  $effect(() => () => paneFocus.set(false));
+  const escape = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && $paneFocus && !event.defaultPrevented)
+      paneFocus.set(false);
+  };
   const editable = $derived(
     !$view.denied && props.room.members.includes(props.room.me),
   );
@@ -90,39 +112,100 @@
   }
 </script>
 
+<svelte:window onkeydown={escape} />
+
 <section
   data-document
   hidden={props.pane !== "doc"}
   class="min-h-0 min-w-0 flex-1 flex-col bg-background font-sans text-foreground [&:not([hidden])]:flex"
 >
-  {#if epic}<nav
-      aria-label={en ? "Document scope" : "Escopo do documento"}
-      class="flex flex-wrap items-center gap-1 border-b border-border px-3 py-2"
+  <header
+    data-document-bar
+    class="flex h-12 shrink-0 items-center gap-0.5 border-b border-border pr-2 pl-4"
+  >
+    <h2
+      class="m-0 min-w-16 flex-1 truncate font-sans text-sm font-semibold tracking-normal"
+      title={name}
     >
-      <Button
-        size="sm"
-        variant={$view.target?.epicId ? "ghost" : "secondary"}
-        aria-pressed={!$view.target?.epicId}
+      {name}
+    </h2>
+    {#if !$view.denied && $view.mode === "preview"}<DocumentVersions
+        {owner}
+        {props}
+        epic={$view.target?.epicId ?? null}
+        part="picker"
+      />{/if}
+    {#if !$view.denied}<IconButton
+        label={$view.mode === "edit" ? t("Pronto") : t("Editar")}
+        tooltipSide="bottom"
+        size="icon"
+        class={$view.mode === "edit"
+          ? "bg-accent text-foreground"
+          : "text-muted-foreground hover:text-foreground"}
+        disabled={!editable}
+        aria-pressed={$view.mode === "edit"}
+        data-document-edit
         onclick={(event) => {
-          if (connected(event)) owner.chooseRoom(true);
-        }}>{props.room.book.title || "deco.chat"}</Button
-      ><span aria-hidden="true">›</span><Button
-        size="sm"
-        variant={$view.target?.epicId ? "secondary" : "ghost"}
-        aria-pressed={!!$view.target?.epicId}
-        onclick={(event) => {
-          if (connected(event)) owner.chooseRoom(false);
-        }}>{epic.title}</Button
-      >
-    </nav>{/if}
+          if (connected(event))
+            owner.mode($view.mode === "edit" ? "preview" : "edit");
+        }}><Icon icon="pencil-01" size={18} /></IconButton
+      >{/if}
+    <IconButton
+      label={$paneFocus ? t("Sair da tela cheia") : t("Expandir")}
+      tooltipSide="bottom"
+      size="icon"
+      class="text-muted-foreground hover:text-foreground max-md:hidden"
+      aria-pressed={$paneFocus}
+      data-document-expand
+      onclick={(event) => {
+        if (connected(event)) paneFocus.update((on) => !on);
+      }}
+      ><Icon
+        icon={$paneFocus ? "minimize-01" : "expand-01"}
+        size={18}
+      /></IconButton
+    >
+    {#if epic}<DropdownMenu>
+        <DropdownMenuTrigger>
+          {#snippet child({ props: trigger })}<IconButton
+              {...trigger}
+              label={t("Mais opções")}
+              tooltipSide="bottom"
+              size="icon"
+              class="text-muted-foreground hover:text-foreground"
+              data-document-more
+              ><Icon icon="dots-horizontal" size={18} /></IconButton
+            >{/snippet}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" class="w-56 font-sans">
+          <DropdownMenuRadioGroup
+            bind:value={
+              () => ($view.target?.epicId ? "thread" : "room"),
+              (scope) => {
+                if (active) owner.chooseRoom(scope === "room");
+              }
+            }
+          >
+            <DropdownMenuRadioItem value="room" data-document-scope="room"
+              ><span class="min-w-0 flex-1 truncate">{t("Doc da sala")}</span
+              ></DropdownMenuRadioItem
+            >
+            <DropdownMenuRadioItem value="thread" data-document-scope="thread"
+              ><span class="min-w-0 flex-1 truncate">{t("Doc da thread")}</span
+              ></DropdownMenuRadioItem
+            >
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>{/if}
+  </header>
   {#if $view.orphaned.length}<aside
       role="status"
       class="space-y-2 border-b border-border bg-muted p-3"
     >
       <p class="m-0 text-sm">
         {en
-          ? "Retained edits belong to epics that no longer exist. They will never be sent to another document."
-          : "Edições guardadas pertencem a épicos que não existem mais. Elas nunca serão enviadas para outro documento."}
+          ? "Retained edits belong to threads that no longer exist. They will never be sent to another document."
+          : "Edições guardadas pertencem a threads que não existem mais. Elas nunca serão enviadas para outro documento."}
       </p>
       {#each $view.orphaned as draft (draft.epicId)}<details>
           <summary class="cursor-pointer text-sm">{draft.epicId}</summary>
@@ -247,13 +330,7 @@
           text={$view.text}
           epic={$view.target?.epicId ?? null}
           {props}
-          >{#snippet aside()}<DocumentVersions
-              {owner}
-              {props}
-              epic={$view.target?.epicId ?? null}
-              part="picker"
-            />{/snippet}</DocumentPreview
-        >{/key}
+        />{/key}
     </div>{/if}
   <div
     hidden={$view.denied ||
@@ -322,29 +399,5 @@
           }}>{en ? "Try again" : "Tentar novamente"}</Button
         >
       </p>{/if}
-    <!-- An empty doc carries its own "Start writing"; the foot bar comes back once there is text. -->
-    {#if $view.mode === "edit" || $view.text.trim()}
-      <footer class="flex p-3">
-        <Button
-          disabled={!editable}
-          variant={$view.mode === "edit" ? "default" : "outline"}
-          class="w-full rounded-full"
-          aria-pressed={$view.mode === "edit"}
-          onclick={(event) => {
-            if (connected(event))
-              owner.mode($view.mode === "edit" ? "preview" : "edit");
-          }}
-          >{#if $view.mode !== "edit"}<Icon
-              icon="pencil-01"
-              size={16}
-            />{/if}{$view.mode === "edit"
-            ? en
-              ? "Done"
-              : "Pronto"
-            : en
-              ? "Edit"
-              : "Editar"}</Button
-        >
-      </footer>{/if}
   {/if}
 </section>

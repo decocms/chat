@@ -1,5 +1,6 @@
 import type { DefaultTreeAdapterTypes as Tree } from "parse5";
 import { emojify } from "../../../shared/emoji";
+import { FENCE_LINE, INLINE_MARK } from "../../../shared/inlineMarks";
 import {
   HTML_TAGS,
   SVG_TAGS,
@@ -43,9 +44,11 @@ function mentions(text: string, context: RichContext): RichNode[] {
     if (!who) continue;
     const start = match.index + match[1].length;
     if (start > at) out.push({ kind: "text", text: text.slice(at, start) });
+    // Shown as the person's @handle today (whoever typed @rafael before they became @valls sees @valls).
+    const current = who === "ai" ? null : context.room.handles?.[who];
     out.push({
       kind: "mention",
-      text: `@${match[2]}`,
+      text: `@${current || match[2]}`,
       who,
       mine: who === context.room.me,
     });
@@ -54,7 +57,107 @@ function mentions(text: string, context: RichContext): RichNode[] {
   if (at < text.length) out.push({ kind: "text", text: text.slice(at) });
   return out;
 }
+/** Lines that start with `> ` (or a lone `>`) in a person's message: a quote, as in Slack. An app's reference
+ *  (the content-os reader) arrives like this, so the quote and what the person said look different. */
+const quoteLine = /^>(?: |$)/;
 function human(text: string, context: RichContext): RichNode[] {
+  const out: RichNode[] = [],
+    lines = text.split("\n");
+  let plain: string[] = [];
+  const flush = () => {
+    if (plain.length) out.push(...humanText(plain.join("\n"), context));
+    plain = [];
+  };
+  const element = (tag: string, children: RichNode[]): RichNode => ({
+    kind: "element",
+    tag: tag as SafeTag,
+    namespace: HTML_NS,
+    attrs: {},
+    children,
+  });
+  // A block has its own margins: the line breaks around it would add empty lines.
+  const block = (node: RichNode) => {
+    while (plain.length && !plain.at(-1)!.trim()) plain.pop();
+    flush();
+    out.push(node);
+  };
+  for (let at = 0; at < lines.length;) {
+    // A ``` line opens a code block, up to the next ``` line. With no closing line, the text stays as written.
+    const close = FENCE_LINE.test(lines[at]!)
+      ? lines.findIndex((line, index) => index > at && /^```\s*$/.test(line))
+      : -1;
+    if (close > at) {
+      block(
+        element("pre", [
+          element("code", [
+            { kind: "text", text: lines.slice(at + 1, close).join("\n") },
+          ]),
+        ]),
+      );
+      at = close + 1;
+      while (at < lines.length && !lines[at]!.trim()) at++;
+      continue;
+    }
+    if (!quoteLine.test(lines[at]!)) {
+      plain.push(lines[at++]!);
+      continue;
+    }
+    const quoted: string[] = [];
+    while (at < lines.length && quoteLine.test(lines[at]!))
+      quoted.push(lines[at++]!.replace(quoteLine, ""));
+    block(element("blockquote", humanText(quoted.join("\n"), context)));
+    while (at < lines.length && !lines[at]!.trim()) at++;
+  }
+  flush();
+  return out;
+}
+function humanText(text: string, context: RichContext): RichNode[] {
+  const out: RichNode[] = [];
+  let at = 0;
+  for (const match of text.matchAll(INLINE_MARK)) {
+    const { code, label, href, strong, u, del, em, star } = match.groups!;
+    if (match.index > at)
+      out.push(...humanLinks(text.slice(at, match.index), context));
+    at = match.index + match[0].length;
+    if (href !== undefined) {
+      const target = linkTarget(href, label!, context);
+      out.push(
+        target
+          ? {
+              kind: "link",
+              target,
+              namespace: HTML_NS,
+              children: [{ kind: "text", text: label! }],
+            }
+          : { kind: "text", text: match[0] },
+      );
+      continue;
+    }
+    const tag =
+      code !== undefined
+        ? "code"
+        : strong !== undefined
+          ? "strong"
+          : u !== undefined
+            ? "u"
+            : del !== undefined
+              ? "del"
+              : "em";
+    out.push({
+      kind: "element",
+      tag: tag as SafeTag,
+      namespace: HTML_NS,
+      attrs: {},
+      children:
+        code !== undefined
+          ? [{ kind: "text", text: code }]
+          : humanText((strong ?? u ?? del ?? em ?? star)!, context),
+    });
+  }
+  if (at < text.length) out.push(...humanLinks(text.slice(at), context));
+  return out;
+}
+function humanLinks(text: string, context: RichContext): RichNode[] {
   const out: RichNode[] = [];
   let at = 0;
   for (const match of text.matchAll(sourceLink)) {

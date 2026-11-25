@@ -3,26 +3,25 @@
 // Your email inbox is the deco.chat inbox. Queue + timing live in the Book (mail_q); this file is the pure parts.
 import type { Lang } from "./lang";
 import { emailHtml, escapeHtml, hmac, safeEqual } from "./auth";
+import { mentionWho } from "../shared/mention";
 
 export const MAIL_DELAY_MS = 5 * 60_000; // time to read it in the app before we email
 export const MAIL_GAP_MS = 20 * 60_000; // ≤1 email per person per room in this window (later mentions wait and group)
 export const MAIL_DAY_MAX = 20; // per person per day, across rooms (counted in D1 events)
 
 const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9._-]/g, "");
-/** Same handles as the app and read_room: first name (accents stripped), the email's local part and its first token. */
-export function handles(email: string, name?: string) {
-  const local = email.split("@")[0];
-  return new Set([fold((name ?? "").split(/\s+/)[0] ?? ""), fold(local.split(/[._+-]/)[0]), fold(local)].filter(Boolean));
-}
 /** @room (or @sala, @todos) in a person's message calls everyone in the room (Gimenes #2051: announcements). */
 export const ROOM_TAGS = new Set(["room", "sala", "todos"]);
 export const tagsOf = (text: string) => [...text.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].map((m) => fold(m[1]));
-/** Members mentioned in a text (never the author's own person); `room` = @room counts (people's messages only). */
-export function mentioned(text: string, members: string[], names: Record<string, string>, author: string, room = false) {
+/** Members mentioned in a text (never the author's own person); `room` = @room counts (people's messages only).
+ *  Each tag names one person or no one (shared/mention.ts): two Rafaels typed as @rafael reach neither. */
+export function mentioned(text: string, members: string[], names: Record<string, string>, author: string, room = false, handles: Record<string, string> = {}) {
   const tags = tagsOf(text);
   if (!tags.length) return [];
   if (room && tags.some((t) => ROOM_TAGS.has(t))) return members.filter((e) => e !== author);
-  return members.filter((e) => e !== author && tags.some((t) => handles(e, names[e]).has(t)));
+  const people = { members, names, handles };
+  const hit = new Set(tags.map((t) => mentionWho(t, people)));
+  return members.filter((e) => e !== author && hit.has(e));
 }
 
 export type MailFacts = {
@@ -73,13 +72,13 @@ export function mailBody(f: MailFacts, c: MailCopy, url: string, unsub: string, 
   const who = [...new Set(f.mentions.map((m) => m.from))].join(", ");
   const html = emailHtml(
     escapeHtml(c.ask || c.subject),
-    `<p style="margin:0 0 18px;color:#6b7383;font-size:14px">${escapeHtml(who)} ${t.mentioned} <b style="color:#1a2130">${where}</b></p>
+    `<p style="margin:0 0 18px;color:#676664;font-size:14px">${escapeHtml(who)} ${t.mentioned} <b style="color:#0a0a09">${where}</b></p>
 ${c.context.length ? `<ul style="margin:0 0 18px;padding-left:20px;line-height:1.55">${c.context.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
-${f.mentions.map((m) => `<div style="border-left:3px solid #d0d8e6;padding:6px 0 6px 12px;margin:0 0 10px;color:#3a4356"><b>${escapeHtml(m.from)}</b><br>${escapeHtml(m.text).replace(/\n/g, "<br>")}</div>`).join("")}
+${f.mentions.map((m) => `<div style="border-left:3px solid #d6d5d2;padding:6px 0 6px 12px;margin:0 0 10px;color:#3a3937"><b>${escapeHtml(m.from)}</b><br>${escapeHtml(m.text).replace(/\n/g, "<br>")}</div>`).join("")}
 ${f.myTasks.length ? `<p style="margin:18px 0 6px;font-weight:700">${t.tasks}</p><ul style="margin:0;padding-left:20px;line-height:1.55">${f.myTasks.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul>` : ""}
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 4px"><tr><td style="background:#1d5fc4;border-radius:999px"><a href="${url}" style="display:inline-block;padding:13px 24px;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px">${t.reply}</a></td></tr></table>
-<p style="font-size:13px;color:#6b7383;margin:18px 0 0">${t.inConv} ${escapeHtml(f.people.join(", "))}.${replyable ? ` ${t.replyTo(escapeHtml(who))}` : ""}</p>
-<p style="font-size:12px;color:#8a93a3;margin:20px 0 0;padding-top:16px;border-top:1px solid #eef1f6">${t.why} <a href="${unsub}" style="color:#8a93a3">${t.off}</a></p>`,
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 4px"><tr><td style="background:#0a0a09;border-radius:999px"><a href="${url}" style="display:inline-block;padding:13px 24px;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px">${t.reply}</a></td></tr></table>
+<p style="font-size:13px;color:#676664;margin:18px 0 0">${t.inConv} ${escapeHtml(f.people.join(", "))}.${replyable ? ` ${t.replyTo(escapeHtml(who))}` : ""}</p>
+<p style="font-size:12px;color:#676664;margin:20px 0 0;padding-top:16px;border-top:1px solid #edecea">${t.why} <a href="${unsub}" style="color:#676664">${t.off}</a></p>`,
     new URL(url).origin, // the room link is on this Worker, so is the logo
   );
   const text = `${c.ask}\n\n${who} ${t.mentioned} ${f.room.title}${f.epic ? ` › ${f.epic.title}` : ""}\n\n${c.context.map((x) => `- ${x}`).join("\n")}\n\n${f.mentions.map((m) => `${m.from}: ${m.text}`).join("\n\n")}\n\n${t.replyText} ${url}\n\n${t.off}: ${unsub}`;

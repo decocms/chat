@@ -9,9 +9,9 @@ export const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 export function hasSheetSurface(
   sheet: "side" | "doc",
-  state: { documentVisible: boolean; boardFull: boolean },
+  state: { documentVisible: boolean },
 ) {
-  return sheet === "side" || (state.documentVisible && !state.boardFull);
+  return sheet === "side" || state.documentVisible;
 }
 export function documentMaximum(containerWidth: number, collapsed: boolean) {
   return Math.max(
@@ -61,6 +61,20 @@ export function preferredDocumentWidth(
     return DOCUMENT_DEFAULT;
   }
 }
+/** Whether you closed the side pane last time (per browser): a room opens it
+ * as you left it. Read by the room (controller.ts) and by its loading state
+ * (RoomSkeleton via preview.ts), so the skeleton draws the pane open or
+ * closed as the room will open (Gimenes #3938). Change both through here. */
+export const DOCUMENT_CLOSED_KEY = "vb.docClosed";
+export function documentClosedBefore(
+  storage: Pick<Storage, "getItem"> | null | undefined,
+) {
+  try {
+    return storage?.getItem(DOCUMENT_CLOSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 export function sheetProgress(
   initial: 0 | 1,
   start: number,
@@ -87,6 +101,10 @@ export function sheetEndpoint(
       ? 0
       : 1;
 }
+/** A full open slide (ms). The sheet is most of the screen tall, so it needs a bit more than 300 ms to read as a slide. */
+export const SHEET_OPEN_MS = 360;
+/** A full close slide (ms): shorter than the open, so closing feels quick. */
+export const SHEET_CLOSE_MS = 260;
 /** Existing .32,.72,0,1 release curve, evaluated only for playback seeking. */
 export function sheetEasing(progress: number) {
   const x = clamp(progress, 0, 1);

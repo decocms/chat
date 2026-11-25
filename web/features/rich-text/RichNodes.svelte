@@ -4,6 +4,8 @@
   import { HTML_NS } from "./allowlist";
   import Icon from "../../lib/studio/Icon.svelte";
   import { hasMissingFileReference } from "./fileIndex";
+  import AppLinkChip from "./AppLinkChip.svelte";
+  import type { Room } from "../../../shared/room";
   let {
     nodes,
     actions,
@@ -12,9 +14,14 @@
     appKey,
     cardSource,
     cardSlot,
+    room = null,
+    t = (text: string) => text,
   }: {
     nodes: readonly RichNode[];
     actions: RichActions;
+    /** The open room: a chip for a link to one of its messages or threads needs no request. */
+    room?: Room | null;
+    t?: (text: string) => string;
     taskSlot?: Snippet;
     appSlot?: Snippet<[number]>;
     appKey?(slot: number): string;
@@ -91,7 +98,9 @@
     if (tag === "summary")
       return "cursor-pointer rounded-control font-medium focus-visible:outline-2 focus-visible:outline-ring";
     if (tag === "hr") return "my-4 border-border";
-    if (tag === "strong" || tag === "b") return "font-semibold";
+    if (tag === "strong" || tag === "b") return "font-bold";
+    // A link is blue with no underline, so an underline is the text's color.
+    if (tag === "u") return "underline decoration-1 underline-offset-2";
     if (tag === "small") return "text-xs";
     if (tag === "audio" || tag === "video") return "max-w-full";
     return "";
@@ -127,6 +136,12 @@
         event.stopPropagation();
         actions.navigateRich({ kind: target.kind, id: target.id });
       }
+    } else if (target.kind === "app") {
+      if (actions.openAppLink) {
+        event.preventDefault();
+        event.stopPropagation();
+        actions.openAppLink(target.link);
+      }
     } else if (target.kind === "file") {
       if (target.attachment) {
         event.preventDefault();
@@ -148,13 +163,35 @@
   {#each items as node, index (key(node, index))}
     {@const documentCard = cardSource?.(node) ?? null}
     {#if node.kind === "text"}{node.text}
-    {:else if node.kind === "mention"}<span
-        data-rich-mention={node.who}
-        title={node.who === "ai" ? "@vibe" : node.who}
-        class={node.mine
-          ? "rounded-sm bg-primary/15 px-1 font-semibold text-foreground"
-          : "rounded-sm bg-primary/10 px-1 text-foreground"}>{node.text}</span
-      >
+    {:else if node.kind === "mention"}
+      {@const tone = node.mine
+        ? "rounded-sm bg-brand-purple/25 px-1 font-semibold text-brand-purple-text"
+        : "rounded-sm bg-brand-purple/12 px-1 font-medium text-brand-purple-text"}
+      {#if node.who !== "ai" && actions.openPerson}
+        {@const person = node.who}
+        <!-- A person's mention opens your DM with them (Gimenes #5298). -->
+        <span
+          data-rich-mention={person}
+          title={person}
+          role="link"
+          tabindex="0"
+          onclick={(event: MouseEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            actions.openPerson?.(person);
+          }}
+          onkeydown={(event: KeyboardEvent) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            actions.openPerson?.(person);
+          }}
+          class={[tone, "cursor-pointer hover:underline"]}>{node.text}</span
+        >
+      {:else}<span
+          data-rich-mention={node.who}
+          title={node.who === "ai" ? "@vibe" : node.who}
+          class={tone}>{node.text}</span
+        >{/if}
     {:else if node.kind === "link"}
       {#if node.namespace !== HTML_NS}<svelte:element
           this={"a"}
@@ -171,6 +208,21 @@
           onclick={(event: MouseEvent) => open(event, node)}
           >{@render content(node.children)}</svelte:element
         >
+      {:else if node.target.kind === "app" && node.target.chip}{@const target =
+          node.target}{#snippet plain()}<a
+            href={target.href}
+            data-rich-link="app"
+            onclick={(event) => open(event, node)}
+            class="rounded-sm text-link no-underline decoration-dashed decoration-1 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            >{@render content(node.children)}</a
+          >{/snippet}<AppLinkChip
+          link={target.link}
+          href={target.href}
+          {room}
+          {t}
+          onopen={(event) => open(event, node)}
+          {plain}
+        />
       {:else}<a
           href={node.target.href}
           title={node.target.kind === "file"
@@ -184,7 +236,8 @@
           data-rich-link={node.target.kind}
           class={node.target.kind === "file" || node.target.kind === "github"
             ? "inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 align-middle text-xs font-medium text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-            : "rounded-sm text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current focus-visible:outline-2 focus-visible:outline-ring"}
+            : // Blue, no underline; a dashed one on hover (Valls).
+              "rounded-sm text-link no-underline decoration-dashed decoration-1 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"}
         >
           {#if node.target.kind === "github"}<svg
               aria-hidden="true"

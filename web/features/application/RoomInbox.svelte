@@ -1,12 +1,11 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
-  import { MediaQuery } from "svelte/reactivity";
-  import { MOBILE_QUERY } from "../../lib/breakpoints";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Badge from "../../lib/studio/Badge.svelte";
+  import type { BadgeVariants } from "../../lib/studio/badge";
   import Button from "../../lib/studio/Button.svelte";
   import Checkbox from "../../lib/studio/Checkbox.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
@@ -20,6 +19,8 @@
   import type { InboxTask, Wait } from "../../app/types";
   import { roomAvatarVersion } from "../room-scope/model";
   import { roomLabel } from "../home/model";
+  import { threadWait, type ThreadWait } from "../../../shared/threadWait";
+  import { threadWaitLabel } from "../waits/model";
   import InboxControls from "./InboxControls.svelte";
   import {
     roomInboxModel,
@@ -31,7 +32,7 @@
    * The Inbox, a triage list: what waits on you, newest first, two lines each.
    * A row opens its message; its actions reply in place, open or resolve.
    * "Resolve" waits INBOX_UNDO_MS before it reaches the server (Undo).
-   * The scope and "Resolve all" live in the room's top bar (InboxControls).
+   * "Resolve all" lives in the home Inbox's bar (HomeInbox, InboxControls).
    */
   let {
     owner,
@@ -41,17 +42,13 @@
     owner: ApplicationInbox;
     binding: InboxBinding;
     services: BrowserApplicationServices;
-    documentWidth?: (node: HTMLElement) => () => void;
-    sidebarCollapsed?: boolean;
   } = $props();
   const opening = untrack(() => binding),
     inbox = untrack(() => owner.state),
     root = untrack(() => services.rootRoom.state),
     personal = untrack(() => services.personal.state);
   const t = untrack(() => services.t);
-  // The room's phone layout (RoomLayoutFrame) hides its bar while the Inbox is open.
-  const mobile = new MediaQuery(MOBILE_QUERY);
-  type Kind = "ask" | "claude" | "mention" | "review" | "task";
+  type Kind = "ask" | "claude" | "mention" | "review" | "task" | "thread";
   type Item = {
     key: string;
     kind: Kind;
@@ -65,6 +62,8 @@
     message?: RoomInboxMessage;
     wait?: Wait;
     task?: InboxTask;
+    /** An open thread of yours (a wait e<epic>): its state. */
+    open?: ThreadWait;
   };
   type Filter = "all" | Kind;
   const model = $derived(
@@ -101,6 +100,31 @@
         ts: wait.ts,
         wait,
       })),
+      ...model.threads.flatMap((wait) => {
+        const open = threadWait(wait);
+        return open
+          ? [
+              {
+                key: `e:${wait.book_id}:${wait.ref}`,
+                kind: "thread" as const,
+                book: wait.book_id,
+                room: wait.room,
+                thread: wait.thread,
+                where: open.total
+                  ? t("{done}/{total} tarefas", {
+                      done: open.done,
+                      total: open.total,
+                    })
+                  : t("Sem tarefas"),
+                author: wait.author,
+                text: wait.topic || "",
+                ts: wait.ts,
+                wait,
+                open,
+              },
+            ]
+          : [];
+      }),
       ...model.groups.flatMap((group) =>
         group.tasks.map((task) => ({
           key: `t:${task.book_id}:${task.task_id}`,
@@ -119,6 +143,11 @@
     return rows.filter((row) => !row.wait || !hidden.has(waitKey(row.wait)));
   });
   let filter = $state<Filter>("all");
+  /** "Tudo" is what is for you now: not your tasks, and of your open threads only the ones ready to close or that
+   *  @vibe called you about (the rest are in "Suas threads", so 60 open threads don't bury the asks). */
+  const forYou = (row: Item) =>
+    row.kind !== "task" &&
+    (row.kind !== "thread" || !!row.open?.ready || !!row.open?.stale);
   const counts = $derived.by(() => {
     const value: Record<Filter, number> = {
       all: 0,
@@ -127,10 +156,11 @@
       mention: 0,
       review: 0,
       task: 0,
+      thread: 0,
     };
     for (const row of items) {
       value[row.kind]++;
-      if (row.kind !== "task") value.all++;
+      if (forYou(row)) value.all++;
     }
     return value;
   });
@@ -140,13 +170,12 @@
     { filter: "review", label: "Revisões" },
     { filter: "claude", label: "Seu Claude" },
     { filter: "mention", label: "Menções" },
+    { filter: "thread", label: "Suas threads" },
     { filter: "task", label: "Suas tarefas" },
   ];
   const shown = $derived(
     items
-      .filter((row) =>
-        filter === "all" ? row.kind !== "task" : row.kind === filter,
-      )
+      .filter((row) => (filter === "all" ? forYou(row) : row.kind === filter))
       .sort((left, right) => right.ts - left.ts),
   );
   // In "All rooms", one group per room (in the order of its newest item).
@@ -235,20 +264,37 @@
     mention: "menção",
     review: "revisar",
     task: "tarefa",
+    thread: "thread",
   };
-  const kindTone: Record<Kind, string> = {
-    ask: "bg-warning/20 text-foreground",
-    claude: "bg-accent text-accent-foreground",
-    mention: "bg-muted text-muted-foreground",
-    review: "bg-success/20 text-foreground",
-    task: "bg-muted text-muted-foreground",
+  // The row's kind is a Badge tone; a task row takes its status's tone instead.
+  const kindTone: Record<Kind, NonNullable<BadgeVariants["variant"]>> = {
+    ask: "warning",
+    claude: "agent",
+    mention: "muted",
+    review: "success",
+    task: "muted",
+    thread: "muted",
   };
+  const threadTone = (
+    open: ThreadWait,
+  ): NonNullable<BadgeVariants["variant"]> =>
+    open.stale
+      ? "warning"
+      : open.ready
+        ? "success"
+        : open.status === "doing"
+          ? "info"
+          : "muted";
+  const statusTone = (status: string) =>
+    status === "review" ? "success" : status === "doing" ? "info" : "muted";
   const avatar = (email: string) =>
     roomAvatarVersion($root.room, $personal.me, email);
 
   function open(row: Item) {
     if (!current()) return;
     if (row.task) owner.openTask(opening, row.task);
+    else if (row.kind === "thread" && row.wait)
+      owner.openThread(opening, row.wait);
     else if (row.wait) owner.openWait(opening, row.wait);
     else if (row.message?.mention)
       owner.openMention(opening, row.message.mention);
@@ -270,6 +316,20 @@
       for (const row of rows) delete leaving[row.key];
       if (current()) owner.resolveLater(opening, waits);
     }, exit());
+  }
+  async function markDone(row: Item) {
+    if (!current() || row.kind !== "thread" || !row.wait) return;
+    leaving[row.key] = true;
+    const ok = await owner.markThreadDone(opening, row.wait);
+    delete leaving[row.key];
+    if (!current()) return;
+    say(
+      t(
+        ok
+          ? "Thread marcada como feita"
+          : "Não deu pra marcar como feita. Tente de novo.",
+      ),
+    );
   }
   async function startReply(row: Item) {
     if (!current() || (row.kind !== "ask" && row.kind !== "mention")) return;
@@ -347,17 +407,6 @@
       selected[row.key] = !selected[row.key];
     }
   }
-  async function close(event: MouseEvent) {
-    if (!live(event)) return;
-    const oldFocus = document.activeElement;
-    owner.close(opening);
-    await tick();
-    if (
-      document.activeElement === document.body ||
-      document.activeElement === oldFocus
-    )
-      owner.restoreFocus(opening);
-  }
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -368,7 +417,7 @@
   onkeydown={keys}
 >
   <div data-room-inbox-chat class="flex min-h-0 min-w-0 flex-1 flex-col">
-    <!-- Phones: the scope and "Resolve all" (on desktop they live in the room's top bar). -->
+    <!-- Phones: "Resolve all" (on desktop it lives in the home Inbox's bar). -->
     <InboxControls
       {owner}
       binding={opening}
@@ -384,9 +433,12 @@
         {#each chips as chip (chip.filter)}{#if chip.filter === "all" || counts[chip.filter] || filter === chip.filter}<Button
               data-inbox-filter={chip.filter}
               size="sm"
-              variant={filter === chip.filter ? "default" : "outline"}
+              variant={filter === chip.filter ? "outline" : "ghost"}
               aria-pressed={filter === chip.filter}
-              class="h-7 rounded-full px-2.5 text-xs font-normal"
+              class={cn(
+                "h-7 rounded-full px-2.5 text-xs font-normal",
+                filter !== chip.filter && "text-muted-foreground",
+              )}
               onclick={(event) => {
                 if (live(event)) {
                   filter = chip.filter;
@@ -398,14 +450,6 @@
               ></Button
             >{/if}{/each}
       </div>
-      <!-- Phones only (MOBILE_QUERY): the room's bar (with its Inbox button) hides while the Inbox is open, so this is the way out. Desktop: the sidebar's Inbox button. The home's Inbox is a page: you leave it from the DM list. -->
-      {#if opening.roomId && mobile.current}<IconButton
-          data-room-inbox-close
-          label={t("Fechar")}
-          onclick={(event) => {
-            void close(event);
-          }}><Icon icon="x" size={16} /></IconButton
-        >{/if}
     </header>
     {#if picked.length}<div
         data-inbox-selection
@@ -510,7 +554,10 @@
                       >
                         {#if row.kind === "claude"}<AgentMark
                             class="mt-0.5 text-sm"
-                          />{:else if row.kind === "task"}<span
+                          />{:else if row.kind === "thread" && row.author !== "ai"}<span
+                            class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
+                            ><Icon icon="hash-02" size={14} /></span
+                          >{:else if row.kind === "task"}<span
                             class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
                             ><Icon icon="check-circle" size={14} /></span
                           >{:else if row.author === "ai"}<AgentMark
@@ -527,34 +574,42 @@
                           <span
                             class="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-sm"
                           >
-                            {#if row.kind !== "task"}<strong class="font-medium"
-                                >{name(row)}</strong
-                              >{/if}<span
-                              class={cn(
-                                "rounded-full px-1.5 text-[0.6875rem] font-medium",
-                                kindTone[row.kind],
-                              )}
+                            {#if row.kind !== "task" && (row.kind !== "thread" || row.author === "ai")}<strong
+                                class="font-medium">{name(row)}</strong
+                              >{/if}<Badge
+                              size="sm"
+                              variant={row.open
+                                ? threadTone(row.open)
+                                : row.task
+                                  ? statusTone(row.task.status)
+                                  : kindTone[row.kind]}
                               >{t(
-                                row.task
-                                  ? row.task.status === "review"
-                                    ? "revisar"
-                                    : row.task.status === "doing"
-                                      ? "fazendo"
-                                      : "a fazer"
-                                  : kindLabel[row.kind],
-                              )}</span
+                                row.open
+                                  ? threadWaitLabel(row.open)
+                                  : row.task
+                                    ? row.task.status === "review"
+                                      ? "revisar"
+                                      : row.task.status === "doing"
+                                        ? "fazendo"
+                                        : "a fazer"
+                                    : kindLabel[row.kind],
+                              )}</Badge
                             ><span
                               class="min-w-0 truncate text-xs text-muted-foreground"
                               >{row.where}</span
                             >{#if row.ts}<span
                                 class="text-xs text-muted-foreground tabular-nums"
                                 >{when(row.ts)}</span
-                              >{/if}{#if row.task?.due}<Badge variant="neutral"
-                                >{row.task.due}</Badge
+                              >{/if}{#if row.task?.due}<Badge
+                                variant="neutral"
+                                size="sm">{row.task.due}</Badge
                               >{/if}
                           </span>
-                          <span class="line-clamp-2 break-words text-sm"
-                            >{inboxPreview(row.text)}</span
+                          <span
+                            class={cn(
+                              "line-clamp-2 break-words text-sm",
+                              row.kind === "thread" && "font-medium",
+                            )}>{inboxPreview(row.text)}</span
                           >
                         </span>
                       </Button>
@@ -582,14 +637,27 @@
                               if (live(event)) void startReply(row);
                             }}
                             ><Icon icon="reverse-left" size={15} /></IconButton
+                          >{/if}{#if row.kind === "thread"}<Button
+                            data-inbox-thread-done
+                            size="sm"
+                            variant="outline"
+                            class="h-7 text-xs"
+                            onclick={(event) => {
+                              if (live(event)) void markDone(row);
+                            }}
+                            ><Icon icon="check-circle" size={14} />{t(
+                              "Marcar como feita",
+                            )}</Button
                           >{/if}<IconButton
                           data-inbox-open
                           label={t(
                             row.kind === "claude"
                               ? "Ir pro agent"
-                              : row.kind === "task" || row.kind === "review"
-                                ? "Abrir tarefa"
-                                : "Abrir mensagem",
+                              : row.kind === "thread"
+                                ? "Abrir thread"
+                                : row.kind === "task" || row.kind === "review"
+                                  ? "Abrir tarefa"
+                                  : "Abrir mensagem",
                           )}
                           size="icon-sm"
                           tooltipSide="bottom"

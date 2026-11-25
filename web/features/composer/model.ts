@@ -1,10 +1,15 @@
+import { mentionHandle, mentionWho } from "../../../shared/mention";
 import {
   FILE_TYPES as UPLOAD_FILE_TYPES,
   maxBytes,
 } from "../../../shared/composition";
 import { EMOJI } from "../../../shared/emoji";
 import type { Attachment, Message, Room } from "../../../shared/room";
-import type { ComposerAgent } from "./types";
+import type { ComposerAgent, ComposerQuote, ComposerRoom } from "./types";
+import type { FieldLink } from "./fieldTokens";
+import { appLink, type AppLink } from "../rich-text/appLinks";
+import type { LinkResolution } from "../../../shared/schemas";
+import { CALL_THREAD } from "../../../shared/call";
 export const AUDIO_EXT: Readonly<Record<string, string>> = {
   m4a: "audio/x-m4a",
   mp3: "audio/mpeg",
@@ -65,22 +70,20 @@ export function mentionPicks(
     match = /(^|\s)@([\p{L}\p{N}._-]*)$/u.exec(before);
   if (!match) return null;
   const query = fold(match[2]);
+  const tagPeople = {
+    members: room.members,
+    names: { ...names, ...room.names },
+    handles: room.handles,
+  };
+  // Each person by name with their @handle (two Rafaels are two rows): picking inserts the tag that reaches only them.
   const people = room.members
     .filter((email) => email !== room.me)
-    .map((email) => {
-      const local = email.split("@")[0],
-        name = room.names?.[email] || names[email] || local;
-      const handle =
-        fold((room.names?.[email] || names[email] || "").split(/\s+/)[0]) ||
-        fold(local.split(/[._+-]/)[0]) ||
-        fold(local);
-      return {
-        email,
-        handle,
-        label: name === handle ? email : name,
-        agent: false,
-      };
-    });
+    .map((email) => ({
+      email,
+      handle: mentionHandle(email, tagPeople),
+      label: room.names?.[email] || names[email] || email.split("@")[0],
+      agent: false,
+    }));
   for (const agent of agents)
     if (
       agent.email === room.me &&
@@ -107,7 +110,8 @@ export function mentionPicks(
         (person) =>
           !query ||
           person.handle.startsWith(query) ||
-          fold(person.label).includes(query),
+          fold(person.label).includes(query) ||
+          (!!person.email && fold(person.email).startsWith(query)),
       )
       .slice(0, 8),
   };
@@ -122,16 +126,13 @@ export function knownMention(
   const key = fold(handle);
   if (!key) return false;
   if (["vibe", "ai", "room", "sala", "todos"].includes(key)) return true;
-  return room.members.some((email) => {
-    const local = email.split("@")[0];
-    return [
-      (room.names?.[email] || names[email] || "").split(/\s+/)[0],
-      local.split(/[._+-]/)[0],
-      local,
-    ]
-      .map(fold)
-      .includes(key);
-  });
+  return (
+    mentionWho(key, {
+      members: room.members,
+      names: { ...names, ...room.names },
+      handles: room.handles,
+    }) !== null
+  );
 }
 /** Where the known @mentions sit in a draft: [start (the @), end) pairs, the same rule that
  *  highlights them in a sent message (`(^|[\s(])@handle`), kept only when `known` names someone. */
@@ -254,26 +255,45 @@ export type MessageSnapshot = {
   replyId?: number;
   baseline: number;
   revision: number;
+  /** The send's random id (msg client_id): the same on a resend of the same draft. */
+  clientId?: string;
 };
+/** What a send says: its text, reply and files. Two sends with the same key are the same message. */
+export const payloadKey = (p: {
+  text: string;
+  replyId?: number;
+  fileIds: readonly string[];
+}) => JSON.stringify([p.text, p.replyId ?? null, p.fileIds.slice().sort()]);
+/** The room's copy of a send: by its client_id first (it holds even when the room answered a resend with the first
+ *  message, older than the baseline, or moved it); else, for a message without one (an older server), by content. */
 export function matchingMessage(
   room: Room,
   thread: string,
   snapshot: MessageSnapshot,
 ): Message | undefined {
-  const files = snapshot.fileIds.slice().sort().join(",");
+  const byId = snapshot.clientId
+    ? room.messages.find(
+        (message) =>
+          message.client_id === snapshot.clientId &&
+          message.author === room.me &&
+          message.kind !== "agent",
+      )
+    : undefined;
+  if (byId) return byId;
+  const key = payloadKey(snapshot);
   return room.messages.find(
     (message) =>
+      !message.client_id &&
       message.id > snapshot.baseline &&
       message.author === room.me &&
       message.kind !== "agent" &&
       message.tag !== "fire" &&
       message.thread === thread &&
-      message.text === snapshot.text &&
-      (message.reply_to || undefined) === snapshot.replyId &&
-      (message.files || [])
-        .map((file) => file.id)
-        .sort()
-        .join(",") === files,
+      payloadKey({
+        text: message.text,
+        replyId: message.reply_to || undefined,
+        fileIds: (message.files || []).map((file) => file.id),
+      }) === key,
   );
 }
 export const maxMessageId = (room: Room) =>
@@ -332,4 +352,213 @@ export function composerError(
   if (error.startsWith("file-empty:"))
     return `${error.slice(11).trim()}: ${t("Arquivo vazio.")}`;
   return error;
+}
+export const MAX_COMPOSER_QUOTES = 8;
+/** The text of the message: each quote, then what the person typed, with a blank line between them. */
+export const composedText = (s: {
+  text: string;
+  quotes: readonly ComposerQuote[];
+}) =>
+  [...s.quotes.map((quote) => quote.text.trim()), s.text.trim()]
+    .filter(Boolean)
+    .join("\n\n");
+/** `#par` in the draft suggests rooms you are in (not DMs), then this room's open threads (`room › thread`), like
+ *  Discord's channels. Picking writes the room's link (roomReference). */
+export function roomPicks(
+  text: string,
+  caret: number,
+  rooms: readonly ComposerRoom[],
+  room: Pick<Room, "id" | "book" | "epics">,
+  origin: string,
+) {
+  const match = /(^|[\s(])#([\p{L}\p{N}._-]*)$/u.exec(text.slice(0, caret));
+  if (!match) return null;
+  const query = fold(match[2]);
+  const matches = (title: string) => !query || fold(title).includes(query);
+  const here = rooms.find((item) => item.id === room.id);
+  const roomTitle = here?.title || room.book.title;
+  const items: RoomPick[] = rooms
+    .filter((item) => matches(item.title))
+    .slice(0, 8)
+    .map((item) => ({
+      kind: "room",
+      id: item.id,
+      title: item.title,
+      icon: item.icon,
+      url: `${origin}/b/${item.id}`,
+    }));
+  for (const epic of room.epics) {
+    if (items.length >= 12) break;
+    if (epic.done || !epic.title.trim() || !matches(epic.title)) continue;
+    items.push({
+      kind: "thread",
+      id: epic.id,
+      title: epic.title,
+      room: roomTitle,
+      icon: here?.icon ?? 0,
+      url: `${origin}/b/${room.id}?t=${encodeURIComponent(epic.id)}`,
+    });
+  }
+  return items.length ? { start: caret - match[2].length - 1, items } : null;
+}
+export type RoomPick =
+  | {
+      kind: "room";
+      id: string;
+      title: string;
+      icon: number;
+      url: string;
+    }
+  | {
+      kind: "thread";
+      id: string;
+      title: string;
+      /** The room the thread is in (this one), shown before it. */
+      room: string;
+      icon: number;
+      url: string;
+    };
+/** The text a picked room or thread writes into the draft: its plain link. The chat already draws a link to this app
+ *  as its chip (rich-text/AppLinkChip: the room's mark and name, or "Sala privada" for someone who can't see it), and
+ *  an agent reading the plain text gets the room id (and the thread id). */
+export function roomReference(pick: RoomPick) {
+  switch (pick.kind) {
+    case "room":
+    case "thread":
+      return pick.url;
+    default: {
+      const unreachable: never = pick;
+      return unreachable;
+    }
+  }
+}
+/** The app links in a text (a room, a DM, a thread, a message, on this origin or the app's), where they are. */
+export function appLinksIn(text: string, page: string) {
+  const out: { start: number; end: number; link: AppLink }[] = [];
+  for (const match of text.matchAll(/https?:\/\/[^\s<>"']+/g)) {
+    const link = appLink(match[0], page);
+    if (link)
+      out.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        link,
+      });
+  }
+  return out;
+}
+
+const firstName = (name: string) => name.split(/\s+/)[0] || name;
+
+/** The chip the field draws for a link the chat's resolver answered: the same words and mark as AppLinkChip. */
+export function resolvedFieldLink(
+  start: number,
+  end: number,
+  value: LinkResolution,
+  t: (text: string) => string,
+): FieldLink {
+  switch (value.kind) {
+    case "message":
+      return {
+        start,
+        end,
+        kind: "message",
+        label: `${value.name} ${t("em")} ${
+          value.threadTitle ??
+          (value.thread === CALL_THREAD
+            ? t("Chat da call")
+            : value.roomTitle || t("Você"))
+        }`,
+        mark: { kind: "person", email: value.author, avatar: value.avatar },
+      };
+    case "thread":
+      return {
+        start,
+        end,
+        kind: "thread",
+        label:
+          (value.thread === CALL_THREAD ? t("Chat da call") : value.title) +
+          (value.ownerName ? ` · ${firstName(value.ownerName)}` : ""),
+        mark: { kind: "thread" },
+      };
+    case "room":
+      return {
+        start,
+        end,
+        kind: "room",
+        label: value.title,
+        mark: {
+          kind: "room",
+          id: value.room,
+          title: value.title,
+          icon: value.icon ?? 0,
+        },
+      };
+    case "dm":
+      return {
+        start,
+        end,
+        kind: "dm",
+        label: value.name || t("Você"),
+        mark: { kind: "person", email: value.email, avatar: value.avatar },
+      };
+    case "private":
+      return {
+        start,
+        end,
+        kind: "private",
+        label: t("Sala privada"),
+        mark: { kind: "lock" },
+      };
+    default: {
+      const unreachable: never = value;
+      return unreachable;
+    }
+  }
+}
+
+/** The app links in the draft that the field draws as chips. One of your rooms, or a thread of this one, is its chip
+ *  at once (what # writes); any other link to this app (a thread of another room, a message, a DM, a room you can't
+ *  see) is the chip the chat draws for it once `resolve` has the answer, and its plain link until then. */
+export function roomLinks(
+  text: string,
+  rooms: readonly ComposerRoom[],
+  room: Pick<Room, "id" | "book" | "epics">,
+  page: string,
+  resolve?: Readonly<{
+    read: (link: AppLink) => LinkResolution | null;
+    t: (text: string) => string;
+  }>,
+): FieldLink[] {
+  const out: FieldLink[] = [];
+  for (const { start, end, link } of appLinksIn(text, page)) {
+    const mine = rooms.find((item) => item.id === link.room);
+    if (link.message === undefined && link.thread === undefined && mine) {
+      out.push({
+        start,
+        end,
+        kind: "room",
+        label: mine.title,
+        mark: { kind: "room", id: mine.id, title: mine.title, icon: mine.icon },
+      });
+      continue;
+    }
+    const epic =
+      link.message === undefined && link.room === room.id
+        ? room.epics.find((item) => item.id === link.thread)
+        : undefined;
+    if (epic?.title.trim()) {
+      out.push({
+        start,
+        end,
+        kind: "thread",
+        label: `${mine?.title || room.book.title} › ${epic.title}`,
+        mark: { kind: "thread" },
+      });
+      continue;
+    }
+    const value = resolve?.read(link);
+    if (resolve && value)
+      out.push(resolvedFieldLink(start, end, value, resolve.t));
+  }
+  return out;
 }

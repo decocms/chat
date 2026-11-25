@@ -1,4 +1,5 @@
 import { chatTime, chatDateTime } from "../chat/time";
+import { CALL_THREAD, roomHasThread } from "../../../shared/call";
 import { derived, get, readonly, writable } from "svelte/store";
 import type { Attachment, Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
@@ -73,15 +74,21 @@ import {
 import { agentMarkLabel } from "../agents/roomCopy";
 import type { RoomAgentSession } from "../agents/room";
 import type { RichActions, RichNavigation } from "../rich-text/types";
+import type { AppLink } from "../rich-text/appLinks";
 import type { ComposerUpload } from "../composer/types";
 import type { ComposerEntry } from "../composer/drafts";
 import type { DocumentPane } from "../documents/types";
 import { createRoomApi } from "../../app/transport";
 import {
+  notificationFrom,
+  notificationTitle,
+} from "../../../shared/notificationTitle";
+import {
   roomMessages,
   roomName,
   roomAvatarVersion,
   roomMention,
+  mentionRooms,
 } from "./model";
 import type {
   RoomScopeOptions,
@@ -101,8 +108,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   let active = true,
     synchronizing = false,
     projecting = false,
-    projectAgain = false,
-    inboxVisible = false;
+    projectAgain = false;
   const voiceApi = createVoiceApi(browser.fetcher);
   const voiceLeaving = new Set<() => void>();
   function leaveVoice() {
@@ -126,7 +132,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   const forThread = (thread: string) => current() && selected() === thread;
   function composerRequestFor(thread: string): RequestRoomCommand {
     return (command) => {
-      if (!forThread(thread) || inboxVisible) return failed();
+      if (!forThread(thread)) return failed();
       if (command.t !== "msg") return request(command);
       if ((command.thread ?? "main") !== thread) return failed();
       const target = side.target();
@@ -162,7 +168,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   };
   const navigation = createNavigationSession(
     scope.roomId,
-    false,
+    null,
     browser.storage,
   );
   const pins = createPinsSession(scope.roomId),
@@ -354,7 +360,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   const activePinApp = derived([apps.state, layout.state], ([value, view]) =>
     value.target &&
     view.pane === "apps" &&
-    !view.boardFull &&
     (view.mobile || view.documentVisible)
       ? value.target
       : null,
@@ -438,12 +443,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   function pickThread(thread: string) {
     if (!current() || defer(() => pickThread(thread))) return;
     const value = room()!;
-    if (
-      thread !== "main" &&
-      !suggestionAt(value, thread) &&
-      !value.epics.some((epic) => epic.id === thread)
-    )
-      return;
+    if (!suggestionAt(value, thread) && !roomHasThread(value, thread)) return;
     const replace = layout.takeSheetEntry();
     services.actions.selectThread(thread, { replace });
   }
@@ -502,18 +502,29 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   function richNavigate(target: RichNavigation) {
     if (!current() || defer(() => richNavigate(target))) return;
     const thread = target.id ?? selected();
-    if (
-      thread !== "main" &&
-      !room()!.epics.some((epic) => epic.id === thread)
-    ) {
-      showNotice(t("Esse épico não existe mais nesta sala."));
+    if (!roomHasThread(room()!, thread)) {
+      showNotice(t("Essa thread não existe mais nesta sala."));
       return;
     }
     if (thread !== selected()) pickThread(thread);
     if (target.kind === "document" && current()) setPane("doc", { open: true });
   }
+  /** A link to this app in a message (rich-text/AppLinkChip): this room's own places open like its links do; another
+   *  room is a navigation in this tab. */
+  function openAppLink(link: AppLink) {
+    const captured = { ...link };
+    if (!current() || defer(() => openAppLink(captured))) return;
+    if (captured.room !== scope.roomId)
+      services.actions.navigate(captured.path, layout.takeSheetEntry());
+    else if (captured.message !== undefined)
+      navigateMessage(captured.message, captured.thread);
+    else if (captured.thread)
+      richNavigate({ kind: "thread", id: captured.thread });
+    else if (selected() !== "main") pickThread("main");
+  }
   const rich: RichActions = {
     navigate: navigateMessage,
+    openAppLink,
     openFile,
     navigateRich: richNavigate,
     openFileReference: (file) => {
@@ -522,6 +533,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     },
     ensureFileIndex: () => {
       if (current()) void fileIndex.load();
+    },
+    openPerson: (email) => {
+      if (current()) services.actions.openPerson?.(email);
     },
   };
   function openApp(target: AppTarget, requireOpeningConsent = false) {
@@ -539,7 +553,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   function openAgentDocument(epic: string) {
     if (!current() || defer(() => openAgentDocument(epic))) return;
     if (epic && !room()!.epics.some((entry) => entry.id === epic)) {
-      showNotice(t("Esse épico não existe mais nesta sala."));
+      showNotice(t("Essa thread não existe mais nesta sala."));
       return;
     }
     if (epic && selected() !== epic) pickThread(epic);
@@ -682,12 +696,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       syncPinsSession(pins, value);
       if (fresh) pins.filesRequested = false;
       if (snapshot.phase === "live") requestPinnedFiles(pins, value, send);
-      syncNavigationSession(
-        navigation,
-        value,
-        snapshot.thread,
-        get(navigation.state).archived,
-      );
+      syncNavigationSession(navigation, value, snapshot.thread);
       mutations.sync(value, request);
       viewer.sync(value, request, fresh);
       side.sync(value, request, fresh);
@@ -709,9 +718,11 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       if (
         changed &&
         snapshot.thread !== "main" &&
+        // The call's chat opens no doc: it sits beside the call's stage, and a doc that opens closes the stage.
+        snapshot.thread !== CALL_THREAD &&
+        snapshot.thread !== value.callThread &&
         !snapshot.thread.startsWith("pre:") &&
-        !layout.read().documentVisible &&
-        !layout.read().boardFull
+        !layout.read().documentVisible
       ) {
         const tasks =
           value.epics.find((epic) => epic.id === snapshot.thread)?.tasks ?? [];
@@ -801,15 +812,24 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           value = snapshot?.room;
         if (!snapshot || !value) break;
         const thread = snapshot.thread,
-          owned = () => forThread(thread) && !inboxVisible,
+          owned = () => forThread(thread),
           waits = me()?.waits ?? [],
           display = get(layout.state);
         if (nextKeep !== "stay" && nextKeep !== true) viewport.followLatest();
-        chatPresentation.capture(nextKeep, !display.boardFull && !inboxVisible);
+        chatPresentation.capture(nextKeep, true);
         const revision = ++chatRevision;
         const appProps: import("../apps/types").AppsProps = {
           ask: (prompt) => {
             if (owned()) composeIn(thread, (entry) => entry.edit(prompt));
+          },
+          compose: (draft) => {
+            if (!owned()) return;
+            composeIn(thread, (entry) => {
+              for (const quote of draft.quotes) entry.quote(quote);
+              if (!draft.text) return;
+              const before = get(entry.state).text.trimEnd();
+              entry.edit(before ? `${before}\n\n${draft.text}` : draft.text);
+            });
           },
           connectionModes: direct.state,
           owner: apps,
@@ -824,9 +844,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           t,
           lang,
           openLink: browser.openExternal,
-          metric: (kind, roomOnly) =>
+          metric: (kind, roomOnly, days) =>
             appRequests.run((signal) =>
-              guardApp(metrics(kind, scope.roomId, roomOnly, signal)),
+              guardApp(metrics(kind, scope.roomId, roomOnly, signal, days)),
             ),
           putInDocument: (target) => {
             if (!owned()) return;
@@ -883,6 +903,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           request: threadRequest,
           waits,
           onopen: pickThread,
+          onjump: (id: number) => {
+            if (owned()) navigateMessage(id);
+          },
           ...(thread.startsWith("pre:")
             ? {}
             : {
@@ -905,6 +928,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           request: threadRequest,
           reply: (id) => {
             if (owned()) reply(id);
+          },
+          openThread: (id) => {
+            if (owned()) pickThread(id);
           },
           draftReply: (draft) => {
             if (owned()) reply(draft.messageId, draft);
@@ -973,10 +999,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         );
         const mark = agentMark(data ? status : "off", queue);
         const counts = {
-          board: [
-            ...value.epics.flatMap((epic) => epic.tasks),
-            ...(value.roomTasks ?? []),
-          ].filter((task) => !task.done && task.owner === value.me).length,
           files: value.filesN ?? value.files?.length ?? 0,
           apps: apps.connectionCount() + roomApps(value).length,
           decisions: value.decisions?.length ?? 0,
@@ -1065,9 +1087,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             onopen: (target) => {
               if (current()) pickThread(target);
             },
-            onarchchange: (archived) => {
+            onviewchange: (view) => {
               if (current()) {
-                navigation.state.update((before) => ({ ...before, archived }));
+                navigation.state.update((before) => ({ ...before, view }));
                 project("stay");
               }
             },
@@ -1132,8 +1154,8 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                     const latest = room();
                     if (!latest) throw new VoiceFailure(0);
                     const prompt =
-                      `Conversa no deco.chat, sala ${latest.book.title}. Pessoas: ${latest.members.map((email) => email.split("@")[0]).join(", ")}. Épicos: ${latest.epics
-                        .filter((epic) => !epic.archived)
+                      `Conversa no deco.chat, sala ${latest.book.title}. Pessoas: ${latest.members.map((email) => email.split("@")[0]).join(", ")}. Threads: ${latest.epics
+                        .filter((epic) => !epic.done)
                         .slice(0, 15)
                         .map((epic) => epic.title)
                         .join("; ")}.`.slice(0, 600);
@@ -1160,10 +1182,10 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                   },
                 },
                 agents: data?.sandboxes ?? [],
+                rooms: mentionRooms(me()?.books ?? []),
                 navigate: (id) => {
                   if (owned()) navigateMessage(id, thread);
                 },
-                hidden: display.boardFull || inboxVisible,
               },
           suggestion: pre
             ? {
@@ -1202,7 +1224,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
               if (current()) setPane(pane, { open: true, toggle: true });
             },
           },
-          board: panel,
           decisions: panel,
           reminders: panel,
           files: {
@@ -1292,7 +1313,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       return;
     document.chooseRoom(false);
     if (intent.unavailableThread) {
-      showNotice(t("Esse épico não existe mais nesta sala."));
+      showNotice(t("Essa thread não existe mais nesta sala."));
       if (intent.target.document) return;
     }
     if (intent.pane) setPane(intent.pane);
@@ -1356,14 +1377,12 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         selected(),
         (handle) => roomMention(canonical, me(), handle),
         (message) =>
-          message.author === "ai"
-            ? "@vibe"
-            : message.kind === "agent"
-              ? t("{via} de {who}", {
-                  via: message.via || "agent",
-                  who: name(message.author),
-                })
-              : name(message.author),
+          notificationTitle({
+            from: notificationFrom(message),
+            name: name(message.author),
+            room: canonical.book.dm ? null : canonical.book.title,
+            en: lang === "en",
+          }),
       );
       project(
         viewport.pinned() ||
@@ -1426,7 +1445,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       const projected = [
         value.pane,
         value.sheet,
-        value.boardFull,
         value.documentVisible,
         value.sidebarCollapsed,
         value.mobile,
@@ -1486,11 +1504,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     viewer,
     richFiles,
     current,
-    setInboxVisible(value) {
-      if (!current() || inboxVisible === value) return;
-      inboxVisible = value;
-      project("stay");
-    },
     attachChat(element) {
       if (!current() || !element.isConnected) return () => {};
       const surface = createChatSurface(element);
@@ -1522,8 +1535,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       if (!current() || revision !== chatRevision || !chatElement?.isConnected)
         return;
       if (chatSurface) viewport.attach(chatSurface);
-      if (!chatPresentation.rendered(!layout.read().boardFull && !inboxVisible))
-        return;
+      if (!chatPresentation.rendered(true)) return;
       const intent = pendingMessage;
       if (intent && intent.navigation === services.router.generation()) {
         pendingMessage = null;

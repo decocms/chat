@@ -5,7 +5,8 @@ import type {
   SearchResult,
 } from "../../../shared/schemas";
 import { appRouteHash, type AppRouteTarget } from "../apps/model";
-import { waitIndicator, type WaitReference } from "../waits/model";
+import { waitCount, waitText, type WaitReference } from "../waits/model";
+import { createApplicationCopy } from "../application/copy";
 import { homeText, type HomeLanguage } from "./copy";
 export type RoomSummary = MeResult["books"][number];
 export type Wait = MeResult["waits"][number];
@@ -175,9 +176,10 @@ export function waitsByRoom<W extends { book_id: string }>(
   return map;
 }
 /**
- * A room's state in words, most pressing first: what waits on you, who wrote
- * since you looked, a Claude working, a cloud sandbox running. The rail's
- * tooltip lists them all; a DM row shows the first.
+ * A room's state in words, in the order of the avatar's three signals: what
+ * waits on you (the number), who wrote since you looked (the dot), an agent
+ * working (the ✻); then a cloud sandbox running, which has no mark on the
+ * avatar. The rail's tooltip lists them all; a DM row shows the first.
  */
 export function roomStatus(
   room: RoomSummary,
@@ -187,13 +189,9 @@ export function roomStatus(
   lang: HomeLanguage,
 ) {
   const news = unread(room, seen),
-    waiting = waitIndicator(waits);
+    waiting = waitCount(waits);
   return [
-    waiting.asks
-      ? homeText(lang, "waiting", { n: waiting.asks })
-      : waiting.tasks
-        ? homeText(lang, "taskPending")
-        : "",
+    waiting ? homeText(lang, "waiting", { n: waiting }) : "",
     news ? homeText(lang, news === "human" ? "newHuman" : "newAgent") : "",
     (room.busy_until ?? 0) > now ? homeText(lang, "busy") : "",
     room.sandboxes_running ? homeText(lang, "cloud") : "",
@@ -377,7 +375,7 @@ export function waitGroups(waits: readonly Wait[]) {
 /** The triage filters: your Claude's asks, people's asks (and @vibe's), your tasks in review. */
 export type WaitKind = "claude" | "asks" | "reviews";
 export const waitKind = (wait: Wait): WaitKind =>
-  claudeWait(wait) ? "claude" : wait.ref.startsWith("t") ? "reviews" : "asks";
+  claudeWait(wait) ? "claude" : /^[te]/.test(wait.ref) ? "reviews" : "asks";
 /**
  * A wait's text as one plain line for the home: markdown marks out, links as
  * their text, bare URLs as host + path, the hook's ⏸/❓ opener and a leading
@@ -401,4 +399,49 @@ export function plainWaitText(value: string) {
     .replace(/^@[\p{L}\p{N}._-]+[,:]?\s+/u, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+/** A wait's line for the home, plain: an open thread of yours reads as its state ("Pronta pra fechar · 3/3 tarefas"). */
+export const homeWaitText = (wait: Wait, lang: HomeLanguage) =>
+  plainWaitText(waitText(wait, createApplicationCopy(lang)));
+/**
+ * The phone's list of rooms, like a chat app: every room and DM you talked in,
+ * the one with the newest message first. Your own DM ("Você") only once you
+ * wrote there.
+ */
+export function chatList(me: MeResult | null) {
+  if (!me) return [];
+  const dms = new Map(switcherDms(me).map((entry) => [entry.room.id, entry]));
+  return [...me.books]
+    .filter(
+      (room) =>
+        !room.dm ||
+        (dms.has(room.id) && (!dms.get(room.id)?.self || room.last_text)),
+    )
+    .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))
+    .map((room) => ({ room, dm: dms.get(room.id) }));
+}
+/**
+ * A room's newest message as one line under its name: "Você: …", "Ana: …",
+ * "Claude: …" or "@vibe: …". A DM leaves out the other person's name (the row
+ * is theirs). A room with no stored line yet shows its summary.
+ */
+export function lastLine(
+  room: RoomSummary,
+  me: MeResult | null,
+  lang: HomeLanguage,
+  dm?: DmEntry,
+) {
+  const text = plainWaitText(room.last_text ?? "");
+  if (!text) return room.summary ?? "";
+  const by = room.last_by ?? "";
+  const who = room.last_agent
+    ? "Claude"
+    : by === "ai"
+      ? "@vibe"
+      : by && by === me?.email
+        ? homeText(lang, "you")
+        : dm
+          ? ""
+          : (room.last_by_name ?? by.split("@")[0]).split(" ")[0];
+  return who ? `${who}: ${text}` : text;
 }

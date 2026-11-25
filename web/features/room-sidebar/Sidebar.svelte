@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { onDestroy, untrack, tick } from "svelte";
-  import RoomStrip from "../app-navigation/RoomStrip.svelte";
+  import { onDestroy, untrack } from "svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
-  import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
+  import UserCenter from "../user-center/UserCenter.svelte";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
   import { navRow } from "../../lib/components/navRow";
   import EpicTree from "../navigation/EpicTree.svelte";
@@ -17,11 +16,9 @@
   import { cn } from "../../lib/studio/utils";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import Count from "../../lib/components/Count.svelte";
-  import ThreadHeader from "./ThreadHeader.svelte";
   import AgentPresenceRows from "./AgentPresenceRows.svelte";
   import MutationStatus from "./MutationStatus.svelte";
   import { createRoomMutations } from "./session";
-  import { messageCount } from "./model";
   import { dmPeer } from "../room-scope/model";
   import type { SidebarProps } from "../../app/sidebar";
   let {
@@ -33,7 +30,7 @@
     send,
     request,
     onopen,
-    onarchchange,
+    onviewchange,
     navigation,
     pins,
     onopenpinfile,
@@ -47,17 +44,13 @@
     ontogglerail = () => {},
     onrenameroom = () => {},
     onopenside = () => {},
-    oninbox,
-    inboxOpen = false,
-    onboard,
-    boardOpen = false,
-    boardCount,
-    inboxCount = 0,
-    onthreadintent,
-    onroomhome,
     mountSheetHandle,
     hideSheetHandle = false,
+    phoneMenu,
+    phoneAccount,
     footer,
+    call,
+    callPanel,
   }: SidebarProps = $props();
   const external = untrack(() => !!mutations);
   // A DM (src/dm.ts): its sidebar is your DM list; the DM is only a conversation (no threads, views or epics).
@@ -68,42 +61,16 @@
   );
   let active = true;
   let root = $state<HTMLElement | null>(null);
-  function expandForCreate(trigger: HTMLElement) {
-    if (!active) return;
-    const account = room.me,
-      id = room.id;
-    navigation.state.update((value) => ({
-      ...value,
-      archived: false,
-      creating: true,
-    }));
-    onarchchange(false);
-    ontogglerail();
-    void tick().then(() => {
-      if (
-        active &&
-        room.me === account &&
-        room.id === id &&
-        !collapsed &&
-        (document.activeElement === document.body ||
-          document.activeElement === trigger)
-      )
-        root?.querySelector<HTMLInputElement>("#newEpic input")?.focus();
-    });
-  }
   $effect(() => owner.sync(room, request));
   onDestroy(() => {
     active = false;
     if (!external) owner.dispose();
   });
   function open(id: string) {
-    if (active && (onthreadintent?.() ?? true)) onopen(id);
+    if (active) onopen(id);
   }
-  // The room's name and the main thread's row: the main thread is also the
-  // chat view, so it leaves the full board (and the inbox, in open()).
+  // The room's name (desktop) and the room's row (phones) open the main thread.
   function openMain() {
-    if (!active) return;
-    if (boardOpen) onroomhome?.();
     open("main");
   }
   function sheetHandle(node: HTMLElement) {
@@ -118,9 +85,11 @@
     studioType,
     "flex h-full min-h-[32rem] flex-col overflow-x-hidden bg-sidebar p-2 text-sm leading-5 text-sidebar-foreground",
     // Expanded, the sections take their full height and the sidebar scrolls whole.
+    // A phone's title menu keeps its shortcuts and the room's row in place:
+    // only the epics scroll (Gimenes #3775).
     collapsed
       ? "items-center gap-2 overflow-y-auto overscroll-contain"
-      : "gap-6 overflow-y-auto overscroll-contain",
+      : "gap-6 overflow-y-auto overscroll-contain max-md:min-h-0 max-md:overflow-y-hidden",
   )}
 >
   {#if collapsed}
@@ -138,34 +107,13 @@
       tooltipSide="right"
       size="icon"><Icon icon="arrow-left" /></IconButton
     >
-    {#if oninbox}<IconButton
-        data-inbox-toggle={onboard ? "" : undefined}
-        variant={inboxOpen ? "secondary" : "ghost"}
-        aria-current={inboxOpen ? "page" : undefined}
-        aria-pressed={onboard ? inboxOpen : undefined}
-        label={vb.t("Caixa de entrada")}
-        tooltipSide="right"
-        size="icon"
-        onclick={(event) => {
-          if (event.currentTarget.isConnected) oninbox?.(event.currentTarget);
-        }}><Icon icon="inbox-01" /></IconButton
-      >{/if}{#if onboard}<IconButton
-        data-board-toggle
-        variant={boardOpen ? "secondary" : "ghost"}
-        aria-pressed={boardOpen}
-        label={vb.t("Quadro de tarefas (kanban)")}
-        tooltipSide="right"
-        size="icon"
-        onclick={(event) => {
-          if (event.currentTarget.isConnected) onboard?.();
-        }}><Icon icon="layout-alt-01" /></IconButton
-      >{/if}
-    {#each [{ id: "main", title: room.book.title, tasks: [], owner: undefined }, ...room.epics.filter((epic) => !epic.archived || epic.id === thread)] as epic (epic.id)}
+    {#if call}{@render call(true)}{/if}
+    {#each [{ id: "main", title: room.book.title, tasks: [], owner: undefined }, ...room.epics.filter((epic) => !epic.done || epic.id === thread)] as epic (epic.id)}
       {@const done = epic.tasks.filter((task) => task.done).length}
       <Button
-        variant={!inboxOpen && thread === epic.id ? "secondary" : "ghost"}
+        variant={thread === epic.id ? "secondary" : "ghost"}
         class="relative h-auto flex-col gap-1 rounded-lg p-1"
-        aria-current={!inboxOpen && thread === epic.id ? "page" : undefined}
+        aria-current={thread === epic.id ? "page" : undefined}
         title={epic.title}
         onclick={(event) => {
           if (event.currentTarget.isConnected) open(epic.id);
@@ -190,18 +138,11 @@
           solid
           waits={vb.waitsIn(epic.id)}
           label={(n) => vb.t("{n} coisas esperando você", { n })}
-          taskLabel={vb.t("Tarefa sua pendente")}
           class="absolute -top-1 -right-1"
         /></Button
       >
     {/each}
-    <IconButton
-      label={vb.t("Novo épico")}
-      tooltipSide="right"
-      size="icon"
-      onclick={(event) => expandForCreate(event.currentTarget)}
-      ><Icon icon="plus" /></IconButton
-    >
+    <!-- No + for a new thread (Gimenes #4286): a thread starts from a message. -->
     {#if room.requests?.length}<Button
         variant="outline"
         size="sm"
@@ -221,8 +162,11 @@
         /></span
       >{/each}
     <MutationStatus {owner} t={vb.t} />
-    {#if footer}<div class="mt-auto shrink-0 pt-2 max-md:hidden">
-        {@render footer(true)}
+    {#if footer || callPanel}<div class="mt-auto shrink-0 pt-2 max-md:hidden">
+        {#if callPanel}<div class="flex justify-center pb-2 empty:hidden">
+            {@render callPanel(true)}
+          </div>{/if}
+        {@render footer?.(true)}
       </div>{/if}
   {:else}
     {#if !hideSheetHandle}<button
@@ -232,22 +176,26 @@
         class="mx-auto h-5 w-12 shrink-0 cursor-pointer rounded-full border-0 bg-muted md:hidden"
         onclick={onopenside}
       ></button>{/if}
-    {#if appNavigation}<RoomStrip
-        controller={appNavigation.controller}
-        lang={appNavigation.lang}>{@render thisRoom()}</RoomStrip
-      >{:else}{@render thisRoom()}{/if}
+    <!-- Phones: the room's name is the drawer's first item (Gimenes #4065). -->
+    {#if !dm}{@render roomRow()}{/if}
+    {#if phoneMenu}<div class="-mb-2 shrink-0 md:hidden">
+        {@render phoneMenu()}
+      </div>{/if}
+    <!-- No This room | All rooms tabs: the phone's Home lists every room (Gimenes #4071). -->
+    {@render thisRoom()}
     {#snippet thisRoom()}{#if dm && appNavigation}<!-- A DM is only a conversation: its row, no threads, views or epics under it. -->
         <DmNav
           controller={appNavigation.controller}
           lang={appNavigation.lang}
         />{:else}<!-- Its full height, like Pinned and People below: the sidebar scrolls whole (one scroll, never two). -->
-        <div class="flex shrink-0 flex-col gap-3">
-          <!-- Desktop: the room's name on top (phones have it on the main thread's row); ✎ on hover. -->
-          <SidebarHeader class="group/name max-md:hidden md:pl-4"
-            ><button
-              type="button"
+        <div class="flex shrink-0 flex-col gap-3 max-md:min-h-0 max-md:shrink">
+          <!-- Desktop: the room's name on top is the main thread (Gimenes #3989), a ghost button (#4007) with what waits on you; ✎ on hover. Phones have the room's row at the top of the drawer. -->
+          <SidebarHeader class="group/name max-md:hidden"
+            ><Button
+              variant="ghost"
               data-room-home
-              class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent p-0 text-left font-sans text-sidebar-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-current={thread === "main" ? "page" : undefined}
+              class="h-9 min-w-0 flex-1 justify-start px-2 text-left text-sidebar-foreground hover:bg-sidebar-accent"
               title={room.book.summary
                 ? `${room.book.title}\n${room.book.summary}`
                 : room.book.title}
@@ -259,15 +207,23 @@
               <h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
                 {room.book.title}
               </h2>
-            </button>
+              <WaitBadge
+                waits={vb.waitsIn("main")}
+                label={(n) => vb.t("{n} coisas esperando você", { n })}
+              />
+            </Button>
+            <!-- The same hover and height as the room's name beside it (Gimenes #4035). -->
             <IconButton
               label={vb.t("Editar sala")}
-              size="icon-xs"
+              variant="sidebar"
+              size="icon"
               tooltipSide="bottom"
-              class="shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/name:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 motion-reduce:transition-none"
+              class="size-9 shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/name:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 motion-reduce:transition-none"
               onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
             ></SidebarHeader
-          >{@render roomThreads()}
+          >{#if call}<div class="max-md:hidden">
+              {@render call(false)}
+            </div>{/if}{@render roomThreads()}
         </div>{/if}{/snippet}
     <!-- The room's threads: the main one, the views, the epics. A DM nests them under its row in the DM list. -->
     {#snippet roomThreads()}<div
@@ -275,113 +231,13 @@
           ? "mt-1 ml-4 flex min-h-0 flex-col gap-3 border-l border-sidebar-border pl-2"
           : "contents"}
       >
-        <div class="group/room relative shrink-0">
-          <button
-            type="button"
-            data-room-title
-            aria-current={!inboxOpen && !boardOpen && thread === "main"
-              ? "page"
-              : undefined}
-            class={navRow({
-              class:
-                "transition-[background-color,padding] duration-150 ease-out group-hover/room:pr-9 group-focus-within/room:pr-9 md:group-hover/room:pr-2 md:group-focus-within/room:pr-2 motion-reduce:transition-none [@media(hover:none)]:pr-9",
-            })}
-            onclick={(event) => {
-              if (event.currentTarget.isConnected) openMain();
-            }}
-          >
-            <!-- Phones: the room's own row. Desktop: the main thread, under the room's name. -->
-            {#if dm}<Icon
-                icon="message-circle-01"
-                size={16}
-                class="shrink-0 text-muted-foreground"
-              /><span class="min-w-0 flex-1 truncate">{vb.t("Conversa")}</span
-              >{:else}<RoomMark
-                title={room.book.title}
-                src={roomIcon}
-                class="md:hidden"
-              /><Icon
-                icon="message-circle-01"
-                size={16}
-                class="hidden shrink-0 text-muted-foreground md:block"
-              />
-              <span class="min-w-0 flex-1 truncate"
-                ><span class="md:hidden">{room.book.title}</span><span
-                  class="hidden md:inline">{vb.t("Sala principal")}</span
-                ></span
-              >{/if}
-            <WaitBadge
-              waits={vb.waitsIn("main")}
-              label={(n) => vb.t("{n} coisas esperando você", { n })}
-              taskLabel={vb.t("Tarefa sua pendente")}
-            />
-            <span
-              class="shrink-0 text-xs font-normal tabular-nums text-muted-foreground"
-              >{messageCount(room, "main")}</span
-            >
-          </button>
-          <IconButton
-            label={vb.t("Editar sala")}
-            size="icon-xs"
-            tooltipSide="bottom"
-            class="absolute top-1.5 right-1.5 md:hidden translate-x-1 scale-90 text-muted-foreground opacity-0 transition-[opacity,translate,scale] duration-150 ease-out hover:bg-background/60 hover:text-sidebar-foreground focus-visible:translate-x-0 focus-visible:scale-100 focus-visible:opacity-100 group-hover/room:translate-x-0 group-hover/room:scale-100 group-hover/room:opacity-100 motion-reduce:transition-none [@media(hover:none)]:translate-x-0 [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"
-            onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
-          >
-        </div>
-        {#if onboard}<!-- Desktop: the room's views, like the main thread above (chat): they change the whole middle. -->
-          <div data-room-views class="-mt-2.5 flex shrink-0 flex-col gap-0.5">
-            {#if oninbox}<button
-                type="button"
-                data-inbox-toggle
-                aria-pressed={inboxOpen}
-                class={navRow()}
-                onclick={(event) => {
-                  if (event.currentTarget.isConnected)
-                    oninbox?.(event.currentTarget);
-                }}
-                ><Icon
-                  icon="inbox-01"
-                  size={16}
-                  class="shrink-0 text-muted-foreground"
-                /><span class="min-w-0 flex-1 truncate"
-                  >{vb.t("Caixa de entrada")}</span
-                >{#if inboxCount}<Count
-                    value={inboxCount}
-                    label={vb.t("Esperando você: {n}", { n: inboxCount })}
-                  />{/if}</button
-              >{/if}<button
-              type="button"
-              data-board-toggle
-              aria-pressed={boardOpen}
-              class={navRow()}
-              onclick={(event) => {
-                if (event.currentTarget.isConnected) onboard?.();
-              }}
-              ><Icon
-                icon="layout-alt-01"
-                size={16}
-                class="shrink-0 text-muted-foreground"
-              /><span class="min-w-0 flex-1 truncate"
-                >{vb.t("Quadro de tarefas")}</span
-              >{#if typeof boardCount === "number" && boardCount}<Count
-                  value={boardCount}
-                  label={vb.t("Esperando você: {n}", { n: boardCount })}
-                />{/if}</button
-            >
-          </div>{/if}
-        {#if thread !== "main" && !thread.startsWith("pre:")}<div
-            class="shrink-0 md:hidden"
-          >
-            <ThreadHeader {room} {thread} {owner} {vb} {onopenside} />
-          </div>{/if}
+        {#if dm}{@render roomRow()}{/if}
         <EpicTree
           {room}
           {thread}
-          selectionDisabled={inboxOpen}
-          onBeforeOpen={onthreadintent}
           session={navigation}
           mutations={owner}
-          {onarchchange}
+          {onviewchange}
           onopen={open}
           vb={{
             t: vb.t,
@@ -391,6 +247,47 @@
             waitsIn: vb.waitsIn,
           }}
         />
+      </div>{/snippet}
+    <!-- Phones and DMs: the room's (or the conversation's) own row. On a desktop room the name in the header is the main thread. -->
+    <!-- The room's row: its name, ✎ right after it, and on phones your avatar at the end (Gimenes #4108). -->
+    {#snippet roomRow()}<div
+        class={cn(
+          "group/room flex shrink-0 items-center gap-1",
+          !dm && "md:hidden",
+        )}
+      >
+        <button
+          type="button"
+          data-room-title
+          aria-current={thread === "main" ? "page" : undefined}
+          class={navRow({ class: "w-auto" })}
+          onclick={(event) => {
+            if (event.currentTarget.isConnected) openMain();
+          }}
+        >
+          {#if dm}<Icon
+              icon="message-circle-01"
+              size={16}
+              class="shrink-0 text-muted-foreground"
+            /><span class="min-w-0 truncate">{vb.t("Conversa")}</span
+            >{:else}<RoomMark title={room.book.title} src={roomIcon} />
+            <span class="min-w-0 truncate">{room.book.title}</span>{/if}
+          <WaitBadge
+            waits={vb.waitsIn("main")}
+            label={(n) => vb.t("{n} coisas esperando você", { n })}
+          />
+        </button>
+        <IconButton
+          label={vb.t("Editar sala")}
+          size="icon-xs"
+          tooltipSide="bottom"
+          class="shrink-0 text-muted-foreground hover:text-sidebar-foreground md:hidden"
+          onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
+        >{#if phoneAccount}<span
+            data-drawer-account
+            class="ml-auto flex shrink-0 md:hidden"
+            >{@render phoneAccount()}</span
+          >{/if}
       </div>{/snippet}
     <!-- On a phone Pinned lives in the Files tab. People & agents is a pane beside the chat (desktop) or the Claude tab (phone). A DM has neither. -->
     {#if !dm}<div class="contents max-md:hidden">
@@ -419,11 +316,12 @@
           {locale}
         />
       </div>{/snippet}
-    <SidebarFoot>
+    {#snippet panelAbove()}{@render callPanel?.(false)}{/snippet}
+    <UserCenter above={callPanel ? panelAbove : undefined}>
       {#if footer}{@render footer(
           false,
           selfRows,
         )}{:else}{@render selfRows()}{/if}
-    </SidebarFoot>
+    </UserCenter>
   {/if}
 </section>

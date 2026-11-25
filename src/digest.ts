@@ -7,6 +7,7 @@ import { mailFrom, publicOrigin } from "./host";
 import type { Env } from "./index";
 import { unsubscribeUrl } from "./mentionmail";
 import { waitsFor } from "./rooms";
+import { threadWait, threadWaitLine } from "../shared/threadWait";
 import { track } from "./track";
 import { DIGEST_MENTIONS_SQL } from "./digestItems";
 
@@ -75,22 +76,24 @@ async function digestMail(env: Env, to: string, lang: "pt" | "en", morning: bool
   const origin = publicOrigin(env);
   const link = (book: string, thread: string, msg?: number) => `${origin}/b/${book}${thread && thread !== "main" ? `?t=${thread}` : ""}${msg ? `#m${msg}` : ""}`;
   const row = (where: string, text: string, url: string) =>
-    `<li style="margin:0 0 10px"><span style="color:#6b7383;font-size:13px">${escapeHtml(where)}</span><br>${escapeHtml(text.slice(0, 240))} <a href="${url}" style="color:#1d5fc4">${t.open}</a></li>`;
+    `<li style="margin:0 0 10px"><span style="color:#676664;font-size:13px">${escapeHtml(where)}</span><br>${escapeHtml(text.slice(0, 240))} <a href="${url}" style="color:#216bf2">${t.open}</a></li>`;
   // A wait in the main thread is stored with the topic "sala principal" (src/book.ts): named in the reader's language.
   const topic = (w: Wait) => (w.thread === "main" && w.topic ? t.main : w.topic);
-  const wl = waits.slice(0, 15).map((w) => row(`${w.room}${topic(w) ? ` › ${topic(w)}` : ""}`, w.text, link(w.book_id, w.thread, /^m\d/.test(w.ref) ? Number(w.ref.slice(1)) : undefined)));
+  // An open thread of yours (e<epic>) reads as its state ("Pronta pra fechar · 3/3 tarefas"), not its stored line.
+  const said = (w: Wait) => { const tw = threadWait(w); return tw ? threadWaitLine(tw, lang === "en") : w.text; };
+  const wl = waits.slice(0, 15).map((w) => row(`${w.room}${topic(w) ? ` › ${topic(w)}` : ""}`, said(w), link(w.book_id, w.thread, /^m\d/.test(w.ref) ? Number(w.ref.slice(1)) : undefined)));
   const il = items.map((i) => row(`${i.room} · ${i.author}`, i.text, link(i.book_id, i.thread, i.msg_id)));
   const unsub = await unsubscribeUrl(env.SESSION_SECRET, origin, to);
   const html = emailHtml(
     t.title(morning),
     `${wl.length ? `<p style="margin:0 0 8px;font-weight:700">${t.waits}</p><ul style="margin:0 0 18px;padding-left:20px;line-height:1.5">${wl.join("")}</ul>` : ""}
 ${il.length ? `<p style="margin:0 0 8px;font-weight:700">${t.mentions}</p><ul style="margin:0 0 18px;padding-left:20px;line-height:1.5">${il.join("")}</ul>` : ""}
-<p style="font-size:12px;color:#8a93a3;margin:20px 0 0;padding-top:16px;border-top:1px solid #eef1f6">${t.why} <a href="${unsub}" style="color:#8a93a3">${t.off}</a></p>`,
+<p style="font-size:12px;color:#676664;margin:20px 0 0;padding-top:16px;border-top:1px solid #edecea">${t.why} <a href="${unsub}" style="color:#676664">${t.off}</a></p>`,
     origin,
   );
   const text = [
     t.title(morning),
-    waits.length ? `\n${t.waits}:\n${waits.slice(0, 15).map((w) => `- ${w.room}${topic(w) ? ` › ${topic(w)}` : ""}: ${w.text.slice(0, 240)}`).join("\n")}` : "",
+    waits.length ? `\n${t.waits}:\n${waits.slice(0, 15).map((w) => `- ${w.room}${topic(w) ? ` › ${topic(w)}` : ""}: ${said(w).slice(0, 240)}`).join("\n")}` : "",
     items.length ? `\n${t.mentions}:\n${items.map((i) => `- ${i.room} · ${i.author}: ${i.text.slice(0, 240)}`).join("\n")}` : "",
     `\n${t.off}: ${unsub}`,
   ].join("\n");

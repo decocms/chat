@@ -4,7 +4,9 @@
   import { MediaQuery } from "svelte/reactivity";
   import Button from "../../lib/studio/Button.svelte";
   import { tabTitle } from "../notifications/title";
+  import { setFaviconBadge } from "../notifications/favicon";
   import InstallCard from "../pwa/InstallCard.svelte";
+  import NotifyOffer from "../notifications/NotifyOffer.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
   import ChatField from "../composer/ChatField.svelte";
@@ -18,7 +20,7 @@
     roomIcon,
     targetHref,
     waitTarget,
-    plainWaitText,
+    homeWaitText,
     claudeWait,
     personVersion,
     dmEntry,
@@ -26,16 +28,22 @@
     waitKind,
     orderedRooms,
     roomsOnly,
+    chatList,
     type WaitKind,
   } from "./model";
   import RoomTile from "./RoomTile.svelte";
+  import ChatList from "./ChatList.svelte";
+  import AccountRow from "../app-navigation/AccountRow.svelte";
+  import UpdateRow from "../user-center/UpdateRow.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
   import HomeSkeleton from "./HomeSkeleton.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { mountCube } from "./cube";
   import { byImportance, fanClasses, inFan } from "./deskHand";
   import Onboarding from "../onboarding/Onboarding.svelte";
+  import NewMessage from "../app-navigation/NewMessage.svelte";
   import { createOnboardingSession } from "../onboarding/session";
   let {
     pwa,
@@ -43,16 +51,18 @@
     rooms,
     profile,
     creator,
-    onlanguage,
     lang,
     ago,
     onnavigate,
     onhome,
     onarchived,
     onnew,
-    onroomsettings,
+    onroommenu,
     onsearch,
-    oninbox,
+    onjoin,
+    onanswer,
+    onconnect,
+    ondismiss,
   }: HomeBridge = $props();
   const account = $derived(personal.state),
     draft = $derived(personal.draft);
@@ -78,6 +88,9 @@
   const suggestion = $derived($view.result);
   // The desk home: what waits on you as a hand of cards, most important in the middle.
   const waits = $derived(byImportance($account.me?.waits ?? []));
+  // The tab's icon carries a red dot while the title shows "(n)".
+  $effect(() => setFaviconBadge(waits.length > 0));
+  onDestroy(() => setFaviconBadge(false));
   // Triage filters over the cards; a filter with nothing in it hides. Picking
   // one scrolls down to the cards, so they deal out already filtered.
   let filter = $state<"all" | WaitKind>("all");
@@ -373,8 +386,83 @@
     </p>{/if}{/snippet}
 
 <svelte:head><title>{tabTitle("deco.chat", waits.length)}</title></svelte:head>
-{#if $onboardingView.visible}
-  <Onboarding owner={onboarding} {lang} {onlanguage} />
+<!-- The first run is a dialog over this Home, not a page of its own (Valls). -->
+<Onboarding owner={onboarding} {lang} />
+{#if mobile.current && !$account.me && !$account.error}
+  <!-- A phone while your account loads: the list's bar, title on the left (Gimenes #3878). -->
+  <HomeSkeleton label={text("loading")} title={text("chatsTitle")} chats />
+{:else if mobile.current && $account.me && chatList($account.me).length}
+  <!-- A phone: the home is the list of conversations, like a chat app (Gimenes #3800).
+       Someone with no conversation yet gets the desk below, with its way in.
+       Like WhatsApp's chats screen: its own bar ("Conversas" / "Chats" and you; no inbox, Gimenes #4144),
+       a search field, the list, and a floating + for a new room or message.
+       The shell hides the app's phone bar and the DM list under this layout. -->
+  <main
+    data-view="home"
+    data-home-layout="chats"
+    class="min-h-full bg-background px-2 pb-28 font-sans text-sm leading-6 text-foreground"
+  >
+    <header
+      data-home-bar
+      class="sticky top-0 z-40 -mx-2 flex h-14 items-center gap-1 bg-background pr-3 pl-4"
+    >
+      <h1 class="m-0 min-w-0 flex-1 truncate text-2xl font-bold tracking-tight">
+        {text("chatsTitle")}
+      </h1>
+      <AccountRow me={$account.me} row={false} />
+    </header>
+    <!-- A new version: the desktop sidebar's green row (Valls, #334), first in the phone's list, never in a room
+      (Gimenes #4613, #4630). The user center is desktop only, so a phone had no way to update. -->
+    {#if $account.updateAvailable}<div class="px-2 pt-1 md:hidden">
+        <UpdateRow {lang} />
+      </div>{/if}
+    <div class="px-2 pt-1 pb-3">
+      <button
+        type="button"
+        data-home-search
+        class="flex h-11 w-full cursor-pointer items-center gap-3 rounded-full border-0 bg-muted px-4 text-left font-sans text-base text-muted-foreground outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
+        onclick={() => onsearch()}
+        ><Icon icon="search-md" class="size-5 shrink-0" /><span
+          class="min-w-0 truncate">{text("searchPlaceholder")}</span
+        ></button
+      >
+    </div>
+    <div class="mb-2 px-2">
+      <div class="md:hidden"><NotifyOffer owner={pwa} {lang} card /></div>
+      <InstallCard owner={pwa} {lang} compact />
+    </div>
+    <ChatList
+      me={$account.me}
+      seen={$account.seen}
+      now={$account.now}
+      {lang}
+      {ago}
+      {onnavigate}
+      onmenu={onroommenu}
+      {onjoin}
+      {onanswer}
+    />
+    <!-- The + makes a DM (people from your rooms, or an email) or a room (Gui #4572: it only made rooms). -->
+    {#if $account.me}<NewMessage
+        me={$account.me}
+        {lang}
+        {onconnect}
+        {ondismiss}
+        side="top"
+        onroom={(trigger) => {
+          if (trigger?.isConnected) onnew(trigger);
+          else onnew();
+        }}
+        >{#snippet trigger({ props })}<Button
+            {...props}
+            variant="brand"
+            data-home-new
+            aria-label={text("newMessage")}
+            class="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 size-14 rounded-2xl shadow-lg"
+            ><Icon icon="plus" class="size-6" /></Button
+          >{/snippet}</NewMessage
+      >{/if}
+  </main>
 {:else}
   <!-- The desk home: the agent's cube, one sentence on what waits on you, the
        ask box, and what waits as a hand of cards at the foot of the screen
@@ -395,6 +483,7 @@
       ]}
     >
       <div class="w-full max-w-xl">
+        <div class="md:hidden"><NotifyOffer owner={pwa} {lang} card /></div>
         <InstallCard owner={pwa} {lang} compact />
       </div>
       <section class="mt-[10vh] flex flex-col items-center max-md:mt-4">
@@ -440,7 +529,10 @@
             >{#if $account.loading}<Spinner size="xs" />{/if}{text(
               "retry",
             )}</Button
-          >{:else}<HomeSkeleton label={text("loading")} />{/if}
+          >{:else}<HomeSkeleton
+            label={text("loading")}
+            title={text("chatsTitle")}
+          />{/if}
       </section>
       {#if $account.me}{@const me = $account.me}
         <div
@@ -533,7 +625,7 @@
                 seen={$account.seen[room.id] ?? 0}
                 waits={me.waits.filter((wait) => wait.book_id === room.id)}
                 {onnavigate}
-                onsettings={onroomsettings}
+                onmenu={onroommenu}
               />{/each}
             {#if gridRooms.length > GRID}<button
                 type="button"
@@ -667,7 +759,7 @@
                     ></span
                   ><b
                     class="line-clamp-4 text-[17px] leading-[1.3] font-medium tracking-[-0.01em] break-words"
-                    >{plainWaitText(wait.text)}</b
+                    >{homeWaitText(wait, lang)}</b
                   ></span
                 ></a
               >{/each}

@@ -1,45 +1,48 @@
 <script lang="ts">
-  import { get } from "svelte/store";
   import { onDestroy, tick, untrack } from "svelte";
   import type { Room, Epic } from "../../../shared/room";
   import type { RoomMutations } from "../room-sidebar/session";
-  import InlineAdd from "../../lib/components/InlineAdd.svelte";
+  import { epicStatus, epicStatusLook } from "../room-sidebar/model";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { studioType } from "../../lib/components/type";
   import Button from "../../lib/studio/Button.svelte";
-  import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
-  import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
-  import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
-  import DropdownMenuLabel from "../../lib/studio/DropdownMenuLabel.svelte";
-  import DropdownMenuRadioGroup from "../../lib/studio/DropdownMenuRadioGroup.svelte";
-  import DropdownMenuRadioItem from "../../lib/studio/DropdownMenuRadioItem.svelte";
-  import DropdownMenuSeparator from "../../lib/studio/DropdownMenuSeparator.svelte";
-  import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
+  import Progress from "../../lib/studio/Progress.svelte";
+  import { EPIC_PROGRESS } from "../room-shell/shape";
   import Icon from "../../lib/studio/Icon.svelte";
-  import Label from "../../lib/studio/Label.svelte";
   import Tabs from "../../lib/studio/Tabs.svelte";
   import TabsContent from "../../lib/studio/TabsContent.svelte";
   import TabsList from "../../lib/studio/TabsList.svelte";
   import TabsTrigger from "../../lib/studio/TabsTrigger.svelte";
   import { cn } from "../../lib/studio/utils";
+  import EmptyState from "../../lib/components/EmptyState.svelte";
   import WaitBadge from "../waits/WaitBadge.svelte";
-  import type { WaitReference } from "../waits/model";
-  import { productionStatuses } from "../chat/production";
+  import { waitCount, type WaitReference } from "../waits/model";
+  import Tooltip from "../../lib/studio/Tooltip.svelte";
+  import TooltipContent from "../../lib/studio/TooltipContent.svelte";
+  import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
+  import SortableItem from "../../lib/components/SortableItem.svelte";
+  import { landing } from "../../lib/components/sortOrder";
+  import SortableList, {
+    ROOT_GROUP,
+    type SortMove,
+  } from "../../lib/components/SortableList.svelte";
   import {
-    archivedEpics,
+    doneEpics,
     activeEpics,
     epicForest,
+    mineEpics,
     reorderEpics,
     sidebarEpics,
     visibleEpics,
     EPIC_PAGE,
+    type ThreadView,
   } from "./model";
   import {
-    createSortableRows,
-    ROOT_GROUP,
-    type SortableMove,
-  } from "./sortable";
-  import { enterNavigationThread, type NavigationSession } from "./session";
+    enterNavigationThread,
+    setNavigationView,
+    type NavigationSession,
+  } from "./session";
+  import { roomVisits } from "./recent";
 
   let {
     room,
@@ -47,7 +50,7 @@
     session,
     mutations,
     onopen,
-    onarchchange,
+    onviewchange,
     selectionDisabled = false,
     onBeforeOpen,
     vb,
@@ -57,7 +60,7 @@
     session: NavigationSession;
     mutations: RoomMutations;
     onopen: (id: string) => void;
-    onarchchange: (archived: boolean) => void;
+    onviewchange: (view: ThreadView) => void;
     selectionDisabled?: boolean;
     onBeforeOpen?: () => boolean;
     vb: {
@@ -77,8 +80,8 @@
   let error = $state("");
   /** The order just dropped, shown until the server confirms (or refuses) it. */
   let localOrder = $state<string[] | null>(null);
-  let input: HTMLInputElement | null = $state(null);
-  let newButton: HTMLButtonElement | null = $state(null);
+  /** The order while a row is dragged: the others make room. */
+  let dragOrder = $state<string[] | null>(null);
   let disposed = false;
   const rowNodes = new Map<string, HTMLElement>();
   let generation = 0;
@@ -91,15 +94,13 @@
   };
   let requested = $state<OrderRequest | null>(null);
   let announcement = $state("");
-  const sorter = createSortableRows((move) => sorted(move));
   onDestroy(() => {
     disposed = true;
     generation++;
     rowNodes.clear();
-    sorter.destroy();
   });
   const orderedEpics = $derived.by(() => {
-    const order = localOrder;
+    const order = dragOrder ?? localOrder;
     if (!order) return room.epics;
     const position = new Map(order.map((id, index) => [id, index]));
     return [...room.epics].sort(
@@ -108,18 +109,23 @@
         (position.get(b.id) ?? order.length),
     );
   });
+  const visits = roomVisits.state;
+  /** The threads you opened last here go first (after the pinned ones). */
+  const recent = $derived(
+    $visits.account === room.me ? ($visits.visits[room.id]?.recent ?? []) : [],
+  );
   const active = $derived(
-    sidebarEpics(activeEpics(orderedEpics, thread), room.messages),
+    sidebarEpics(activeEpics(orderedEpics, thread), room.messages, recent),
   );
   /** Past EPIC_PAGE unpinned epics the list stops at "Ver mais" (the open one always shows). */
   let showAll = $state(false);
-  /** How many epics fit before the sidebar's foot with "Ver mais", "Novo épico" and the next section's title still
-   *  above it, so the rest of the sidebar starts in view (3 to EPIC_PAGE; EPIC_PAGE without a foot, on phones). */
+  /** How many epics fit before the user center with "Ver mais" and the next section's title still above it, so the
+   *  rest of the sidebar starts in view (3 to EPIC_PAGE; EPIC_PAGE without a foot, on phones). */
   let fit = $state(EPIC_PAGE);
   let list = $state<HTMLElement | null>(null);
   function measure() {
     const side = list?.closest("[data-room-sidebar-panel]");
-    const foot = side?.querySelector("[data-sidebar-self]");
+    const foot = side?.querySelector("[data-user-center]");
     if (!list || !side || !foot?.getClientRects().length) {
       fit = EPIC_PAGE;
       return;
@@ -131,7 +137,8 @@
       (list.firstElementChild?.getBoundingClientRect().height || 36) + 2;
     fit = Math.min(
       EPIC_PAGE,
-      Math.max(3, Math.floor((bottom - top - 132) / pitch)),
+      // 94: "Ver mais" and the next section's title (the "Nova thread" row, 38 more, is gone: Gimenes #4286).
+      Math.max(3, Math.floor((bottom - top - 94) / pitch)),
     );
   }
   $effect(() => {
@@ -141,26 +148,23 @@
     const observer = new ResizeObserver(() => measure());
     observer.observe(side);
     for (const node of side.querySelectorAll(
-      "[data-sidebar-self], [data-room-views]",
+      "[data-user-center], [data-room-views]",
     ))
       observer.observe(node);
     return () => observer.disconnect();
   });
-  const archived = $derived(archivedEpics(orderedEpics, room.messages));
-  const production = $derived(productionStatuses(room));
-  // Epics / Plan / Done: Plan is @vibe's proposals (open one to see it, start it to make it an epic), Done the archive.
-  const mode = $derived(
-    $navigation.archived && archived.length > 0
-      ? "archived"
-      : $navigation.suggestions && room.suggestions.length > 0
-        ? "plan"
-        : "active",
-  );
+  const done = $derived(doneEpics(orderedEpics, room.messages));
+  /** The Open list's threads that are yours, in the same order. */
+  const mine = $derived(mineEpics(active, room.me));
+  // Three tabs (Viktor): Mine (the open threads you own), Open (to do, doing,
+  // requires action, then @vibe's proposals: open one to see it, start it to
+  // make it a thread) and Done (the archive). An empty tab says so.
+  const mode = $derived($navigation.view);
   /** The list is flat: sub-epics are plain rows, with no branches to open. */
   const flat = (list: readonly Epic[]) =>
     list.map((epic) => (epic.parent ? { ...epic, parent: undefined } : epic));
   const forest = $derived(
-    epicForest(flat(mode === "archived" ? archived : active)),
+    epicForest(flat(mode === "done" ? done : mode === "mine" ? mine : active)),
   );
   const entryForest = $derived(epicForest(room.epics));
   const workingEpics = $derived(
@@ -187,16 +191,25 @@
         (!selectionDisabled && row.epic.id === thread),
     );
   });
-  const groupOf = (id: string) => forest.parents.get(id) ?? ROOT_GROUP;
-  const groupMembers = (group: string) =>
-    group === ROOT_GROUP ? forest.roots : (forest.children.get(group) ?? []);
-  const siblingIndex = $derived(
-    new Map(
-      [ROOT_GROUP, ...forest.children.keys()].flatMap((group) =>
-        groupMembers(group).map((epic, index) => [epic.id, index] as const),
-      ),
-    ),
+  // The rows are flat, but a sub-thread sorts only among its siblings (the order the server keeps,
+  // reorderEpics): its group is its real parent.
+  const parents = $derived(
+    epicForest(orderedEpics.filter((epic) => !epic.done)).parents,
   );
+  const groupOf = (id: string) => parents.get(id) ?? ROOT_GROUP;
+  const groupMembers = (group: string) =>
+    forest.roots.filter((epic) => groupOf(epic.id) === group);
+  const siblingIndex = $derived.by(() => {
+    const counts = new Map<string, number>();
+    return new Map(
+      forest.roots.map((epic) => {
+        const group = groupOf(epic.id),
+          index = counts.get(group) ?? 0;
+        counts.set(group, index + 1);
+        return [epic.id, index] as const;
+      }),
+    );
+  });
   const rowIds = $derived(
     new Map(rows.map((row, index) => [row.epic.id, `${uid}-row-${index}`])),
   );
@@ -205,17 +218,13 @@
   });
 
   function switchMode(value: string) {
-    if (disposed) return;
+    const view = views.find((entry) => entry.value === value)?.value;
+    if (disposed || !view) return;
     generation++;
     requested = null;
     localOrder = null;
-    const archived = value === "archived";
-    navigation.update((state) => ({
-      ...state,
-      archived,
-      suggestions: value === "plan",
-    }));
-    onarchchange(archived);
+    setNavigationView(session, view);
+    onviewchange(view);
     error = "";
   }
   async function submit(command: Parameters<RoomMutations["run"]>[0]) {
@@ -224,37 +233,13 @@
     const success = await mutations.run(command);
     return success;
   }
-  async function add(event: SubmitEvent) {
-    event.preventDefault();
-    if (disposed) return;
-    const title = $navigation.draft.trim(),
-      original = $navigation.draft,
-      draftOwner = navigation;
-    if (!title) return input?.focus();
-    if (await submit({ t: "epic", title }))
-      if (get(draftOwner).draft === original)
-        draftOwner.update((value) => ({
-          ...value,
-          draft: "",
-          creating: false,
-        }));
-  }
-  /** The add row shows while asked for, and while a typed title is kept. */
-  const creating = $derived(
-    mode === "active" && ($navigation.creating || $navigation.draft !== ""),
-  );
   $effect(() => {
-    // A suggestion opened from elsewhere (a link, Back) opens the Plan tab, with its row.
-    if (thread.startsWith("pre:") && !untrack(() => $navigation.suggestions))
-      navigation.update((state) => ({
-        ...state,
-        suggestions: true,
-        archived: false,
-      }));
+    // A suggestion opened from elsewhere (a link, Back) opens the Open tab, with its row.
+    if (thread.startsWith("pre:") && untrack(() => $navigation.view) !== "open")
+      navigation.update((state) => ({ ...state, view: "open" }));
   });
   function siblings(id: string) {
-    const parent = forest.parents.get(id);
-    return parent ? (forest.children.get(parent) ?? []) : forest.roots;
+    return groupMembers(groupOf(id));
   }
   /** Only pinned epics take a hand-made order; the rest follow recency. */
   function adjacent(id: string, direction: -1 | 1) {
@@ -280,23 +265,26 @@
     else localOrder = null;
   }
   /** A row was dropped at a new place among its siblings. */
-  function sorted(move: SortableMove) {
-    if (disposed || mode !== "active") return;
-    const target = groupMembers(move.group)[move.toIndex];
-    if (target) void reorder(move.id, target.id, move.toIndex > move.fromIndex);
+  function sorted(move: SortMove) {
+    if (disposed || mode !== "open") return;
+    const shown = new Set(forest.roots.map((epic) => epic.id));
+    const place = landing(
+      move.order,
+      move.id,
+      (id) => shown.has(id) && groupOf(id) === move.group,
+    );
+    if (place) void reorder(move.id, place.to, place.after);
   }
-  function registerRow(node: HTMLElement, id: string) {
+  const registerRow = (id: string) => (node: HTMLElement) => {
     rowNodes.set(id, node);
-    return {
-      destroy() {
-        if (rowNodes.get(id) === node) rowNodes.delete(id);
-      },
+    return () => {
+      if (rowNodes.get(id) === node) rowNodes.delete(id);
     };
-  }
+  };
   $effect(() => {
     const request = requested;
     if (!request) return;
-    if (request.thread !== thread || mode !== "active") {
+    if (request.thread !== thread || mode !== "open") {
       requested = null;
       localOrder = null;
       generation++;
@@ -320,7 +308,7 @@
       return;
     requested = null;
     localOrder = null;
-    announcement = vb.t("Ordem dos épicos atualizada.");
+    announcement = vb.t("Ordem das threads atualizada.");
     restoreOrderFocus(request);
   });
   function restoreOrderFocus(request: OrderRequest) {
@@ -336,293 +324,248 @@
         return;
       const row = rowNodes.get(request.from);
       if (row?.hidden) return;
-      const target =
-        row?.querySelector<HTMLElement>("[data-epic-thread]") ?? input;
+      const target = row?.querySelector<HTMLElement>("[data-epic-thread]");
       target?.focus({ preventScroll: true });
     });
   }
   function move(id: string, direction: -1 | 1) {
     const target = adjacent(id, direction);
-    if (mode === "active" && target) reorder(id, target.id, direction === 1);
+    if (mode === "open" && target) reorder(id, target.id, direction === 1);
   }
-  async function openCreate() {
-    if (disposed) return;
-    navigation.update((state) => ({ ...state, creating: true }));
-    await tick();
-    if (!disposed) input?.focus();
-  }
-  function closeCreate(refocus: boolean) {
-    if (disposed) return;
-    navigation.update((state) => ({ ...state, creating: false, draft: "" }));
-    if (refocus)
-      void tick().then(() => {
-        if (!disposed) newButton?.focus();
-      });
-  }
-  const owners = $derived([
-    { value: "", label: vb.t("Sem dono") },
-    ...room.members.map((email) => ({ value: email, label: vb.name(email) })),
-  ]);
-  const dashedRow =
-    "mt-0.5 flex h-9 w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-2 text-left font-sans text-sm leading-5 text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid";
+  // The labels are the same English words in both languages (Viktor).
   const views = $derived([
-    { value: "active", label: vb.t("Épicos"), disabled: false },
     {
-      value: "plan",
-      label: vb.t("Plano"),
-      disabled: room.suggestions.length === 0,
+      value: "mine" as const,
+      label: vb.t("Mine"),
+      empty: {
+        icon: "user-01" as const,
+        title: vb.t("Nenhuma thread aberta é sua"),
+        description: vb.t(
+          "As threads que você cria ou que passam para você aparecem aqui.",
+        ),
+      },
     },
     {
-      value: "archived",
-      label: vb.t("Feitos"),
-      disabled: archived.length === 0,
+      value: "open" as const,
+      label: vb.t("Open"),
+      empty: {
+        icon: "message-circle-01" as const,
+        title: vb.t("Nenhuma thread aberta"),
+        description: vb.t("Para abrir uma, use Criar thread numa mensagem."),
+      },
+    },
+    {
+      value: "done" as const,
+      label: vb.t("Done"),
+      empty: {
+        icon: "check-circle" as const,
+        title: vb.t("Nenhuma thread feita ainda"),
+        description: vb.t("Uma thread marcada como feita vem para cá."),
+      },
     },
   ]);
 </script>
 
 <section
   data-view="epics"
-  aria-label={vb.t("Épicos")}
+  aria-label={vb.t("Threads")}
   class={cn(
     studioType,
-    "m-0 box-border flex shrink-0 flex-col p-0 text-sm leading-5 text-sidebar-foreground",
+    "m-0 box-border flex shrink-0 flex-col p-0 text-sm leading-5 text-sidebar-foreground max-md:min-h-0 max-md:shrink",
   )}
 >
-  {#snippet panel(value: string)}
-    {#if value === mode && value === "plan"}
-      <div
-        role="group"
-        aria-label={vb.t("Sugestões do @vibe")}
-        data-epic-plan
-        class="flex shrink-0 flex-col gap-0.5"
-      >
-        {#each room.suggestions as suggestion, index}
-          <Button
-            variant="ghost"
-            class="h-9 w-full justify-start gap-2 rounded-lg px-2 text-left font-normal text-sidebar-foreground hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium"
-            aria-current={thread === `pre:${index}` ? "page" : undefined}
-            title={`${suggestion.title} · ${vb.t("sugestão do @vibe, clique para ver")}`}
-            data-suggestion={index}
-            onclick={() => {
-              if (onBeforeOpen && !onBeforeOpen()) return;
-              onopen(`pre:${index}`);
-            }}
-            ><span
-              aria-hidden="true"
-              class="w-5 shrink-0 text-center text-muted-foreground">✦</span
-            ><span class="min-w-0 flex-1 truncate">{suggestion.title}</span
-            >{#if suggestion.tasks.length}<span
-                class="shrink-0 text-xs text-muted-foreground tabular-nums"
-                >0/{suggestion.tasks.length}</span
-              >{/if}<span class="sr-only">{vb.t("sugestão do @vibe")}</span
-            ></Button
-          >
-        {/each}
-      </div>
-    {:else if value === mode}
+  {#snippet panel(view: (typeof views)[number])}
+    {@const value = view.value}
+    {#if value === mode}
       <ul
         bind:this={list}
-        aria-label={value === "archived" ? vb.t("Arquivados") : vb.t("Épicos")}
-        class="m-0 flex list-none flex-col gap-0.5 p-0"
+        aria-label={view.label}
+        class="m-0 flex list-none flex-col gap-1 p-0"
       >
-        {#each rows as row (row.epic.id)}
-          {@const epic = row.epic}
-          {@const working = vb.epicBusy(epic)}
-          {@const current = !selectionDisabled && thread === epic.id}
-          <li
-            use:registerRow={epic.id}
-            use:sorter.row={{
-              id: epic.id,
-              index: siblingIndex.get(epic.id) ?? 0,
-              group: groupOf(epic.id),
-              disabled:
-                mutationBusy ||
-                value !== "active" ||
+        <SortableList
+          ids={orderedEpics.map((epic) => epic.id)}
+          bind:order={dragOrder}
+          onmove={sorted}
+        >
+          {#each rows as row (row.epic.id)}
+            {@const epic = row.epic}
+            {@const current = !selectionDisabled && thread === epic.id}
+            {@const status = epicStatus(epic)}
+            <SortableItem
+              as="li"
+              {@attach registerRow(epic.id)}
+              sortId={epic.id}
+              index={siblingIndex.get(epic.id) ?? 0}
+              group={groupOf(epic.id)}
+              disabled={mutationBusy ||
+                value !== "open" ||
                 row.hasChildren ||
-                !epic.pinned,
-            }}
-            id={rowIds.get(epic.id)}
-            data-epic={epic.id}
-            class="group/row relative"
-          >
-            <div
-              role="group"
-              aria-label={epic.title}
-              class={cn(
-                "flex items-center rounded-lg transition-colors duration-150 hover:bg-sidebar-accent group-has-[[data-state=open]]/row:bg-sidebar-accent",
-                current && "bg-sidebar-accent text-sidebar-accent-foreground",
-              )}
+                !epic.pinned}
+              id={rowIds.get(epic.id)}
+              data-epic={epic.id}
+              class="group/row relative"
             >
-              <Button
-                variant="ghost"
+              <div
+                role="group"
+                aria-label={epic.title}
                 class={cn(
-                  "h-9 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-left font-normal transition-[padding] duration-150 ease-out hover:bg-transparent group-hover/row:pr-9 group-focus-within/row:pr-9 group-has-[[data-state=open]]/row:pr-9 motion-reduce:transition-none [@media(hover:none)]:pr-9",
-                  current && "font-medium",
-                  // Done: finished work reads quieter, and comes back on hover or when open.
-                  value === "archived" &&
-                    !current &&
-                    "text-muted-foreground group-hover/row:text-sidebar-foreground",
+                  "flex items-center rounded-lg transition-colors duration-150 hover:bg-sidebar-accent",
+                  current && "bg-sidebar-accent text-sidebar-accent-foreground",
                 )}
-                data-epic-thread={epic.id}
-                title={epic.owner
-                  ? `${epic.title} · ${vb.name(epic.owner)}`
-                  : epic.title}
-                aria-keyshortcuts={value === "active" && epic.pinned
-                  ? "Alt+ArrowUp Alt+ArrowDown"
-                  : undefined}
-                onkeydown={(event) => {
-                  if (value !== "active" || !event.altKey || !epic.pinned)
-                    return;
-                  if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-                    event.preventDefault();
-                    move(epic.id, event.key === "ArrowUp" ? -1 : 1);
-                  }
-                }}
-                aria-current={current ? "page" : undefined}
-                onclick={() => {
-                  if (onBeforeOpen && !onBeforeOpen()) return;
-                  onopen(epic.id);
-                }}
               >
-                <PersonAvatar
-                  email={epic.owner}
-                  version={epic.owner
-                    ? vb.avatarVersion(epic.owner)
-                    : undefined}
-                  class={cn(
-                    "size-5",
-                    value === "archived" &&
-                      !current &&
-                      "opacity-60 group-hover/row:opacity-100",
-                  )}
-                />
-                <span class="min-w-0 flex-1 truncate" data-epic-title
-                  >{epic.title}{#if epic.archived && value !== "archived"}<span
-                      class="ml-1 text-xs text-muted-foreground"
-                      >({vb.t("Arquivado")})</span
-                    >{/if}</span
-                >
-                {#if epic.pinned && value === "active"}<span
-                    role="img"
-                    data-epic-pinned
-                    aria-label={vb.t("Fixado")}
-                    class="flex shrink-0 text-muted-foreground"
-                    ><Icon icon="pin-02" class="size-3.5" /></span
-                  >{/if}
-                {#if working}<span
-                    role="img"
-                    aria-label={vb.t("{who} está trabalhando", {
-                      who: working,
-                    })}
-                    class="shrink-0 text-xs text-muted-foreground">✻</span
-                  >{/if}
-                <WaitBadge
-                  waits={vb.waitsIn(epic.id)}
-                  label={(n) => vb.t("{n} coisas esperando você", { n })}
-                  taskLabel={vb.t("Tarefa sua pendente")}
-                />
-                {#if epic.prod}{@const changes =
-                    production.get(epic.id) === "changes"}<span
-                    role="img"
-                    data-epic-prod={changes ? "changes" : epic.prod.stage}
-                    aria-label={vb.t(
-                      changes
-                        ? "Uma versão está no ar; você pediu correções depois"
-                        : epic.prod.stage === "verified"
-                          ? "Verificado em prod"
-                          : "No ar, falta verificar em prod",
-                    )}
-                    title={vb.t(
-                      changes
-                        ? "Uma versão está no ar; você pediu correções depois"
-                        : epic.prod.stage === "verified"
-                          ? "Verificado em prod"
-                          : "No ar, falta verificar em prod",
-                    )}
-                    class="flex shrink-0 text-muted-foreground"
-                    ><Icon
-                      icon={changes
-                        ? "refresh-cw-01"
-                        : epic.prod.stage === "verified"
-                          ? "check-circle"
-                          : "rocket-01"}
-                      class="size-3.5"
-                    /></span
-                  >{/if}
-                {#if epic.tasks.length}<span
-                    class="shrink-0 text-xs font-normal tabular-nums text-muted-foreground"
-                    >{epic.tasks.filter((task) => task.done).length}/{epic.tasks
-                      .length}</span
-                  >{/if}
-              </Button>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                data-epic-actions={epic.id}
-                aria-label={`${vb.t("Ações do épico")}: ${epic.title}`}
-                class="absolute top-1.5 right-1.5 flex size-6 translate-x-1 scale-90 items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted-foreground opacity-0 transition-[opacity,translate,scale] duration-150 ease-out hover:bg-background/60 hover:text-sidebar-foreground focus-visible:translate-x-0 focus-visible:scale-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring group-hover/row:translate-x-0 group-hover/row:scale-100 group-hover/row:opacity-100 data-[state=open]:translate-x-0 data-[state=open]:scale-100 data-[state=open]:opacity-100 motion-reduce:transition-none [@media(hover:none)]:translate-x-0 [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"
-                ><Icon
-                  icon="dots-horizontal"
-                  class="size-4"
-                /></DropdownMenuTrigger
-              >
-              <DropdownMenuContent align="end" class={cn(studioType, "w-56")}>
-                {#if value === "active"}
-                  <DropdownMenuItem
-                    data-epic-pin={epic.id}
-                    disabled={mutationBusy}
-                    onSelect={() =>
-                      void submit({
-                        t: "epic.pin",
-                        id: epic.id,
-                        pinned: !epic.pinned,
-                      })}
-                    ><Icon icon="pin-02" />{vb.t(
-                      epic.pinned ? "Desafixar" : "Fixar no topo",
-                    )}</DropdownMenuItem
-                  >
-                {/if}
-                {#if value === "active" && epic.pinned}
-                  <DropdownMenuItem
-                    disabled={mutationBusy || !adjacent(epic.id, -1)}
-                    onSelect={() => move(epic.id, -1)}
-                    ><Icon icon="arrow-up" />{vb.t(
-                      "Mover para cima",
-                    )}</DropdownMenuItem
-                  >
-                  <DropdownMenuItem
-                    disabled={mutationBusy || !adjacent(epic.id, 1)}
-                    onSelect={() => move(epic.id, 1)}
-                    ><Icon icon="arrow-down" />{vb.t(
-                      "Mover para baixo",
-                    )}</DropdownMenuItem
-                  >
-                {/if}
-                {#if value === "active"}<DropdownMenuSeparator />{/if}
-                <DropdownMenuLabel class="text-xs text-muted-foreground"
-                  >{vb.t("Dono do épico")}</DropdownMenuLabel
-                >
-                <DropdownMenuRadioGroup
-                  bind:value={
-                    () => epic.owner ?? "",
-                    (owner) => {
-                      if (owner !== (epic.owner ?? ""))
-                        void submit({ t: "epic.owner", id: epic.id, owner });
-                    }
-                  }
-                >
-                  {#each owners as owner (owner.value)}<DropdownMenuRadioItem
-                      value={owner.value}
-                      disabled={mutationBusy}
-                      ><span class="min-w-0 truncate">{owner.label}</span
-                      ></DropdownMenuRadioItem
-                    >{/each}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </li>
-        {/each}
+                <!-- Hover: the full title, whose it is, and how much of it is done (Gimenes #4156). -->
+                <Tooltip>
+                  <TooltipTrigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        class={cn(
+                          "relative h-10 min-w-0 flex-1 justify-start gap-2.5 rounded-lg px-2.5 text-left font-normal hover:bg-transparent",
+                          current && "font-medium",
+                          // Done: finished work reads quieter, and comes back on hover or when open.
+                          value === "done" &&
+                            !current &&
+                            "text-muted-foreground group-hover/row:text-sidebar-foreground",
+                        )}
+                        data-epic-thread={epic.id}
+                        aria-keyshortcuts={value === "open" && epic.pinned
+                          ? "Alt+ArrowUp Alt+ArrowDown"
+                          : undefined}
+                        onkeydown={(event) => {
+                          if (value !== "open" || !event.altKey || !epic.pinned)
+                            return;
+                          if (
+                            event.key === "ArrowUp" ||
+                            event.key === "ArrowDown"
+                          ) {
+                            event.preventDefault();
+                            move(epic.id, event.key === "ArrowUp" ? -1 : 1);
+                          }
+                        }}
+                        aria-current={current ? "page" : undefined}
+                        onclick={() => {
+                          if (onBeforeOpen && !onBeforeOpen()) return;
+                          onopen(epic.id);
+                        }}
+                      >
+                        <PersonAvatar
+                          email={epic.owner}
+                          version={epic.owner
+                            ? vb.avatarVersion(epic.owner)
+                            : undefined}
+                          class={cn(
+                            "size-6",
+                            value === "done" &&
+                              !current &&
+                              "opacity-60 group-hover/row:opacity-100",
+                          )}
+                        />
+                        <span class="min-w-0 flex-1 truncate" data-epic-title
+                          >{epic.title}{#if epic.done && value !== "done"}<span
+                              class="ml-1 text-xs text-muted-foreground"
+                              >({vb.t("Feito")})</span
+                            >{/if}</span
+                        >
+                        {#if epic.pinned && value !== "done"}<span
+                            role="img"
+                            data-epic-pinned
+                            aria-label={vb.t("Fixado")}
+                            class="flex shrink-0 text-muted-foreground"
+                            ><Icon icon="pin-02" class="size-3.5" /></span
+                          >{/if}
+                        <!-- No ✻ for an agent at work (Gimenes #4368): its ack moves the thread to Fazendo, and the status icon says it. -->
+                        <!-- One slot at the end (Gimenes #3904): the lime count when something waits on you, else the status (shared/epicStatus.ts; an epic in production shows Feito). -->
+                        {#if waitCount(vb.waitsIn(epic.id))}<WaitBadge
+                            waits={vb.waitsIn(epic.id)}
+                            label={(n) =>
+                              vb.t("{n} coisas esperando você", { n })}
+                          />{:else}<span
+                            role="img"
+                            data-epic-status-icon={status}
+                            aria-label={vb.t(epicStatusLook(status).label)}
+                            class={cn(
+                              "flex shrink-0",
+                              epicStatusLook(status).text,
+                            )}
+                            ><Icon
+                              icon={epicStatusLook(status).icon}
+                              class="size-3.5"
+                            /></span
+                          >{/if}
+                        <!-- Task progress as a bar under the title: gray at 0 done, green fill from the first done task. -->
+                        {#if epic.tasks.length}<Progress
+                            data-epic-progress={`${epic.tasks.filter((task) => task.done).length}/${epic.tasks.length}`}
+                            aria-label={vb.t("{done} de {total} tarefas", {
+                              done: epic.tasks.filter((task) => task.done)
+                                .length,
+                              total: epic.tasks.length,
+                            })}
+                            value={(100 *
+                              epic.tasks.filter((task) => task.done).length) /
+                              epic.tasks.length}
+                            tone="success"
+                            class={EPIC_PROGRESS}
+                          />{/if}
+                      </Button>
+                    {/snippet}
+                  </TooltipTrigger>
+                  <TooltipContent side="right" class="max-w-64">
+                    <span class="block font-medium" data-epic-tooltip-title
+                      >{epic.owner
+                        ? `${epic.title} · ${vb.name(epic.owner)}`
+                        : epic.title}</span
+                    >{#if epic.tasks.length}<span
+                        class="block"
+                        data-epic-tooltip-tasks
+                        >{vb.t("{done} de {total} tarefas feitas", {
+                          done: epic.tasks.filter((task) => task.done).length,
+                          total: epic.tasks.length,
+                        })}</span
+                      >{/if}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </SortableItem>
+          {/each}
+        </SortableList>
       </ul>
+      {#if !rows.length && !(value === "open" && room.suggestions.length)}<div
+          data-epics-empty={value}
+        >
+          <EmptyState {...view.empty} />
+        </div>{/if}
+      {#if value === "open" && room.suggestions.length}
+        <div
+          role="group"
+          aria-label={vb.t("Sugestões do @vibe")}
+          data-epic-plan
+          class="mt-1 flex shrink-0 flex-col gap-1"
+        >
+          {#each room.suggestions as suggestion, index}
+            <Button
+              variant="ghost"
+              class="h-10 w-full justify-start gap-2.5 rounded-lg px-2.5 text-left font-normal text-sidebar-foreground hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium"
+              aria-current={thread === `pre:${index}` ? "page" : undefined}
+              title={`${suggestion.title} · ${vb.t("sugestão do @vibe, clique para ver")}`}
+              data-suggestion={index}
+              onclick={() => {
+                if (onBeforeOpen && !onBeforeOpen()) return;
+                onopen(`pre:${index}`);
+              }}
+              ><span
+                aria-hidden="true"
+                class="w-5 shrink-0 text-center text-muted-foreground">✦</span
+              ><span class="min-w-0 flex-1 truncate">{suggestion.title}</span
+              >{#if suggestion.tasks.length}<span
+                  class="shrink-0 text-xs text-muted-foreground tabular-nums"
+                  >0/{suggestion.tasks.length}</span
+                >{/if}<span class="sr-only">{vb.t("sugestão do @vibe")}</span
+              ></Button
+            >
+          {/each}
+        </div>
+      {/if}
       {#if hiddenCount}<button
           type="button"
           data-epics-more
@@ -645,68 +588,25 @@
               : vb.t("Ver mais ({n})", { n: hiddenCount })}</span
           >
         </button>{/if}
-      {#if value === "active"}
-        {#if creating}
-          <form
-            id="newEpic"
-            class="mt-0.5 shrink-0"
-            onsubmit={add}
-            onfocusout={(event) => {
-              const next = event.relatedTarget;
-              if (next instanceof Node && event.currentTarget.contains(next))
-                return;
-              if (!$navigation.draft.trim()) closeCreate(false);
-            }}
-          >
-            <Label for={`${uid}-new`} class="sr-only"
-              >{vb.t("Novo épico")}</Label
-            >
-            <InlineAdd
-              id={`${uid}-new`}
-              bind:ref={input}
-              bind:value={
-                () => (disposed ? "" : $navigation.draft),
-                (value) => {
-                  if (!disposed) $navigation.draft = value;
-                }
-              }
-              placeholder={vb.t("Novo épico: escreva o título…")}
-              enterkeyhint="done"
-              confirmDisabled={mutationBusy}
-              confirmLabel={vb.t("Criar épico")}
-              cancelLabel={vb.t("Cancelar")}
-              oncancel={() => closeCreate(true)}
-            />
-          </form>
-        {:else}
-          <button
-            type="button"
-            bind:this={newButton}
-            data-new-epic
-            aria-expanded="false"
-            onclick={openCreate}
-            class={dashedRow}
-          >
-            <span class="flex size-5 shrink-0 items-center justify-center"
-              ><Icon icon="plus" size={16} /></span
-            >
-            <span class="min-w-0 truncate">{vb.t("Novo épico")}</span>
-          </button>
-        {/if}
-      {/if}
+      <!-- No "Nova thread" here (Gimenes #4286): one way to start a thread, "Criar thread" on a message. -->
     {/if}
   {/snippet}
-  <Tabs value={mode} onValueChange={switchMode} class="gap-2">
-    <TabsList aria-label={vb.t("Épicos")} class="h-8 w-full shrink-0">
+  <Tabs
+    value={mode}
+    onValueChange={switchMode}
+    class="gap-2 max-md:min-h-0 max-md:flex-1"
+  >
+    <TabsList aria-label={vb.t("Threads")} class="h-8 w-full shrink-0">
       {#each views as view (view.value)}<TabsTrigger
           value={view.value}
-          disabled={view.disabled}
+          data-threads-tab={view.value}
           class="h-6 flex-1 text-xs">{view.label}</TabsTrigger
         >{/each}
     </TabsList>
     {#each views as view (view.value)}<TabsContent
         value={view.value}
-        class="flex h-auto flex-col">{@render panel(view.value)}</TabsContent
+        class="flex h-auto flex-col max-md:min-h-0 max-md:overflow-y-auto max-md:overscroll-contain"
+        >{@render panel(view)}</TabsContent
       >{/each}
   </Tabs>
   <p role="status" aria-live="polite" class="sr-only">{announcement}</p>

@@ -6,11 +6,11 @@
 //   other sites too, so the zone-wide daily totals are not used. Needs CF_ANALYTICS_TOKEN (Account Analytics: Read,
 //   Zone Analytics: Read, Zone: Read); without it the report says so instead of showing numbers.
 // Test people (@test.vibebook.dev) are left out. Check: bun scripts/reports-check.ts (formatting only).
-import { AiSpend } from "../shared/schemas";
+import { AiSpend, type InfraMonitor, type InfraWindow } from "../shared/schemas";
 import type { Env } from "./index";
 import { publicHost } from "./host";
 import * as z from "zod/mini";
-import { WorkerAnalytics, KindAnalytics, BytesAnalytics, readAnalyticsResponse, readZoneResponse, parseSpendKey, parseIssueDimensions, reportError } from "./report-analytics";
+import { WorkerAnalytics, WorkerDailyAnalytics, KindAnalytics, BytesAnalytics, readAnalyticsResponse, readZoneResponse, parseSpendKey, parseIssueDimensions, reportError } from "./report-analytics";
 
 const DAY = 86_400_000;
 const BRT = 3 * 3600_000; // São Paulo, no DST since 2019
@@ -148,10 +148,13 @@ async function unblockLine(env: Env, start: number, end: number) {
   return n("terminal_ask") ? `\n- Travas do terminal levadas pra sala (permissão, pergunta, plano): **${n("terminal_ask")}**, resolvidas pela sala ${n("terminal_answered")}; o resto caiu no terminal` : "";
 }
 
-/** Opening a room (the WS state): how many, average size, and the fattest one with its biggest fields. */
+/** Opening a room (the WS state): how many, average size, and the fattest one with its biggest fields. A light socket
+ *  (lite) sends only hello: its opens count, its bytes not; its state goes over HTTP (room_state, compressed). */
 async function wsStateLine(env: Env, start: number, end: number) {
-  const r = await env.DB.prepare(`SELECT count(*) AS n, avg(json_extract(dims, '$.bytes')) AS avg, max(json_extract(dims, '$.bytes')) AS mx FROM events WHERE name = 'ws_state' AND ts >= ? AND ts < ?`).bind(start, end).first<{ n: number; avg: number; mx: number }>();
+  const r = await env.DB.prepare(`SELECT count(*) AS n, avg(CASE WHEN json_extract(dims, '$.lite') IS NULL THEN json_extract(dims, '$.bytes') END) AS avg, max(json_extract(dims, '$.bytes')) AS mx FROM events WHERE name = 'ws_state' AND ts >= ? AND ts < ?`).bind(start, end).first<{ n: number; avg: number | null; mx: number }>();
   if (!r?.n) return "";
+  const http = await env.DB.prepare(`SELECT count(*) AS n, avg(json_extract(dims, '$.bytes')) AS avg, avg(json_extract(dims, '$.ms')) AS ms FROM events WHERE name = 'room_state' AND ts >= ? AND ts < ?`).bind(start, end).first<{ n: number; avg: number; ms: number }>();
+  const httpLine = http?.n ? `\n  - Pelo HTTP (GET /room, comprimido): ${http.n}×, média ${bytes(http.avg)} antes da compressão, ${Math.round(http.ms)} ms` : "";
   const big = await env.DB.prepare(`SELECT json_extract(dims, '$.book') AS book, json_extract(dims, '$.top') AS top, json_extract(dims, '$.msgs') AS msgs FROM events WHERE name = 'ws_state' AND ts >= ? AND ts < ? ORDER BY json_extract(dims, '$.bytes') DESC LIMIT 1`).bind(start, end).first<{ book: string; top: string; msgs: string | null }>();
   const push = await env.DB.prepare(`SELECT json_extract(dims, '$.t') AS t, count(*) AS n, sum(json_extract(dims, '$.bytes')) AS b FROM events WHERE name = 'ws_push' AND ts >= ? AND ts < ? GROUP BY t ORDER BY b DESC LIMIT 4`).bind(start, end).all<{ t: string; n: number; b: number }>();
   const pushes = push.results.map((x) => `${x.t} ${bytes(x.b)} (${x.n}×)`).join(" · ");
@@ -164,7 +167,7 @@ async function wsStateLine(env: Env, start: number, end: number) {
   // Everything the rooms sent over their sockets, by event kind (Book.sendTo → ws_bytes, flushed hourly).
   const wire = await env.DB.prepare(`SELECT json_extract(dims, '$.t') AS t, sum(json_extract(dims, '$.n')) AS n, sum(json_extract(dims, '$.bytes')) AS b FROM events WHERE name = 'ws_bytes' AND ts >= ? AND ts < ? GROUP BY t ORDER BY b DESC LIMIT 6`).bind(start, end).all<{ t: string; n: number; b: number }>();
   const wireLine = wire.results.map((x) => `${x.t} ${bytes(x.b)} (${x.n}×, ${bytes(x.b / Math.max(1, x.n))} cada)`).join(" · ");
-  return `\n- Abrir sala (estado do WS, últimas 24h): **${r.n}×**, média ${bytes(r.avg)}, maior ${bytes(r.mx)} (sala ${big?.book}: ${big?.top}${big?.msgs ? `; messages: ${big.msgs}` : ""})${people ? `\n  - Quem mais abriu: ${people}` : ""}${rcLine ? `\n  - Reconexões pelo código do socket anterior: ${rcLine}` : ""}${pushes ? `\n- Empurrões grandes pelo WS (≥20 KB): ${pushes}` : ""}${wireLine ? `\n- Tudo que saiu pelos sockets das salas, por tipo: ${wireLine}` : ""}`;
+  return `\n- Abrir sala (estado do WS, últimas 24h): **${r.n}×**, média ${bytes(r.avg ?? 0)}, maior ${bytes(r.mx)} (sala ${big?.book}: ${big?.top}${big?.msgs ? `; messages: ${big.msgs}` : ""})${httpLine}${people ? `\n  - Quem mais abriu: ${people}` : ""}${rcLine ? `\n  - Reconexões pelo código do socket anterior: ${rcLine}` : ""}${pushes ? `\n- Empurrões grandes pelo WS (≥20 KB): ${pushes}` : ""}${wireLine ? `\n- Tudo que saiu pelos sockets das salas, por tipo: ${wireLine}` : ""}`;
 }
 
 /** The Claudes' tool calls (agent_call) by tool and client: what the /mcp requests are. */
@@ -317,4 +320,54 @@ export async function aiSpend(env: Env, now = Date.now()): Promise<AiSpend> {
     openrouter_key: key,
     note: "recorded = the calls that log their cost in vibebook's events; openrouter_key = OpenRouter's own total for the key (everything billed on it, including calls that don't log a cost).",
   });
+}
+
+// The infra monitor (room app apps/infra-monitor.html, Gui #4208): the Worker per UTC day from Cloudflare (1 GraphQL
+// call) and the site's visitors from D1 (1 query), for this window and the one before. Shared and costly-ish, so it is
+// cached for 10 minutes per window; a Cloudflare failure is cached too (briefly, same key) and says so in worker_error.
+const DAILY_Q = `query($acc: string!, $script: string!, $from: Date!, $to: Date!) { viewer { accounts(filter: { accountTag: $acc }) {
+  workersInvocationsAdaptive(limit: 100, orderBy: [date_ASC], filter: { scriptName: $script, date_geq: $from, date_leq: $to }) {
+    dimensions { date } sum { requests errors responseBodySize } quantiles { cpuTimeP50 wallTimeP50 } } } } }`;
+export async function infraMonitor(env: Env, window: InfraWindow, now = Date.now()): Promise<InfraMonitor> {
+  const key = new Request(`https://infra-monitor.internal/${window}`);
+  const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
+  const hit = await cache?.match(key);
+  if (hit) return (await hit.json()) as InfraMonitor;
+  const today = Math.floor(now / DAY) * DAY;
+  const from = today - (2 * window - 1) * DAY;
+  const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const visits = await env.DB.prepare(
+    `SELECT CAST(ts / ${DAY} AS INTEGER) AS d, count(DISTINCT visitor) AS v FROM events WHERE name = 'pageview' AND ts >= ? AND ${NOT_TEST} GROUP BY d`,
+  )
+    .bind(from)
+    .all<{ d: number; v: number }>();
+  const visitors = new Map(visits.results.map((r) => [dayOf(r.d * DAY), r.v]));
+  let worker_error: string | null = null;
+  const worker = new Map<string, { requests: number; errors: number; bytes: number; cpu: number | null; wall: number | null }>();
+  if (!env.CF_ANALYTICS_TOKEN) worker_error = "CF_ANALYTICS_TOKEN is not set";
+  else {
+    try {
+      const rows = (await cfQuery(env, DAILY_Q, { acc: env.CF_ACCOUNT_ID, script: WORKER, from: dayOf(from), to: dayOf(today) }, WorkerDailyAnalytics)).viewer.accounts[0]?.workersInvocationsAdaptive ?? [];
+      // Quantiles come in microseconds.
+      for (const r of rows)
+        worker.set(r.dimensions.date, {
+          requests: r.sum.requests ?? 0,
+          errors: r.sum.errors ?? 0,
+          bytes: r.sum.responseBodySize ?? 0,
+          cpu: r.quantiles?.cpuTimeP50 == null ? null : r.quantiles.cpuTimeP50 / 1000,
+          wall: r.quantiles?.wallTimeP50 == null ? null : r.quantiles.wallTimeP50 / 1000,
+        });
+    } catch (e) {
+      worker_error = reportError(e).slice(0, 300);
+    }
+  }
+  const days = Array.from({ length: 2 * window }, (_, i) => {
+    const day = dayOf(from + i * DAY), w = worker.get(day);
+    // A day Cloudflare returned no row for had no requests; when Cloudflare failed, the numbers are unknown (null).
+    const n = (v: number | undefined) => (worker_error ? null : (v ?? 0));
+    return { day, requests: n(w?.requests), errors: n(w?.errors), bytes: n(w?.bytes), cpu_p50_ms: w?.cpu ?? null, wall_p50_ms: w?.wall ?? null, visitors: visitors.get(day) ?? 0 };
+  });
+  const result: InfraMonitor = { window, days, worker_error, generated_at: new Date(now).toISOString() };
+  await cache?.put(key, new Response(JSON.stringify(result), { headers: { "cache-control": `max-age=${worker_error ? 60 : 600}` } }));
+  return result;
 }

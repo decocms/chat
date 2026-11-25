@@ -9,6 +9,8 @@ import {
   DOCUMENT_WIDTH_KEY,
   sheetEndpoint,
   sheetEasing,
+  SHEET_OPEN_MS,
+  SHEET_CLOSE_MS,
   DRAG_THRESHOLD,
   hasSheetSurface,
 } from "./model";
@@ -54,11 +56,7 @@ export function createRoomGeometry(options: {
       ? ("vb-room-document-width-rail" as const)
       : ("vb-room-document-width" as const);
   const sheetElement = (sheet: RoomSheet) =>
-    sheet === "side"
-      ? cells.sidebar
-      : options.read().pane === "board"
-        ? cells.board
-        : cells.document;
+    sheet === "side" ? cells.sidebar : cells.document;
   const viewport = createRoomPlayback(
       cells.viewport,
       () => "vb-room-viewport",
@@ -66,20 +64,10 @@ export function createRoomGeometry(options: {
     ),
     scrim = createRoomPlayback(cells.scrim, () => "vb-room-scrim", issue);
   const side = createRoomPlayback(cells.sidebar, () => "vb-room-sheet", issue),
-    doc = createRoomPlayback(cells.document, () => "vb-room-sheet", issue),
-    board = createRoomPlayback(cells.board, () => "vb-room-sheet", issue);
-  const docWidth = createRoomPlayback(cells.document, widthName, issue),
-    boardWidth = createRoomPlayback(cells.board, widthName, issue);
+    doc = createRoomPlayback(cells.document, () => "vb-room-pane", issue);
+  const docWidth = createRoomPlayback(cells.document, widthName, issue);
   const extraWidths = new Map<HTMLElement, RoomPlayback>();
-  const all: RoomPlayback[] = [
-    viewport,
-    scrim,
-    side,
-    doc,
-    board,
-    docWidth,
-    boardWidth,
-  ];
+  const all: RoomPlayback[] = [viewport, scrim, side, doc, docWidth];
   let drag: {
     id: number;
     handle: HTMLElement;
@@ -100,8 +88,7 @@ export function createRoomGeometry(options: {
     width: number;
   } | null = null;
   const stops = new Set<() => void>();
-  const sheetPlayback = (sheet: RoomSheet) =>
-    sheet === "side" ? side : options.read().pane === "board" ? board : doc;
+  const sheetPlayback = (sheet: RoomSheet) => (sheet === "side" ? side : doc);
   const cancelMotion = () => {
     motionRevision++;
     if (motion !== null) win.cancelAnimationFrame(motion);
@@ -110,24 +97,60 @@ export function createRoomGeometry(options: {
   function position(sheet: RoomSheet, value: number) {
     positions[sheet] = clamp(value, 0, 1);
     sheetPlayback(sheet).set(positions[sheet]);
-    scrim.set(positions[sheet]);
+    // During a swap (side → doc) one sheet is always over the room, so the
+    // backdrop stays on; otherwise it follows the sheet.
+    scrim.set(leaving ? 1 : Math.max(positions.doc, positions.side));
   }
   function present(sheet: RoomSheet | null) {
     shown = sheet;
     options.changed({ presentedSheet: sheet });
+  }
+  // A sheet slides for a time in proportion to the distance it has left, so a
+  // short release does not crawl and a reversed slide keeps its speed.
+  const slideTime = (target: 0 | 1, distance: number) =>
+    (target ? SHEET_OPEN_MS : SHEET_CLOSE_MS) * Math.max(0.4, distance);
+  let leaving: { sheet: RoomSheet; frame: number | null } | null = null;
+  function stopLeaving() {
+    if (!leaving) return;
+    if (leaving.frame !== null) win.cancelAnimationFrame(leaving.frame);
+    leaving = null;
+    if (active) options.changed({ leavingSheet: null });
+  }
+  // The old sheet slides out while the new one slides in; it stays visible
+  // (leavingSheet) until it is fully out.
+  function slideOut(sheet: RoomSheet) {
+    stopLeaving();
+    const start = positions[sheet],
+      time = win.performance.now(),
+      duration = slideTime(0, start),
+      own = { sheet, frame: null as number | null };
+    leaving = own;
+    options.changed({ leavingSheet: sheet });
+    const run = () => {
+      own.frame = null;
+      if (!current() || leaving !== own) return;
+      const fraction = reduced.matches
+        ? 1
+        : clamp((win.performance.now() - time) / duration, 0, 1);
+      position(sheet, start * (1 - sheetEasing(fraction)));
+      if (fraction < 1) own.frame = win.requestAnimationFrame(run);
+      else stopLeaving();
+    };
+    run();
   }
   function settle(sheet: RoomSheet, target: 0 | 1) {
     cancelMotion();
     present(sheet);
     const start = positions[sheet],
       time = win.performance.now(),
+      duration = slideTime(target, Math.abs(target - start)),
       ticket = motionRevision;
     const run = () => {
       motion = null;
       if (!current() || ticket !== motionRevision) return;
       const fraction = reduced.matches
         ? 1
-        : clamp((win.performance.now() - time) / 300, 0, 1);
+        : clamp((win.performance.now() - time) / duration, 0, 1);
       position(sheet, start + (target - start) * sheetEasing(fraction));
       if (fraction < 1) motion = win.requestAnimationFrame(run);
       else if (!target) {
@@ -183,6 +206,9 @@ export function createRoomGeometry(options: {
     if (!old || !current()) return;
     if (!old.moving) {
       if (old.initialSheet === null) settle(old.sheet, 0);
+      // A tap during the slide stopped it; finish the slide to open.
+      else if (options.read().sheet === old.sheet && positions[old.sheet] < 1)
+        settle(old.sheet, 1);
       return;
     }
     suppress.set(old.handle, win.performance.now() + 400);
@@ -193,9 +219,12 @@ export function createRoomGeometry(options: {
       old.height,
     );
     options.settled(old.sheet, endpoint === 1);
+    // A drag only previews: its release always ends fully open or fully closed.
+    // A short drag on an open sheet keeps the same sheet, so sync() does not
+    // settle it; settle it back to open here.
+    if (options.read().sheet === old.sheet) settle(old.sheet, 1);
     // A short opening drag creates no history entry; it still settles visibly.
-    if (options.read().sheet !== old.sheet && endpoint === 0)
-      settle(old.sheet, 0);
+    else if (endpoint === 0) settle(old.sheet, 0);
   }
   function end(event: PointerEvent) {
     finish(event, false);
@@ -259,22 +288,9 @@ export function createRoomGeometry(options: {
         )
       : available;
     viewport.set(available > 0 ? visible / available : 1);
-    if (value.mobile) {
-      docWidth.suspend();
-      boardWidth.suspend();
-    } else if (
-      value.documentVisible &&
-      !(value.boardFull && value.pane === "board")
-    ) {
-      const activeWidth = value.pane === "board" ? boardWidth : docWidth;
-      (value.pane === "board" ? docWidth : boardWidth).suspend();
-      activeWidth.set(
-        documentProgress(width, rootWidth, value.sidebarCollapsed),
-      );
-    } else {
-      docWidth.suspend();
-      boardWidth.suspend();
-    }
+    if (!value.mobile && value.documentVisible)
+      docWidth.set(documentProgress(width, rootWidth, value.sidebarCollapsed));
+    else docWidth.suspend();
     if (value.mobile && win.scrollY) win.scrollTo(0, 0);
     for (const [node, player] of extraWidths) {
       if (value.mobile || !node.isConnected) player.suspend();
@@ -284,13 +300,13 @@ export function createRoomGeometry(options: {
   }
   function sync(value: RoomLayoutState) {
     if (!current()) return;
-    // Full Board replaces the document cell. There is no stylesheet-created
-    // sheet animation on that hidden/full-width target to finish seeking.
+    // A sheet with no surface any more (the doc closed) has no animation to
+    // finish seeking.
     if (shown && !hasSheetSurface(shown, value)) {
       cancelMotion();
+      stopLeaving();
       releaseDrag();
       doc.suspend();
-      board.suspend();
       scrim.suspend();
       positions.doc = 0;
       lastSheet = null;
@@ -311,10 +327,10 @@ export function createRoomGeometry(options: {
         : null;
     if (!value.mobile) {
       cancelMotion();
+      stopLeaving();
       releaseResize();
       side.suspend();
       doc.suspend();
-      board.suspend();
       scrim.suspend();
       if (shown) present(null);
       positions.doc = positions.side = 0;
@@ -332,10 +348,7 @@ export function createRoomGeometry(options: {
           !sheetElement(target).contains(focused)
         )
           opener = focused;
-        if (previous && previous !== target) {
-          positions[previous] = 0;
-          sheetPlayback(previous).set(0);
-        }
+        if (previous && previous !== target) slideOut(previous);
         settle(target, 1);
       } else if (previous) settle(previous, 0);
     }
@@ -420,13 +433,15 @@ export function createRoomGeometry(options: {
         )
           return;
         const value = options.read();
+        if (opening ? value.sheet !== null : value.sheet !== sheet) return;
+        // A closing handle is inside its sheet, or is the backdrop under the
+        // title menu: a swipe up on the glass slides the menu away (#3786).
         if (
-          opening
-            ? value.sheet !== null || value.boardFull
-            : value.sheet !== sheet
+          !opening &&
+          !sheetElement(sheet).contains(node) &&
+          !(sheet === "side" && node === cells.scrim)
         )
           return;
-        if (!opening && !sheetElement(sheet).contains(node)) return;
         const height = sheetElement(sheet).getBoundingClientRect().height;
         if (!(height > 0)) return;
         cancelMotion();
@@ -480,8 +495,7 @@ export function createRoomGeometry(options: {
         current() &&
         node.isConnected &&
         !media.matches &&
-        options.read().documentVisible &&
-        !(options.read().boardFull && options.read().pane === "board");
+        options.read().documentVisible;
       const down = (event: PointerEvent) => {
         if (
           !allowed() ||
@@ -544,6 +558,8 @@ export function createRoomGeometry(options: {
       active = false;
       syncRevision++;
       cancelMotion();
+      if (leaving?.frame != null) win.cancelAnimationFrame(leaving.frame);
+      leaving = null;
       releaseDrag();
       releaseResize();
       observer.disconnect();

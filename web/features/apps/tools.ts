@@ -1,8 +1,9 @@
 import { visibleChatMessages } from "../chat/privacy";
 import type { Tool, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Room } from "../../../shared/room";
-import type { Connection } from "../../../shared/schemas";
+import type { Connection, InfraWindow } from "../../../shared/schemas";
 import type { RequestRoomCommand } from "../../app/roomConnection";
+import { createSendIds } from "../../lib/client/sendIds";
 export const roomTools: Tool[] = [
   {
     name: "vibebook_read",
@@ -76,6 +77,16 @@ export const roomTools: Tool[] = [
     annotations: { readOnlyHint: true },
   },
   {
+    name: "vibebook_infra",
+    description:
+      "vibebook's Worker and site per UTC day (requests, errors, response bytes, CPU and wall time p50, visitors) for the last `days` days and the `days` before them, oldest first. days: 7, 14 or 30. Only in vibebook's report rooms.",
+    inputSchema: {
+      type: "object",
+      properties: { days: { type: "number", enum: [7, 14, 30] } },
+    },
+    annotations: { readOnlyHint: true },
+  },
+  {
     name: "vibebook_router_stats",
     description:
       "The hub router A/B (Jev vs Haiku): per arm how many messages were ignored, answered or woke a Claude, latency p50/p95, cost, and the last 40 decisions (who = whose router). room: true = this room, every member's router; false = the person's own router in all rooms.",
@@ -115,7 +126,7 @@ export function roomRead(
     members: room.members.map((email) => ({ email, name: name(email) })),
     doc: room.doc || "",
     epics: room.epics
-      .filter((epic) => !epic.archived)
+      .filter((epic) => !epic.done)
       .map((epic) => ({
         id: epic.id,
         title: epic.title,
@@ -150,10 +161,16 @@ export function createRoomAppTools(options: {
   ask: AppAsk;
   connections(): Promise<Connection[]>;
   call(cid: string, tool: string, args: unknown): Promise<CallToolResult>;
-  metric(kind: "spend" | "router", roomOnly: boolean): Promise<unknown>;
+  metric(
+    kind: "spend" | "router" | "infra",
+    roomOnly: boolean,
+    days?: InfraWindow,
+  ): Promise<unknown>;
   t(text: string, vars?: Record<string, string | number>): string;
 }) {
   const t = options.t;
+  // A post that failed keeps its client_id: the app posting the same text there again is the same send.
+  const sends = createSendIds();
   const current = () => {
     const room = options.room();
     return options.current() && !!room?.members.includes(room.me);
@@ -180,6 +197,13 @@ export function createRoomAppTools(options: {
           name === "vibebook_ai_spend" ? "spend" : "router",
           !!args.room,
         );
+        return current()
+          ? toolOutput(value)
+          : toolError("App is no longer active");
+      }
+      case "vibebook_infra": {
+        const days = args.days === 14 || args.days === 30 ? args.days : 7;
+        const value = await options.metric("infra", false, days);
         return current()
           ? toolOutput(value)
           : toolError("App is no longer active");
@@ -213,12 +237,15 @@ export function createRoomAppTools(options: {
           !options.room()?.epics.some((epic) => epic.id === target)
         )
           return toolError("no such epic");
+        const key = JSON.stringify([target, text]);
         const result = await options.request({
           t: "msg",
           thread: target,
           text,
           files: [],
+          client_id: sends.take(key),
         });
+        if (result.ok) sends.done(key);
         return current() && result.ok
           ? toolOutput("posted")
           : toolError(

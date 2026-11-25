@@ -71,7 +71,6 @@ export async function openRoomPane(
   const layout = page.locator("[data-room-layout]");
   const content: Record<Exclude<DocumentPane, "view">, string> = {
     doc: "[data-document]",
-    board: "[data-board-scope]",
     files: '[data-view="files"]',
     apps: "[data-apps]",
     agents: "[data-agents]",
@@ -81,56 +80,46 @@ export async function openRoomPane(
     search: "[data-room-search]",
   };
   await expect(layout).toBeVisible();
-  const full = page.locator("[data-board-toggle]");
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
-    // Phones: the bottom bar (Chat, Doc, Board, Files, Claude) owns the board
-    // and opens the doc sheet; the header's board toggle is desktop only.
-    const tabBar = (tab: string) =>
-      page.locator(`[data-phone-tabs] [data-phone-tab="${tab}"]`);
+    // Phones (A2, #4331): the strip under the top bar has Doc, Arquivos,
+    // Decisões and Lembretes; the avatars at the bar's end open Pessoas; the
+    // drawer (the title) keeps Apps and Agents. Each opens the doc sheet.
+    const shortcut = async (tab: string) => {
+      const strip = page.locator(
+        `[data-phone-strip] [data-document-pane="${tab}"]`,
+      );
+      if (tab === "people") {
+        await page.locator("[data-room-bar] [data-phone-people]").click();
+        return;
+      }
+      if (await strip.isVisible()) {
+        await strip.click();
+        return;
+      }
+      if ((await layout.getAttribute("data-sheet")) !== "side")
+        await page.locator("[data-room-bar] [data-phone-title]").click();
+      await expect(layout).toHaveAttribute("data-sheet", "side");
+      await page
+        .locator(`[data-phone-menu] [data-document-pane="${tab}"]`)
+        .click();
+    };
     const button = page.locator(
       `[data-room-peek] [data-document-pane="${pane}"]`,
     );
-    if (pane === "board") {
-      if ((await layout.getAttribute("data-board-full")) !== "true")
-        await tabBar("board").click();
-      await expect(layout).toHaveAttribute("data-board-full", "true");
-      await expect(page.locator(content.board)).toBeVisible();
-      return;
-    }
-    if ((await layout.getAttribute("data-board-full")) === "true") {
-      await tabBar("chat").click();
-      await expect(layout).not.toHaveAttribute("data-board-full", "true");
-    }
-    // The peek tabs show only while the doc sheet is open (#80), and only the
-    // panes of the bottom bar tab it was opened from: Doc + Decisions, Files +
-    // Apps, Agents + Reminders. Switch tabs first when the pane is elsewhere.
-    const tab =
-      pane === "doc" || pane === "decisions"
-        ? "doc"
-        : pane === "files" || pane === "apps"
-          ? "files"
-          : "claude";
+    // The peek tabs show only while the doc sheet is open (#80). Use the
+    // pane's shortcut first when the sheet is closed.
+    const tab = pane;
     if (
       (await layout.getAttribute("data-sheet")) !== "doc" ||
-      (await tabBar(tab).getAttribute("aria-current")) !== "page"
+      !(await button.isVisible())
     ) {
-      await tabBar(tab).click();
+      await shortcut(tab);
       await expect(layout).toHaveAttribute("data-sheet", "doc");
-      await expect(tabBar(tab)).toHaveAttribute("aria-current", "page");
+      await expect(button).toBeVisible();
     }
     if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
     await expect(layout).toHaveAttribute("data-sheet", "doc");
   } else {
-    // Desktop: the board is always full width, behind its toggle (no pane tab).
-    if (pane === "board") {
-      if ((await full.getAttribute("aria-pressed")) !== "true")
-        await full.click();
-      await expect(layout).toHaveAttribute("data-board-full", "true");
-      await expect(page.locator(content.board)).toBeVisible();
-      return;
-    }
-    if ((await full.getAttribute("aria-pressed")) === "true")
-      await full.click();
     // The tabs live in the room's top bar and open the pane when it's closed;
     // your Claude (the Agents pane) opens from its row at the foot of the
     // sidebar. With no agent the foot has only setup options (the cloud one
@@ -167,6 +156,27 @@ export async function openTasksPanel(page: Page, name = "Tasks") {
   await expect(tasksRegion(page, name)).toBeVisible({ timeout: 60_000 });
 }
 
+/** The one way to start a thread (Gimenes #4286): write in the room, then "Criar thread" on that message. The
+ *  title field starts with the message's text; Enter creates it and opens it. */
+export async function startThreadFromMessage(page: Page, text: string) {
+  await page.locator("[data-composer] #input").fill(text);
+  await page.locator("[data-composer] [data-composer-send]").click();
+  const message = page
+    .locator("#msgs [data-chat-message]")
+    .filter({ hasText: text })
+    .last();
+  await expect(message).toBeVisible();
+  await message.hover();
+  // One click makes the thread and opens it (Gimenes #4310): no title step.
+  await message.locator("[data-start-thread]").click();
+  const row = page
+    .locator("[data-epic-thread]")
+    .filter({ hasText: text })
+    .first();
+  await expect(row).toBeAttached();
+  return row;
+}
+
 /** Header disclosure on phones; the actual rail disclosure on desktop. */
 export async function openRoomSidebar(page: Page) {
   const book = page.locator(".book:not(.skel)");
@@ -187,7 +197,7 @@ export async function openRoomSidebar(page: Page) {
 
 export async function documentMode(page: Page, mode: "preview" | "edit") {
   await openRoomPane(page, "doc");
-  const toggle = page.locator("[data-document] > footer").getByRole("button", {
+  const toggle = page.locator("[data-document-bar]").getByRole("button", {
     name: mode === "preview" ? /^(Done|Pronto)$/ : /^(Edit|Editar)$/,
   });
   if (await toggle.isVisible()) await toggle.click();
