@@ -2,7 +2,7 @@
   import type { Snippet } from "svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import type { NavRowVariant } from "../../lib/components/navRow";
-  import type { WaitReference } from "../waits/model";
+  import { waitCount, type WaitReference } from "../waits/model";
   import { homeText, type HomeLanguage } from "../home/copy";
   import {
     roomIcon,
@@ -84,7 +84,7 @@
   href={targetHref({ roomId: room.id })}
   label={title}
   {meta}
-  urgent={status && waits.length > 0}
+  urgent={status && waitCount(waits) > 0}
   {selected}
   {faded}
   {variant}
