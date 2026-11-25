@@ -52,6 +52,7 @@ import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
 import { bumpStat, ensureHandle } from "./profile";
 import { AGENT_RULES } from "../shared/agentRules";
+import { hasInlineMark } from "../shared/inlineMarks";
 
 // OpenRouter reports each call's USD cost in usage.raw.cost; the admin sums it per model.
 const costOf = (usage: unknown) => Number((usage as { raw?: { cost?: number } } | undefined)?.raw?.cost) || 0;
@@ -2953,7 +2954,7 @@ export class Book extends DurableObject<Env> {
         const answers = Number(m.reply_to) && this.sql.exec(`SELECT 1 FROM messages WHERE id = ? AND (choices IS NOT NULL OR card IS NOT NULL)`, Number(m.reply_to)).toArray().length;
         if (!answers) this.personWrote(thread, text, { id: sent.id, author: email });
         this.ctx.waitUntil(
-          track(this.env, "message", { user: email, dims: { book: this.get("book_id") ?? undefined, thread: thread === "main" ? "main" : "epic", files: files.length || undefined } }),
+          track(this.env, "message", { user: email, dims: { book: this.get("book_id") ?? undefined, thread: thread === "main" ? "main" : "epic", files: files.length || undefined, marks: hasInlineMark(text) || undefined } }),
         );
         this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
         await this.wakeAt(Date.now() + CLASSIFY_DELAY_MS);
