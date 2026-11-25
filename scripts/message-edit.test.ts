@@ -49,12 +49,17 @@ function fixture() {
   };
   const frames: string[] = [];
   const ws = { readyState: 1, send: (frame: string) => frames.push(frame) };
-  const statement = () => {
-    const bound = () => ({
-      run: async () => ({ meta: { changes: 0 } }),
-      first: async () => null,
-      all: async () => ({ results: [] }),
-    });
+  // D1 is a fake; the values bound to each statement are kept, so a test can see what was written.
+  const d1: { query: string; values: unknown[] }[] = [];
+  const statement = (query: string) => {
+    const bound = (...values: unknown[]) => {
+      d1.push({ query, values });
+      return {
+        run: async () => ({ meta: { changes: 0 } }),
+        first: async () => null,
+        all: async () => ({ results: [] }),
+      };
+    };
     return { bind: bound, ...bound() };
   };
   const ctx = {
@@ -96,7 +101,7 @@ function fixture() {
       ? { ok: false as const, error: reply.error.message }
       : { ok: true as const };
   };
-  return { book, run, db, frames };
+  return { book, run, db, frames, d1 };
 }
 const row = (db: Database, id: number) =>
   db
@@ -210,4 +215,18 @@ test("a deleted message's files leave the room for everyone but the owner (#4383
   expect(await book.fileHidden("abcdef", fid, email)).toBe(true);
   expect(await book.fileHidden("abcdef", fid, owner)).toBe(false);
   expect(book.files().map((f) => f.id)).not.toContain(fid);
+});
+
+test("an ask you reacted to before the router read it does not wait on you (Gimenes #4604)", async () => {
+  const { book, run, d1 } = fixture();
+  const ask = book.addMessage("main", owner, "posso subir hoje?").id;
+  // You react while the router (an LLM call) is still reading the message.
+  expect(await run({ t: "react", id: ask, emoji: "👍" })).toEqual({ ok: true });
+  d1.length = 0;
+  // Then the router says the ask waits on you and on someone who did nothing.
+  await book.saveWaits(ask, [email, other]);
+  const waits = d1.filter(
+    (x) => x.values.length && x.query.includes("INSERT OR IGNORE INTO waits"),
+  );
+  expect(waits.map((x) => x.values[2])).toEqual([other]);
 });
