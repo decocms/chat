@@ -135,28 +135,33 @@
   <PaneHeader title={vb.t("Decisões")} count={list.length} />
   {#if days.length}
     <!-- One timeline: the line runs through every icon, from the first day to the last entry. -->
-    <ol data-decisions-timeline class="-mx-4 mt-2 mb-0 list-none p-0">
+    <!-- Rounded rows inside the pane's inset. Each row draws its piece of the line, reaching 4px past
+         its edges to bridge the gap; the line sits above a hovered row's fill and under the icon nodes. -->
+    <ol data-decisions-timeline class="mt-2 mb-0 list-none p-0">
       {#each days as day, dayIndex (day.key)}
         <li data-decision-day={day.when}>
-          <div class="relative grid grid-cols-[24px_1fr] gap-3 px-4 pt-3 pb-1">
+          <div
+            class={[
+              "relative grid grid-cols-[24px_1fr] gap-3 px-3 pb-2",
+              dayIndex === 0 ? "pt-2" : "pt-6",
+            ]}
+          >
             <span
               aria-hidden="true"
               class={[
-                "absolute left-7 w-px -translate-x-1/2 bg-border",
-                dayIndex === 0 ? "top-5 bottom-0" : "inset-y-0",
+                "absolute left-6 z-[1] w-px -translate-x-1/2 bg-border",
+                dayIndex === 0 ? "top-[18px] -bottom-1" : "inset-y-0 -bottom-1",
               ]}
             ></span>
             <span
               aria-hidden="true"
-              class="relative mx-auto mt-1.5 size-2 rounded-full bg-border"
+              class="relative z-[2] mx-auto mt-1.5 size-2 rounded-full bg-border"
             ></span>
-            <h3
-              class="m-0 text-xs leading-5 font-semibold text-muted-foreground"
-            >
+            <h3 class="m-0 text-sm leading-5 font-medium text-muted-foreground">
               {dayLabel(day)}
             </h3>
           </div>
-          <ol class="m-0 list-none p-0">
+          <ol class="m-0 flex list-none flex-col gap-1 p-0">
             {#each day.items as decision, index (decision.id)}
               {@const look = kindLook(decisionKind(decision.kind))}
               {@const last =
@@ -165,18 +170,18 @@
                 <article
                   data-decision-id={decision.id}
                   data-decision-kind={decisionKind(decision.kind)}
-                  class="group relative grid grid-cols-[24px_1fr_auto] items-start gap-3 px-4 py-2 hover:bg-muted"
+                  class="group relative grid grid-cols-[24px_1fr_auto] items-start gap-3 rounded-lg px-3 py-2.5 transition-colors duration-150 hover:bg-muted"
                 >
                   <span
                     aria-hidden="true"
                     class={[
-                      "absolute left-7 w-px -translate-x-1/2 bg-border",
-                      last ? "top-0 h-5" : "inset-y-0",
+                      "absolute left-6 z-[1] w-px -translate-x-1/2 bg-border",
+                      last ? "-top-1 h-[26px]" : "-inset-y-1",
                     ]}
                   ></span>
                   <span
                     class={[
-                      "relative grid size-6 place-items-center rounded-full border border-border bg-background",
+                      "relative z-[2] grid size-6 place-items-center rounded-full border border-border bg-background",
                       look.tone,
                     ]}><Icon icon={look.icon} size={13} /></span
                   >
