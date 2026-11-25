@@ -69,9 +69,9 @@ export const SCREEN_TRACK = "screen";
 
 /** A new SFU session (one RTCPeerConnection) for this person, entered in the room's call.
  *  `record`: with this join the call has two people and no recorder, so the recorder is asked to come (startRecorder). */
-export async function callJoin(env: Env, bookId: string, email: string, origin: string, thread = "main") {
+export async function callJoin(env: Env, bookId: string, email: string, origin: string) {
   const session = z.object({ sessionId: z.string() }).parse(await sfu(env, "POST", "/sessions/new")).sessionId;
-  const record = await bookStub(env, bookId).callJoin(bookId, email, session, origin, thread);
+  const record = await bookStub(env, bookId).callJoin(bookId, email, session, origin);
   return { session, record };
 }
 
@@ -94,7 +94,7 @@ export async function startRecorder(env: Env, origin: string, bookId: string, at
   const res = await fetch(`${(env.RECORDER_URL ?? "").replace(/\/+$/, "")}/start`, {
     method: "POST",
     headers: { authorization: `Bearer ${env.RECORDER_SECRET}`, "content-type": "application/json" },
-    // The title says where the call was: the room and the thread (Book.callTitle).
+    // The title says where the call was: the room (Book.callTitle; the call is the room's, not a thread's).
     body: JSON.stringify({ room: bookId, attempt, title: await bookStub(env, bookId).callTitle(bookId), joinUrl: await recorderLink(env, origin, bookId) }),
   }).catch(() => null);
   if (res?.ok) return;

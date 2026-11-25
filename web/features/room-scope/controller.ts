@@ -1,4 +1,5 @@
 import { chatTime, chatDateTime } from "../chat/time";
+import { CALL_THREAD, roomHasThread } from "../../../shared/call";
 import { derived, get, readonly, writable } from "svelte/store";
 import type { Attachment, Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
@@ -440,12 +441,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   function pickThread(thread: string) {
     if (!current() || defer(() => pickThread(thread))) return;
     const value = room()!;
-    if (
-      thread !== "main" &&
-      !suggestionAt(value, thread) &&
-      !value.epics.some((epic) => epic.id === thread)
-    )
-      return;
+    if (!suggestionAt(value, thread) && !roomHasThread(value, thread)) return;
     const replace = layout.takeSheetEntry();
     services.actions.selectThread(thread, { replace });
   }
@@ -504,10 +500,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   function richNavigate(target: RichNavigation) {
     if (!current() || defer(() => richNavigate(target))) return;
     const thread = target.id ?? selected();
-    if (
-      thread !== "main" &&
-      !room()!.epics.some((epic) => epic.id === thread)
-    ) {
+    if (!roomHasThread(room()!, thread)) {
       showNotice(t("Essa thread não existe mais nesta sala."));
       return;
     }
@@ -711,6 +704,8 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       if (
         changed &&
         snapshot.thread !== "main" &&
+        // The call chat has no doc (it sits beside the call's stage).
+        snapshot.thread !== CALL_THREAD &&
         !snapshot.thread.startsWith("pre:") &&
         !layout.read().documentVisible
       ) {

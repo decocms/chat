@@ -791,13 +791,19 @@ const EN: Readonly<Record<string, string>> = {
   Fechar: "Close",
   // The room's call (web/features/call).
   "Iniciar call": "Start call",
-  "Entrar na call ({n})": "Join call ({n})",
+  "Entrar na call": "Join call",
   "Sair da call": "Leave call",
   "Silenciar o microfone": "Mute the microphone",
   "Ativar o microfone": "Unmute the microphone",
   "Compartilhar a tela": "Share your screen",
   "Parar de compartilhar a tela": "Stop sharing your screen",
   "Na call: {people}": "In the call: {people}",
+  "Na call · {n}": "In the call · {n}",
+  "Na call": "In the call",
+  "Chat da call": "Call chat",
+  "Voltar para a call": "Back to the call",
+  "Entrar na call: {people}": "Join the call: {people}",
+  "Câmera e desfoque": "Camera and blur",
   "Tela de {name}": "{name}'s screen",
   "Ver a tela de {name}": "See {name}'s screen",
   "Tela cheia": "Full screen",
@@ -829,7 +835,7 @@ const EN: Readonly<Record<string, string>> = {
   "Sua tela, como os outros veem": "Your screen, as the others see it",
   "Não consegui usar o microfone. Libere o acesso no navegador.":
     "I could not use the microphone. Allow it in the browser.",
-  "A call falhou. Tente entrar de novo.": "The call failed. Try to join again.",
+  "A call falhou.": "The call failed.",
   "Você saiu da call (a conexão caiu ou você entrou por outra aba).":
     "You left the call (the connection dropped, or you joined from another tab).",
   "O limite de tela deste mês acabou. Abra um Google Meet, cole o link aqui e todo mundo da call recebe.":
@@ -1089,6 +1095,8 @@ const EN: Readonly<Record<string, string>> = {
   "Carregar mensagens anteriores": "Load earlier messages",
   "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em threads: site novo, aluguéis e domínio</i>.":
     "Start the conversation. The agents on in this room read and reply; yours acts with your OK. E.g. <i>organize the project into threads: new site, rentals and domain</i>.",
+  "Chat da call. Fica para as próximas calls desta sala.":
+    "The call's chat. It stays for this room's next calls.",
   "Discussão desta thread. Os agents leem as tarefas, o doc e a sala principal.":
     "This thread's discussion. The agents read the tasks, the doc and the main room.",
   "ver na sala principal": "see in the main room",

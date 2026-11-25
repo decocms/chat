@@ -13,17 +13,19 @@
   let {
     open = $bindable(false),
     onconfirm,
+    onproblem,
     t,
   }: {
     open?: boolean;
     /** The stream to send, and what stops it (the camera, and the blur when it is on). */
     onconfirm(stream: MediaStream, stop: () => void): void;
+    /** A camera or blur problem, shown by the call as a toast. */
+    onproblem(text: string): void;
     t(text: string, vars?: Record<string, string | number>): string;
   } = $props();
   let raw = $state<MediaStream | null>(null);
   let blurred = $state<{ stream: MediaStream; stop(): void } | null>(null);
   let level = $state<Blur>(lastLevel);
-  let problem = $state<"" | "camera" | "blur">("");
   let loading = $state(false);
   const shown = $derived(level !== "none" && blurred ? blurred.stream : raw);
   const levels: [Blur, string][] = $derived([
@@ -38,11 +40,12 @@
     loading = false;
   }
   async function start() {
-    problem = "";
     try {
       raw = await navigator.mediaDevices.getUserMedia({ video: CAM_CAPTURE });
     } catch {
-      problem = "camera";
+      // No camera: nothing to preview, so the dialog closes and the call says why.
+      onproblem(t("Não consegui usar a câmera. Libere o acesso no navegador."));
+      open = false;
       return;
     }
     if (!open) return release();
@@ -59,7 +62,9 @@
       else made.stop();
     } catch (error) {
       console.error("camera blur", error);
-      problem = "blur";
+      onproblem(
+        t("O desfoque não funcionou neste navegador. A câmera vai sem ele."),
+      );
       level = "none";
     }
     loading = false;
@@ -108,13 +113,6 @@
       aria-label={t("Prévia da sua câmera")}
       class="aspect-video w-full rounded-lg bg-muted object-contain"
     ></video>
-    {#if problem}<p role="alert" class="m-0 text-xs text-destructive">
-        {problem === "camera"
-          ? t("Não consegui usar a câmera. Libere o acesso no navegador.")
-          : t(
-              "O desfoque não funcionou neste navegador. A câmera vai sem ele.",
-            )}
-      </p>{/if}
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-xs text-muted-foreground">{t("Fundo")}</span>
       <div role="group" aria-label={t("Fundo")} class="flex gap-1">

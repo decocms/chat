@@ -7,7 +7,7 @@ import {
   type RoomConnectionOptions,
 } from "../../app/roomConnection";
 import { reduceRoom } from "../../app/roomStore";
-import { isRoomMember } from "../../../shared/call";
+import { isRoomMember, roomHasThread } from "../../../shared/call";
 import type { RoomCache } from "../room-cache/store";
 
 export type RootConnection = ReturnType<typeof createRoomConnection>;
@@ -202,7 +202,7 @@ export function createRootRoomSession(options: {
         room &&
         selected !== "main" &&
         !selected.startsWith("pre:") &&
-        !room.epics.some((epic) => epic.id === selected)
+        !roomHasThread(room, selected)
           ? "main"
           : selected;
       const connection = (options.connection ?? createRoomConnection)({

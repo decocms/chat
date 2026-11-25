@@ -6,6 +6,7 @@ import {
   POLL_MIN_OPTIONS,
   POLL_MAX_OPTIONS,
 } from "../../../shared/composition";
+import { roomHasThread } from "../../../shared/call";
 import { visibleMessage } from "../chat/privacy";
 import { get, writable, type Writable } from "svelte/store";
 import type { Room, Message, Attachment, Poll } from "../../../shared/room";
@@ -163,8 +164,7 @@ export function createComposerDrafts(
   const orphaned = (scope: ComposerScope, room: Room) =>
     scope.account === room.me &&
     scope.roomId === room.id &&
-    scope.thread !== "main" &&
-    !room.epics.some((epic) => epic.id === scope.thread);
+    !roomHasThread(room, scope.thread);
   const uploadQueue: {
     entry: ComposerEntry;
     id: number;
@@ -258,8 +258,7 @@ export function createComposerDrafts(
       room?.id === scope.roomId &&
       room.me === scope.account &&
       room.members.includes(scope.account) &&
-      (scope.thread === "main" ||
-        room.epics.some((epic) => epic.id === scope.thread));
+      roomHasThread(room, scope.thread);
     const cancel = (op: { timer?: unknown } | undefined) => {
       if (op?.timer !== undefined) clock.cancel(op.timer);
     };

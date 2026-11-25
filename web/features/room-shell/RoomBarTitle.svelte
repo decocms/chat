@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { CALL_THREAD } from "../../../shared/call";
   import type { Room } from "../../../shared/room";
   import type { SidebarBridge } from "../../app/sidebar";
   import { suggestionAt, threadTitle } from "../room-sidebar/model";
@@ -38,7 +39,9 @@
   const title = $derived(
     person
       ? room.book.title
-      : (threadTitle(room, thread) ?? t("Sala principal")),
+      : thread === CALL_THREAD
+        ? t("Chat da call")
+        : (threadTitle(room, thread) ?? t("Sala principal")),
   );
   const quiet = $derived(!epic && !suggestion && !person);
   // The face beside the title: the epic's owner, or the DM's person.

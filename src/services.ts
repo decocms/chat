@@ -148,8 +148,9 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     transcribe:(audio,query)=>transcribeSpeech(audio,query,input=>env.AI.run(WHISPER_MODEL,input)),
     callsOn: callsOn(env),
     allowCall: async () => (await env.AGENT_LIMIT.limit({ key: `call:${email}` })).success,
-    callJoin: async (roomId, thread) => {
-      const { session, record } = await callJoin(env, roomId, email, new URL(req0.url).origin, thread);
+    // The thread the person has open is not the call's: the call is the room's, its chat the room's call chat.
+    callJoin: async (roomId) => {
+      const { session, record } = await callJoin(env, roomId, email, new URL(req0.url).origin);
       // The second person makes it a call to record: the recorder joins it, after the response.
       if (record) ctx.waitUntil(startRecorder(env, new URL(req0.url).origin, roomId));
       return { session };

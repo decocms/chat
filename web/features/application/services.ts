@@ -40,7 +40,7 @@ import type {
 } from "./types";
 import type { FetchLike } from "../../app/transport";
 import { browserDrafts } from "../composer/draftStore";
-import { isRoomMember } from "../../../shared/call";
+import { isRoomMember, roomHasThread } from "../../../shared/call";
 
 export type ApplicationPwa = Pick<
   PwaService,
@@ -475,9 +475,8 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       room = root.read().room!;
     const suggestion = /^pre:(\d+)$/.exec(requested);
     const thread =
-      requested === "main" ||
       (suggestion && Number(suggestion[1]) < room.suggestions.length) ||
-      room.epics.some((epic) => epic.id === requested)
+      roomHasThread(room, requested)
         ? requested
         : "main";
     if (
@@ -727,10 +726,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
             options.replace,
             `pre:${index}`,
           );
-        } else if (
-          !options.transient &&
-          (thread === "main" || room.epics.some((epic) => epic.id === thread))
-        ) {
+        } else if (!options.transient && roomHasThread(room, thread)) {
           navigate({ roomId: scope.roomId, thread }, options.replace);
         }
       },

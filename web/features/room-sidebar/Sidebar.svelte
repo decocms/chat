@@ -49,6 +49,8 @@
     phoneMenu,
     phoneAccount,
     footer,
+    call,
+    callPanel,
   }: SidebarProps = $props();
   const external = untrack(() => !!mutations);
   // A DM (src/dm.ts): its sidebar is your DM list; the DM is only a conversation (no threads, views or epics).
@@ -105,6 +107,7 @@
       tooltipSide="right"
       size="icon"><Icon icon="arrow-left" /></IconButton
     >
+    {#if call}{@render call(true)}{/if}
     {#each [{ id: "main", title: room.book.title, tasks: [], owner: undefined }, ...room.epics.filter((epic) => !epic.done || epic.id === thread)] as epic (epic.id)}
       {@const done = epic.tasks.filter((task) => task.done).length}
       <Button
@@ -159,8 +162,11 @@
         /></span
       >{/each}
     <MutationStatus {owner} t={vb.t} />
-    {#if footer}<div class="mt-auto shrink-0 pt-2 max-md:hidden">
-        {@render footer(true)}
+    {#if footer || callPanel}<div class="mt-auto shrink-0 pt-2 max-md:hidden">
+        {#if callPanel}<div class="flex justify-center pb-2 empty:hidden">
+            {@render callPanel(true)}
+          </div>{/if}
+        {@render footer?.(true)}
       </div>{/if}
   {:else}
     {#if !hideSheetHandle}<button
@@ -215,7 +221,9 @@
               class="size-9 shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/name:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 motion-reduce:transition-none"
               onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
             ></SidebarHeader
-          >{@render roomThreads()}
+          >{#if call}<div class="max-md:hidden">
+              {@render call(false)}
+            </div>{/if}{@render roomThreads()}
         </div>{/if}{/snippet}
     <!-- The room's threads: the main one, the views, the epics. A DM nests them under its row in the DM list. -->
     {#snippet roomThreads()}<div
@@ -308,7 +316,8 @@
           {locale}
         />
       </div>{/snippet}
-    <SidebarFoot>
+    {#snippet panelAbove()}{@render callPanel?.(false)}{/snippet}
+    <SidebarFoot above={callPanel ? panelAbove : undefined}>
       {#if footer}{@render footer(
           false,
           selfRows,

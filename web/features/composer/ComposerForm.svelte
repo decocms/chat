@@ -5,6 +5,7 @@
 
 <script lang="ts">
   import { visibleMessage, messageById } from "../chat/privacy";
+  import { roomHasThread } from "../../../shared/call";
   import { COMPOSER_FRAME } from "./shape";
   import { MARK_DONE } from "../../../shared/epicStatus";
   import { browserSpeech } from "./speech";
@@ -87,7 +88,7 @@
     $draft.error !== "draft-limit" &&
       entry.available() &&
       room.members.includes(room.me) &&
-      (thread === "main" || room.epics.some((epic) => epic.id === thread)),
+      roomHasThread(room, thread),
   );
   const reply = $derived(
     $draft.replyId
