@@ -243,7 +243,6 @@
     onanswer: services.navigation.callbacks.answerRequest,
     onconnect: services.navigation.callbacks.connect,
     ondismiss: services.navigation.callbacks.dismiss,
-    onlanguage: language,
   });
   onMount(() => {
     effects.documentLanguage(services.language);

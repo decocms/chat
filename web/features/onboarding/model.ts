@@ -1,6 +1,7 @@
 import type { MeResult } from "../../../shared/schemas";
 export type OnboardingStep = 1 | 2 | 3;
 export const ONBOARDING_DONE = "vb.obDone",
+  ONBOARDING_SKIP_NAME = "vb.obName",
   ONBOARDING_SKIP_CLAUDE = "vb.obClaude";
 export const ONBOARDING_POLL = 4000,
   ONBOARDING_POLL_LIMIT = 150,
@@ -10,8 +11,12 @@ export function onboardingStep(
   back: OnboardingStep | null,
   connected: boolean,
   skipped: boolean,
+  skippedName = false,
 ): OnboardingStep {
-  return back ?? (!me.name ? 1 : !connected && !skipped ? 2 : 3);
+  // A skipped name keeps the email's name, as before anyone types one.
+  return (
+    back ?? (!me.name && !skippedName ? 1 : !connected && !skipped ? 2 : 3)
+  );
 }
 export const onboardingEligible = (me: MeResult | null, dismissed: boolean) =>
   !!me && !me.books.length && !dismissed;
