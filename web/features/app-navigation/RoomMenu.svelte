@@ -212,7 +212,8 @@
       >
         <DropdownMenuItem
           class={itemClass}
-          disabled={!unread(room, $personal.seen[id] ?? 0)}
+          disabled={!unread(room, $personal.seen[id] ?? 0) &&
+            !$personal.me?.waits.some((wait) => wait.book_id === id)}
           onSelect={() => {
             watching = `read:${id}`;
             controller.markRead(id);
