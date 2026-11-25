@@ -13,6 +13,17 @@ export const PersonEventSchemas = {
   /** Something in a room you do not have open is for you (a DM, a mention, your agent asks): the app plays the
    *  chime, the same one a message in the open room plays. Sent with the web push (src/book.ts notify). */
   alert: z.object({ t: z.literal("alert"), book: z.string() }),
+  /** A DM's call rings you (src/book.ts ringStart): `from` calls until `until`. Without `from`, it stopped ringing
+   *  (declined, answered, hung up, or the time ran out). */
+  ring: z.object({
+    t: z.literal("ring"),
+    book: z.string(),
+    from: z.optional(z.string()),
+    until: z.optional(z.number()),
+    /** The caller's name and picture version, for the notice. */
+    name: z.optional(z.string()),
+    avatar: z.optional(z.nullable(z.number())),
+  }),
   /** Who of your DM contacts has the app open (src/person.ts). `all: 1` is the full list a new socket gets first:
    *  it replaces what the app knew. Without it, only the people listed changed. */
   presence: z.object({
@@ -27,6 +38,7 @@ export const PersonEventSchema = z.discriminatedUnion("t", [
   PersonEventSchemas.focus,
   PersonEventSchemas.alert,
   PersonEventSchemas.presence,
+  PersonEventSchemas.ring,
 ]);
 export type PersonEvent = z.infer<typeof PersonEventSchema>;
 /** Accept raw WebSocket event.data only: a JSON-RPC notification, method = t (shared/jsonRpc.ts). Binary, non-JSON

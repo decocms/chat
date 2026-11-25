@@ -27,6 +27,7 @@ import {
 } from "../root-room/session";
 import { createAppsAuthority } from "../apps/authority";
 import { createApplicationPersonalChannel } from "./personal-channel";
+import { ringNotice } from "../call/ring";
 import type { createPersonalConnection } from "../home/connection";
 import { copyRoomTarget, titleOwnDm, type RoomTarget } from "../home/model";
 import { settingsHref, type SettingsSection } from "../account/settings";
@@ -358,6 +359,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     },
     refreshRoom: refreshRoomAgents,
     alert: () => pwa.alert(),
+    ring: ringNotice,
     url: () => browser.socketUrl("/ws-me"),
     visible: browser.visible,
     listenVisibility: browser.listenVisibility,

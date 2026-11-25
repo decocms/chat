@@ -7,7 +7,7 @@ import { storedMessageRows, storedChoices, storedCard, storedQuote, storedFileRe
 import { cachedTools } from "./mcpTools";
 import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTION_LIMIT, POLL_MIN_OPTIONS, POLL_MAX_OPTIONS } from "../shared/composition";
 import { reorderEpics } from "./epic-order";
-import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema, CallPeerSchema, type CallPeer } from "../shared/room";
+import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema, CallPeerSchema, RingSchema, type CallPeer, type Ring } from "../shared/room";
 import { isMarkDone } from "../shared/epicStatus";
 import { notificationFrom, notificationTitle } from "../shared/notificationTitle";
 import type { PostMessageResponse } from "../shared/rpc";
@@ -45,7 +45,7 @@ import { decide, type Question } from "./jev";
 import { runRouterActions, waitQuestion, WAIT_PEOPLE_MAX, WAIT_THRESHOLD, type ActionMessage, type ActionRoom } from "./routerActions";
 import { track } from "./track";
 import { addCallUsage, callsOn, recorderOn, startRecorder } from "./calls";
-import { CALL_THREAD, isRecorder } from "../shared/call";
+import { CALL_THREAD, RING_MS, callLineText, callMinutes, isRecorder } from "../shared/call";
 import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
 import { bumpStat, ensureHandle } from "./profile";
@@ -768,7 +768,10 @@ export class Book extends DurableObject<Env> {
   }
   private setCall(peers: CallPeer[]) {
     this.set("call", JSON.stringify(peers));
-    this.broadcast({ t: "call", call: peers, thread: this.liveCallThread() });
+    this.broadcastCall();
+  }
+  private broadcastCall() {
+    this.broadcast({ t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState() });
   }
   /** One session per person: joining again (another tab or device) replaces the earlier one.
    *  Answers true when this join makes the call one to record: a second person is in it now and no recorder is
@@ -780,6 +783,11 @@ export class Book extends DurableObject<Env> {
       // A new call: where the recorder's link points, and no restart of the recorder yet.
       this.set("call_origin", origin);
       this.set("call_rec_n", "0");
+      this.callStarted(email);
+    } else if (!isRecorder(email) && !before.some((p) => p.email === email)) {
+      // Someone besides its starter came: the call was answered.
+      this.set("call_many", "1");
+      if (this.ringState()?.to === email) this.stopRing();
     }
     const after = [...before.filter((p) => p.email !== email), { email, session, tracks: [] }];
     this.setCall(after);
@@ -840,6 +848,73 @@ export class Book extends DurableObject<Env> {
     );
     this.ctx.waitUntil(track(this.env, "call_record_failed", { dims: { book: bookId, reason: reason.slice(0, 80) } }));
   }
+  // ---- the call's line in main, and a DM's ringing ----
+  /** A call starts: its line in main ("📞 iniciou uma call.", by who started it), and a DM rings the other person.
+   *  quiet: the line is no unread message, wakes no listener and plays no chime (the ring is what calls). */
+  private callStarted(email: string) {
+    const m = this.addMessage("main", email, callLineText({ state: "on" }, this.en), { tag: "call", quiet: true });
+    this.set("call_line", String(m.id));
+    this.set("call_at", String(m.ts));
+    this.set("call_many", "");
+    if (this.isDm) this.ctx.waitUntil(this.ringStart(email).catch((e) => console.error("call ring", String(e))));
+  }
+  /** The last person left: the line says how it went, in the same message (a DM nobody answered: missed). */
+  private callEnded() {
+    this.stopRing();
+    const id = Number(this.get("call_line") ?? 0);
+    if (!id) return;
+    this.set("call_line", "");
+    const missed = this.isDm && !this.get("call_many");
+    const text = callLineText(missed ? { state: "missed" } : { state: "ended", minutes: callMinutes(Number(this.get("call_at") ?? Date.now()), Date.now()) }, this.en);
+    this.sql.exec(`UPDATE messages SET text = ? WHERE id = ? AND tag = 'call'`, text, id);
+    this.broadcast({ t: "msgEdit", id, text });
+  }
+  /** The ring that is on: none once its time ran out. */
+  ringState(): Ring | undefined {
+    const raw = this.get("ring");
+    const parsed = raw ? RingSchema.safeParse(JSON.parse(raw)) : null;
+    return parsed?.success && parsed.data.until > Date.now() ? parsed.data : undefined;
+  }
+  /** A DM's call rings the other person wherever they are in the app (their personal channel, src/person.ts), and
+   *  on their devices (web push). It stops on its own after RING_MS (alarm). */
+  async ringStart(email: string) {
+    const bookId = this.get("book_id");
+    const to = (await this.members()).find((e) => e !== email);
+    // A DM with yourself rings nobody; a caller who already hung up rings nobody.
+    if (!bookId || !to || !this.callPeers().some((p) => p.email === email) || this.get("call_many")) return;
+    const ring: Ring = { from: email, to, until: Date.now() + RING_MS };
+    this.set("ring", JSON.stringify(ring));
+    this.broadcastCall();
+    const who = await this.env.DB.prepare(`SELECT name, avatar FROM users WHERE email = ?`).bind(email).first<{ name: string | null; avatar: number | null }>();
+    const name = who?.name || email.split("@")[0]!;
+    await Promise.all([
+      poke(this.env, [to], { t: "ring", book: bookId, from: email, until: ring.until, name, avatar: who?.avatar ?? null }),
+      this.wakeAt(ring.until),
+      this.notify([to], (en) => (en ? `${name} is calling you` : `${name} está ligando para você`), "📞", Number(this.get("call_line") ?? 0), "main"),
+    ]);
+  }
+  /** The ring stops (answered, declined, hung up, or out of time): the person rung is told, in every tab. */
+  private stopRing() {
+    const raw = this.get("ring"), bookId = this.get("book_id");
+    if (!raw) return;
+    this.set("ring", "");
+    const parsed = RingSchema.safeParse(JSON.parse(raw));
+    if (parsed.success && bookId) this.ctx.waitUntil(poke(this.env, [parsed.data.to], { t: "ring", book: bookId }));
+  }
+  /** The person rung says no: the ring stops, the caller stays in the call until they hang up. */
+  callDecline(bookId: string, email: string) {
+    this.bind(bookId);
+    if (this.ringState()?.to !== email) return;
+    this.stopRing();
+    this.broadcastCall();
+  }
+  /** The alarm: a ring whose time ran out stops. */
+  ringTimeout() {
+    if (this.get("ring") && !this.ringState()) {
+      this.stopRing();
+      this.broadcastCall();
+    }
+  }
   /** Is `session` this person's, and is every session in `pulls` in this room's call? */
   callCheck(email: string, session: string, pulls: string[]): boolean {
     const peers = this.callPeers();
@@ -855,6 +930,7 @@ export class Book extends DurableObject<Env> {
     const peers = this.callPeers();
     if (!peers.some((p) => p.email === email && (session === undefined || p.session === session))) return;
     const left = peers.filter((p) => p.email !== email);
+    if (!left.some((p) => !isRecorder(p.email))) this.callEnded();
     this.setCall(left);
     const bookId = this.get("book_id") ?? "";
     // Two people or more are still there: with one person left, the recorder is not called back.
@@ -930,7 +1006,7 @@ export class Book extends DurableObject<Env> {
   }
 
   // ---- mutations (shared by humans over WS and by AI tools) ----
-  addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
+  addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire" | "call"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
     // A reply points at a message of this room; anything else is dropped rather than refused.
     const replied = extra.replyTo ? this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, extra.replyTo).toArray()[0] : undefined;
     const replyTo = replied ? extra.replyTo! : null;
@@ -2730,7 +2806,7 @@ export class Book extends DurableObject<Env> {
         avatars,
         online: this.online(),
         // Present only where calls are set up: the app draws the call button from it.
-        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId) } : {}),
+        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), ring: this.ringState() } : {}),
         receipts: this.receiptsList(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
@@ -3165,6 +3241,7 @@ export class Book extends DurableObject<Env> {
   }
 
   async alarm() {
+    this.ringTimeout();
     await this.refreshLang().catch(() => {});
     await this.fireReminders().catch((e) => console.error("reminders", String(e)));
     await this.cutVersions().catch((e) => console.error("doc versions", String(e)));

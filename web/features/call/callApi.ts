@@ -45,6 +45,11 @@ export function createCallApi(fetcher?: FetchLike) {
       });
       if (!response.ok) throw fail("leave", response.status);
     },
+    /** A DM's call rings me: no. */
+    async decline(roomId: string) {
+      const response = await api.decline.$post({ param: param(roomId) });
+      if (!response.ok) throw fail("decline", response.status);
+    },
     async close(
       roomId: string,
       session: string,

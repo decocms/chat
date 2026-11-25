@@ -36,6 +36,8 @@ export function createApplicationPersonalChannel(options: {
   refreshRoom(): unknown;
   /** Something in a room you do not have open is for you: the PWA owner plays the chime. */
   alert?(book: string): void;
+  /** A DM's call rings me, or stopped ringing (no `from`). */
+  ring?: ConnectionOptions["onRing"];
   url: ConnectionOptions["url"];
   visible: ConnectionOptions["visible"];
   listenVisibility: ConnectionOptions["listenVisibility"];
@@ -124,6 +126,9 @@ export function createApplicationPersonalChannel(options: {
       },
       onPresence(update) {
         if (owns()) options.personal.presence(update);
+      },
+      onRing(ring) {
+        if (owns()) options.ring?.(ring);
       },
       onAlert(book) {
         if (owns() && book !== options.currentRoom()) options.alert?.(book);

@@ -9,6 +9,14 @@ export type PersonalNotice =
   | { kind: "account"; book?: string; message?: boolean }
   | { kind: "agents"; book: string }
   | { kind: "alert"; book: string }
+  | {
+      kind: "ring";
+      book: string;
+      from?: string;
+      until?: number;
+      name?: string;
+      avatar?: number | null;
+    }
   | ({ kind: "presence" } & PresenceUpdate);
 export function decodePersonalNotice(raw: unknown): PersonalNotice | null {
   const event = parsePersonEvent(raw);
@@ -20,7 +28,16 @@ export function decodePersonalNotice(raw: unknown): PersonalNotice | null {
         ? { kind: "alert", book: event.book }
         : event?.t === "presence"
           ? { kind: "presence", people: event.people, all: event.all === 1 }
-          : null;
+          : event?.t === "ring"
+            ? {
+                kind: "ring",
+                book: event.book,
+                from: event.from,
+                until: event.until,
+                name: event.name,
+                avatar: event.avatar,
+              }
+            : null;
 }
 type PersonalSocket = Pick<
   WebSocket,
@@ -33,6 +50,10 @@ export function createPersonalConnection(options: {
   onAgents: (book: string) => void;
   /** Something in another room is for you (src/book.ts notify): play the chime. */
   onAlert?: (book: string) => void;
+  /** A DM's call rings me, or stopped ringing (no `from`). */
+  onRing?: (
+    ring: Omit<Extract<PersonalNotice, { kind: "ring" }>, "kind">,
+  ) => void;
   /** A DM contact opened or closed the app (src/person.ts). */
   onPresence?: (update: PresenceUpdate) => void;
   onVisible: () => void;
@@ -89,7 +110,10 @@ export function createPersonalConnection(options: {
           options.onAccount();
       } else if (notice.kind === "agents") options.onAgents(notice.book);
       else if (notice.kind === "alert") options.onAlert?.(notice.book);
-      else options.onPresence?.({ people: notice.people, all: notice.all });
+      else if (notice.kind === "ring") {
+        const { kind: _kind, ...ring } = notice;
+        options.onRing?.(ring);
+      } else options.onPresence?.({ people: notice.people, all: notice.all });
     };
     current.onclose = () => {
       if (!active || socket !== current) return;

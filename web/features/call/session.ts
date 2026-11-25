@@ -429,7 +429,8 @@ export function createCallSession(
     state: { subscribe: state.subscribe },
     /** The room's word on who is in the call. Missing from it while in the call = this tab was dropped. */
     /** `me`: with a call on in the room and me not in it, this tab joins by itself, microphone off. */
-    setPeers(next: readonly CallPeer[] | undefined, me = "") {
+    /** `auto`: false in a DM, whose call rings instead (the person answers it). */
+    setPeers(next: readonly CallPeer[] | undefined, me = "", auto = true) {
       // The recorder (shared/call.ts) is in the list, and is not a person: nobody receives its tracks, and it
       // does not count as company.
       const all = [...(next ?? [])];
@@ -446,6 +447,7 @@ export function createCallSession(
         }
       } else if (
         phase === "idle" &&
+        auto &&
         me &&
         peers.length &&
         !stayOut &&

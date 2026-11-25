@@ -3,6 +3,7 @@
   import { CALL_THREAD } from "../../../shared/call";
   import { onMount } from "svelte";
   import Message from "./Message.svelte";
+  import CallLine from "./CallLine.svelte";
   import type { ChatProps } from "../../app/chatTypes";
   import {
     foldMessages,
@@ -171,15 +172,19 @@
             class="my-3 flex items-center gap-3 px-3 text-xs font-medium text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
           >
             {dayLabel(message.ts, Date.now(), vb.locale, (text) => vb.t(text))}
-          </div>{/if}<Message
-          {message}
-          previous={newDay(before, message) ? undefined : before}
-          typing={room.typing[message.id]}
-          {vb}
-          {room}
-          {actions}
-          footer={footers.get(message.id)}
-        />{/each}
+          </div>{/if}{#if message.tag === "call"}<CallLine
+            {message}
+            {room}
+            {vb}
+          />{:else}<Message
+            {message}
+            previous={newDay(before, message) ? undefined : before}
+            typing={room.typing[message.id]}
+            {vb}
+            {room}
+            {actions}
+            footer={footers.get(message.id)}
+          />{/if}{/each}
     {:else if !workers.length}<p
         data-chat-empty
         class="m-0 p-6 text-center leading-6 text-muted-foreground"
