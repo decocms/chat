@@ -33,6 +33,7 @@
   import RoomTile from "./RoomTile.svelte";
   import ChatList from "./ChatList.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
+  import UpdateRow from "../app-navigation/UpdateRow.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import HomeSkeleton from "./HomeSkeleton.svelte";
@@ -407,6 +408,11 @@
       </h1>
       <AccountRow me={$account.me} row={false} />
     </header>
+    <!-- A new version: the desktop sidebar's green row (Valls, #334), first in the phone's list, never in a room
+      (Gimenes #4613, #4630). The sidebar's foot is desktop only, so a phone had no way to update. -->
+    {#if $account.updateAvailable}<div class="px-2 pt-1 md:hidden">
+        <UpdateRow {lang} />
+      </div>{/if}
     <div class="px-2 pt-1 pb-3">
       <button
         type="button"
