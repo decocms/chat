@@ -2,6 +2,7 @@
   import { onMount, tick, untrack } from "svelte";
   import { get } from "svelte/store";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import VibeCube from "../home/VibeCube.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
@@ -24,8 +25,6 @@
     personVersion,
     roomIcon,
     roomLabel,
-    roomsOnly,
-    unread,
     type RoomSummary,
   } from "../home/model";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
@@ -52,8 +51,8 @@
    * leaves the list, the one under it opens; ✕ / Esc close it until you choose.
    * "Pra você": everything that needs you, newest first (asks and @mentions,
    * your tasks in review, your Claude's questions, answers to what you sent
-   * from the ask box). "Menções": every @ of you. "Não lidas": one card per
-   * room with news. "Tarefas": your open tasks. Every item is the same card:
+   * from the ask box). "Menções": every @ of you. "Tarefas": your open threads
+   * and tasks. (No "Não lidas": a room's news without an ask is not the Inbox's, PO #5566.) Every item is the same card:
    * "Room › Thread" and the time on top, who wrote and what in the middle,
    * the actions at the bottom (Responder, Feito, your Claude's choices,
    * Aprovar). "Abrir na sala" in the workspace leaves for the room. Phones
@@ -78,7 +77,7 @@
     t = untrack(() => services.t);
   const lang = $derived(services.language === "en" ? "en" : "pt");
 
-  type Tab = "foryou" | "mentions" | "unread" | "tasks";
+  type Tab = "foryou" | "mentions" | "tasks";
   type Kind =
     | "ask"
     | "mention"
@@ -223,31 +222,6 @@
         card.kind === "mention" || (card.kind === "ask" && atsMe(card.text)),
     ),
   );
-  // Não lidas: rooms someone wrote in since you last looked (the rail's dot).
-  const rooms = $derived(
-    roomsOnly($personal.me?.books ?? [])
-      .filter((room) => unread(room, $personal.seen[room.id] ?? 0))
-      .map((room): Card => ({
-        key: `r:${room.id}`,
-        kind: "room",
-        book: room.id,
-        room: room.title ?? "deco.chat",
-        thread: "main",
-        where: "",
-        author: room.last_by ?? "",
-        authorName: room.last_by_name ?? null,
-        text: room.last_text ?? "",
-        about: "",
-        ts: room.updated_at ?? 0,
-        summary: room,
-        news: Math.max(
-          1,
-          Math.max(room.last_human_id, room.last_agent_id) -
-            Math.max(room.read_id, $personal.seen[room.id] ?? 0),
-        ),
-      }))
-      .sort(newest),
-  );
   // Tarefas: your open threads, then your open tasks (the ones in review are in Pra você).
   const tasks = $derived([
     ...threads,
@@ -274,14 +248,12 @@
   const lists = $derived({
     foryou: feed,
     mentions,
-    unread: rooms,
     tasks,
   } satisfies Record<Tab, Card[]>);
   const order = $derived(lists[tab]);
   const tabs: { id: Tab; label: string }[] = [
     { id: "foryou", label: "Pra você" },
     { id: "mentions", label: "Menções" },
-    { id: "unread", label: "Não lidas" },
     { id: "tasks", label: "Tarefas" },
   ];
   // New since your last visit: the visit before this one, kept in this browser only.
@@ -455,12 +427,30 @@
     }
     restored = true;
   });
+  // The item shown last. When it leaves the list (you answered it, or cleared it), it stays open on the right,
+  // with what you just sent, until you pick another item or close it (PO #5569); only the list drops it.
+  let kept = $state.raw<Card | null>(null);
   const openCard = $derived.by(() => {
     if (closed) return undefined;
     const found = chosen
       ? order.find((card) => card.key === chosen)
       : undefined;
-    return found ?? order[Math.min(at, order.length - 1)] ?? order[0];
+    if (found) return found;
+    if (chosen && kept?.key === chosen) return kept;
+    return order[Math.min(at, order.length - 1)] ?? order[0];
+  });
+  /** The open item is no longer in the list: it shows, but has nothing left to act on. */
+  const gone = $derived(
+    !!openCard && !order.some((card) => card.key === openCard.key),
+  );
+  $effect(() => {
+    const card = openCard,
+      listed = !gone;
+    if (!card || !listed) return;
+    untrack(() => {
+      kept = card;
+      if (chosen !== card.key) chosen = card.key;
+    });
   });
   const working = $derived<Working | null>(
     sent ?? (openCard ? workingOf(openCard) : null),
@@ -862,7 +852,12 @@
       {/if}
     </div>
   </div>
-  <div data-home-workspace class="min-h-0 min-w-0 flex-1">
+  <div
+    data-home-workspace
+    data-item={working?.key}
+    data-gone={gone || undefined}
+    class="min-h-0 min-w-0 flex-1"
+  >
     {#if working}
       {#key working.key}<TaskWorkspace
           bind:this={workspace}
@@ -887,7 +882,9 @@
             else leaveFor(working.card);
           }}
           onclose={close}
-          itemActions={working.key.startsWith("x:") ? undefined : itemActions}
+          itemActions={working.key.startsWith("x:") || gone
+            ? undefined
+            : itemActions}
         />{/key}
     {:else if !loading && !($inbox.error && !order.length)}{@render empty(
         order.length
@@ -896,9 +893,7 @@
             ? t("Nada esperando você.")
             : tab === "mentions"
               ? t("Nenhuma menção.")
-              : tab === "tasks"
-                ? t("Nenhuma tarefa aberta.")
-                : t("Nada novo nas suas salas."),
+              : t("Nenhuma tarefa aberta."),
         !order.length && tab === "foryou"
           ? t(
               "Mande algo na caixa acima. Quando alguém precisar de você, aparece aqui.",
@@ -993,8 +988,7 @@
       {lang}
       size="xs"
       surface="background"
-    />{:else if row.author === "ai"}<AgentMark
-      mark="✦"
+    />{:else if row.author === "ai"}<VibeCube
       class="text-xs text-foreground"
     />{:else if row.author}<PersonAvatar
       data-avatar="person"

@@ -141,7 +141,7 @@
             : text("footOnline")
           : text("noneOpen");
   const who = (a: Agent) =>
-    `${(prettyModel(a.who) || "Agent").replace(/^Claude\s+/i, "")}${a.room || a.repo ? ` · ${a.room || a.repo}` : ""}`;
+    `${(prettyModel(a.who) || "Agent").replace(/^Claude\s+/i, "")}${a.name ? ` @${a.name}` : ""}${a.room || a.repo ? ` · ${a.room || a.repo}` : ""}`;
   const install = $derived(`curl -fsSL ${origin}/setup.sh | sh`);
   const cloud = $derived(settingsHref("cloud", owner.roomId));
   const TILE =
@@ -307,7 +307,7 @@
                           /^Claude\s+/i,
                           "",
                         )
-                      : machineName(m)}</span
+                      : machineName(m)}{a?.name ? ` · @${a.name}` : ""}</span
                   ><span class="truncate text-xs text-muted-foreground"
                     >{a
                       ? [

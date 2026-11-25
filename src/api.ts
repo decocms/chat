@@ -532,8 +532,9 @@ export const roomApi = accountApi
       await svc.sql(`DELETE FROM machine_rooms WHERE book_id = ? AND machine_id IN (SELECT id FROM machines WHERE email = ?)`, id, email);
       for (const m of sbIds) await svc.sql(`INSERT OR REPLACE INTO machine_rooms (machine_id, book_id, on_) VALUES (?, ?, ?)`, m, id, v);
       await svc.sql(
-        `INSERT OR REPLACE INTO agent_rooms (agent, book_id, delivery)
-         SELECT a.id, ?1, ?3 FROM agents a JOIN agent_reads r ON r.agent = a.id AND r.book_id = ?1 WHERE a.email = ?2 AND a.machine_id IS NULL`,
+        `INSERT INTO agent_rooms (agent, book_id, delivery)
+         SELECT a.id, ?1, ?3 FROM agents a JOIN agent_reads r ON r.agent = a.id AND r.book_id = ?1 WHERE a.email = ?2 AND a.machine_id IS NULL
+         ON CONFLICT(agent, book_id) DO UPDATE SET delivery = excluded.delivery`,
         id, email, v,
       );
     } else if (machine) {
@@ -544,7 +545,8 @@ export const roomApi = accountApi
       const mine = await svc.sqlAll(`SELECT machine_id FROM agents WHERE id = ? AND email = ?`, agent, email);
       if (!mine.length) return c.json({ error: "not your agent" } satisfies ErrorBody, 404);
       if ((mine[0] as { machine_id: string | null }).machine_id) return c.json({ error: "this agent follows its machine's switch" } satisfies ErrorBody, 400);
-      await svc.sql(`INSERT OR REPLACE INTO agent_rooms (agent, book_id, delivery) VALUES (?, ?, ?)`, agent, id, v);
+      // An upsert: the row also keeps the agent's @name in the room (src/agentNames.ts).
+      await svc.sql(`INSERT INTO agent_rooms (agent, book_id, delivery) VALUES (?, ?, ?) ON CONFLICT(agent, book_id) DO UPDATE SET delivery = excluded.delivery`, agent, id, v);
     } else return c.json({ error: "say which: machine, agent or all" } satisfies ErrorBody, 400);
     svc.pokeAgents(id);
     if (on) svc.pokeListeners(id);
@@ -812,7 +814,7 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     // another room) shows as "seen …", not as "no agent here yet" with the setup. Not every Claude of yours listening
     // anywhere: with herdr that's one per room, and every room listed all of them (Gui #3100, 17 rows).
     svc.sqlAll(
-      `SELECT ag.id, ag.client, ag.machine_id, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, lb.title AS listen_title, ${DELIVERS} AS delivers
+      `SELECT ag.id, ag.client, ag.machine_id, ag.role, dr.name, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, lb.title AS listen_title, ${DELIVERS} AS delivers
        FROM agents ag JOIN members m ON m.email = ag.email AND m.book_id = ?1
        LEFT JOIN agent_reads r ON r.agent = ag.id AND r.book_id = ?1
        LEFT JOIN books lb ON lb.id = ag.listen_room
@@ -866,6 +868,8 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
         seen_at: a.seen_at,
         listening: !!a.listening_at && now - a.listening_at < svc.listenFresh && (a.listen_room === id || !a.listen_room),
         all_rooms: !a.listen_room,
+        role: a.role ?? null,
+        name: a.name ?? null,
         // How full its context was at its last call (only from the CLI inside Claude Code); older than 1h = unknown.
         context: a.ctx_tokens != null && a.ctx_window && now - (a.ctx_at ?? 0) < 3600_000 ? { tokens: a.ctx_tokens, window: a.ctx_window, at: a.ctx_at, limits: limitsOf(a.ctx_limits) } : null,
         // Yours also say which room each one listens to: the herdr tab is named after it (Gui #3120), clearer than

@@ -9,6 +9,7 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import VibeCube from "../home/VibeCube.svelte";
   import EmptyState from "../../lib/components/EmptyState.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import { waitText } from "../waits/model";
@@ -179,8 +180,7 @@
                       ><Icon icon="check" size={16} /></span
                     >
                   {:else if kind(wait) === "agent"}<AgentMark class="text-sm" />
-                  {:else if wait.author === "ai"}<AgentMark
-                      mark="✦"
+                  {:else if wait.author === "ai"}<VibeCube
                       class="text-sm text-foreground"
                     />
                   {:else}<PersonAvatar
@@ -263,8 +263,7 @@
                   }}
                   class="flex min-w-0 flex-1 gap-3 rounded-control p-2 text-foreground no-underline outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {#if m.author === "ai"}<AgentMark
-                      mark="✦"
+                  {#if m.author === "ai"}<VibeCube
                       class="text-sm text-foreground"
                     />{:else}<PersonAvatar
                       data-avatar="person"

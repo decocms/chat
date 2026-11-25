@@ -460,7 +460,10 @@ async function keyboardOverlays(
   const roomUrl = page.url();
   const railInbox = page
     .locator("[data-app-navigation]")
-    .getByRole("button", { name: t("Caixa de entrada"), exact: true });
+    // "Caixa de entrada", or "Caixa de entrada · um agente está trabalhando" while an agent is busy (#502).
+    .getByRole("button", {
+      name: new RegExp(`^${t("Caixa de entrada")}(?: · .+)?$`),
+    });
   const byRail = !phone && (await railInbox.count()) > 0;
   if (byRail) {
     await railInbox.focus();
@@ -472,7 +475,32 @@ async function keyboardOverlays(
   }
   const homeInbox = page.locator("[data-home-inbox]");
   await expect(homeInbox).toBeVisible();
-  await expect(homeInbox.locator("[data-room-inbox]")).toBeVisible();
+  // Phones at inbox zero get the reward instead of an empty list (#502): the
+  // cube, "All caught up" and the home's ask box. Earlier profiles read the
+  // fixture rooms, so either state is legitimate; wait until the Inbox has
+  // settled (zero, or the list once loaded) and check the one it shows.
+  const zeroState = homeInbox.locator("[data-home-inbox-zero]"),
+    list = homeInbox.locator("[data-room-inbox]");
+  let atZero = false;
+  if (phone) {
+    await expect
+      .poll(
+        async () =>
+          (await zeroState.isVisible())
+            ? "zero"
+            : (await list.isVisible()) &&
+                (await list.locator("[data-inbox-loading]").count()) === 0
+              ? "list"
+              : "settling",
+        { message: "Phone Inbox must settle on its list or inbox zero" },
+      )
+      .not.toBe("settling");
+    atZero = await zeroState.isVisible();
+  }
+  if (atZero) {
+    await expect(list).toHaveCount(0);
+    await expect(zeroState.locator("[data-home-ask]")).toBeVisible();
+  } else await expect(list).toBeVisible();
   await expect(
     page.getByRole("dialog", {
       name: t("Caixa de entrada"),
@@ -481,17 +509,18 @@ async function keyboardOverlays(
   ).toHaveCount(0);
   // Phones: "Resolve all" atop the list. Desktop: the Home's hero (cube, line, ask box) is always on top;
   // "Resolve all" lives in the Responder label's menu when something asks for you.
-  if (phone)
-    await expect(
-      page.locator("[data-inbox-controls]:visible").first(),
-    ).toBeVisible();
-  else await expect(homeInbox.locator("[data-home-hero]")).toBeVisible();
+  if (phone) {
+    if (!atZero)
+      await expect(
+        page.locator("[data-inbox-controls]:visible").first(),
+      ).toBeVisible();
+  } else await expect(homeInbox.locator("[data-home-hero]")).toBeVisible();
   await axe(page, "global Inbox open", evidence);
   await page.goBack();
   await page.waitForURL(roomUrl);
   await expect(page.locator("[data-composer] textarea")).toBeVisible();
   evidence.keyboard.push(
-    `Global Inbox opens ${byRail ? "from the rail by keyboard" : "at /?inbox"} with its list and controls; Back returns to the room`,
+    `Global Inbox opens ${byRail ? "from the rail by keyboard" : "at /?inbox"} with ${atZero ? "inbox zero and its ask box" : "its list and controls"}; Back returns to the room`,
   );
 }
 

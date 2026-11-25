@@ -14,6 +14,7 @@
   import HoverCard from "../../lib/components/HoverCard.svelte";
   import { agentProvider } from "../../lib/components/agent";
   import Progress from "../../lib/studio/Progress.svelte";
+  import Badge from "../../lib/studio/Badge.svelte";
   import { cn } from "../../lib/studio/utils";
   let {
     presence,
@@ -60,10 +61,10 @@
 {#if listeners > 1}<p
     data-duplicate-listeners
     role="status"
-    class="m-0 ml-7 px-2 text-xs text-warning"
+    class="m-0 ml-7 px-2 text-xs text-muted-foreground"
   >
     {t(
-      "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.",
+      "{n} Claudes seus nesta sala: o primeiro pega o que você escreve; chame os outros pelo @nome.",
       { n: listeners },
     )}
   </p>{/if}
@@ -106,7 +107,15 @@
         </span><span class="min-w-0 flex-1 truncate"
           >{model(agent.who).replace(/^Claude\s+/i, "")}{agent.repo
             ? ` · ${agent.repo}`
-            : ""}</span
+            : ""}{#if agent.name || agent.role}
+            <!-- Its @name here (claude, claude-2, a role): how its human calls this one when they have two. -->
+            <Badge
+              size="sm"
+              variant="neutral"
+              data-agent-role={agent.role ?? undefined}
+              data-agent-name={agent.name ?? undefined}
+              >@{agent.name ?? agent.role}</Badge
+            >{/if}</span
         ><span class="shrink-0"
           >{agent.listening
             ? t("ouvindo")
