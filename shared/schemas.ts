@@ -2,6 +2,7 @@
 // edit changes every consumer's type. Browser-safe: zod/mini only, no Worker or database types.
 import * as z from "zod/mini";
 import { ClientIdSchema } from "./commands";
+import { AckSchema, MessageSchema } from "./room";
 
 export const PostMessageBody = z.object({
   text: z.string(),
@@ -160,6 +161,24 @@ export const DecideRequestBody = z.object({
 });
 export const AccessResult = z.object({ member: z.boolean() });
 export type AccessResult = z.infer<typeof AccessResult>;
+/** GET /api/books/:id/messages: one page of a thread, by message id (ids only grow, so a cursor never breaks).
+ *  before = scroll back, after = what came since, neither = the newest. Stateless: the answer is the truth now. */
+export const MessagesQuery = z.object({
+  thread: z._default(z.string().check(z.minLength(1), z.maxLength(64)), "main"),
+  before: z.optional(z.coerce.number().check(z.positive())),
+  after: z.optional(z.coerce.number().check(z.nonnegative())),
+  limit: z._default(z.coerce.number().check(z.positive(), z.lte(100)), 50),
+});
+export type MessagesQuery = z.infer<typeof MessagesQuery>;
+export const MessagesPage = z.object({
+  thread: z.string(),
+  messages: z.array(MessageSchema),
+  /** The page's acks: the room's state carries only the loaded messages' ones. */
+  acks: z.array(AckSchema),
+  /** More messages on the far side of the page (older for before/newest, newer for after). */
+  more: z.boolean(),
+});
+export type MessagesPage = z.infer<typeof MessagesPage>;
 
 // Your name, new rooms and the home's router.
 export const SetNameBody = z.object({ name: z.optional(z.string()) });

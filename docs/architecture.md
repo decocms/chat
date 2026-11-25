@@ -60,6 +60,12 @@ Rules:
   - The receiving `Person` keeps each contact's state (`p:<email>`). It sends `{ t: "presence", people }` to its open app sockets. A new socket first gets the full list (`all: 1`).
   - Only people who share a DM with you get your presence.
 
+### Read a page of messages
+
+- `GET /api/books/:id/messages?thread=&before=&after=&limit=` gives one page of a thread (`Book.messagesPage`), with the acks of that page. Only members get it. It has no state: the answer is the truth at that time.
+- The cursor is the message ID, because IDs only increase. `before` scrolls back. `after` gets the messages that came after that ID. With neither, you get the newest. `limit` is 1 to 100 (default 50).
+- The app gets scroll-back through this route (`web/features/root-room/api.ts`). If the request fails, the app sends the WebSocket `older` command, which gives the same page.
+
 ### One send, one message
 
 A send can become "not confirmed" (a timeout, a dropped socket, a server error) after the `Book` stored it. A second send of it must not make a second message.

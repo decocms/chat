@@ -7,6 +7,7 @@ import { createHomeApi } from "../home/api";
 import { createAccountApi } from "../account/api";
 import { createAuthLogoutApi } from "../auth/api";
 import { createAgentsApi } from "../agents/api";
+import { createMessagesApi } from "../root-room/api";
 import { pwaLogoutWarning, pwaLogoutFailure } from "../pwa/copy";
 import {
   resolveApplicationLanguage,
@@ -137,6 +138,7 @@ export function createBrowserApplicationServices(options: {
     homeApi: createHomeApi(fetcher),
     accountApi: createAccountApi(fetcher),
     agentsApi: createAgentsApi(fetcher),
+    messagesApi: createMessagesApi(fetcher),
     runnerFetch: fetcher,
     onIdentityReset: options.onIdentityReset,
   });
