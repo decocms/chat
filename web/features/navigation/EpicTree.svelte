@@ -42,6 +42,7 @@
     setNavigationView,
     type NavigationSession,
   } from "./session";
+  import { roomVisits } from "./recent";
 
   let {
     room,
@@ -108,8 +109,13 @@
         (position.get(b.id) ?? order.length),
     );
   });
+  const visits = roomVisits.state;
+  /** The threads you opened last here go first (after the pinned ones). */
+  const recent = $derived(
+    $visits.account === room.me ? ($visits.visits[room.id]?.recent ?? []) : [],
+  );
   const active = $derived(
-    sidebarEpics(activeEpics(orderedEpics, thread), room.messages),
+    sidebarEpics(activeEpics(orderedEpics, thread), room.messages, recent),
   );
   /** Past EPIC_PAGE unpinned epics the list stops at "Ver mais" (the open one always shows). */
   let showAll = $state(false);
