@@ -89,7 +89,7 @@
 | `public/fonts/studio/InterVariable*.woff2` | Inter, SIL Open Font License 1.1. Keep `Inter-LICENSE.txt`. |
 | `public/fonts/studio/CommitMono-*.woff2` | Commit Mono, SIL Open Font License 1.1. Keep `CommitMono-LICENSE.txt`. |
 | `web/lib/studio/icons.ts` | Untitled UI icons, MIT, from `@untitledui/icons` 0.0.23 (`d` of each path, copied, not a dependency). Names that start with `app-` are our own drawings. |
-| `public/vendor/mediapipe/selfie_segmenter.tflite` | MediaPipe selfie segmenter (float16), Apache 2.0, from https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite (2026-11-24, 249537 bytes, SHA-256 `191ac952…658b`). License in `public/licenses/`. |
+| `public/vendor/mediapipe/selfie_multiclass_256x256.tflite` | MediaPipe selfie multiclass (float32), Apache 2.0, from https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite (2026-11-25, 16371837 bytes, SHA-256 `c6748b12…e0e0`). License in `public/licenses/`. |
 | `web/lib/studio/icons.ts`: `microphone-off-01`, `monitor-01`, `video-recorder`, `video-recorder-off` | Untitled UI icons 0.0.23, MIT, copied as the other icons. |
 | `scripts/data/font-assets.json` | Source URL, size and SHA-256 of each font. The file names contain a digest prefix. Do not change a font without a new name. |
 | `scripts/fixtures/entities/whatwg-entities.json` | WHATWG HTML named character references, from https://html.spec.whatwg.org/entities.json (2026-11-14, 145897 bytes, SHA-256 `d741d877…62e6`). Test data only. Do not reformat it. A test checks its digest. |
