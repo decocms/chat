@@ -88,6 +88,15 @@ export const canStartThread = (room: Room, m: ChatMessage) => {
       line.reply_to === m.id && line.thread === "main" && starts.has(line.id),
   );
 };
+/** Your own message (Gui #4276): you can change its text. */
+export const canEditMessage = (room: Room, m: ChatMessage) =>
+  m.author === room.me && m.kind !== "agent" && !m.deleted && !!m.text;
+/** ArrowUp in an empty composer edits this one: your last message in the thread you write in, like Discord. */
+export const lastEditable = (room: Room, thread: string) =>
+  lastWhere(
+    room.messages,
+    (m) => m.thread === thread && canEditMessage(room, m),
+  );
 /** A thread started from this message: it keeps its origin, so it has no delete (Gimenes #4621; the server refuses it too). */
 export const startsThread = (room: Room, m: ChatMessage) =>
   room.epics.some((epic) => epic.from_msg === m.id);
