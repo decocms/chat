@@ -14,6 +14,25 @@ import { hmac, safeEqual } from "./auth";
 /** Calls are off until the SFU app (var) and its secret exist. */
 export const callsOn = (env: Env) => !!(env.REALTIME_SFU_APP_ID && env.REALTIME_SFU_APP_SECRET);
 
+/** The SFU's answer was not ok. `status` 404 on a session's path: the SFU no longer has that session. */
+class SfuError extends Error {
+  readonly status: number;
+  constructor(status: number, step: string) {
+    super(`sfu ${step} ${status}`);
+    this.status = status;
+  }
+}
+/** A session the SFU no longer has is out of the room's call: nobody can receive it, and the person who has it is
+ *  shown in the call for nothing (a hang-up that never reached the room left a phone on "1", 2026-11-25). */
+async function dropGoneSession<T>(env: Env, bookId: string, email: string, session: string, step: Promise<T>): Promise<T> {
+  try {
+    return await step;
+  } catch (error) {
+    if (error instanceof SfuError && error.status === 404) await bookStub(env, bookId).callLeave(email, session);
+    throw error;
+  }
+}
+
 async function sfu(env: Env, method: "POST" | "PUT", path: string, body?: unknown): Promise<unknown> {
   const res = await fetch(`https://rtc.live.cloudflare.com/v1/apps/${env.REALTIME_SFU_APP_ID}${path}`, {
     method,
@@ -22,7 +41,7 @@ async function sfu(env: Env, method: "POST" | "PUT", path: string, body?: unknow
   });
   if (!res.ok) {
     console.error("sfu", path.split("/").at(-1), res.status, (await res.text()).slice(0, 300));
-    throw new Error(`sfu ${path.split("/").at(-1)} ${res.status}`);
+    throw new SfuError(res.status, path.split("/").at(-1) ?? "");
   }
   return res.json();
 }
@@ -124,10 +143,10 @@ export async function callTracks(env: Env, bookId: string, email: string, req: C
   if (!(await book.callCheck(email, req.session, pull.map((p) => p.session)))) return "forbidden";
   if (push.some((p) => p.name === SCREEN_TRACK) && !(await screenAllowed(env))) return "limit";
   const out = CallSfuResult.parse(
-    await sfu(env, "POST", `/sessions/${req.session}/tracks/new`, {
+    await dropGoneSession(env, bookId, email, req.session, sfu(env, "POST", `/sessions/${req.session}/tracks/new`, {
       ...(req.offer ? { sessionDescription: req.offer } : {}),
       tracks: [...push.map((p) => ({ location: "local", mid: p.mid, trackName: p.name })), ...pull.map((p) => ({ location: "remote", sessionId: p.session, trackName: p.name }))],
-    }),
+    })),
   );
   if (push.length) await book.callTracks(email, push.map((p) => p.name), []);
   return out;
@@ -136,7 +155,7 @@ export async function callTracks(env: Env, bookId: string, email: string, req: C
 /** The browser's answer to an offer the SFU made (a pull asks for it: requiresImmediateRenegotiation). */
 export async function callAnswer(env: Env, bookId: string, email: string, session: string, answer: CallDescription) {
   if (!(await bookStub(env, bookId).callCheck(email, session, []))) return false;
-  await sfu(env, "PUT", `/sessions/${session}/renegotiate`, { sessionDescription: answer });
+  await dropGoneSession(env, bookId, email, session, sfu(env, "PUT", `/sessions/${session}/renegotiate`, { sessionDescription: answer }));
   return true;
 }
 
