@@ -1095,8 +1095,14 @@ try {
             '[data-view="room-navigation"] [data-room-id="' + id + '"] a',
           )
           .click();
-        await expectThread(a, id);
+        await expect.poll(() => new URL(a.url()).pathname).toBe("/b/" + id);
         await expect(a.locator("[data-room-layout]")).toBeVisible();
+        // A room opened from the rail reopens the thread you left there (#473); the room's name goes to main.
+        if (!thread && new URL(a.url()).searchParams.has("t")) {
+          await openIntegratedSidebar(a);
+          await a.locator("[data-room-home]").first().click();
+        }
+        await expectThread(a, id);
         await expect(a.locator("[data-composer] #input")).toBeVisible();
         if (thread) {
           await openIntegratedSidebar(a);
