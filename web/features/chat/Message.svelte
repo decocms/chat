@@ -525,7 +525,7 @@
   <!-- With nothing under the message yet, the quick reactions show on hover over the space every message keeps under
        it (its bottom padding and the line spacing of the next one), at the message's bottom left: no message moves
        and none is covered (no layout shift on hover). Phones react from the sheet a long press opens. -->
-  {#if !origin && bare && reactable}<div
+  {#if !origin && bare && reactable && !editing}<div
       data-reaction-bar={m.id}
       class="pointer-events-none invisible absolute -bottom-1.5 left-16 z-10 flex h-6 items-center rounded-full bg-card px-0.5 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,visibility] duration-150 select-none group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:visible group-has-focus-visible:opacity-100 has-[[data-picking]]:pointer-events-auto has-[[data-picking]]:visible has-[[data-picking]]:opacity-100 motion-reduce:transition-none pointer-coarse:hidden"
     >

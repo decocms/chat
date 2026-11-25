@@ -24,12 +24,15 @@
     busy = $state(false),
     error = $state(""),
     picking = $state(false),
-    box = $state<HTMLTextAreaElement | null>(null);
+    box = $state<HTMLTextAreaElement | null>(null),
+    editor = $state<HTMLElement | null>(null);
   let active = true;
   onMount(() => {
     if (!box) return;
     box.focus();
     box.setSelectionRange(box.value.length, box.value.length);
+    // The whole editor in view, its "esc / enter" line too (ArrowUp from the composer opens it at the list's foot).
+    editor?.scrollIntoView({ block: "nearest" });
   });
   onDestroy(() => {
     active = false;
@@ -80,7 +83,11 @@
   }
 </script>
 
-<div data-message-editor={message.id} class="space-y-1 pt-0.5">
+<div
+  bind:this={editor}
+  data-message-editor={message.id}
+  class="space-y-1 pt-0.5"
+>
   <div
     class="flex items-end gap-1 rounded-xl bg-muted py-1 pr-1 pl-3 transition-shadow duration-150 ease-[var(--vb-ease-out-cubic)] focus-within:shadow-[inset_0_0_0_1px_var(--vb-input)]"
   >
