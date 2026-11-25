@@ -26,10 +26,10 @@
   } = $props();
   const view = $derived(call.state);
   const live = $derived($view.phase === "in");
-  // A round control: solid, on the panel's color. `on`: the camera or the screen goes out.
+  // The panel has the color of the box under it (you and your agent, SidebarFoot). A round control: solid. `on`: the camera or the screen goes out.
   const control = "size-8 rounded-full [&_svg]:size-4";
   const idle =
-    "bg-sidebar text-sidebar-foreground hover:bg-background hover:text-sidebar-foreground";
+    "bg-background text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground";
   const on =
     "bg-sidebar-foreground text-sidebar hover:bg-sidebar-foreground hover:text-sidebar";
 </script>
@@ -43,14 +43,14 @@
       onclick={onopen}><Icon icon="phone" size={16} /></IconButton
     >{:else}<div
       data-call-panel
-      class="flex flex-col gap-2 rounded-xl bg-sidebar-accent p-2 font-sans text-sidebar-foreground"
+      class="flex flex-col gap-2 rounded-xl bg-sidebar-accent/50 p-2 font-sans text-sidebar-foreground"
     >
       <div class="flex items-center gap-1">
         <button
           type="button"
           data-call-panel-open
           aria-label={t("Voltar para a call")}
-          class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent p-1 text-left outline-none hover:bg-sidebar focus-visible:outline-2 focus-visible:outline-ring"
+          class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent p-1 text-left outline-none hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-ring"
           onclick={onopen}
         >
           <span
