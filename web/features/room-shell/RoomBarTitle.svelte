@@ -50,41 +50,44 @@
   // Click the epic's name to rewrite it in place (Gimenes): Enter or a click away saves, Esc puts it back.
   // Any member of the room can rename an epic (Book "epic.rename"); others see plain text.
   const editable = $derived(!!epic && room.members.includes(room.me));
-  let editing = $state(false),
+  // The thread being renamed, and what was just sent for it (shown until the room's state catches up, so the old
+  // name does not flash back). Both name their thread: another thread opened while typing is not that edit.
+  // Not an $effect on `thread`: a prop re-runs one on every room update, which would close the field.
+  let editingIn = $state<string | null>(null),
     draft = $state(""),
-    // What was just sent: shown until the room's state catches up, so the old name does not flash back.
-    saving = $state<string | null>(null),
+    saving = $state.raw<{ thread: string; title: string } | null>(null),
     input = $state<HTMLInputElement | null>(null);
-  const shown = $derived(saving ?? title);
+  const editing = $derived(editable && editingIn === thread);
+  const shown = $derived(saving?.thread === thread ? saving.title : title);
+  // Left the thread (or lost the right to rename) mid-edit: the draft goes, so coming back shows the name.
+  // `editing` is a derived boolean, so this runs only when it flips, not on every room update.
+  $effect(() => {
+    if (!editing) editingIn = null;
+  });
   async function startEdit() {
     if (!editable || editing) return;
     draft = title;
-    editing = true;
+    editingIn = thread;
     await tick();
     input?.focus();
     input?.select();
   }
   function cancelEdit() {
-    editing = false;
+    editingIn = null;
   }
   function save() {
-    if (!editing) return;
-    editing = false;
+    if (!editing || !epic) return;
+    editingIn = null;
     const next = draft.trim().slice(0, 200);
-    if (!epic || !next || next === title) return;
-    saving = next;
+    if (!next || next === title) return;
+    const sent = { thread, title: next };
+    saving = sent;
     void owner
       .run({ t: "epic.rename", id: epic.id, title: next })
       .finally(() => {
-        saving = null;
+        if (saving === sent) saving = null;
       });
   }
-  // Another thread opened while typing: drop the draft, it belonged to the other epic.
-  $effect(() => {
-    void thread;
-    editing = false;
-    saving = null;
-  });
 </script>
 
 <div
@@ -115,9 +118,10 @@
             bind:value={draft}
             data-thread-title-input
             type="text"
+            size={1}
             maxlength="200"
             aria-label={t("Nome da thread")}
-            class="m-0 h-6 w-full min-w-16 rounded-md border-0 bg-muted px-1 leading-6 font-sans text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            class="m-0 h-6 w-full min-w-16 rounded-md border-0 bg-muted px-1 leading-6 font-sans text-sm font-medium text-foreground ring-1 ring-border outline-none"
             onblur={save}
             onkeydown={(event) => {
               if (event.isComposing) return;

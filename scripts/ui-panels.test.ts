@@ -7542,6 +7542,30 @@ describe("room sidebar header and suggestion ownership", () => {
       id: "e",
       title: "Lançar o app v2",
     });
+    // A room update while typing (someone else's change) keeps the field and the draft.
+    input = await begin();
+    type(input, "Rascunho");
+    const busy: Room = {
+      ...renamed,
+      epics: renamed.epics.map((epic) => ({
+        ...epic,
+        status: "doing" as const,
+      })),
+    };
+    owner.sync(busy, request);
+    view.update({ ...props, room: busy });
+    await tick();
+    flushSync();
+    expect(field()?.value).toBe("Rascunho");
+    // Another thread opened while typing closes the field without sending.
+    const sent = commands.length;
+    view.update({ ...props, room: busy, thread: "main" });
+    flushSync();
+    expect(field()).toBeNull();
+    view.update({ ...props, room: busy });
+    flushSync();
+    expect(field()).toBeNull();
+    expect(commands).toHaveLength(sent);
     // The main thread, a DM's person and a non-member: plain text, no field.
     expect(
       barTitle(room).target.querySelector("[data-thread-title-edit]"),
