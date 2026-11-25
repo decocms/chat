@@ -264,11 +264,11 @@
   ]}
 >
   <!-- What letting go of a swipe does (Gui #2668): the reply icon comes out past the message's left edge as it slides,
-       grows, and fills where letting go replies, like WhatsApp (Gimenes #4533). The rest is in the sheet a long press
+       grows, and turns darker where letting go replies: gray, like WhatsApp (Gimenes #4533, #4549). The rest is in the sheet a long press
        opens (Gimenes #4440). -->
   <span
     aria-hidden="true"
-    class="pointer-events-none absolute top-1/2 right-[calc(100%+8px)] grid size-8 -translate-y-1/2 scale-50 place-items-center rounded-full bg-muted text-muted-foreground opacity-0 transition-[opacity,scale,background-color,color] duration-150 ease-out in-data-[swipe=reply]:scale-100 in-data-[swipe=reply]:bg-foreground in-data-[swipe=reply]:text-background in-data-[swipe=reply]:opacity-100 in-data-[swipe=tracking]:scale-75 in-data-[swipe=tracking]:opacity-70 motion-reduce:transition-none"
+    class="pointer-events-none absolute top-1/2 right-[calc(100%+8px)] grid size-8 -translate-y-1/2 scale-50 place-items-center rounded-full bg-muted text-muted-foreground opacity-0 transition-[opacity,scale,background-color,color] duration-150 ease-out in-data-[swipe=reply]:scale-100 in-data-[swipe=reply]:text-foreground in-data-[swipe=reply]:opacity-100 in-data-[swipe=tracking]:scale-75 in-data-[swipe=tracking]:opacity-70 motion-reduce:transition-none"
     ><Icon icon="reverse-left" size={16} /></span
   >
   {#if m.reply_to}<!-- The message it answers, one line above the header (like Discord): a spine from the avatar
