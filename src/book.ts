@@ -73,8 +73,6 @@ export const epicDocSeed = (title: string, why = "") =>
 const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[\s\d.)\-–—:#]+/, "").replace(/\s+/g, " ").trim();
 
 const DEFAULT_TITLE = "Nova sala";
-/** The tag of a socket that only carries the call (Book.isCallSocket). */
-const CALL_SOCKET = "call";
 /** A short hash of a wire value (djb2 + length): the epics' change detection and a reconnect's `eh`. */
 const wireHash = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
 /** A reconnect resumes (cache plan PR 2) only from a state at most this old, with at most this many changed rows. */
@@ -774,12 +772,8 @@ export class Book extends DurableObject<Env> {
     this.set("call", JSON.stringify(peers));
     this.broadcastCall();
   }
-  private callEvent(): Extract<RoomEvent, { t: "call" }> {
-    return { t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) };
-  }
-  /** Every socket of the room hears it, the call's own sockets too (isCallSocket). */
   private broadcastCall() {
-    this.sendTo(this.sockets(undefined, true), this.callEvent());
+    this.broadcast({ t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) });
   }
   /** A DM's call: who said yes or no to the recording, for this call only (Jonas, 2026-11-25: a DM has the notice,
    *  and is recorded only if both accept). A room's call is always recorded, with the notice on the stage. */
@@ -1017,15 +1011,8 @@ export class Book extends DurableObject<Env> {
     const r = await this.env.DB.prepare(`SELECT email, lang FROM users WHERE email IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(emails)).all<{ email: string; lang: string | null }>();
     return Object.fromEntries(r.results.map((u) => [u.email, u.lang]));
   }
-  /** The room's open sockets. `withCall`: the call's own sockets too (isCallSocket), which hear only the call. */
-  sockets(except?: WebSocket, withCall = false) {
-    return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN && (withCall || !this.isCallSocket(ws)));
-  }
-  /** A socket that only carries the call (/ws/:id?call=1): the app keeps it open while the person is in this room's
-   *  call and is elsewhere in the app (another room, Home), so leaving the room's view does not leave the call. It
-   *  hears the call's events and sends the call's commands, and does not make the person "here" (online). */
-  isCallSocket(ws: WebSocket) {
-    return this.ctx.getTags(ws)[1] === CALL_SOCKET;
+  sockets(except?: WebSocket) {
+    return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN);
   }
   /** Every send to the room's sockets goes through here, so the bytes are counted by event kind per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
    *  report. 15/11: /ws/:id carried 3.1 MB per connection and nothing said what it was (ws_push saw only ≥20 KB broadcasts). */
@@ -1883,6 +1870,23 @@ export class Book extends DurableObject<Env> {
         ).bind(e, id, upto),
       ),
     );
+    await this.readWaits(emails, upto);
+  }
+  /** Reading a message clears the notifications it made (PO #5172), like opening the thread and seeing it: what it
+   *  asked of you (waits m<id>) and the mention held back for the Inbox and the digest (digest_items). Work stays until
+   *  done: tasks in review (t), your Claude's questions (a/b). */
+  async readWaits(emails: string[], upto: number) {
+    const id = this.get("book_id");
+    if (!id || !emails.length) return;
+    const DB = this.env.DB;
+    const r = await DB.batch(
+      emails.flatMap((e) => [
+        DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND ref LIKE 'm%' AND CAST(substr(ref, 2) AS INTEGER) <= ?`).bind(id, e, upto),
+        DB.prepare(`DELETE FROM digest_items WHERE book_id = ? AND email = ? AND msg_id <= ?`).bind(id, e, upto),
+      ]),
+    );
+    const cleared = emails.filter((_, i) => r[2 * i]?.meta.changes || r[2 * i + 1]?.meta.changes);
+    if (cleared.length) await poke(this.env, cleared, { t: "me" });
   }
 
   // ---- agents (MCP, called over RPC by the Worker after it checked membership) ----
@@ -2811,7 +2815,7 @@ export class Book extends DurableObject<Env> {
       const members = await this.members();
       // Kick sockets of anyone no longer a member.
       // The call's recorder has no row in the members and stays.
-      for (const ws of this.sockets(undefined, true)) if (!members.includes(this.ctx.getTags(ws)[0]) && !isRecorder(this.ctx.getTags(ws)[0])) ws.close(4003, "removed");
+      for (const ws of this.sockets()) if (!members.includes(this.ctx.getTags(ws)[0]) && !isRecorder(this.ctx.getTags(ws)[0])) ws.close(4003, "removed");
       // The docs' live editors too (the room's doc and each epic's), or a removed person keeps typing in them.
       const id = this.get("book_id");
       if (id) await Promise.all([undefined, ...this.epics().map((e) => e.id)].map((ep) => docRoomStub(this.env, id, ep).kickAll().catch(() => {})));
@@ -2824,12 +2828,6 @@ export class Book extends DurableObject<Env> {
     const bookId = url.searchParams.get("book");
     if (!email || !bookId) return new Response("bad request", { status: 400 });
     if (!this.get("book_id")) this.set("book_id", bookId);
-    if (url.searchParams.get("call") === "1") {
-      const { 0: client, 1: server } = new WebSocketPair();
-      this.ctx.acceptWebSocket(server, [email, CALL_SOCKET]);
-      this.sendTo([server], this.callEvent());
-      return new Response(null, { status: 101, webSocket: client });
-    }
     // Rooms from before the D1 epic index fill it the first time someone opens them.
     if (!this.get("epics_indexed")) {
       this.set("epics_indexed", "1");
@@ -2914,9 +2912,6 @@ export class Book extends DurableObject<Env> {
       try { ws.send(frame(call.id)); } catch {} // socket already gone
     };
     if (!call.command) return reply((id) => encodeError(id, call.error));
-    // The call's socket carries the call's commands only.
-    if (this.ctx.getTags(ws)[1] === CALL_SOCKET && !call.command.t.startsWith("call."))
-      return reply((id) => encodeError(id, { code: RpcErrorCode.REFUSED, message: "call socket" }));
     let out: unknown;
     try {
       out = await this.runCommand(ws, email, call.command);
@@ -3171,10 +3166,9 @@ export class Book extends DurableObject<Env> {
     try { ws.close(); } catch {}
     try {
       this.broadcast({ t: "online", online: this.online().filter((e) => this.sockets(ws).some((s) => this.ctx.getTags(s)[0] === e)) }, ws);
-      // The call lives on the room's sockets and the call's own (isCallSocket): with none of them left, the person
-      // is out of it. Leaving the room's view keeps the call's socket, so the call goes on.
+      // The call lives on the room's socket: with no tab of this room left, the person is out of it.
       const gone = this.ctx.getTags(ws)[0];
-      if (!this.sockets(ws, true).some((s) => this.ctx.getTags(s)[0] === gone)) this.callLeave(gone);
+      if (!this.sockets(ws).some((s) => this.ctx.getTags(s)[0] === gone)) this.callLeave(gone);
     } catch (e) {
       console.error("book webSocketClose", String(e)); // see DocRoom.webSocketClose
     }

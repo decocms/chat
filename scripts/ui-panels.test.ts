@@ -13,7 +13,6 @@ import { readFileSync } from "node:fs";
 import { compile, compileModule } from "svelte/compiler";
 import { Window as HappyDOMWindow } from "happy-dom";
 import type { Room } from "../web/app/roomStore";
-import type { CallApi } from "../web/features/call/callApi";
 import type { ChatProps } from "../web/app/chatTypes";
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
 import type { PanelBridge, PanelProps } from "../web/app/panels";
@@ -343,7 +342,7 @@ function hoverMessages(target: HTMLElement) {
 }
 
 test("a copy across messages reads as WhatsApp's; inside one message's text the browser copies (Gimenes #3955)", async () => {
-  const { selectedMessageIds, transcriptText } =
+  const { selectedMessages, transcriptText } =
     await import("../web/features/chat/clipboard");
   const root = window.document.createElement("section");
   root.innerHTML =
@@ -358,17 +357,15 @@ test("a copy across messages reads as WhatsApp's; inside one message's text the 
   };
   const a = root.querySelector("#a")!.firstChild!;
   const b = root.querySelector("#b")!.firstChild!;
-  expect(selectedMessageIds(range(a, a), root as unknown as Element)).toBe(
-    null,
-  );
-  expect(selectedMessageIds(range(a, b), root as unknown as Element)).toEqual([
-    "1",
-    "2",
-  ]);
+  const ids = (r: Range) =>
+    selectedMessages(r, root as unknown as Element)?.map((m) => m.id) ?? null;
+  expect(ids(range(a, a))).toBe(null);
+  expect(ids(range(a, b))).toEqual(["1", "2"]);
   const head = root.querySelector("[data-message-head]")!.firstChild!;
-  expect(
-    selectedMessageIds(range(head, a), root as unknown as Element),
-  ).toEqual(["1"]);
+  expect(ids(range(head, a))).toEqual(["1"]);
+  expect(selectedMessages(range(head, a), root as unknown as Element)).toEqual([
+    { id: "1", text: "f", whole: false, head: true },
+  ]);
   expect(
     transcriptText([
       { when: "14:02, 23/11/2026", who: "Ana", text: "first line\nmore " },
@@ -905,9 +902,10 @@ describe("room panels", () => {
       }),
     );
     try {
-      // Three signals: the one number (asks and reviews together), the new-messages dot, the ✻. The cloud is words only.
+      // Three signals: the one number (the messages that ask you; a task in review lives in the Inbox), the
+      // new-messages dot, the ✻. The cloud is words only.
       expect(target.querySelector("[data-room-badge=cloud]")).toBeNull();
-      expect(target.querySelector("[data-count]")?.textContent).toBe("2");
+      expect(target.querySelector("[data-count]")?.textContent).toBe("1");
       expect(
         target.querySelector('[data-room-badge="unread-human"]'),
       ).not.toBeNull();
@@ -1564,6 +1562,117 @@ describe("chat", () => {
       },
     };
   }
+  describe("copy in the timeline", () => {
+    const people = (): Room => ({
+      ...fixture(),
+      messages: [
+        { ...message(1, "hello world"), author: "ana@test", kind: null },
+        { ...message(2, "second message"), author: "bia@test", kind: null },
+      ],
+    });
+    const textOf = (target: HTMLElement, id: number) =>
+      target.querySelector(`[data-chat-message="${id}"] [data-rich-content]`)!;
+    // The text node that holds a message's words.
+    const wordsOf = (node: Node): Node =>
+      node.nodeType === Node.TEXT_NODE && node.textContent?.trim()
+        ? node
+        : [...node.childNodes].map(wordsOf).find(Boolean)!;
+    const select = (from: [Node, number], to: [Node, number]) => {
+      const range = window.document.createRange();
+      range.setStart(...from);
+      range.setEnd(...to);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    };
+    const copy = (on: Element) => {
+      const event = new (
+        window as unknown as { ClipboardEvent: typeof ClipboardEvent }
+      ).ClipboardEvent("copy", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: new (
+          window as unknown as { DataTransfer: typeof DataTransfer }
+        ).DataTransfer(),
+      });
+      on.dispatchEvent(event);
+      return {
+        text: event.clipboardData!.getData("text/plain"),
+        native: !event.defaultPrevented,
+      };
+    };
+    const line = (
+      m: import("../web/app/chatTypes").ChatMessage,
+      text: string,
+    ) =>
+      `[09:00, ${new Date(m.ts).toLocaleDateString(undefined)}] ${vb.name(m.author)}: ${text}`;
+    afterEach(() => window.getSelection()?.removeAllRanges());
+
+    test("a part of one message's text copies as the browser copies it", () => {
+      const h = renderChat(people());
+      flushSync();
+      const text = textOf(h.target, 1);
+      const words = wordsOf(text);
+      select([words, 2], [words, 7]);
+      expect(window.getSelection()!.toString()).toBe("llo w");
+      expect(copy(text)).toEqual({ text: "", native: true });
+    });
+
+    test("a part of one message's text that ends past the text copies only that part, not the full message", () => {
+      const h = renderChat(people());
+      flushSync();
+      const text = textOf(h.target, 1);
+      const words = wordsOf(text);
+      const body = h.target.querySelector(
+        '[data-chat-message="1"] [data-message-body]',
+      )!;
+      select([words, 6], [body, body.childNodes.length]);
+      expect(copy(text)).toEqual({ text: "world", native: false });
+    });
+
+    test("a selection across messages copies the selected part of each message, one line each", () => {
+      const room = people();
+      const h = renderChat(room);
+      flushSync();
+      const first = textOf(h.target, 1);
+      const a = wordsOf(first);
+      const b = wordsOf(textOf(h.target, 2));
+      select([a, 6], [b, 6]);
+      expect(copy(first)).toEqual({
+        text: `${line(room.messages[0]!, "world")}\n${line(room.messages[1]!, "second")}`,
+        native: false,
+      });
+      select([a, 0], [b, "second message".length]);
+      expect(copy(first).text).toBe(
+        `${line(room.messages[0]!, "hello world")}\n${line(room.messages[1]!, "second message")}`,
+      );
+    });
+
+    test("a selection in a field (the edit box) copies as the browser copies it", () => {
+      const h = renderChat(people());
+      flushSync();
+      const body = h.target.querySelector(
+        '[data-chat-message="1"] [data-message-body]',
+      )!;
+      const field = window.document.createElement("textarea");
+      field.value = "hello world";
+      body.append(field);
+      select(
+        [body, body.childNodes.length - 1],
+        [body, body.childNodes.length],
+      );
+      expect(copy(field)).toEqual({ text: "", native: true });
+    });
+
+    test("with no selection the copy is the browser's", () => {
+      const h = renderChat(people());
+      flushSync();
+      const text = textOf(h.target, 1);
+      const words = wordsOf(text);
+      select([words, 3], [words, 3]);
+      expect(copy(text)).toEqual({ text: "", native: true });
+    });
+  });
   test("production endcard shows requested corrections without rewriting verified or done state", async () => {
     const room = fixture();
     room.epics = [
@@ -3432,6 +3541,13 @@ describe("chat", () => {
       expect(input.value).toBe("hello");
       expect(document.activeElement).toBe(input);
       expect(input.selectionStart).toBe(5);
+      // Selected like on hover for as long as the box is open, mouse or not.
+      const row = target.querySelector<HTMLElement>("#m3")!;
+      expect(row.dataset.editing).toBe("true");
+      expect(row.classList).toContain("bg-accent/55");
+      expect(target.querySelector<HTMLElement>("#m1")!.classList).not.toContain(
+        "bg-accent/55",
+      );
       expect(target.querySelector("#m3 [data-message-toolbar]")).toBeNull();
       expect(target.querySelector('[data-reaction-row="3"]')).toBeNull();
       expect(target.querySelector('[data-reaction-row="1"]')).not.toBeNull();
@@ -3444,6 +3560,8 @@ describe("chat", () => {
       type(input, "changed");
       expect(key(input, "Escape").defaultPrevented).toBe(true);
       expect(box(target)).toBeNull();
+      expect(row.dataset.editing).toBeUndefined();
+      expect(row.classList).not.toContain("bg-accent/55");
       expect(target.querySelector("#m3")?.textContent).toContain("hello");
       expect(requests).toEqual([]);
     });
@@ -3494,6 +3612,9 @@ describe("chat", () => {
       expect(requests).toEqual([
         { t: "msg.edit", id: 3, text: "saved by click" } satisfies RoomCommand,
       ]);
+      expect(target.querySelector<HTMLElement>("#m3")!.classList).not.toContain(
+        "bg-accent/55",
+      );
       startEditing("r", 3);
       flushSync();
       target
@@ -4177,7 +4298,9 @@ describe("stable sidebar integration", () => {
         ...vb,
         epicBusy: () => null,
         waitsIn: (id: string) =>
-          id === "main" ? [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }] : [],
+          id === "main"
+            ? [{ ref: "m1" }, { ref: "m4" }, { ref: "a2" }, { ref: "t3" }]
+            : [],
         waitsInRoom: () => [{ ref: "m9" }],
       },
     });
@@ -4185,9 +4308,10 @@ describe("stable sidebar integration", () => {
       "button[data-room-title]",
     )!;
     expect(title.querySelector("[data-room-mark]")).not.toBeNull();
+    // Only the unread messages that ask you: the task and Claude's question are in the Inbox.
     expect(
       title.querySelector("[data-wait-badge] [data-count]")?.textContent,
-    ).toBe("3");
+    ).toBe("2");
     // The Inbox is global (the rail, or the phone Home's bar): a room has no entry to it.
     expect(h.target.querySelector("[data-inbox-toggle]")).toBeNull();
     const rename = title.parentElement!.querySelector(
@@ -4221,20 +4345,26 @@ describe("stable sidebar integration", () => {
     const title = h.target.querySelector("button[data-room-title]")!;
     expect(title.querySelector("[data-wait-badge]")).toBeNull();
   });
-  test("epic and rail indicators count asks and task reviews in one lime number", async () => {
+  test("epic and rail indicators count the unread asks in one red number; task reviews stay in the Inbox", async () => {
     const room = fixture();
     const base = {
       ...vb,
       epicBusy: () => "Claude",
       waitsIn: (id: string) =>
         id === "e"
-          ? [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }, { ref: "t4" }]
+          ? [
+              { ref: "m1" },
+              { ref: "m5" },
+              { ref: "a2" },
+              { ref: "t3" },
+              { ref: "t4" },
+            ]
           : [],
     };
     const h = sidebar(room, { vb: base });
     const epic = h.target.querySelector('[data-epic="e"]')!;
     const badge = epic.querySelector("[data-wait-badge] [data-count]");
-    expect(badge?.textContent?.trim()).toBe("4");
+    expect(badge?.textContent?.trim()).toBe("2");
     // One colour for every kind of wait: red (Valls).
     expect(badge?.className.split(/\s+/)).toContain("bg-destructive");
     // One slot at the end (Gimenes #3904): the count takes the status's place.
@@ -4245,7 +4375,8 @@ describe("stable sidebar integration", () => {
       ...h.props,
       vb: {
         ...base,
-        waitsIn: (id: string) => (id === "e" ? [{ ref: "t3" }] : []),
+        waitsIn: (id: string) =>
+          id === "e" ? [{ ref: "m3" }, { ref: "t4" }] : [],
       },
     });
     await tick();
@@ -4257,7 +4388,7 @@ describe("stable sidebar integration", () => {
     h.view.update({
       ...h.props,
       collapsed: true,
-      vb: { ...base, waitsIn: () => [{ ref: "t3" }] },
+      vb: { ...base, waitsIn: () => [{ ref: "m3" }, { ref: "t4" }] },
     });
     await tick();
     flushSync();
@@ -6031,7 +6162,7 @@ describe("composer ownership and interactions", () => {
       { id: "zzzzzz99", title: "Projeto Ágil", icon: 0 },
       { id: "yyyyyy77", title: "Vendas", icon: 0 },
     ];
-    const { target } = renderComposer(room, { rooms });
+    const { target, entry } = renderComposer(room, { rooms });
     const key = (input: HTMLTextAreaElement, name: string) => {
       input.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -6067,13 +6198,13 @@ describe("composer ownership and interactions", () => {
     key(input, "Enter");
     await tick();
     flushSync();
-    expect(input.value).toBe(`veja ${location.origin}/b/zzzzzz99 `);
+    expect(get(entry.state).text).toBe(`veja ${location.origin}/b/zzzzzz99 `);
     // A thread of this room links with ?t=.
     input = edit(target, "#epi");
     key(input, "Tab");
     await tick();
     flushSync();
-    expect(input.value).toBe(`${location.origin}/b/abcdef12?t=e `);
+    expect(get(entry.state).text).toBe(`${location.origin}/b/abcdef12?t=e `);
     // Sent, the links are the app link chips that a pasted URL already makes: the room's mark and name, the
     // thread, and "Sala privada" for a room you can't see.
     globalThis.fetch = (async (request: RequestInfo | URL) => {
@@ -6130,6 +6261,182 @@ describe("composer ownership and interactions", () => {
       chatTarget.querySelector('[data-app-link="private"]')?.textContent,
     ).toContain("Sala privada");
   }, 30_000);
+  test("a picked room shows in the field as its chip, one unit: Backspace deletes it whole, copy keeps the link", async () => {
+    const room: Room = { ...fixture(), id: "abcdef12" };
+    const rooms = [
+      { id: "abcdef12", title: "Room", icon: 0 },
+      { id: "zzzzzz99", title: "Projeto Ágil", icon: 0 },
+    ];
+    const { target, entry } = renderComposer(room, { rooms });
+    const key = (input: HTMLTextAreaElement, name: string) => {
+      const event = new KeyboardEvent("keydown", {
+        key: name,
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      flushSync();
+      return event;
+    };
+    let input = edit(target, "veja #proj");
+    key(input, "Enter");
+    await tick();
+    flushSync();
+    const url = `${location.origin}/b/zzzzzz99`;
+    // The draft keeps the link; the field shows the chip (the room's mark and name), not the URL.
+    expect(get(entry.state).text).toBe(`veja ${url} `);
+    expect(input.value).not.toContain("http");
+    expect(input.value).toContain("Projeto\u00a0Ágil");
+    const chip = target.querySelector<HTMLElement>('[data-field-chip="room"]')!;
+    expect(chip.getAttribute("data-field-link")).toBe(url);
+    expect(chip.textContent).toContain("Projeto\u00a0Ágil");
+    expect(chip.querySelector("[data-room-mark]")).not.toBeNull();
+    expect(chip.className).toContain("bg-brand-purple/15");
+    expect(chip.className).toContain("text-brand-purple-text");
+    // The textarea's own text is transparent: the mirror draws it, chip included.
+    expect(input.className).toContain("text-transparent");
+    // The caret can't sit inside the chip: a click in it goes to its end.
+    const from = "veja ".length,
+      to = input.value.length - 1;
+    input.setSelectionRange(from + 3, from + 3);
+    input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    flushSync();
+    expect(input.selectionStart).toBe(to);
+    // Copy keeps the link.
+    input.setSelectionRange(0, input.value.length);
+    const copied = new Event("copy", {
+      bubbles: true,
+      cancelable: true,
+    }) as ClipboardEvent;
+    let clipboard = "";
+    Object.defineProperty(copied, "clipboardData", {
+      value: { setData: (_: string, text: string) => (clipboard = text) },
+    });
+    input.dispatchEvent(copied);
+    expect(clipboard).toBe(`veja ${url} `);
+    // Backspace right after the chip selects all of it, so the browser's delete removes it in one go.
+    input.setSelectionRange(to, to);
+    const back = key(input, "Backspace");
+    expect(back.defaultPrevented).toBe(false);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([from, to]);
+    input.value = input.value.slice(0, from) + input.value.slice(to);
+    input.setSelectionRange(from, from);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    expect(get(entry.state).text).toBe("veja  ");
+    expect(target.querySelector("[data-field-chip]")).toBeNull();
+    // A pasted link to one of your rooms (or a thread of this one) becomes its chip too.
+    input = edit(target, `${location.origin}/b/abcdef12?t=e`);
+    expect(get(entry.state).text).toBe(`${location.origin}/b/abcdef12?t=e`);
+    expect(
+      target.querySelector('[data-field-chip="thread"]')?.textContent,
+    ).toContain("Room\u00a0›\u00a0Epic");
+    expect(input.selectionStart).toBe(input.value.length);
+  }, 30_000);
+  test("a pasted link to anywhere in the app turns into the chat's chip in the field: another room's thread, a message, a room you can't see", async () => {
+    const room: Room = { ...fixture(), id: "abcdef12" };
+    const rooms = [{ id: "abcdef12", title: "Room", icon: 0 }];
+    const asked: string[] = [];
+    globalThis.fetch = (async (request: RequestInfo | URL) => {
+      const url = String(request instanceof Request ? request.url : request);
+      asked.push(url);
+      if (url.includes("tttttt22"))
+        return Response.json({
+          kind: "thread",
+          room: "tttttt22",
+          thread: "x1",
+          title: "Lançamento",
+          owner: null,
+          ownerName: null,
+        });
+      if (url.includes("mmmmmm11"))
+        return Response.json({
+          kind: "message",
+          room: "mmmmmm11",
+          id: 7,
+          thread: "main",
+          author: "ana@test",
+          name: "Ana",
+          avatar: null,
+          threadTitle: null,
+          roomTitle: "Vendas",
+        });
+      return Response.json({ kind: "private" });
+    }) as typeof fetch;
+    const { target, entry } = renderComposer(room, { rooms });
+    const thread = `${location.origin}/b/tttttt22?t=x1`,
+      message = `https://chat.decocms.com/b/mmmmmm11#m7`,
+      locked = `${location.origin}/b/pppppp33`,
+      other = "https://example.com/b/qqqqqq44";
+    const text = `veja ${thread} e ${message} e ${locked} e ${other}`;
+    const input = target.querySelector<HTMLTextAreaElement>("textarea")!;
+    input.focus();
+    edit(target, text);
+    // Until the answers come, the field shows the plain links.
+    expect(input.value).toContain(thread);
+    for (
+      let frame = 0;
+      frame < 40 && target.querySelectorAll("[data-field-chip]").length < 3;
+      frame++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      flushSync();
+    }
+    // The draft keeps every link; the field draws the three app links as the chat's chips, the other link as text.
+    expect(get(entry.state).text).toBe(text);
+    const chip = (kind: string) =>
+      target.querySelector<HTMLElement>(`[data-field-chip="${kind}"]`);
+    expect(chip("thread")?.getAttribute("data-field-link")).toBe(thread);
+    expect(chip("thread")?.textContent).toContain("Lançamento");
+    expect(chip("message")?.getAttribute("data-field-link")).toBe(message);
+    expect(chip("message")?.textContent).toContain("Ana\u00a0em\u00a0Vendas");
+    expect(chip("private")?.getAttribute("data-field-link")).toBe(locked);
+    expect(chip("private")?.textContent).toContain("Sala\u00a0privada");
+    expect(chip("private")?.className).toContain("bg-secondary");
+    expect(input.value).not.toContain("tttttt22");
+    expect(input.value).not.toContain("mmmmmm11");
+    expect(input.value).not.toContain("pppppp33");
+    expect(input.value).toContain(other);
+    expect(asked.some((url) => url.includes("qqqqqq44"))).toBe(false);
+    // The swap keeps the caret where it was: after the last link, at the end.
+    expect(input.selectionStart).toBe(input.value.length);
+    // Editing around the chips keeps each one its own link, even two with the same words.
+    const second = `${location.origin}/b/pppppp34`;
+    input.value = input.value + " " + second + " ";
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    for (
+      let frame = 0;
+      frame < 40 &&
+      target.querySelectorAll('[data-field-chip="private"]').length < 2;
+      frame++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      flushSync();
+    }
+    expect(target.querySelectorAll('[data-field-chip="private"]').length).toBe(
+      2,
+    );
+    input.value = "oi " + input.value;
+    input.setSelectionRange(3, 3);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    expect(get(entry.state).text).toBe(`oi ${text} ${second} `);
+  }, 30_000);
+  test("an @mention in the field is drawn in the chat's mention purple", () => {
+    const room = fixture();
+    const { target } = renderComposer(room);
+    const input = edit(target, "oi @you");
+    const mark = target.querySelector<HTMLElement>("[data-field-mention]");
+    expect(mark?.textContent).toBe("@you");
+    expect(mark?.className).toContain("text-brand-purple-text");
+    expect(input.className).toContain("text-transparent");
+    // Plain text keeps the field's own color.
+    edit(target, "oi");
+    expect(target.querySelector("[data-field-mention]")).toBeNull();
+    expect(input.className).not.toContain("text-transparent");
+  });
   test("more menu keyboard focus and thread drafts stay scoped across remounts", async () => {
     const room = fixture();
     const { target, update } = renderComposer(room);
@@ -8848,142 +9155,5 @@ describe("People & agents presence", () => {
     expect(document.body.querySelector("[data-tooltip-content]") === null).toBe(
       true,
     );
-  });
-});
-
-// Imported after the DOM above is in place, like the components at the top.
-const { default: IncomingCall } =
-  await import("../web/features/call/IncomingCall.svelte");
-const { default: CallPanel } =
-  await import("../web/features/call/CallPanel.svelte");
-const { createCallHub } = await import("../web/features/call/hub");
-const { incomingRing } = await import("../web/features/call/ring");
-describe("the call is the app's (web/features/call/hub.ts)", () => {
-  // The microphone never answers here: the call stays "joining", which is enough to be the live call.
-  function fakeHub() {
-    const opened: string[] = [],
-      closed: string[] = [];
-    const api = {
-      join: async () => "s-1",
-      leave: async () => {},
-      decline: async () => {},
-    } as unknown as CallApi;
-    const hub = createCallHub({
-      api,
-      connect: (room) => ({
-        start: () => opened.push(room),
-        dispose: () => closed.push(room),
-        send: () => true,
-      }),
-    });
-    return { hub, opened, closed };
-  }
-  const media = window.navigator.mediaDevices;
-  afterEach(() => {
-    Object.defineProperty(window.navigator, "mediaDevices", {
-      value: media,
-      configurable: true,
-    });
-    incomingRing.set(null);
-  });
-  function noMicrophoneYet() {
-    Object.defineProperty(window.navigator, "mediaDevices", {
-      value: { getUserMedia: () => new Promise(() => {}) },
-      configurable: true,
-    });
-  }
-
-  test("Atender from another room joins the DM's call, goes to the DM and clears the ring, in one click", async () => {
-    noMicrophoneYet();
-    const { hub, opened } = fakeHub();
-    const went: string[] = [];
-    const target = document.createElement("div");
-    document.body.append(target);
-    const instance = flushSync(() =>
-      mount(IncomingCall, {
-        target,
-        props: {
-          current: "otherroom1",
-          navigate: (path: string) => went.push(path),
-          chime: () => {},
-          t: (text: string) => text,
-          hub,
-        },
-      }),
-    );
-    try {
-      flushSync(() =>
-        incomingRing.set({
-          book: "dm-ana-bia",
-          from: "ana@x.test",
-          name: "Ana",
-          avatar: null,
-          until: Date.now() + 30_000,
-        }),
-      );
-      target.querySelector<HTMLElement>("[data-ring-answer]")!.click();
-      flushSync();
-      expect(went).toEqual(["/b/dm-ana-bia"]);
-      expect(get(incomingRing)).toBeNull();
-      expect(target.querySelector("[data-incoming-call]")).toBeNull();
-      // The DM's view, when it mounts, gets the call that is on: it opens the stage (RoomScene: in the call).
-      const live = get(hub.live);
-      expect(live?.room).toBe("dm-ana-bia");
-      expect(live?.title).toBe("Ana");
-      expect(hub.session("dm-ana-bia")).toBe(live!.session);
-      expect(get(live!.session.state).phase).toBe("joining");
-      expect(opened).toEqual(["dm-ana-bia"]);
-    } finally {
-      await unmount(instance);
-      target.remove();
-    }
-  });
-
-  test("the call goes on when its room's view closes, its panel shows elsewhere, and only the hang-up ends it", async () => {
-    noMicrophoneYet();
-    const { hub, closed } = fakeHub();
-    const call = hub.session("room-a", { title: () => "Sala A" });
-    call.join();
-    // Going to another room: the room's view lets go of its session, the call stays.
-    hub.release("room-a", call);
-    expect(get(hub.live)?.session).toBe(call);
-    expect(hub.busyElsewhere("room-b")).toBe(true);
-    // A room I only open (not in its call) is forgotten when its view closes.
-    const other = hub.session("room-b");
-    hub.release("room-b", other);
-    expect(hub.session("room-b")).not.toBe(other);
-    // The panel on another screen: the call's room and its controls.
-    const target = document.createElement("div");
-    document.body.append(target);
-    let opened = 0;
-    const instance = flushSync(() =>
-      mount(CallPanel, {
-        target,
-        props: {
-          call,
-          title: get(hub.live)!.title,
-          onopen: () => opened++,
-          oncamera: () => {},
-          t: (text: string) => text,
-        },
-      }),
-    );
-    try {
-      expect(target.querySelector("[data-call-panel]")?.textContent).toContain(
-        "Sala A",
-      );
-      target.querySelector<HTMLElement>("[data-call-panel-open]")!.click();
-      expect(opened).toBe(1);
-      target.querySelector<HTMLElement>("[data-call-panel-leave]")!.click();
-      flushSync();
-      expect(get(hub.live)).toBeNull();
-      expect(closed).toEqual(["room-a"]);
-      expect(target.querySelector("[data-call-panel]")).toBeNull();
-      // Released and idle: the next view of the room gets a fresh session.
-      expect(hub.session("room-a")).not.toBe(call);
-    } finally {
-      await unmount(instance);
-      target.remove();
-    }
   });
 });

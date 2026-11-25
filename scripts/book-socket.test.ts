@@ -40,12 +40,3 @@ test("only numbers and a short hash pass", () => {
   expect(url.searchParams.get("eh")).toBe("abc");
   expect(url.searchParams.get("rc")).toBe("9999");
 });
-
-test("the call's own socket (call=1) reaches the Book as such; any other value is no call socket", () => {
-  expect(bookSocketUrl("abcdef", query("call=1"))).toBe(
-    "https://book/ws?book=abcdef&t=main&call=1",
-  );
-  expect(bookSocketUrl("abcdef", query("call=yes"))).toBe(
-    "https://book/ws?book=abcdef&t=main",
-  );
-});

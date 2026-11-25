@@ -1,6 +1,6 @@
 // The call stage's layout: each person's color, and the grid of tiles (like a video app: one person fills the
-// stage, two go side by side or stacked by the stage's shape, then 2×2, 3×3…). Every tile is 16:9, whatever the
-// stage's shape: the grid fits as many as it can and centers them. Classes are whole strings, so Tailwind finds them.
+// stage, two go side by side or stacked by the stage's shape, then 2×2, 3×3…). Classes are whole strings, so
+// Tailwind finds them.
 
 /** One calm solid color per person (tokens --vb-call-1…6), the same in every call and on every screen. */
 const COLORS = [
@@ -35,77 +35,36 @@ export function callColors(emails: readonly string[]) {
   return colors;
 }
 
-/** A tile's width by the number of columns (rows), with the grid's gap of 0.5rem, in a grid that is a size
- * container ([container-type:size]): the width of a column, or the width that a row's height allows at 16:9,
- * whichever is smaller. With `aspect-video`, every tile is 16:9 and the grid centers them (letterboxed). */
-const FITTED = [
-  [
-    "w-[min(100cqw,calc(100cqh*16/9))]",
-    "w-[min(100cqw,calc((100cqh-0.5rem)/2*16/9))]",
-    "w-[min(100cqw,calc((100cqh-1rem)/3*16/9))]",
-    "w-[min(100cqw,calc((100cqh-1.5rem)/4*16/9))]",
-  ],
-  [
-    "w-[min(calc((100cqw-0.5rem)/2),calc(100cqh*16/9))]",
-    "w-[min(calc((100cqw-0.5rem)/2),calc((100cqh-0.5rem)/2*16/9))]",
-    "w-[min(calc((100cqw-0.5rem)/2),calc((100cqh-1rem)/3*16/9))]",
-    "w-[min(calc((100cqw-0.5rem)/2),calc((100cqh-1.5rem)/4*16/9))]",
-  ],
-  [
-    "w-[min(calc((100cqw-1rem)/3),calc(100cqh*16/9))]",
-    "w-[min(calc((100cqw-1rem)/3),calc((100cqh-0.5rem)/2*16/9))]",
-    "w-[min(calc((100cqw-1rem)/3),calc((100cqh-1rem)/3*16/9))]",
-    "w-[min(calc((100cqw-1rem)/3),calc((100cqh-1.5rem)/4*16/9))]",
-  ],
-  [
-    "w-[min(calc((100cqw-1.5rem)/4),calc(100cqh*16/9))]",
-    "w-[min(calc((100cqw-1.5rem)/4),calc((100cqh-0.5rem)/2*16/9))]",
-    "w-[min(calc((100cqw-1.5rem)/4),calc((100cqh-1rem)/3*16/9))]",
-    "w-[min(calc((100cqw-1.5rem)/4),calc((100cqh-1.5rem)/4*16/9))]",
-  ],
-] as const;
-/** More rows than fit: a column's width, and the grid scrolls. */
-const COLUMN_WIDTHS = [
+/** Widths and heights of a tile, by the number of columns (rows), with the grid's gap of 0.5rem. */
+const WIDTHS = [
   "w-full",
-  "w-[calc((100cqw-0.5rem)/2)]",
-  "w-[calc((100cqw-1rem)/3)]",
-  "w-[calc((100cqw-1.5rem)/4)]",
+  "w-[calc((100%-0.5rem)/2)]",
+  "w-[calc((100%-1rem)/3)]",
+  "w-[calc((100%-1.5rem)/4)]",
 ] as const;
-/** One tile alone in a box (a person on the stage): 16:9, as big as the box lets it. */
-export const FITTED_ONE = FITTED[0][0];
+const HEIGHTS = [
+  "h-full",
+  "h-[calc((100%-0.5rem)/2)]",
+  "h-[calc((100%-1rem)/3)]",
+  "h-[calc((100%-1.5rem)/4)]",
+] as const;
 const GAP = 8,
-  MAX_COLUMNS = COLUMN_WIDTHS.length,
-  MAX_ROWS = FITTED[0].length,
-  /** A person's tile is always 16:9. */
+  MAX_COLUMNS = WIDTHS.length,
+  /** A tile is at its best at 16:9. */
   RATIO = 16 / 9;
 
-/** The size (pixels) of each tile of `columns` × `rows` in a stage of `width` × `height`: always 16:9. */
-export function callTileSize(
-  columns: number,
-  rows: number,
-  width: number,
-  height: number,
-) {
-  const w = Math.max(0, (width - GAP * (columns - 1)) / columns),
-    h = Math.max(0, (height - GAP * (rows - 1)) / rows);
-  const tile = Math.min(w, h * RATIO);
-  return { width: tile, height: tile / RATIO };
-}
-
-/** The columns that give each of `count` tiles the most room in a stage of `width` × `height` (pixels), and the
- * tile's width class (with `aspect-video`). More rows than fit: the tiles keep a column's width and the grid
- * scrolls. */
+/** The columns that give each of `count` tiles the most room in a stage of `width` × `height` (pixels). More
+ * rows than fit: the tiles keep a fixed height and the grid scrolls. */
 export function callGrid(count: number, width: number, height: number) {
   const people = Math.max(1, count);
   let columns = 1,
     best = -1;
-  // Columns that leave more rows than fit are the last resort (the grid scrolls only past 4 × 4).
-  const first = Math.min(
-    Math.ceil(people / MAX_ROWS),
-    Math.min(people, MAX_COLUMNS),
-  );
-  for (let c = first; c <= Math.min(people, MAX_COLUMNS); c++) {
-    const size = callTileSize(c, Math.ceil(people / c), width, height).width;
+  for (let c = 1; c <= Math.min(people, MAX_COLUMNS); c++) {
+    const rows = Math.ceil(people / c);
+    const w = (width - GAP * (c - 1)) / c,
+      h = (height - GAP * (rows - 1)) / rows;
+    // The tile's usable size: its width, or the width that its height allows at 16:9.
+    const size = Math.min(w, h * RATIO);
     // A near tie goes to more columns: side by side reads better than stacked (video apps do the same).
     if (size >= best * 0.93) {
       best = size;
@@ -113,13 +72,12 @@ export function callGrid(count: number, width: number, height: number) {
     }
   }
   const rows = Math.ceil(people / columns);
-  const scroll = rows > MAX_ROWS;
+  const scroll = rows > HEIGHTS.length;
   return {
     columns,
     rows,
     scroll,
-    width: scroll
-      ? (COLUMN_WIDTHS[columns - 1] ?? COLUMN_WIDTHS[0])
-      : (FITTED[columns - 1]?.[rows - 1] ?? FITTED_ONE),
+    width: WIDTHS[columns - 1] ?? WIDTHS[0],
+    height: scroll ? "h-40" : (HEIGHTS[rows - 1] ?? HEIGHTS[0]),
   };
 }

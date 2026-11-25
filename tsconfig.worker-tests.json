@@ -37,6 +37,7 @@
     "scripts/thread-origin.test.ts",
     "scripts/answer-epic.test.ts",
     "scripts/message-edit.test.ts",
-    "scripts/provider-metadata.test.ts"
+    "scripts/provider-metadata.test.ts",
+    "scripts/waits-read.test.ts"
   ]
 }

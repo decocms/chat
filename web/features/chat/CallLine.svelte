@@ -7,8 +7,7 @@
   import type { Room } from "../../../shared/room";
   import type { ChatBridge, ChatMessage } from "../../app/chatTypes";
   import { isRecorder, parseCallLine } from "../../../shared/call";
-  import { callHub } from "../call/hub";
-  import { createCallApi } from "../call/callApi";
+  import { callIntent } from "../call/ring";
   /** A call's line in the chat (a message with tag "call", src/book.ts callStarted), like a system line: a phone,
    *  who and what, the time. While the call is on, "Entrar"; while a DM's call rings me, the ringing block. */
   let {
@@ -64,12 +63,8 @@
       name: m.author === room.me ? vb.t("Você") : first(m.author),
     };
   });
-  // The room's call session is the app's (hub.ts): the room's view shows the stage once it joins.
-  const join = () => callHub().session(room.id).join();
-  const decline = () =>
-    void createCallApi()
-      .decline(room.id)
-      .catch(() => {});
+  const join = () => callIntent.set({ room: room.id, action: "join" });
+  const decline = () => callIntent.set({ room: room.id, action: "decline" });
 </script>
 
 {#if ring}<div
