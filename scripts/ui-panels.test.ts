@@ -2106,7 +2106,7 @@ describe("chat", () => {
     stale.click();
     expect(sent).toHaveLength(before);
   }, 30_000);
-  test("poll card fills each row to its share, marks mine and shows closure", async () => {
+  test("poll card fills each row to its share, marks mine, shows 3 voters then +X, and closure", async () => {
     const q = { ...message(62, ""), poll: "p" };
     const me = fixture().me;
     const poll = {
@@ -2116,7 +2116,7 @@ describe("chat", () => {
       author: me,
       multi: false,
       closed: false,
-      votes: [[me, "a@test", "b@test"], ["c@test"], []],
+      votes: [[me, "a@test", "b@test", "d@test"], ["c@test"], []],
     };
     const room = { ...fixture(), messages: [q], polls: { p: poll } };
     const { target, update } = renderChat(room, {
@@ -2131,13 +2131,16 @@ describe("chat", () => {
     await expectInteractiveReady(target);
     const card = target.querySelector<HTMLElement>('[data-poll="p"]')!;
     expect(card.querySelector("[data-poll-votes]")?.textContent).toBe(
-      "4 votos",
+      "5 votos",
     );
     expect(card.textContent).not.toContain("Escolha uma");
-    const rows = Array.from(
+    const votes = Array.from(
       card.querySelectorAll<HTMLButtonElement>("[data-vote]"),
     );
-    expect(rows.map((row) => row.getAttribute("aria-pressed"))).toEqual([
+    const rows = Array.from(
+      card.querySelectorAll<HTMLElement>("[data-vote-row]"),
+    );
+    expect(votes.map((vote) => vote.getAttribute("aria-pressed"))).toEqual([
       "true",
       "false",
       "false",
@@ -2146,7 +2149,16 @@ describe("chat", () => {
       rows.map((row) =>
         row.querySelector("[data-vote-bar]")!.getAttribute("value"),
       ),
-    ).toEqual(["75", "25", "0"]);
+    ).toEqual(["80", "20", "0"]);
+    // Voters always show: at most 3 faces, then a count; nobody, no faces.
+    const voters = rows.map((row) => row.querySelector("[data-vote-voters]"));
+    expect(
+      voters.map((cell) => cell?.querySelectorAll("[data-avatar]").length ?? 0),
+    ).toEqual([3, 1, 0]);
+    expect(voters[0]?.querySelector("[data-vote-more]")?.textContent).toBe(
+      "+1",
+    );
+    expect(voters[1]?.querySelector("[data-vote-more]") ?? null).toBe(null);
     expect(rows.map((row) => row.textContent?.trim().endsWith("%"))).toEqual([
       true,
       true,
@@ -2160,7 +2172,7 @@ describe("chat", () => {
     flushSync();
     expect(card.querySelector("[data-poll-close]") === null).toBe(true);
     expect(card.textContent).toContain("Votação encerrada");
-    expect(rows.every((row) => row.disabled)).toBe(true);
+    expect(votes.every((vote) => vote.disabled)).toBe(true);
   }, 30_000);
   test("same-ID permission replacement invalidates old confirmation before any request", async () => {
     const q = {

@@ -8,6 +8,7 @@
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import CardBox from "../../lib/studio/Card.svelte";
+  import HoverCard from "../../lib/components/HoverCard.svelte";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   let {
     poll,
@@ -104,17 +105,19 @@
         >
       </header>
       <div class="grid gap-1.5">
-        {#each view.rows as row}<button
-            type="button"
-            data-vote={row.index}
-            aria-pressed={row.mine}
-            aria-label={`${row.label}: ${row.count === 1 ? vb.t("1 voto") : vb.t("{n} votos", { n: row.count })} (${row.percent}%)`}
-            disabled={!canVote || waiting}
-            onclick={(event) => vote(row.index, event)}
-            class="group/vote relative flex min-h-9 w-full items-center gap-2 overflow-hidden rounded-lg border border-solid px-3 py-2 text-left font-sans text-sm transition-colors enabled:cursor-pointer disabled:cursor-default {row.mine
-              ? 'border-brand-purple/60 bg-brand-purple/15 enabled:hover:bg-brand-purple/25'
-              : 'border-transparent bg-muted enabled:hover:bg-secondary-hover'}"
-            ><!-- The fill is a native progress value, since inline styles are not allowed here. --><progress
+        {#each view.rows as row}{@const count =
+            row.count === 1
+              ? vb.t("1 voto")
+              : vb.t("{n} votos", {
+                  n: row.count,
+                })}<!-- The vote button stretches over the whole row; the faces sit above it so hovering them opens the voter list instead of voting. -->
+          <div
+            data-vote-row={row.index}
+            class="relative flex min-h-9 w-full items-center gap-2 overflow-hidden rounded-lg border border-solid px-3 py-2 font-sans text-sm transition-colors {row.mine
+              ? 'border-brand-purple/60 bg-brand-purple/15 has-[[data-vote]:enabled:hover]:bg-brand-purple/25'
+              : 'border-transparent bg-muted has-[[data-vote]:enabled:hover]:bg-secondary-hover'}"
+          >
+            <!-- The fill is a native progress value, since inline styles are not allowed here. --><progress
               aria-hidden="true"
               data-vote-bar
               value={row.percent}
@@ -122,37 +125,71 @@
               class="pointer-events-none absolute inset-0 block h-full w-full appearance-none border-0 bg-transparent [&::-moz-progress-bar]:bg-current [&::-webkit-progress-bar]:bg-transparent [&::-webkit-progress-value]:bg-current {row.mine
                 ? 'text-brand-purple/25'
                 : 'text-input'}"
-            ></progress>{#if row.winner}<Icon
+            ></progress><button
+              type="button"
+              data-vote={row.index}
+              aria-pressed={row.mine}
+              aria-label={`${row.label}: ${count} (${row.percent}%)`}
+              disabled={!canVote || waiting}
+              onclick={(event) => vote(row.index, event)}
+              class="absolute inset-0 rounded-lg border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-ring enabled:cursor-pointer disabled:cursor-default"
+            ></button>{#if row.winner}<Icon
                 icon="trophy-01"
                 size={16}
-                class="relative shrink-0 {row.mine
+                class="pointer-events-none relative shrink-0 {row.mine
                   ? 'text-brand-purple-text'
                   : ''}"
               />{:else if row.mine}<Icon
                 icon="check"
                 size={16}
-                class="relative shrink-0 text-brand-purple-text"
+                class="pointer-events-none relative shrink-0 text-brand-purple-text"
               />{/if}<span
-              class="relative min-w-0 flex-1 break-words {row.mine
+              class="pointer-events-none relative min-w-0 flex-1 break-words {row.mine
                 ? 'font-medium'
                 : ''}">{row.label}</span
-            >{#if row.voters.length}<span
-                class="relative flex -space-x-1.5 opacity-0 transition-opacity group-hover/vote:opacity-100 group-focus-visible/vote:opacity-100"
-                >{#each row.voters as email}<span title={vb.name(email)}
-                    ><PersonAvatar
+            >{#if row.voters.length}<HoverCard side="top" delay={400}
+                >{#snippet trigger(props)}<button
+                    {...props}
+                    type="button"
+                    data-vote-voters={row.index}
+                    aria-label={vb.t("Quem votou em {label}", {
+                      label: row.label,
+                    })}
+                    class="relative z-10 flex cursor-default items-center rounded-full border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-ring"
+                    ><span class="flex -space-x-1"
+                      >{#each row.voters.slice(0, 3) as email (email)}<PersonAvatar
+                          data-avatar="person"
+                          size="xs"
+                          {email}
+                          version={vb.avatarVersion(email)}
+                          class="size-[18px] shadow-[0_0_0_1.5px_var(--vb-card)]"
+                        />{/each}</span
+                    >{#if row.voters.length > 3}<span
+                        data-vote-more
+                        class="ml-1 text-xs tabular-nums text-muted-foreground"
+                        >+{row.voters.length - 3}</span
+                      >{/if}</button
+                  >{/snippet}
+                <p class="m-0 font-medium">{row.label} · {count}</p>
+                {#each row.voters as email (email)}<div
+                    data-vote-voter
+                    class="flex items-center gap-2"
+                  >
+                    <PersonAvatar
                       data-avatar="person"
                       size="xs"
                       {email}
                       version={vb.avatarVersion(email)}
-                      class="ring-2 ring-card"
-                    /></span
-                  >{/each}</span
-              >{/if}<span
-              class="relative shrink-0 text-xs tabular-nums {row.mine
+                    /><span class="min-w-0 flex-1 break-words"
+                      >{vb.name(email)}</span
+                    >
+                  </div>{/each}
+              </HoverCard>{/if}<span
+              class="pointer-events-none relative shrink-0 text-xs tabular-nums {row.mine
                 ? 'font-semibold text-brand-purple-text'
                 : 'text-muted-foreground'}">{row.percent}%</span
-            ></button
-          >{/each}
+            >
+          </div>{/each}
       </div>
       {#if poll.closed}<p class="m-0 text-xs text-muted-foreground">
           {vb.t("Votação encerrada")}

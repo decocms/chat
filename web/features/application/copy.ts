@@ -891,6 +891,7 @@ const EN: Readonly<Record<string, string>> = {
   "1 voto": "1 vote",
   "{n} votos": "{n} votes",
   "Encerrar votação": "Close poll",
+  "Quem votou em {label}": "Who voted for {label}",
   "Votação encerrada": "Poll closed",
   concluído: "done",
   "{d}/{n} tarefas": "{d}/{n} tasks",
