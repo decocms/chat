@@ -518,6 +518,18 @@ const EN: Readonly<Record<string, string>> = {
     "Notifications are blocked for this site in this browser. Click the lock next to the address → Notifications → Allow, and reload the page.",
   "Te mencionaram": "You were mentioned",
   "Suas tarefas": "Your tasks",
+  "Suas threads": "Your threads",
+  "Pronta pra fechar": "Ready to close",
+  "Parada há 3 dias": "Stalled for 3 days",
+  "Em andamento": "In progress",
+  "{done}/{total} tarefas": "{done}/{total} tasks",
+  "Sem tarefas": "No tasks",
+  "Marcar como feita": "Mark as done",
+  "Thread marcada como feita": "Thread marked as done",
+  "Não deu pra marcar como feita. Tente de novo.":
+    "Couldn't mark it as done. Try again.",
+  "pronta pra fechar": "ready to close",
+  parada: "stalled",
   revisar: "review",
   "Não foi possível carregar a caixa de entrada.": "Could not load your inbox.",
   "respondendo…": "replying…",
@@ -646,8 +658,19 @@ const EN: Readonly<Record<string, string>> = {
   "Essa thread não existe mais nesta sala.":
     "That thread is no longer in this room.",
   Threads: "Threads",
-  "Threads abertas": "Open threads",
-  Feitas: "Done",
+  // The threads tabs: the same English words in both languages (Viktor).
+  Mine: "Mine",
+  Open: "Open",
+  Done: "Done",
+  "Nenhuma thread aberta é sua": "None of the open threads is yours",
+  "As threads que você cria ou que passam para você aparecem aqui.":
+    "Threads that you start or that are handed to you show up here.",
+  "Nenhuma thread aberta": "No open threads",
+  "Para abrir uma, use Criar thread numa mensagem.":
+    "To start one, use Create thread on a message.",
+  "Nenhuma thread feita ainda": "No done threads yet",
+  "Uma thread marcada como feita vem para cá.":
+    "A thread marked done moves here.",
   "Ver menos": "Show less",
   "Ver mais ({n})": "Show more ({n})",
   "Fixar no topo": "Pin to top",

@@ -5,7 +5,8 @@ import type {
   SearchResult,
 } from "../../../shared/schemas";
 import { appRouteHash, type AppRouteTarget } from "../apps/model";
-import { waitCount, type WaitReference } from "../waits/model";
+import { waitCount, waitText, type WaitReference } from "../waits/model";
+import { createApplicationCopy } from "../application/copy";
 import { homeText, type HomeLanguage } from "./copy";
 export type RoomSummary = MeResult["books"][number];
 export type Wait = MeResult["waits"][number];
@@ -374,7 +375,7 @@ export function waitGroups(waits: readonly Wait[]) {
 /** The triage filters: your Claude's asks, people's asks (and @vibe's), your tasks in review. */
 export type WaitKind = "claude" | "asks" | "reviews";
 export const waitKind = (wait: Wait): WaitKind =>
-  claudeWait(wait) ? "claude" : wait.ref.startsWith("t") ? "reviews" : "asks";
+  claudeWait(wait) ? "claude" : /^[te]/.test(wait.ref) ? "reviews" : "asks";
 /**
  * A wait's text as one plain line for the home: markdown marks out, links as
  * their text, bare URLs as host + path, the hook's ⏸/❓ opener and a leading
@@ -399,6 +400,9 @@ export function plainWaitText(value: string) {
     .replace(/\s+/g, " ")
     .trim();
 }
+/** A wait's line for the home, plain: an open thread of yours reads as its state ("Pronta pra fechar · 3/3 tarefas"). */
+export const homeWaitText = (wait: Wait, lang: HomeLanguage) =>
+  plainWaitText(waitText(wait, createApplicationCopy(lang)));
 /**
  * The phone's list of rooms, like a chat app: every room and DM you talked in,
  * the one with the newest message first. Your own DM ("Você") only once you

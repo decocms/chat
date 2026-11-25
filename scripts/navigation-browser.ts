@@ -171,7 +171,7 @@ try {
   await expect(row(oldParent)).toBeVisible();
   await expect(row(oldChild)).toBeVisible();
   await expect(nav.locator("[data-new-epic]")).toHaveCount(0);
-  await nav.getByRole("tab", { name: /^Epics/ }).click();
+  await nav.getByRole("tab", { name: /^Open/ }).click();
   const roots = () =>
     nav
       .locator("li[data-epic]:not([hidden])")

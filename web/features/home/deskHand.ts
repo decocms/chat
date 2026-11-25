@@ -13,7 +13,7 @@ import { claudeWait, type Wait } from "./model";
 /** Your Claude blocked on you first, then people's asks, then your tasks in review; newest first inside each. */
 export function byImportance(waits: readonly Wait[]): Wait[] {
   const rank = (wait: Wait) =>
-    claudeWait(wait) ? 0 : wait.ref.startsWith("t") ? 2 : 1;
+    claudeWait(wait) ? 0 : /^[te]/.test(wait.ref) ? 2 : 1;
   return [...waits].sort((a, b) => rank(a) - rank(b) || b.ts - a.ts);
 }
 

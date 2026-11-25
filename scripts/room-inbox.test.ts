@@ -3,6 +3,8 @@ import { get } from "svelte/store";
 import type { InboxResult } from "../shared/schemas";
 import type { Wait, InboxMention, InboxTask } from "../web/app/types";
 import { roomInboxModel } from "../web/features/application/roomInboxModel";
+import { createApplicationCopy } from "../web/features/application/copy";
+import { waitText } from "../web/features/waits/model";
 import { createApplicationInbox } from "../web/features/application/inbox";
 import { roomScopeFixture } from "./room-scope-fixtures";
 import { deferred, me, settle } from "./home-fixtures";
@@ -55,6 +57,34 @@ test("room Inbox projects oldest-first asks/Claude/mentions without repeated mes
   ).toEqual(["t2"]);
   expect(view.groups[0].first).toBe(data.tasks[1]);
 });
+test("your open threads: never an ask, the fresher copy from your waits, quiet ones from the Inbox's list", () => {
+  const ready = { ...wait("eT1", 5), thread: "T1", text: "review|2/2" };
+  const data: InboxResult = {
+    waits: [wait("m7", 4), ready],
+    mentions: [],
+    tasks: [],
+    threads: [
+      { ...ready, text: "doing|1/2" },
+      { ...wait("eT2", 3), thread: "T2", text: "todo|0/3", author: "" },
+    ],
+  };
+  const view = roomInboxModel(data, "aaaaaa", true);
+  expect(view.messages.map((row) => row.kind)).toEqual(["ask"]);
+  expect(view.threads.map((row) => [row.ref, row.text])).toEqual([
+    ["eT1", "review|2/2"],
+    ["eT2", "todo|0/3"],
+  ]);
+  expect(waitText(view.threads[0]!, createApplicationCopy("pt"))).toBe(
+    "Pronta pra fechar · 2/2 tarefas",
+  );
+  expect(
+    waitText(
+      { ...view.threads[1]!, author: "ai" },
+      createApplicationCopy("en"),
+    ),
+  ).toBe("Stalled for 3 days · 0/3 tasks");
+  expect(waitText(wait("m7"), createApplicationCopy("en"))).toBe("m7");
+});
 test("current/all room filtering and task-wait dedupe retain exact book identities", () => {
   const data: InboxResult = {
     waits: [wait("tt1")],
@@ -87,7 +117,12 @@ test("authorized room opening owns its exact scope and terminal removal synchron
   const row = get(owner.state).data.tasks[0];
   h.app.connectionCallbacks.at(-1)!.onRemoved?.();
   expect(get(owner.state).binding === null).toBe(true);
-  expect(get(owner.state).data).toEqual({ waits: [], mentions: [], tasks: [] });
+  expect(get(owner.state).data).toEqual({
+    waits: [],
+    mentions: [],
+    tasks: [],
+    threads: [],
+  });
   const href = h.app.href();
   owner.openTask(binding, row);
   expect(h.app.href()).toBe(href);
