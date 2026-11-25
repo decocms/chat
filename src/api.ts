@@ -60,6 +60,8 @@ import {
   type AccessResult,
   MessagesQuery,
   type MessagesPage,
+  LinkQuery,
+  type LinkResolution,
   ClaudeToggleBody,
   DeliveryBody,
   type DeliveryResult,
@@ -126,6 +128,8 @@ export interface ApiServices {
   humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
   /** One page of a thread (GET /api/books/:id/messages). The route checks membership first. */
   roomMessages(roomId: string, query: MessagesQuery): Promise<MessagesPage>;
+  /** Where a link to this app goes (GET /api/books/:id/link): `private` unless you are a member (src/linkTarget.ts). */
+  linkTarget(roomId: string, query: LinkQuery): Promise<LinkResolution>;
   /** Validates type/size/secrets and stores the file; throws an Error whose message is user-facing. */
   storeFile(roomId: string, type: string, body: ArrayBuffer, name: string): Promise<UploadFileResult>;
   fileTypes: readonly string[];
@@ -615,6 +619,18 @@ export const roomApi = accountApi
       if (!(await svc.isMember(id))) return c.json(forbidden, 403);
       c.header("Cache-Control", "private, no-store");
       return c.json((await svc.roomMessages(id, c.req.valid("query"))) satisfies MessagesPage, 200);
+    },
+  )
+  .get(
+    "/api/books/:id/link",
+    validator("query", (value, c) => {
+      const r = LinkQuery.safeParse(value);
+      return r.success ? r.data : c.json({ error: "invalid query" } satisfies ErrorBody, 400);
+    }),
+    async (c) => {
+      // No 403 for a non-member: the answer is the same `private` as for a room that doesn't exist.
+      c.header("Cache-Control", "private, no-store");
+      return c.json((await c.get("svc").linkTarget(c.req.param("id"), c.req.valid("query"))) satisfies LinkResolution, 200);
     },
   )
   .get("/api/books/:id/access", async (c) => c.json({ member: await c.get("svc").isMember(c.req.param("id")) } satisfies AccessResult, 200));

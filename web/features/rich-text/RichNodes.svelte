@@ -4,6 +4,8 @@
   import { HTML_NS } from "./allowlist";
   import Icon from "../../lib/studio/Icon.svelte";
   import { hasMissingFileReference } from "./fileIndex";
+  import AppLinkChip from "./AppLinkChip.svelte";
+  import type { Room } from "../../../shared/room";
   let {
     nodes,
     actions,
@@ -12,9 +14,14 @@
     appKey,
     cardSource,
     cardSlot,
+    room = null,
+    t = (text: string) => text,
   }: {
     nodes: readonly RichNode[];
     actions: RichActions;
+    /** The open room: a chip for a link to one of its messages or threads needs no request. */
+    room?: Room | null;
+    t?: (text: string) => string;
     taskSlot?: Snippet;
     appSlot?: Snippet<[number]>;
     appKey?(slot: number): string;
@@ -127,6 +134,12 @@
         event.stopPropagation();
         actions.navigateRich({ kind: target.kind, id: target.id });
       }
+    } else if (target.kind === "app") {
+      if (actions.openAppLink) {
+        event.preventDefault();
+        event.stopPropagation();
+        actions.openAppLink(target.link);
+      }
     } else if (target.kind === "file") {
       if (target.attachment) {
         event.preventDefault();
@@ -172,6 +185,21 @@
           onclick={(event: MouseEvent) => open(event, node)}
           >{@render content(node.children)}</svelte:element
         >
+      {:else if node.target.kind === "app" && node.target.chip}{@const target =
+          node.target}{#snippet plain()}<a
+            href={target.href}
+            data-rich-link="app"
+            onclick={(event) => open(event, node)}
+            class="rounded-sm text-link no-underline decoration-dashed decoration-1 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            >{@render content(node.children)}</a
+          >{/snippet}<AppLinkChip
+          link={target.link}
+          href={target.href}
+          {room}
+          {t}
+          onopen={(event) => open(event, node)}
+          {plain}
+        />
       {:else}<a
           href={node.target.href}
           title={node.target.kind === "file"

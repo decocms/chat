@@ -75,6 +75,10 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       pages.push({ room, ...query });
       return { thread: query.thread, messages: [], acks: [], more: false };
     },
+    linkTarget: async (room, query) => {
+      pages.push({ link: room, ...query });
+      return { kind: "private" };
+    },
     humanPost: async (room, text, thread) => {
       posted.push({ room, text, thread });
       return text.trim()
@@ -363,6 +367,20 @@ test("post validates HTTP input and preserves success and business-error respons
     { room: "room", text: "hello", thread: "epic" },
     { room: "room", text: " ", thread: "main" },
   ]);
+});
+
+test("GET link: the query validated, the answer the resolver's, never a 403", async () => {
+  const f = fixture({ isMember: async () => false });
+  const ok = await f.app.request("/api/books/room/link?t=e1&m=42");
+  expect(ok.status).toBe(200);
+  expect(ok.headers.get("cache-control")).toBe("private, no-store");
+  expect(await ok.json()).toEqual({ kind: "private" });
+  expect((await f.app.request("/api/books/room/link")).status).toBe(200);
+  expect(f.pages).toEqual([{ link: "room", t: "e1", m: 42 }, { link: "room" }]);
+  for (const query of ["m=0", "m=x", "t=", `t=${"x".repeat(65)}`])
+    expect((await f.app.request(`/api/books/room/link?${query}`)).status).toBe(
+      400,
+    );
 });
 
 test("GET messages: a page by id cursor, members only, the query validated (cache plan, PR 1)", async () => {

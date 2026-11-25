@@ -79,6 +79,7 @@
       openFileReference: (file) => {
         if (owned()) actions.openFileReference?.(file);
       },
+      openAppLink: (link) => leave(() => actions.openAppLink?.(link)),
     };
   });
   onDestroy(() => controller.closeNavigation());
