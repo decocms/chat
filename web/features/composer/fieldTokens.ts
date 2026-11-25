@@ -1,6 +1,6 @@
 // The composer's text keeps a picked room or thread as its plain link (what the chat draws as the app link chip and what
 // an agent reads), but the field shows it as that chip. The textarea holds a "view" of the text where each link is a
-// short token (two figure spaces where the chip's mark goes, then the name with no-break spaces, so it never wraps),
+// short token (two figure spaces and a narrow no-break space where the chip's mark goes, then the name with no-break spaces, so it never wraps),
 // and the field's mirror draws the chip over it. These helpers map the text, the caret and edits between the two.
 
 /** A link in the text that the field draws as a chip. */
@@ -32,8 +32,8 @@ export type FieldToken = FieldLink &
 
 export type FieldView = Readonly<{ text: string; tokens: FieldToken[] }>;
 
-/** Where the chip's mark goes: two figure spaces (no-break, about the mark's width). */
-export const TOKEN_MARK = "  ";
+/** Where the chip's mark goes: two figure spaces (the mark's width) and a narrow space (the gap), none breaking. */
+export const TOKEN_MARK = "\u2007\u2007\u202f";
 
 const label = (link: FieldLink) =>
   link.kind === "thread" && link.room
