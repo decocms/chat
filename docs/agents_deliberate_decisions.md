@@ -1868,3 +1868,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Room content stays on the device until a sign-out or 7 days, so a person who uses your browser profile while you are signed in can read it in the browser's storage. A bug in the merge shows old messages until the server answers.
 - Undo: Revert this commit. The app then keeps rooms in memory only, and old saved rooms stay unused in IndexedDB.
 - Status: open
+
+### 2026-11-25 · feat/link-chips · Link chips: new component, own endpoint, page cache
+
+- Agent: Claude Opus 5.5
+- Context: The product owner asked that a link to this app in a message show as a one-line chip of where it goes, and "Sala privada" when the viewer can't see it. The details below were not specified.
+- Decision:
+  - A new component `AppLinkChip.svelte` (no existing component draws an inline place: `Chip` is a control, the file and GitHub chips are part of `RichNodes`). It uses `PersonAvatar`, `RoomMark` and `Icon`.
+  - A new route `GET /api/books/:id/link` answers 200 with `{kind:"private"}` for a non-member, a missing room, thread or message, and a message the chat hides from the viewer, so the answer never tells them apart. The rules are in `src/linkTarget.ts`.
+  - Only a link whose text is the bare URL becomes a chip. A link with its own text stays a link, and a click opens it in the app.
+  - A file link (`#f`), an app link and `#doc` without a thread stay links.
+  - The open room's messages and threads come from its state. A link to the open room itself still asks the server, because only the server has the room's icon version.
+  - Answers are kept for the page's life, `private` too: a person who joins a room sees its chips after a reload. A failed request is not kept.
+  - One request per place, not one batched request for all links.
+- Other options: A batched endpoint for all links of a page. A chip for labelled links too. No cache for `private`.
+- Risk: low. A chip can show an old title until a reload.
+- Undo: Revert this commit.
+- Status: open
