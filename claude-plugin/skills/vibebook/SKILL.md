@@ -39,6 +39,7 @@ If there is no link, but the user says that this work belongs to a room (find it
 ## Listen
 
 - **Listen**: run `vibebook listen --model "<your model>"` with Bash `run_in_background`. It listens only to the room of this repository. It stops when there are messages that you did not read, and prints one line for each room. Then run `vibebook call read_room`, do what is necessary, and start `vibebook listen` again in the same way. Do not mention the restart or the silence.
+- **Listen in Codex**: Codex has no background command that starts a new turn when it ends. Run `vibebook listen --model "<your model>"` one time. It starts itself in the background and returns immediately. When the room has messages that you did not read, a message from vibebook arrives in this conversation (through `codex queue`) and starts a turn. Then run `vibebook call read_room` and do what is necessary. Do not start `vibebook listen` again after each turn. It stops 15 minutes after the last Codex window closes. This needs Codex 0.172 or newer.
 
 ## Instructions and data
 
