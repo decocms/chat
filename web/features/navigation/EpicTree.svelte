@@ -26,7 +26,7 @@
     type SortMove,
   } from "../../lib/components/SortableList.svelte";
   import {
-    archivedEpics,
+    doneEpics,
     activeEpics,
     epicForest,
     reorderEpics,
@@ -42,7 +42,7 @@
     session,
     mutations,
     onopen,
-    onarchchange,
+    ondonechange,
     selectionDisabled = false,
     onBeforeOpen,
     vb,
@@ -52,7 +52,7 @@
     session: NavigationSession;
     mutations: RoomMutations;
     onopen: (id: string) => void;
-    onarchchange: (archived: boolean) => void;
+    ondonechange: (done: boolean) => void;
     selectionDisabled?: boolean;
     onBeforeOpen?: () => boolean;
     vb: {
@@ -140,19 +140,17 @@
       observer.observe(node);
     return () => observer.disconnect();
   });
-  const archived = $derived(archivedEpics(orderedEpics, room.messages));
+  const done = $derived(doneEpics(orderedEpics, room.messages));
   // Two tabs (Gimenes #3989): open threads (to do, doing, requires action,
   // then @vibe's proposals: open one to see it, start it to make it a thread)
   // and done (the archive).
   const mode = $derived(
-    $navigation.archived && archived.length > 0 ? "archived" : "active",
+    $navigation.done && done.length > 0 ? "done" : "active",
   );
   /** The list is flat: sub-epics are plain rows, with no branches to open. */
   const flat = (list: readonly Epic[]) =>
     list.map((epic) => (epic.parent ? { ...epic, parent: undefined } : epic));
-  const forest = $derived(
-    epicForest(flat(mode === "archived" ? archived : active)),
-  );
+  const forest = $derived(epicForest(flat(mode === "done" ? done : active)));
   const entryForest = $derived(epicForest(room.epics));
   const workingEpics = $derived(
     new Set(
@@ -181,7 +179,7 @@
   // The rows are flat, but a sub-thread sorts only among its siblings (the order the server keeps,
   // reorderEpics): its group is its real parent.
   const parents = $derived(
-    epicForest(orderedEpics.filter((epic) => !epic.archived)).parents,
+    epicForest(orderedEpics.filter((epic) => !epic.done)).parents,
   );
   const groupOf = (id: string) => parents.get(id) ?? ROOT_GROUP;
   const groupMembers = (group: string) =>
@@ -209,13 +207,13 @@
     generation++;
     requested = null;
     localOrder = null;
-    const archived = value === "archived";
+    const done = value === "done";
     navigation.update((state) => ({
       ...state,
-      archived,
+      done,
       suggestions: false,
     }));
-    onarchchange(archived);
+    ondonechange(done);
     error = "";
   }
   async function submit(command: Parameters<RoomMutations["run"]>[0]) {
@@ -226,8 +224,8 @@
   }
   $effect(() => {
     // A suggestion opened from elsewhere (a link, Back) opens the open threads, with its row.
-    if (thread.startsWith("pre:") && untrack(() => $navigation.archived))
-      navigation.update((state) => ({ ...state, archived: false }));
+    if (thread.startsWith("pre:") && untrack(() => $navigation.done))
+      navigation.update((state) => ({ ...state, done: false }));
   });
   function siblings(id: string) {
     return groupMembers(groupOf(id));
@@ -326,9 +324,9 @@
   const views = $derived([
     { value: "active", label: vb.t("Threads abertas"), disabled: false },
     {
-      value: "archived",
+      value: "done",
       label: vb.t("Feitas"),
-      disabled: archived.length === 0,
+      disabled: done.length === 0,
     },
   ]);
 </script>
@@ -345,9 +343,7 @@
     {#if value === mode}
       <ul
         bind:this={list}
-        aria-label={value === "archived"
-          ? vb.t("Feitas")
-          : vb.t("Threads abertas")}
+        aria-label={value === "done" ? vb.t("Feitas") : vb.t("Threads abertas")}
         class="m-0 flex list-none flex-col gap-1 p-0"
       >
         <SortableList
@@ -357,7 +353,6 @@
         >
           {#each rows as row (row.epic.id)}
             {@const epic = row.epic}
-            {@const working = vb.epicBusy(epic)}
             {@const current = !selectionDisabled && thread === epic.id}
             {@const status = epicStatus(epic)}
             <SortableItem
@@ -393,7 +388,7 @@
                           "relative h-10 min-w-0 flex-1 justify-start gap-2.5 rounded-lg px-2.5 text-left font-normal hover:bg-transparent",
                           current && "font-medium",
                           // Done: finished work reads quieter, and comes back on hover or when open.
-                          value === "archived" &&
+                          value === "done" &&
                             !current &&
                             "text-muted-foreground group-hover/row:text-sidebar-foreground",
                         )}
@@ -429,15 +424,15 @@
                             : undefined}
                           class={cn(
                             "size-6",
-                            value === "archived" &&
+                            value === "done" &&
                               !current &&
                               "opacity-60 group-hover/row:opacity-100",
                           )}
                         />
                         <span class="min-w-0 flex-1 truncate" data-epic-title
-                          >{epic.title}{#if epic.archived && value !== "archived"}<span
+                          >{epic.title}{#if epic.done && value !== "done"}<span
                               class="ml-1 text-xs text-muted-foreground"
-                              >({vb.t("Arquivado")})</span
+                              >({vb.t("Feito")})</span
                             >{/if}</span
                         >
                         {#if epic.pinned && value === "active"}<span
@@ -447,15 +442,7 @@
                             class="flex shrink-0 text-muted-foreground"
                             ><Icon icon="pin-02" class="size-3.5" /></span
                           >{/if}
-                        {#if working}<span
-                            role="img"
-                            aria-label={vb.t("{who} está trabalhando", {
-                              who: working,
-                            })}
-                            class="shrink-0 text-xs text-muted-foreground"
-                            >✻</span
-                          >{/if}
-
+                        <!-- No ✻ for an agent at work (Gimenes #4368): its ack moves the thread to Fazendo, and the status icon says it. -->
                         <!-- One slot at the end (Gimenes #3904): the lime count when something waits on you, else the status (shared/epicStatus.ts; an epic in production shows Feito). -->
                         {#if waitCount(vb.waitsIn(epic.id))}<WaitBadge
                             waits={vb.waitsIn(epic.id)}

@@ -13,7 +13,9 @@
     ChatMessage,
   } from "../../app/chatTypes";
   import {
+    canEditMessage,
     canStartThread,
+    startsThread,
     continues,
     issueParts,
     messageKind,
@@ -27,7 +29,10 @@
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import { AGENT_NAMES, agentProvider } from "../../lib/components/agent";
   import Badge from "../../lib/studio/Badge.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
   import MessageActions from "./MessageActions.svelte";
+  import MessageEditor from "./MessageEditor.svelte";
+  import { editingMessage } from "./editing";
   import MessageFooter from "./MessageFooter.svelte";
   import MessageReactions from "./MessageReactions.svelte";
   import Attachments from "./Attachments.svelte";
@@ -60,12 +65,21 @@
   // The hover toolbar (8 reactions, reply, copy, link, each with a tooltip) was most of the time to show a room:
   // about 200 of 300 ms for 60 messages. It mounts on the first pointer or focus in the message.
   let toolbar = $state(false),
-    article = $state<HTMLElement>();
+    article = $state<HTMLElement>(),
+    // The phone's actions sheet (Gimenes #4402): a long press on the message opens it.
+    sheet = $state(false);
   // "Criar thread" (Gimenes #4310): one click makes the thread and opens it. No title step: the title is the start
   // of the message (rename it later). A thread from a message in main offers "Desfazer" for a few seconds.
   let threadBusy = false,
     threadError = $state("");
   const threadable = $derived(!origin && canStartThread(room, m));
+  const editable = $derived(!origin && canEditMessage(room, m));
+  // Edited in place (like Discord): the text is a box until Enter or Esc; no toolbar meanwhile.
+  const editing = $derived(
+    editable &&
+      $editingMessage?.room === room.id &&
+      $editingMessage.id === m.id,
+  );
   async function startThread() {
     if (threadBusy) return;
     threadBusy = true;
@@ -158,6 +172,16 @@
   // A reply always opens with its own header (and the quote line above it), like Discord.
   const continuous = $derived(!m.reply_to && continues(previous, m));
   const kind = $derived(messageKind(m));
+  // Reactions go on people's and agents' messages, not on @vibe notices, issues or reminders.
+  const reactable = $derived(
+    !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder",
+  );
+  const reacted = $derived(
+    Object.values(m.reactions ?? {}).some((who) => who.length),
+  );
+  // Nothing under the message yet: no chips, no acks. Its row still keeps its height (the quick reactions show there on
+  // hover), except on a phone, where there is no hover and the long-press sheet reacts.
+  const bare = $derived(!footer && !reacted);
   const quote = $derived(
     m.reply_to
       ? [...room.messages, ...(room.origins || [])].find(
@@ -221,6 +245,7 @@
     names={vb.knownNames}
     pageUrl={vb.pageUrl}
     fileLabel={vb.t("arquivo")}
+    t={vb.t}
   />{/snippet}
 <article
   id={origin ? undefined : `m${m.id}`}
@@ -231,25 +256,16 @@
   data-waiting={waiting}
   use:highlight
   use:swipeMessage={{
-    enabled: !origin,
+    enabled: !origin && !editing,
     reply: () => {
       if (active) actions.reply(m.id);
     },
-    thread: threadable
-      ? () => {
-          if (active) void startThread();
-        }
-      : undefined,
-    copy: (link) => {
-      // On a touch screen pointerenter comes before touchstart, so the toolbar is mounted: copy now, inside the
-      // gesture, because iOS Safari allows the clipboard only there.
-      if (actionController) void actionController.copy(link);
-      else {
-        showToolbar();
-        void tick().then(() => {
-          if (active) void actionController?.copy(link);
-        });
-      }
+    hold: () => {
+      if (!active) return;
+      showToolbar();
+      void tick().then(() => {
+        if (active) sheet = true;
+      });
     },
   }}
   bind:this={article}
@@ -257,38 +273,27 @@
   onfocusin={showToolbar}
   class={[
     continuous
-      ? "group relative rounded-control px-3 py-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
-      : "group relative mt-3 rounded-control px-3 pt-1 pb-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
+      ? "group relative rounded-control px-3 pt-0.5 pb-0 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
+      : "group relative mt-1 rounded-control px-3 pt-1 pb-0 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
+    // A long press opens the actions sheet, so on a touch screen it does not also select text (the sheet copies).
+    origin || editing
+      ? ""
+      : "pointer-coarse:select-none [-webkit-touch-callout:none]",
     waiting ? "border-l-2 border-warning bg-warning/10" : "",
     attention ? "animate-pulse motion-reduce:animate-none" : "",
-    flash ? "bg-accent" : "",
+    flash || sheet ? "bg-accent" : "",
     fireHot
       ? "after:pointer-events-none after:absolute after:inset-0 after:animate-pulse after:rounded-surface after:ring-2 after:ring-warning motion-reduce:after:animate-none"
       : "",
   ]}
 >
-  <!-- What letting go of a swipe does (Gui #2668), drawn past the message's edges as it slides. Right: Reply →,
-       and further right Create thread → (Gimenes #4123). Left: Copy on top, Link below; the half under the finger
-       is outlined, and lit past the threshold. -->
+  <!-- What letting go of a swipe does (Gui #2668): the reply icon comes out past the message's left edge as it slides,
+       grows, and turns darker where letting go replies: gray, like WhatsApp (Gimenes #4533, #4549). The rest is in the sheet a long press
+       opens (Gimenes #4440). -->
   <span
     aria-hidden="true"
-    class="pointer-events-none absolute top-1/2 right-[calc(100%+12px)] hidden -translate-y-1/2 text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=right]:block in-data-[swipe=reply]:text-foreground in-data-[swipe=thread]:hidden"
-    >{vb.t("Responder")} →</span
-  ><span
-    aria-hidden="true"
-    data-swipe-target="thread"
-    class="pointer-events-none absolute top-1/2 right-[calc(100%+12px)] hidden -translate-y-1/2 text-xs font-semibold whitespace-nowrap text-foreground in-data-[swipe=thread]:block"
-    >{vb.t("Criar thread")} →</span
-  ><span
-    aria-hidden="true"
-    data-swipe-target="copy"
-    class="pointer-events-none absolute bottom-[calc(50%+2px)] left-[calc(100%+8px)] hidden h-[max(calc(50%-2px),22px)] w-[68px] place-items-center rounded-lg border border-solid border-border bg-card text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=left]:grid in-data-[swipe-pick=copy]:border-brand in-data-[swipe-pick=copy]:text-foreground in-data-[swipe=copy]:bg-brand/15"
-    >{vb.t("Copiar")}</span
-  ><span
-    aria-hidden="true"
-    data-swipe-target="link"
-    class="pointer-events-none absolute top-[calc(50%+2px)] left-[calc(100%+8px)] hidden h-[max(calc(50%-2px),22px)] w-[68px] place-items-center rounded-lg border border-solid border-border bg-card text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=left]:grid in-data-[swipe-pick=link]:border-brand in-data-[swipe-pick=link]:text-foreground in-data-[swipe=link]:bg-brand/15"
-    >{vb.t("Link")}</span
+    class="pointer-events-none absolute top-1/2 right-[calc(100%+8px)] grid size-8 -translate-y-1/2 scale-50 place-items-center rounded-full bg-muted text-muted-foreground opacity-0 transition-[opacity,scale,background-color,color] duration-150 ease-out in-data-[swipe=reply]:scale-100 in-data-[swipe=reply]:text-foreground in-data-[swipe=reply]:opacity-100 in-data-[swipe=tracking]:scale-75 in-data-[swipe=tracking]:opacity-70 motion-reduce:transition-none"
+    ><Icon icon="reverse-left" size={16} /></span
   >
   {#if m.reply_to}<!-- The message it answers, one line above the header (like Discord): a spine from the avatar
        curls up into a small picture, the author and the start of their message; a click jumps there. -->
@@ -298,7 +303,8 @@
       title={vb.t("Ver a mensagem respondida")}
       class="group/quote relative mb-1 flex h-[22px] w-full min-w-0 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 pl-14 text-left font-sans text-sm leading-[18px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onclick={() => {
-        if (active) actions.navigate(m.reply_to!, quote?.thread);
+        if (active)
+          actions.navigate(m.reply_to!, quote?.thread ?? m.reply_thread);
       }}
     >
       <span
@@ -410,10 +416,11 @@
                 })
               : vb.t("pensando…")}{typing ? "…" : ""}
           </p>
+        {:else if editing}<MessageEditor message={m} {actions} {vb} />
         {:else if m.text && !echoesCard}{@render rich(
             m.text,
             m.author === "ai" || m.kind === "agent" ? "markdown" : "human",
-          )}{/if}{#if m.edited && !m.deleted}<span
+          )}{/if}{#if m.edited && !m.deleted && !editing}<span
             data-message-edited
             class="text-xs text-muted-foreground select-none"
             >{vb.t("(editada)")}</span
@@ -498,13 +505,20 @@
             {actions}
             {vb}
           />{/each}{/if}
-      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. Only when there
-           is something in it: an empty bar spread a run of messages from the same person apart. Not selectable:
-           copying a conversation takes the messages, not ✓ ⏳ ✻ and the reaction chips (Gimenes #3622). -->
-      {#if (footer && !origin) || (!origin && Object.values(m.reactions ?? {}).some((who) => who.length))}<div
-          class="flex flex-wrap items-center justify-between gap-x-3 select-none"
+      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. A message people
+           can react to always keeps it, 24px high, so the quick reactions that show there on hover (Gui #4726) move
+           nothing; the message's own padding is tight to make up for it. It pulls up over the body's 4px gap, inside
+           the message. Not selectable: copying a conversation takes the messages, not ✓ ⏳ ✻ and the reaction chips
+           (Gimenes #3622). Not while the
+           text is a box: its "esc / enter" line sits there. -->
+      {#if !origin && !editing && (footer || reactable)}<div
+          data-reaction-row={m.id}
+          class={[
+            "-mt-1 flex min-h-6 flex-wrap items-center justify-between gap-x-3 select-none",
+            bare && "pointer-coarse:hidden",
+          ]}
         >
-          {#if !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder"}<MessageReactions
+          {#if reactable}<MessageReactions
               message={m}
               me={room.me}
               {actions}
@@ -516,8 +530,9 @@
         </div>{/if}
     </div>
   </div>
-  {#if toolbar}<MessageActions
+  {#if editing}<!-- No toolbar while the text is a box. -->{:else if toolbar}<MessageActions
       bind:this={actionController}
+      bind:sheet
       floating
       canReact={!origin &&
         kind !== "issue" &&
@@ -527,11 +542,9 @@
       message={m}
       roomId={room.id}
       onthread={threadable ? () => void startThread() : undefined}
-      canEdit={m.author === room.me &&
-        m.kind !== "agent" &&
-        !m.deleted &&
-        !!m.text}
+      canEdit={editable}
       canDelete={!m.deleted &&
+        !startsThread(room, m) &&
         ((m.author === room.me && m.kind !== "agent") ||
           room.book.owner === room.me)}
       history={room.book.owner === room.me && (m.edited || m.deleted)

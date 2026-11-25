@@ -131,6 +131,21 @@ export function createRoomsSession(
         id,
       );
     },
+    /** Marks everything in the room as read: the dot goes at once, the server keeps it for your other devices. */
+    read(id: string) {
+      const room = get(personal.state).me?.books.find((room) => room.id === id);
+      if (!room) return;
+      const upto = Math.max(room.last_human_id, room.last_agent_id);
+      personal.seen(id, upto);
+      return run(
+        `read:${id}`,
+        (signal) => personal.api.read(id, signal),
+        (me) =>
+          (me.books.find((room) => room.id === id)?.read_id ?? upto) >= upto &&
+          !me.waits.some((wait) => wait.book_id === id),
+        id,
+      );
+    },
     tint(id: string, tint: RoomTint) {
       return run(
         `tint:${id}`,

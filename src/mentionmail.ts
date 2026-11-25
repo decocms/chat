@@ -72,13 +72,13 @@ export function mailBody(f: MailFacts, c: MailCopy, url: string, unsub: string, 
   const who = [...new Set(f.mentions.map((m) => m.from))].join(", ");
   const html = emailHtml(
     escapeHtml(c.ask || c.subject),
-    `<p style="margin:0 0 18px;color:#6b7383;font-size:14px">${escapeHtml(who)} ${t.mentioned} <b style="color:#1a2130">${where}</b></p>
+    `<p style="margin:0 0 18px;color:#676664;font-size:14px">${escapeHtml(who)} ${t.mentioned} <b style="color:#0a0a09">${where}</b></p>
 ${c.context.length ? `<ul style="margin:0 0 18px;padding-left:20px;line-height:1.55">${c.context.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
-${f.mentions.map((m) => `<div style="border-left:3px solid #d0d8e6;padding:6px 0 6px 12px;margin:0 0 10px;color:#3a4356"><b>${escapeHtml(m.from)}</b><br>${escapeHtml(m.text).replace(/\n/g, "<br>")}</div>`).join("")}
+${f.mentions.map((m) => `<div style="border-left:3px solid #d6d5d2;padding:6px 0 6px 12px;margin:0 0 10px;color:#3a3937"><b>${escapeHtml(m.from)}</b><br>${escapeHtml(m.text).replace(/\n/g, "<br>")}</div>`).join("")}
 ${f.myTasks.length ? `<p style="margin:18px 0 6px;font-weight:700">${t.tasks}</p><ul style="margin:0;padding-left:20px;line-height:1.55">${f.myTasks.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul>` : ""}
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 4px"><tr><td style="background:#1d5fc4;border-radius:999px"><a href="${url}" style="display:inline-block;padding:13px 24px;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px">${t.reply}</a></td></tr></table>
-<p style="font-size:13px;color:#6b7383;margin:18px 0 0">${t.inConv} ${escapeHtml(f.people.join(", "))}.${replyable ? ` ${t.replyTo(escapeHtml(who))}` : ""}</p>
-<p style="font-size:12px;color:#8a93a3;margin:20px 0 0;padding-top:16px;border-top:1px solid #eef1f6">${t.why} <a href="${unsub}" style="color:#8a93a3">${t.off}</a></p>`,
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 4px"><tr><td style="background:#0a0a09;border-radius:999px"><a href="${url}" style="display:inline-block;padding:13px 24px;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px">${t.reply}</a></td></tr></table>
+<p style="font-size:13px;color:#676664;margin:18px 0 0">${t.inConv} ${escapeHtml(f.people.join(", "))}.${replyable ? ` ${t.replyTo(escapeHtml(who))}` : ""}</p>
+<p style="font-size:12px;color:#676664;margin:20px 0 0;padding-top:16px;border-top:1px solid #edecea">${t.why} <a href="${unsub}" style="color:#676664">${t.off}</a></p>`,
     new URL(url).origin, // the room link is on this Worker, so is the logo
   );
   const text = `${c.ask}\n\n${who} ${t.mentioned} ${f.room.title}${f.epic ? ` › ${f.epic.title}` : ""}\n\n${c.context.map((x) => `- ${x}`).join("\n")}\n\n${f.mentions.map((m) => `${m.from}: ${m.text}`).join("\n\n")}\n\n${t.replyText} ${url}\n\n${t.off}: ${unsub}`;

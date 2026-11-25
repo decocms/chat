@@ -1,0 +1,78 @@
+name: Router bench
+
+# AGENTS.md rule 14 (Gimenes #4384, #4412, #4444): a pull request that touches the router runs the router bench on
+# main and on the branch, with the branch's cases and the production cases in D1 (router_feedback), and fails when a
+# case misses or a score goes down. The scores go in a PR comment and in the run summary. Secrets: OPENROUTER_API_KEY
+# (real Jev calls, about US$0.00002 each) and CLOUDFLARE_API_TOKEN (D1 read only; the account is in wrangler.jsonc).
+# The bench never prints a D1 case's text: this repository and its logs are public. A pull request from a fork gets
+# no secret, so it fails with a message; run it from a branch of this repository.
+on:
+  pull_request:
+    paths:
+      - src/router.ts
+      - src/router-rule.ts
+      - src/router-jev.ts
+      - src/routerActions.ts
+      - src/jev.ts
+      - src/decision-provider.ts
+      - scripts/router-bench.ts
+      - scripts/router-bench-compare.ts
+      - scripts/router-cases.json
+      - scripts/router-action-cases.json
+      - .github/workflows/router-bench.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: router-bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      OUT: ${{ github.workspace }}/.artifacts/router-bench
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: The key is there
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error::The OPENROUTER_API_KEY repository secret is missing (or this is a fork). The bench needs real Jev calls."
+            exit 1
+          fi
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::The CLOUDFLARE_API_TOKEN repository secret is missing (or this is a fork). The bench reads the production cases from D1 (read only)."
+            exit 1
+          fi
+      - name: Bench this branch
+        run: |
+          mkdir -p "$OUT"
+          bun scripts/router-bench.ts --d1 --json "$OUT/head.json"
+      - name: Bench main, with this branch's bench and cases
+        run: |
+          git worktree add "$RUNNER_TEMP/base" origin/main
+          cp scripts/router-bench.ts scripts/router-cases.json scripts/router-action-cases.json "$RUNNER_TEMP/base/scripts/"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/base/node_modules"
+          cd "$RUNNER_TEMP/base"
+          bun scripts/router-bench.ts --d1 --json "$OUT/base.json"
+      - name: Compare
+        run: bun scripts/router-bench-compare.ts "$OUT/base.json" "$OUT/head.json" "$OUT/bench.md"
+      - name: Run summary
+        if: ${{ always() && hashFiles('.artifacts/router-bench/bench.md') != '' }}
+        run: cat "$OUT/bench.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Comment on the pull request
+        if: ${{ always() && github.event_name == 'pull_request' && hashFiles('.artifacts/router-bench/bench.md') != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$OUT/bench.md" --edit-last --create-if-none

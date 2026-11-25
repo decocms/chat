@@ -17,6 +17,8 @@ import {
   RoomSnapshotSchema,
   SuggestionSchema,
   BriefSchema,
+  CallPeerSchema,
+  RingSchema,
   TaskSchema,
 } from "./room";
 
@@ -142,6 +144,12 @@ export const RoomEventSchemas = {
   ackRows: event("ackRows", { acks: z.array(AckSchema) }),
   poll: event("poll", { poll: PollSchema }),
   online: event("online", { online: strings }),
+  // Who is in the room's call and what each one publishes (src/calls.ts).
+  call: event("call", {
+    call: z.array(CallPeerSchema),
+    thread: z.optional(str),
+    ring: z.optional(RingSchema),
+  }),
   conns: event("conns", {}),
   error: event("error", { error: z.optional(str) }),
   blocked: event("blocked", { text: str, reason: str }),

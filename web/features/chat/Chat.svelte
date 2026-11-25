@@ -1,7 +1,9 @@
 <script lang="ts">
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import { CALL_THREAD } from "../../../shared/call";
   import { onMount } from "svelte";
   import Message from "./Message.svelte";
+  import CallLine from "./CallLine.svelte";
   import type { ChatProps } from "../../app/chatTypes";
   import {
     foldMessages,
@@ -170,15 +172,19 @@
             class="my-3 flex items-center gap-3 px-3 text-xs font-medium text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
           >
             {dayLabel(message.ts, Date.now(), vb.locale, (text) => vb.t(text))}
-          </div>{/if}<Message
-          {message}
-          previous={newDay(before, message) ? undefined : before}
-          typing={room.typing[message.id]}
-          {vb}
-          {room}
-          {actions}
-          footer={footers.get(message.id)}
-        />{/each}
+          </div>{/if}{#if message.tag === "call"}<CallLine
+            {message}
+            {room}
+            {vb}
+          />{:else}<Message
+            {message}
+            previous={newDay(before, message) ? undefined : before}
+            typing={room.typing[message.id]}
+            {vb}
+            {room}
+            {actions}
+            footer={footers.get(message.id)}
+          />{/if}{/each}
     {:else if !workers.length}<p
         data-chat-empty
         class="m-0 p-6 text-center leading-6 text-muted-foreground"
@@ -189,9 +195,11 @@
                 "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em threads: site novo, aluguéis e domínio</i>.",
               )
               .replace(/<\/?i>/g, "")
-          : vb.t(
-              "Discussão desta thread. Os agents leem as tarefas, o doc e a sala principal.",
-            )}
+          : thread === CALL_THREAD
+            ? vb.t("Chat da call. Fica para as próximas calls desta sala.")
+            : vb.t(
+                "Discussão desta thread. Os agents leem as tarefas, o doc e a sala principal.",
+              )}
       </p>{/if}
     {#if workers.length}<!-- Who is working here, in the agent's own color (a full block, like its tile): the agent is the
          squircle, the person it works for the small round picture on its corner. -->
@@ -256,7 +264,7 @@
           >✻</span
         >
       </div>{/if}
-    {#if epic?.archived}<div
+    {#if epic?.done}<div
         data-chat-end
         class="mx-3 mt-4 space-y-1 rounded-surface border border-border p-4"
       >

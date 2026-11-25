@@ -31,6 +31,7 @@
   import { roomLabel } from "../home/model";
   import { MediaQuery } from "svelte/reactivity";
   import { MOBILE_QUERY } from "../../lib/breakpoints";
+  import IncomingCall from "../call/IncomingCall.svelte";
   let {
     services,
     roomSnippet,
@@ -213,8 +214,8 @@
     onnew: (trigger) => {
       if (current()) services.navigation.openCreate(trigger);
     },
-    onroomsettings: (id, trigger) => {
-      if (current()) services.navigation.openSettings(id, trigger);
+    onroommenu: (id, trigger, point) => {
+      if (current()) services.navigation.openMenu(id, trigger, point);
     },
     oninbox: (trigger) => {
       if (current()) openInbox(trigger);
@@ -224,6 +225,8 @@
     },
     onjoin: services.navigation.callbacks.answerInvite,
     onanswer: services.navigation.callbacks.answerRequest,
+    onconnect: services.navigation.callbacks.connect,
+    ondismiss: services.navigation.callbacks.dismiss,
     onlanguage: language,
   });
   onMount(() => {
@@ -486,5 +489,11 @@
           {/snippet}
         </Snapshot>{/key}{/if}
   {/if}
+  <IncomingCall
+    current={$room.roomId ?? null}
+    navigate={(path) => services.actions.navigate(path)}
+    chime={() => services.pwa.alert()}
+    t={services.t}
+  />
   <DeviceLockScreen owner={services.device} lang={services.language} />
 </div>

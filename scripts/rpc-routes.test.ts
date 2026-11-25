@@ -54,15 +54,32 @@ const conn = {
 function fixture(overrides: Partial<ApiServices> = {}) {
   const writes: { query: string; values: (string | number | null)[] }[] = [];
   const posted: { room: string; text: string; thread: string }[] = [];
+  const pages: Record<string, unknown>[] = [];
   const uploaded: { room: string; type: string; size: number; name: string }[] =
     [];
   const saved: { table: string; value: string }[] = [];
   const svc: ApiServices = {
     en: false,
     isMember: async () => true,
+    callsOn: true,
+    allowCall: async () => true,
+    callJoin: async () => ({ session: "s1" }),
+    callTracks: async () => ({}),
+    callAnswer: async () => true,
+    callClose: async () => true,
+    callLeave: async () => {},
+    callDecline: async () => {},
     allowStt: async () => true,
     transcribe: async () => ({ ok: true, text: "spoken" }),
     pokeFocus: () => {},
+    roomMessages: async (room, query) => {
+      pages.push({ room, ...query });
+      return { thread: query.thread, messages: [], acks: [], more: false };
+    },
+    linkTarget: async (room, query) => {
+      pages.push({ link: room, ...query });
+      return { kind: "private" };
+    },
     humanPost: async (room, text, thread) => {
       posted.push({ room, text, thread });
       return text.trim()
@@ -93,6 +110,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     },
     track: () => {},
     pokeMe: () => {},
+    waitCleared: () => {},
     vapidKey: "public-key",
     pushToMe: async () => 1,
     sqlAll: async () => [],
@@ -317,7 +335,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(value),
     });
-  return { app, json, writes, posted, uploaded, saved, svc };
+  return { app, json, writes, posted, pages, uploaded, saved, svc };
 }
 
 test("post validates HTTP input and preserves success and business-error responses", async () => {
@@ -352,12 +370,66 @@ test("post validates HTTP input and preserves success and business-error respons
   ]);
 });
 
+test("GET link: the query validated, the answer the resolver's, never a 403", async () => {
+  const f = fixture({ isMember: async () => false });
+  const ok = await f.app.request("/api/books/room/link?t=e1&m=42");
+  expect(ok.status).toBe(200);
+  expect(ok.headers.get("cache-control")).toBe("private, no-store");
+  expect(await ok.json()).toEqual({ kind: "private" });
+  expect((await f.app.request("/api/books/room/link")).status).toBe(200);
+  expect(f.pages).toEqual([{ link: "room", t: "e1", m: 42 }, { link: "room" }]);
+  for (const query of ["m=0", "m=x", "t=", `t=${"x".repeat(65)}`])
+    expect((await f.app.request(`/api/books/room/link?${query}`)).status).toBe(
+      400,
+    );
+});
+
+test("GET messages: a page by id cursor, members only, the query validated (cache plan, PR 1)", async () => {
+  const f = fixture();
+  const ok = await f.app.request(
+    "/api/books/room/messages?thread=e1&before=90&limit=20",
+  );
+  expect(ok.status).toBe(200);
+  expect(ok.headers.get("cache-control")).toBe("private, no-store");
+  expect(await ok.json()).toEqual({
+    thread: "e1",
+    messages: [],
+    acks: [],
+    more: false,
+  });
+  expect((await f.app.request("/api/books/room/messages")).status).toBe(200);
+  expect((await f.app.request("/api/books/room/messages?after=7")).status).toBe(
+    200,
+  );
+  expect(f.pages).toEqual([
+    { room: "room", thread: "e1", before: 90, limit: 20 },
+    { room: "room", thread: "main", limit: 50 },
+    { room: "room", thread: "main", after: 7, limit: 50 },
+  ]);
+  for (const query of [
+    "limit=0",
+    "limit=101",
+    "before=-1",
+    "before=x",
+    "thread=",
+  ])
+    expect(
+      (await f.app.request(`/api/books/room/messages?${query}`)).status,
+    ).toBe(400);
+  const outsider = fixture({ isMember: async () => false });
+  expect((await outsider.app.request("/api/books/room/messages")).status).toBe(
+    403,
+  );
+  expect(outsider.pages).toHaveLength(0);
+});
+
 test("room operations reject nonmembers before any write", async () => {
   const f = fixture({ isMember: async () => false });
   for (const [path, body] of [
     ["post", { text: "forbidden" }],
     ["archive", { archived: true }],
     ["tint", { tint: "blue" }],
+    ["read", {}],
   ] as const) {
     expect((await f.json(`/api/books/room/${path}`, body)).status).toBe(403);
   }
@@ -492,6 +564,7 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
   for (const [path, value] of [
     ["/api/books/room/archive", { archived: false }],
     ["/api/books/room/tint", { tint: "blue" }],
+    ["/api/books/room/read", {}],
     ["/api/rooms/order", { ids: ["room", "other"] }],
     ["/api/waits/resolve", { book_id: "room", ref: "m1" }],
     [
@@ -505,10 +578,15 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
     ],
   ] as const)
     expect((await f.json(path, value)).status).toBe(200);
-  expect(f.writes).toHaveLength(7);
+  expect(f.writes).toHaveLength(9);
   expect(
     f.writes.every((write) => write.values.includes("test@example.com")),
   ).toBe(true);
+  // Marking a room read also clears what waited on you there, only there.
+  expect(
+    f.writes.find((write) => write.query.startsWith("DELETE FROM waits"))
+      ?.values,
+  ).toEqual(["room", "test@example.com"]);
 });
 
 test("freestyle key and Claude token: validated, checked, sealed, never echoed back", async () => {
@@ -1943,4 +2021,57 @@ test("writing to someone opens the DM, sends a request, or is rate-limited; invi
   expect((await f.json("/api/books/aaaaaa/invite", { yes: "y" })).status).toBe(
     400,
   );
+});
+
+test("the call routes are members-only, off without an SFU app, and say when the screen budget is spent", async () => {
+  const json = (body: unknown) => ({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const on = fixture();
+  const joined = await on.app.request("/api/books/room/call/join", {
+    method: "POST",
+  });
+  expect([joined.status, await joined.json()]).toEqual([
+    200,
+    { session: "s1" },
+  ]);
+  const off = await fixture({ callsOn: false }).app.request(
+    "/api/books/room/call/join",
+    { method: "POST" },
+  );
+  expect(off.status).toBe(404);
+  const outsider = fixture({ isMember: async () => false });
+  for (const path of ["join", "tracks", "answer", "close"]) {
+    const refused = await outsider.app.request(
+      `/api/books/room/call/${path}`,
+      json({ session: "s1", mids: [], answer: { type: "answer", sdp: "v=0" } }),
+    );
+    expect([path, refused.status]).toEqual([path, 403]);
+  }
+  const spent = fixture({ callTracks: async () => "limit" });
+  const screen = await spent.app.request(
+    "/api/books/room/call/tracks",
+    json({
+      session: "s1",
+      offer: { type: "offer", sdp: "v=0" },
+      push: [{ mid: "1", name: "screen" }],
+    }),
+  );
+  expect([screen.status, await screen.json()]).toEqual([
+    409,
+    { error: "call screen limit" },
+  ]);
+  // A session of someone else: the room refuses it (Book.callCheck).
+  const stolen = await fixture({ callAnswer: async () => false }).app.request(
+    "/api/books/room/call/answer",
+    json({ session: "s2", answer: { type: "answer", sdp: "v=0" } }),
+  );
+  expect(stolen.status).toBe(403);
+  const malformed = await on.app.request(
+    "/api/books/room/call/tracks",
+    json({ session: "bad session!" }),
+  );
+  expect(malformed.status).toBe(400);
 });

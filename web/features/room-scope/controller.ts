@@ -1,4 +1,5 @@
 import { chatTime, chatDateTime } from "../chat/time";
+import { CALL_THREAD, roomHasThread } from "../../../shared/call";
 import { derived, get, readonly, writable } from "svelte/store";
 import type { Attachment, Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
@@ -73,6 +74,7 @@ import {
 import { agentMarkLabel } from "../agents/roomCopy";
 import type { RoomAgentSession } from "../agents/room";
 import type { RichActions, RichNavigation } from "../rich-text/types";
+import type { AppLink } from "../rich-text/appLinks";
 import type { ComposerUpload } from "../composer/types";
 import type { ComposerEntry } from "../composer/drafts";
 import type { DocumentPane } from "../documents/types";
@@ -440,12 +442,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   function pickThread(thread: string) {
     if (!current() || defer(() => pickThread(thread))) return;
     const value = room()!;
-    if (
-      thread !== "main" &&
-      !suggestionAt(value, thread) &&
-      !value.epics.some((epic) => epic.id === thread)
-    )
-      return;
+    if (!suggestionAt(value, thread) && !roomHasThread(value, thread)) return;
     const replace = layout.takeSheetEntry();
     services.actions.selectThread(thread, { replace });
   }
@@ -504,18 +501,29 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   function richNavigate(target: RichNavigation) {
     if (!current() || defer(() => richNavigate(target))) return;
     const thread = target.id ?? selected();
-    if (
-      thread !== "main" &&
-      !room()!.epics.some((epic) => epic.id === thread)
-    ) {
+    if (!roomHasThread(room()!, thread)) {
       showNotice(t("Essa thread não existe mais nesta sala."));
       return;
     }
     if (thread !== selected()) pickThread(thread);
     if (target.kind === "document" && current()) setPane("doc", { open: true });
   }
+  /** A link to this app in a message (rich-text/AppLinkChip): this room's own places open like its links do; another
+   *  room is a navigation in this tab. */
+  function openAppLink(link: AppLink) {
+    const captured = { ...link };
+    if (!current() || defer(() => openAppLink(captured))) return;
+    if (captured.room !== scope.roomId)
+      services.actions.navigate(captured.path, layout.takeSheetEntry());
+    else if (captured.message !== undefined)
+      navigateMessage(captured.message, captured.thread);
+    else if (captured.thread)
+      richNavigate({ kind: "thread", id: captured.thread });
+    else if (selected() !== "main") pickThread("main");
+  }
   const rich: RichActions = {
     navigate: navigateMessage,
+    openAppLink,
     openFile,
     navigateRich: richNavigate,
     openFileReference: (file) => {
@@ -688,7 +696,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         navigation,
         value,
         snapshot.thread,
-        get(navigation.state).archived,
+        get(navigation.state).done,
       );
       mutations.sync(value, request);
       viewer.sync(value, request, fresh);
@@ -711,6 +719,8 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       if (
         changed &&
         snapshot.thread !== "main" &&
+        // The call chat has no doc (it sits beside the call's stage).
+        snapshot.thread !== CALL_THREAD &&
         !snapshot.thread.startsWith("pre:") &&
         !layout.read().documentVisible
       ) {
@@ -812,6 +822,15 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           ask: (prompt) => {
             if (owned()) composeIn(thread, (entry) => entry.edit(prompt));
           },
+          compose: (draft) => {
+            if (!owned()) return;
+            composeIn(thread, (entry) => {
+              for (const quote of draft.quotes) entry.quote(quote);
+              if (!draft.text) return;
+              const before = get(entry.state).text.trimEnd();
+              entry.edit(before ? `${before}\n\n${draft.text}` : draft.text);
+            });
+          },
           connectionModes: direct.state,
           owner: apps,
           api: appApi,
@@ -884,6 +903,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           request: threadRequest,
           waits,
           onopen: pickThread,
+          onjump: (id: number) => {
+            if (owned()) navigateMessage(id);
+          },
           ...(thread.startsWith("pre:")
             ? {}
             : {
@@ -1065,9 +1087,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             onopen: (target) => {
               if (current()) pickThread(target);
             },
-            onarchchange: (archived) => {
+            ondonechange: (done) => {
               if (current()) {
-                navigation.state.update((before) => ({ ...before, archived }));
+                navigation.state.update((before) => ({ ...before, done }));
                 project("stay");
               }
             },
@@ -1133,7 +1155,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                     if (!latest) throw new VoiceFailure(0);
                     const prompt =
                       `Conversa no deco.chat, sala ${latest.book.title}. Pessoas: ${latest.members.map((email) => email.split("@")[0]).join(", ")}. Threads: ${latest.epics
-                        .filter((epic) => !epic.archived)
+                        .filter((epic) => !epic.done)
                         .slice(0, 15)
                         .map((epic) => epic.title)
                         .join("; ")}.`.slice(0, 600);

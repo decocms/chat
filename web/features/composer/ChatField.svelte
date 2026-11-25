@@ -385,8 +385,9 @@
     };
   });
   const off = $derived(waiting || disabled);
-  // One cell, like WhatsApp (Gimenes #3821): the mic while the box is empty, send once there is
-  // something to send, stop while you dictate. On phones and on a computer alike.
+  // Phones: one cell, like WhatsApp (Gimenes #3821): the mic while the box is empty, send once there is
+  // something to send, stop while you dictate. A computer has room for both: the mic stays next to send,
+  // so you can dictate into text that is already there (Daniel, 2026-11-25).
   const swap = $derived(filled && !dictating && !refining);
   // While you dictate, the box is a recording bar: a red dot and the time, the text as it comes,
   // a trash on the left that puts the text back as it was before the dictation.
@@ -420,8 +421,9 @@
 </script>
 
 <!-- One filled field (#3692): the + on the left, emoji and the mic on the right, the reply and the
-     attachments inside it, on top. The mic and send share one cell, so the text never moves sideways:
-     send takes the mic's place when there is something to send (#3821). -->
+     attachments inside it, on top. On phones the mic and send share one cell, so the text never moves
+     sideways: send takes the mic's place when there is something to send (#3821). On a computer both
+     show; send is off until there is something to send. -->
 <form
   bind:this={root}
   data-chat-box
@@ -568,8 +570,10 @@
         emoji = true;
       }}><Icon icon="face-smile" size={16} /></IconButton
     >
-    <!-- The mic and send share one cell (#3821); while you dictate the mic is the stop button. -->
-    <div class="grid *:col-start-1 *:row-start-1">
+    <!-- Phones: the mic and send share one cell (#3821). While you dictate the mic is the stop button. -->
+    <div
+      class="flex items-end gap-0.5 max-md:grid max-md:gap-0 max-md:*:col-start-1 max-md:*:row-start-1"
+    >
       {#if speech.supported}<IconButton
           size="icon"
           aria-busy={refining || undefined}
@@ -580,7 +584,7 @@
           aria-pressed={dictating}
           class={cn(
             SLOT,
-            "group-data-[swap=true]:invisible group-data-[swap=true]:scale-75 group-data-[swap=true]:opacity-0",
+            "max-md:group-data-[swap=true]:invisible max-md:group-data-[swap=true]:scale-75 max-md:group-data-[swap=true]:opacity-0",
             dictating
               ? "bg-destructive text-destructive-foreground hover:bg-destructive/85 hover:text-destructive-foreground"
               : FIELD_ICON,
@@ -609,7 +613,7 @@
         aria-busy={pending || undefined}
         class={cn(
           SLOT,
-          "rounded-full group-data-[swap=false]:invisible group-data-[swap=false]:scale-75 group-data-[swap=false]:opacity-0",
+          "rounded-full max-md:group-data-[swap=false]:invisible max-md:group-data-[swap=false]:scale-75 max-md:group-data-[swap=false]:opacity-0",
         )}
         disabled={off || busy || sendDisabled}
         onmousedown={(event) => event.preventDefault()}

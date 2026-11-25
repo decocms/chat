@@ -27,6 +27,7 @@ import { createFilesSession } from "../web/features/files/session";
 import type { FilesProps } from "../web/features/files/types";
 import type { PeopleAction } from "../web/features/people/model";
 import { createComposerDrafts } from "../web/features/composer/drafts";
+import { editingMessage, startEditing } from "../web/features/chat/editing";
 
 // Compile the real components, then run their DOM events with the browser Svelte
 // runtime. Run with: bun test --conditions=browser scripts/ui-panels.test.ts
@@ -962,11 +963,78 @@ describe("room panels", () => {
     expect(target.querySelector("script")).toBeNull();
     expect(target.textContent).toContain("<script>bad()</script>");
     expect(target.textContent).toContain("<who>");
-    expect(target.textContent).toContain("✓ aprovado");
+    expect(target.textContent).toContain("aprovado");
     expect(target.textContent).toContain("decidido");
+    expect(
+      target.querySelectorAll("[data-decisions-timeline] [data-decision-day]"),
+    ).toHaveLength(1);
+    expect(target.querySelector("[data-decision-jump]")).toBeNull();
     update({ ...room, decisions: [] });
     expect(target.querySelector("[data-ddel]")).toBeNull();
     expect(target.textContent).toContain("Nenhuma decisão ainda");
+  });
+  test("a decision with its source message jumps to it", () => {
+    const room = fixture();
+    const now = Date.now();
+    room.decisions = [
+      {
+        id: 7,
+        kind: "decision",
+        text: "old",
+        who: "me@test",
+        ts: now - 3 * 864e5,
+      },
+      {
+        id: 8,
+        kind: "approval",
+        text: "new",
+        who: "me@test",
+        ts: now,
+        msg: 42,
+      },
+    ];
+    const jumps: number[] = [];
+    const { target } = render("decisions", room, {
+      onjump: (id) => jumps.push(id),
+    });
+    expect(
+      Array.from(target.querySelectorAll("[data-decision-day]"), (el) =>
+        el.getAttribute("data-decision-day"),
+      ),
+    ).toEqual(["today", "date"]);
+    expect(target.textContent).toContain("Hoje");
+    expect(target.querySelectorAll("[data-decision-jump]")).toHaveLength(1);
+    target
+      .querySelector<HTMLButtonElement>('[data-decision-jump="42"]')!
+      .click();
+    expect(jumps).toEqual([42]);
+  });
+  test("a decision with its person shows their avatar, the agent's mark and their name", () => {
+    const room = fixture();
+    room.decisions = [
+      {
+        id: 7,
+        kind: "decision",
+        text: "a",
+        who: "me · via agent",
+        ts: 1,
+        email: "ana@test",
+        via: "claude-opus-5-5",
+      },
+      { id: 8, kind: "decision", text: "b", who: "Old text", ts: 2 },
+    ];
+    const { target } = render("decisions", room);
+    const withPerson = target.querySelector('[data-decision-id="7"]')!;
+    expect(
+      withPerson.querySelector("[data-decision-avatar] [data-avatar]"),
+    ).not.toBeNull();
+    expect(
+      withPerson.querySelector("[data-decision-avatar] [data-agent-tile]"),
+    ).not.toBeNull();
+    expect(withPerson.textContent).toContain("ana@test · via agent");
+    const legacy = target.querySelector('[data-decision-id="8"]')!;
+    expect(legacy.querySelector("[data-decision-avatar]")).toBeNull();
+    expect(legacy.textContent).toContain("Old text");
   });
   test("decision deletion requires confirmation, restores cancellation focus and waits for canonical removal", async () => {
     const room = fixture();
@@ -1494,7 +1562,7 @@ describe("chat", () => {
       },
     };
   }
-  test("production endcard shows requested corrections without rewriting verified or archived state", async () => {
+  test("production endcard shows requested corrections without rewriting verified or done state", async () => {
     const room = fixture();
     room.epics = [
       {
@@ -1518,11 +1586,11 @@ describe("chat", () => {
     expect(
       h.target.querySelector("[data-chat-production]")?.textContent,
     ).not.toContain("Verified deployment");
-    const archived = {
+    const done = {
       ...room,
-      epics: [{ ...room.epics[0]!, archived: true }],
+      epics: [{ ...room.epics[0]!, done: true }],
     };
-    h.update(archived);
+    h.update(done);
     await tick();
     flushSync();
     expect(h.target.querySelector("[data-chat-end]")?.textContent).toContain(
@@ -2285,11 +2353,102 @@ describe("chat", () => {
       owner.dispose();
     }
   }, 30_000);
+  test("quick reactions sit in the row each message keeps, never move a message, show an emoji given once, and the picker is a popover next to them", async () => {
+    const sent: RoomCommand[] = [];
+    const reacted = {
+      ...message(9, "Has a reaction"),
+      author: "me@test",
+      kind: null,
+      reactions: { "👍": ["ana@test"] },
+    };
+    const bare = { ...message(10, "Nothing under it"), kind: null };
+    const { target } = renderChat(
+      { ...fixture(), messages: [reacted, bare] },
+      {
+        actions: {
+          request: async (command: RoomCommand): Promise<CommandOutcome> => {
+            sent.push(command);
+            return { ok: true };
+          },
+          draftReply: () => {},
+          reply: () => {},
+          navigate: () => {},
+          openFile: () => {},
+        },
+      },
+    );
+    hoverMessages(target);
+    flushSync();
+    // An emoji already given is its chip only, never also a suggestion (it showed twice on hover).
+    const offered = (id: number) =>
+      [
+        ...target.querySelectorAll<HTMLElement>(`#m${id} [data-offer-react]`),
+      ].map((el) => el.getAttribute("data-offer-react"));
+    expect(offered(9)).toEqual(["❤️", "😂", "🎉"]);
+    // The hover-only buttons keep their place while hidden (invisible, never display: none): hovering moves nothing.
+    for (const el of target.querySelectorAll<HTMLElement>(
+      "[data-offer-react]",
+    )) {
+      expect(el.className).toContain("invisible");
+      expect(el.className.split(/\s+/)).not.toContain("hidden");
+    }
+    // Every message keeps its reaction row in the flow, inside its own box (nothing floats over the next message),
+    // 24px high even with nothing in it yet.
+    for (const id of [9, 10]) {
+      const row = target.querySelector<HTMLElement>(
+        `#m${id} [data-reaction-row="${id}"]`,
+      );
+      expect(row?.className).toContain("min-h-6");
+      expect(row?.className.split(/\s+/)).not.toContain("absolute");
+      expect(
+        target.querySelectorAll(`#m${id} [data-message-reactions]`),
+      ).toHaveLength(1);
+    }
+    expect(target.querySelector("[data-reaction-bar]")).toBeNull();
+    // 🙂 opens the picker in a popover next to it; the four quick ones stay where they were.
+    const before = offered(10);
+    expect(before).toEqual(["👍", "❤️", "😂", "🎉"]);
+    target.querySelector<HTMLElement>("#m10 [data-add-reaction]")!.click();
+    flushSync();
+    await tick();
+    const popover = document.querySelector<HTMLElement>(
+      '[data-emoji-popover="10"]',
+    );
+    expect(popover?.getAttribute("data-slot")).toBe("popover-content");
+    expect(document.querySelector("[data-slot=dialog-content]")).toBeNull();
+    expect(offered(10)).toEqual(before);
+    expect(
+      target
+        .querySelector("#m10 [data-message-reactions]")
+        ?.hasAttribute("data-picking"),
+    ).toBe(true);
+    popover!.querySelector<HTMLElement>("[data-emoji-grid] button")!.click();
+    flushSync();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ t: "react", id: 10 });
+  }, 30_000);
+  test("the message toolbar puts delete last, red, after a divider (Gimenes #4591)", () => {
+    const mine = { ...message(8, "My message"), author: "me@test" };
+    const { target } = renderChat({ ...fixture(), messages: [mine] });
+    hoverMessages(target);
+    const del = target.querySelector<HTMLElement>(
+      '#m8 [data-delete-message="8"]',
+    );
+    expect(del).not.toBeNull();
+    expect(del!.className).toContain("text-destructive");
+    const buttons = [...del!.parentElement!.children].filter(
+      (el) => el.tagName === "BUTTON",
+    );
+    expect(buttons.at(-1)?.getAttribute("data-delete-message")).toBe("8");
+    expect(del!.previousElementSibling?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+  });
   test("quotes, actions and origin survive chat refresh; @vibe notices are hidden", () => {
     const origin = message(7, "Original request");
     const reply = { ...message(8, "A response"), reply_to: 7 };
     const notice = {
-      ...message(9, "Archived safely"),
+      ...message(9, "Done safely"),
       author: "ai",
       tag: "notice",
     };
@@ -3073,6 +3232,142 @@ describe("chat", () => {
     touch("touchend", []);
     expect(replied).toEqual([1]);
   });
+  describe("inline message edit (like Discord)", () => {
+    const own = (
+      id: number,
+      text: string,
+    ): import("../web/app/chatTypes").ChatMessage => ({
+      id,
+      text,
+      thread: "e",
+      author: "me@test",
+      kind: "user",
+      ts: id * 1000,
+    });
+    function editable(requests: RoomCommand[] = []) {
+      const room = {
+        ...fixture(),
+        messages: [own(1, "first"), message(2, "theirs"), own(3, "hello")],
+      };
+      const rendered = renderChat(room, {
+        actions: {
+          request: async (command): Promise<CommandOutcome> => {
+            requests.push(command);
+            return { ok: true };
+          },
+          draftReply: () => {},
+          reply: () => {},
+          navigate: () => {},
+          openFile: () => {},
+        },
+      });
+      return { ...rendered, room, requests };
+    }
+    const box = (target: HTMLElement, id = 3) =>
+      target.querySelector<HTMLTextAreaElement>(
+        `[data-message-editor="${id}"] textarea`,
+      );
+    function key(input: HTMLElement, key: string, shiftKey = false) {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        shiftKey,
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      flushSync();
+      return event;
+    }
+    function type(input: HTMLTextAreaElement, value: string) {
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      flushSync();
+    }
+    afterEach(() => editingMessage.set(null));
+    test("the pencil turns the text into a box in place: focused, caret at the end, no toolbar; Esc cancels", async () => {
+      const { target, requests } = editable();
+      hoverMessages(target);
+      expect(target.querySelector('[data-edit-message="2"]')).toBeNull();
+      target
+        .querySelector<HTMLButtonElement>('[data-edit-message="3"]')!
+        .click();
+      flushSync();
+      await tick();
+      const input = box(target)!;
+      expect(input.value).toBe("hello");
+      expect(document.activeElement).toBe(input);
+      expect(input.selectionStart).toBe(5);
+      expect(target.querySelector("#m3 [data-message-toolbar]")).toBeNull();
+      expect(target.querySelector('[data-reaction-row="3"]')).toBeNull();
+      expect(target.querySelector('[data-reaction-row="1"]')).not.toBeNull();
+      expect(target.querySelector("#m3 [data-message-head]")).not.toBeNull();
+      expect(
+        target.querySelector("[data-message-editor-hint]")?.textContent,
+      ).toMatch(/esc para\s+cancelar\s+•\s+enter para\s+salvar/);
+      // No dialog any more.
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      type(input, "changed");
+      expect(key(input, "Escape").defaultPrevented).toBe(true);
+      expect(box(target)).toBeNull();
+      expect(target.querySelector("#m3")?.textContent).toContain("hello");
+      expect(requests).toEqual([]);
+    });
+    test("Enter saves with msg.edit; Shift+Enter is a new line; unchanged or empty text sends nothing", async () => {
+      const { target, requests } = editable();
+      startEditing("r", 3);
+      flushSync();
+      let input = box(target)!;
+      // Shift+Enter is left to the browser: a new line, no save.
+      expect(key(input, "Enter", true).defaultPrevented).toBe(false);
+      expect(box(target)).not.toBeNull();
+      // Empty: nothing happens (no delete, no request), the box stays.
+      type(input, "   ");
+      key(input, "Enter");
+      expect(box(target)).not.toBeNull();
+      // Unchanged: just closes.
+      type(input, "hello");
+      key(input, "Enter");
+      expect(box(target)).toBeNull();
+      expect(requests).toEqual([]);
+      startEditing("r", 3);
+      flushSync();
+      input = box(target)!;
+      type(input, "hello\nworld");
+      key(input, "Enter");
+      await tick();
+      flushSync();
+      expect(requests).toEqual([
+        { t: "msg.edit", id: 3, text: "hello\nworld" } satisfies RoomCommand,
+      ]);
+      expect(box(target)).toBeNull();
+    });
+    test("the links under the box save and cancel; only one message edits at a time", async () => {
+      const { target, requests } = editable();
+      startEditing("r", 1);
+      flushSync();
+      expect(box(target, 1)).not.toBeNull();
+      startEditing("r", 3);
+      flushSync();
+      expect(box(target, 1)).toBeNull();
+      expect(target.querySelectorAll("[data-message-editor]")).toHaveLength(1);
+      type(box(target)!, "saved by click");
+      target
+        .querySelector<HTMLButtonElement>("[data-message-editor-save]")!
+        .click();
+      await tick();
+      flushSync();
+      expect(requests).toEqual([
+        { t: "msg.edit", id: 3, text: "saved by click" } satisfies RoomCommand,
+      ]);
+      startEditing("r", 3);
+      flushSync();
+      target
+        .querySelector<HTMLButtonElement>("[data-message-editor-cancel]")!
+        .click();
+      flushSync();
+      expect(box(target)).toBeNull();
+    });
+  });
 });
 
 test("phone edge observes installed Back without consuming browser gestures or replying", async () => {
@@ -3104,7 +3399,6 @@ test("phone edge observes installed Back without consuming browser gestures or r
     reply: () => {
       replies++;
     },
-    copy: () => {},
   });
   function touch(
     type: string,
@@ -3143,15 +3437,70 @@ test("phone edge observes installed Back without consuming browser gestures or r
   }
 });
 
-test("a left swipe copies the text from the top half and the link from the bottom half", async () => {
-  const { swipeMessage } = await import("../web/features/chat/swipe");
+test("a message's touch: a right swipe replies, a left one does nothing, holding opens the sheet (Gimenes #4440)", async () => {
+  const { swipeMessage, HOLD_MS } = await import("../web/features/chat/swipe");
   const row = window.document.createElement("div");
   window.document.body.append(row);
-  const copies: boolean[] = [];
+  let replies = 0,
+    holds = 0;
   const swipe = swipeMessage(row, {
-    reply: () => {},
-    copy: (link) => copies.push(link),
+    reply: () => void replies++,
+    hold: () => void holds++,
   });
+  const touch = (
+    type: string,
+    points: { clientX: number; clientY: number }[],
+  ) => {
+    const event = new window.Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "touches", { value: points });
+    row.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+  const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
+  try {
+    // Left: the message does not move and nothing happens (copy and link are in the sheet now).
+    touch("touchstart", [{ clientX: 200, clientY: 0 }]);
+    touch("touchmove", [{ clientX: 120, clientY: -1 }]);
+    expect(row.hasAttribute("data-swipe")).toBe(false);
+    touch("touchend", []);
+    // Right, past the reply mark: one reply, and a long right swipe is still a reply (no thread).
+    touch("touchstart", [{ clientX: 20, clientY: 0 }]);
+    touch("touchmove", [{ clientX: 220, clientY: 1 }]);
+    expect(row.dataset.swipe).toBe("reply");
+    touch("touchend", []);
+    expect(replies).toBe(1);
+    // Holding still opens the sheet once; lifting the finger after it is not a tap or a reply.
+    touch("touchstart", [{ clientX: 50, clientY: 10 }]);
+    await wait(HOLD_MS + 50);
+    expect(holds).toBe(1);
+    expect(touch("touchend", [])).toBe(true);
+    expect(replies).toBe(1);
+    // Moving the finger before the time is a scroll or a swipe, not a hold.
+    touch("touchstart", [{ clientX: 50, clientY: 10 }]);
+    touch("touchmove", [{ clientX: 50, clientY: 40 }]);
+    await wait(HOLD_MS + 50);
+    touch("touchend", []);
+    expect(holds).toBe(1);
+  } finally {
+    swipe.destroy();
+    row.remove();
+  }
+});
+
+test("a reply swipe clips the timeline only while it moves, resists past the mark and slides back (Gimenes #4533)", async () => {
+  const { swipeMessage, swipeOffset } =
+    await import("../web/features/chat/swipe");
+  // The message follows the finger, then with resistance, and never past 96 px.
+  expect(swipeOffset(40)).toBe(40);
+  expect(swipeOffset(400)).toBe(96);
+  expect(swipeOffset(100)).toBeLessThan(100);
+  expect(swipeOffset(-20)).toBe(0);
+  const timeline = window.document.createElement("section");
+  timeline.setAttribute("data-chat-timeline", "");
+  const row = window.document.createElement("div");
+  timeline.append(row);
+  window.document.body.append(timeline);
+  const swipe = swipeMessage(row, { reply: () => {} });
   const touch = (
     type: string,
     points: { clientX: number; clientY: number }[],
@@ -3161,26 +3510,22 @@ test("a left swipe copies the text from the top half and the link from the botto
     row.dispatchEvent(event);
   };
   try {
-    touch("touchstart", [{ clientX: 200, clientY: 0 }]);
-    touch("touchmove", [{ clientX: 120, clientY: -1 }]);
-    expect(row.dataset.swipeDir).toBe("left");
-    expect(row.dataset.swipePick).toBe("copy");
-    expect(row.dataset.swipe).toBe("copy");
+    touch("touchstart", [{ clientX: 20, clientY: 0 }]);
+    expect(timeline.classList.contains("overflow-x-clip")).toBe(false);
+    touch("touchmove", [{ clientX: 60, clientY: 0 }]);
+    // No horizontal scroll bar while the message is moved to the right.
+    expect(timeline.classList.contains("overflow-x-clip")).toBe(true);
+    expect(row.classList.contains("translate-x-10")).toBe(true);
     touch("touchend", []);
-    expect(row.hasAttribute("data-swipe-dir")).toBe(false);
-    touch("touchstart", [{ clientX: 200, clientY: 4 }]);
-    touch("touchmove", [{ clientX: 120, clientY: 5 }]);
-    expect(row.dataset.swipePick).toBe("link");
-    expect(row.dataset.swipe).toBe("link");
-    touch("touchend", []);
-    touch("touchstart", [{ clientX: 200, clientY: 4 }]);
-    touch("touchmove", [{ clientX: 170, clientY: 5 }]);
-    expect(row.dataset.swipe).toBe("tracking");
-    touch("touchend", []);
-    expect(copies).toEqual([false, true]);
+    // It slides back with a transition, then the clip goes away.
+    expect(row.classList.contains("duration-200")).toBe(true);
+    expect(row.className).not.toContain("translate-x-10");
+    await new Promise((done) => setTimeout(done, 260));
+    expect(row.classList.contains("duration-200")).toBe(false);
+    expect(timeline.classList.contains("overflow-x-clip")).toBe(false);
   } finally {
     swipe.destroy();
-    row.remove();
+    timeline.remove();
   }
 });
 
@@ -3406,7 +3751,7 @@ describe("stable sidebar integration", () => {
       onopen: (id) => {
         opened.push(id);
       },
-      onarchchange: () => {},
+      ondonechange: () => {},
       vb: {
         ...vb,
         epicBusy: () => null,
@@ -3599,14 +3944,14 @@ describe("stable sidebar integration", () => {
     // No ⋯ on any row, on desktop or phone: the actions are inside the epic (Gimenes #3933).
     expect(h.target.querySelector("[data-epic-actions]")).toBeNull();
   });
-  test("selected archived epic remains in normal order, marked by its background, with a readable cue", async () => {
+  test("selected done epic remains in normal order, marked by its background, with a readable cue", async () => {
     const room = fixture();
     room.epics = [
       { id: "a", title: "First", tasks: [] },
       {
         id: "b",
-        title: "Archived target",
-        archived: true,
+        title: "Done target",
+        done: true,
         tasks: [],
       },
       { id: "c", title: "Last", tasks: [] },
@@ -3620,7 +3965,7 @@ describe("stable sidebar integration", () => {
     ).toEqual(["a", "b", "c"]);
     const row = h.target.querySelector<HTMLElement>('[data-epic-thread="b"]');
     expect(row !== null).toBe(true);
-    expect(row!.textContent).toContain("Arquivado");
+    expect(row!.textContent).toContain("(Feito)");
     // Selection is only a background change: no accent bar on the left.
     expect(row!.parentElement!.classList.contains("bg-sidebar-accent")).toBe(
       true,
@@ -3759,6 +4104,8 @@ describe("stable sidebar integration", () => {
     expect(badge?.className.split(/\s+/)).toContain("bg-destructive");
     // One slot at the end (Gimenes #3904): the count takes the status's place.
     expect(epic.querySelector("[data-epic-status-icon]")).toBeNull();
+    // An agent at work is the Fazendo status, not a ✻ mark (Gimenes #4368).
+    expect(epic.textContent).not.toContain("✻");
     h.view.update({
       ...h.props,
       vb: {
@@ -3787,13 +4134,13 @@ describe("stable sidebar integration", () => {
     const room = fixture();
     room.epics.push({ id: "child", title: "Child", parent: "e", tasks: [] });
     room.epics.push(
-      { id: "old-parent", title: "Old parent", tasks: [], archived: true },
+      { id: "old-parent", title: "Old parent", tasks: [], done: true },
       {
         id: "old-child",
         parent: "old-parent",
         title: "Old child",
         tasks: [],
-        archived: true,
+        done: true,
       },
     );
     const session = createNavigationSession(room.id);
@@ -3958,7 +4305,7 @@ describe("stable sidebar integration", () => {
       onopenpinapp: () => {},
       send: () => true,
       onopen: () => {},
-      onarchchange: () => {},
+      ondonechange: () => {},
       friends: ["friend@test"],
       vb: sidebarBridge,
     };
@@ -5320,6 +5667,83 @@ describe("composer ownership and interactions", () => {
     flushSync();
     expect(document.querySelector('[role="dialog"]') === null).toBe(true);
   }
+  test("ArrowUp in an empty composer edits your last message in this thread, in place; Esc gives focus back", async () => {
+    const mine = (
+      id: number,
+      thread = "main",
+    ): import("../web/app/chatTypes").ChatMessage => ({
+      id,
+      text: `mine ${id}`,
+      thread,
+      author: "me@test",
+      kind: "user",
+      ts: id * 1000,
+    });
+    const room: Room = {
+      ...fixture(),
+      messages: [
+        mine(1),
+        mine(2),
+        { ...mine(3), author: "you@test" },
+        mine(4, "e"),
+      ],
+    };
+    const chatTarget = document.createElement("div");
+    document.body.append(chatTarget);
+    active.push(
+      mountView("chat", chatTarget, {
+        room,
+        thread: "main",
+        list: room.messages.filter((m) => m.thread === "main"),
+        vb: chatBridge,
+        actions: {
+          request: async (): Promise<CommandOutcome> => ({ ok: true }),
+          draftReply: () => {},
+          reply: () => {},
+          navigate: () => {},
+          openFile: () => {},
+        },
+        onloadolder: () => {},
+      }),
+    );
+    const { target } = renderComposer(room);
+    const input = edit(target, "draft");
+    input.focus();
+    const arrow = () => {
+      const event = new KeyboardEvent("keydown", {
+        key: "ArrowUp",
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      flushSync();
+      return event;
+    };
+    // Something typed: ArrowUp moves the caret as usual.
+    expect(arrow().defaultPrevented).toBe(false);
+    expect(get(editingMessage)).toBeNull();
+    edit(target, "");
+    input.focus();
+    expect(arrow().defaultPrevented).toBe(true);
+    expect(get(editingMessage)?.id).toBe(2);
+    await tick();
+    const box = chatTarget.querySelector<HTMLTextAreaElement>(
+      '[data-message-editor="2"] textarea',
+    )!;
+    expect(box.value).toBe("mine 2");
+    expect(document.activeElement).toBe(box);
+    box.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    flushSync();
+    expect(get(editingMessage)).toBeNull();
+    expect(chatTarget.querySelector("[data-message-editor]")).toBeNull();
+    expect(document.activeElement).toBe(input);
+  });
   test("composer Enter empties the box as it sends; Shift/IME never submit", async () => {
     const room = fixture(),
       sent: RoomCommand[] = [];
@@ -6308,25 +6732,25 @@ describe("room sidebar header and suggestion ownership", () => {
       id: "e",
       status: "done",
     });
-    const archived: Room = {
+    const doneRoom: Room = {
       ...room,
       epics: room.epics.map((epic) => ({
         ...epic,
-        archived: true,
+        done: true,
         status: "done" as const,
       })),
     };
-    owner.sync(archived, request);
-    view.update({ ...props, room: archived });
+    owner.sync(doneRoom, request);
+    view.update({ ...props, room: doneRoom });
     await tick();
     flushSync();
     expect(
       target.querySelector("[data-epic-status]")?.textContent?.trim(),
     ).toBe("Feito");
-    // Without a chosen status an archived thread with open tasks shows done too: there is no separate archive state.
+    // Without a chosen status a done thread with open tasks shows done too: there is no other closed state.
     const dropped: Room = {
-      ...archived,
-      epics: archived.epics.map((epic) => ({
+      ...doneRoom,
+      epics: doneRoom.epics.map((epic) => ({
         ...epic,
         status: null,
         tasks: [{ id: "t", title: "T", done: false, status: "todo" as const }],
@@ -6488,7 +6912,7 @@ describe("collapsed sidebar and typed presence", () => {
       },
       send: () => false,
       onopen: () => {},
-      onarchchange: () => {},
+      ondonechange: () => {},
       onopenpinfile: () => {},
       onopenpinapp: () => {},
       ontogglerail: () => {

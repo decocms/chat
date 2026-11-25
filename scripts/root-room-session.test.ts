@@ -27,6 +27,7 @@ function snapshot(value: Room): RoomEvent {
 function harness(
   acceptIdentity: (account: string) => boolean = () => false,
   cacheAllowed: (room: Room) => boolean = () => true,
+  older?: Parameters<typeof createRootRoomSession>[0]["older"],
 ) {
   const sockets: {
     callbacks: RoomConnectionOptions;
@@ -44,6 +45,7 @@ function harness(
     url: (id, thread, code) => `${id}/${thread}/${code}`,
     acceptIdentity,
     cacheAllowed,
+    ...(older ? { older } : {}),
     onOpen: (value) => opens.push(value),
     onTransition: (value) => transitions.push(value),
     onTerminal: (value) => terminals.push(value),
@@ -101,6 +103,54 @@ function harness(
     },
   };
 }
+test("scroll-back goes over HTTP and lands as the socket's events; a failed read falls back to the socket (cache plan, PR 1)", async () => {
+  const asked: unknown[] = [];
+  let answer: Awaited<ReturnType<NonNullable<Parameters<typeof harness>[2]>>> =
+    {
+      thread: "main",
+      messages: [
+        { id: 3, author: "b@test", text: "old one", ts: 1, thread: "main" },
+      ],
+      acks: [
+        { msg_id: 3, email: "a@test", who: "a@test", status: "done", ts: 2 },
+      ],
+      more: true,
+    };
+  const h = harness(
+    () => false,
+    () => true,
+    async (roomId, thread, before) => {
+      asked.push({ roomId, thread, before });
+      return answer;
+    },
+  );
+  h.owner.open("aaaaaa");
+  const socket = h.sockets[0]!;
+  socket.callbacks.onEvent(snapshot(room()));
+  expect(h.owner.send({ t: "older", thread: "main", before: 9 })).toBe(true);
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(asked).toEqual([{ roomId: "aaaaaa", thread: "main", before: 9 }]);
+  expect(socket.commands).toEqual([]);
+  expect(h.transitions.map((t) => t.event.t).slice(-2)).toEqual([
+    "ackRows",
+    "older",
+  ]);
+  expect(h.owner.read().room?.messages.map((m) => m.id)).toEqual([3]);
+  // Other commands still use the socket.
+  h.owner.send({ t: "call.leave" });
+  expect(socket.commands).toEqual([{ t: "call.leave" }]);
+  answer = null;
+  h.owner.send({ t: "older", thread: "main", before: 3 });
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(socket.commands.at(-1)).toEqual({
+    t: "older",
+    thread: "main",
+    before: 3,
+  });
+  h.owner.dispose();
+});
 test("cache first paint is distinct from authoritative reconnect state and cannot mark reads", () => {
   const h = harness();
   h.owner.open("aaaaaa");

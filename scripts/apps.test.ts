@@ -14,6 +14,9 @@ import {
   roomApps,
   appIdentity,
   safeOpenLink,
+  appDraft,
+  APP_COMPOSE,
+  APP_REFERENCE,
 } from "../web/features/apps/model";
 import { decodeAppEnvelope } from "../web/features/apps/transport";
 import { createRoomAppTools, toolOutput } from "../web/features/apps/tools";
@@ -47,7 +50,7 @@ const room = (): Room => ({
     {
       id: "epic",
       title: "Epic",
-      archived: false,
+      done: false,
       tasks: [{ id: "task", title: "Task", done: false, status: "todo" }],
     },
   ],
@@ -98,6 +101,60 @@ test("room apps select newest exact filename versions, no absent-files crash or 
   expect(safeOpenLink("https://example.test/path")).toBe(
     "https://example.test/path",
   );
+});
+test("an app message is a draft for the composer only when every text block asks for it", () => {
+  const draft = { [APP_COMPOSE]: true };
+  expect(
+    appDraft([
+      { type: "text", text: "\nArquivo: post.json", _meta: draft },
+      { type: "image" },
+      { type: "text", text: "> «a quote»\n\n", _meta: draft },
+    ]),
+  ).toEqual({ text: "Arquivo: post.json\n> «a quote»\n\n", quotes: [] });
+  expect(appDraft([{ type: "text", text: "post this" }])).toBeNull();
+  expect(
+    appDraft([
+      { type: "text", text: "draft", _meta: draft },
+      { type: "text", text: "post", _meta: {} },
+    ]),
+  ).toBeNull();
+  expect(
+    appDraft([{ type: "text", text: "x", _meta: { [APP_COMPOSE]: "yes" } }]),
+  ).toBeNull();
+  expect(appDraft([{ type: "image" }])).toBeNull();
+  expect(appDraft([{ type: "text", text: "  ", _meta: draft }])).toEqual({
+    text: "",
+    quotes: [],
+  });
+  expect(
+    appDraft([{ type: "text", text: "a".repeat(5000), _meta: draft }])?.text,
+  ).toHaveLength(4000);
+});
+test("a draft block with a reference label is a quote chip, not text for the field", () => {
+  const quote = (label: unknown, text = "> «trecho»") => ({
+    type: "text",
+    text,
+    _meta: { [APP_COMPOSE]: true, [APP_REFERENCE]: { label } },
+  });
+  expect(
+    appDraft([
+      quote("  «trecho»\n "),
+      { type: "text", text: "e mais", _meta: { [APP_COMPOSE]: true } },
+    ]),
+  ).toEqual({
+    text: "e mais",
+    quotes: [{ label: "«trecho»", text: "> «trecho»" }],
+  });
+  expect(appDraft([quote("x".repeat(200))])?.quotes[0]?.label).toHaveLength(
+    120,
+  );
+  // A reference without a usable label is text for the field, as in a host without references.
+  expect(appDraft([quote(""), quote(7)])).toEqual({
+    text: "> «trecho»\n> «trecho»",
+    quotes: [],
+  });
+  // An empty quote is dropped.
+  expect(appDraft([quote("vazio", "  ")])).toEqual({ text: "", quotes: [] });
 });
 test("existing inferred HTTP routes preserve raw argument objects and validate returned runtime envelopes", async () => {
   const seen: { url: string; method: string; body: unknown }[] = [];

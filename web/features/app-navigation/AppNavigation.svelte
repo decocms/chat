@@ -16,6 +16,7 @@
   import RailButton from "./RailButton.svelte";
   import RailRoom from "./RailRoom.svelte";
   import RailDm from "./RailDm.svelte";
+  import RoomMenu from "./RoomMenu.svelte";
   import RoomSwitcher from "./RoomSwitcher.svelte";
   import RailCube from "../home/RailCube.svelte";
   import AccountRow from "./AccountRow.svelte";
@@ -68,8 +69,8 @@
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
   ) => homeText(lang, key, vars);
-  const selectedRoom = $derived(
-    $personal.me?.books.find((room) => room.id === $nav.settingsId),
+  const menuRoom = $derived(
+    $personal.me?.books.find((room) => room.id === $nav.menu?.id),
   );
   const archiveRoom = $derived(
     $personal.me?.books.find((room) => room.id === $nav.archiveId),
@@ -85,7 +86,7 @@
     moduleView = presentation.module.state;
   const Dialogs = $derived($moduleView.component);
   $effect(() => {
-    if ($nav.settingsId && !selectedRoom) controller.closeSettings();
+    if ($nav.menu && !menuRoom) controller.closeMenu();
     if ($nav.archiveId && !archiveRoom) controller.closeSettings();
     if ($nav.renameId && !renameRoom) controller.closeSettings();
     if (
@@ -248,6 +249,7 @@
             count={entry.count}
             {lang}
             onnavigate={controller.callbacks.navigate}
+            onmenu={controller.openMenu}
           />{/each}
       </div>
       <span aria-hidden="true" class="h-px w-6 bg-sidebar-border"></span>
@@ -300,7 +302,7 @@
             seen={$personal.seen[tile.room.id] ?? 0}
             waits={waitsIn.get(tile.room.id) ?? []}
             onnavigate={controller.callbacks.navigate}
-            onsettings={(id, trigger) => controller.openSettings(id, trigger)}
+            onmenu={controller.openMenu}
           />
         </SortableItem>{/each}
     </SortableList>
@@ -355,6 +357,7 @@
       onnavigate={controller.callbacks.navigate}
     />{/if}
 </div>
+<RoomMenu {controller} {lang} />
 {#if Dialogs}<Dialogs
     {controller}
     {lang}
@@ -364,13 +367,7 @@
       value={$presentationView}
       >{#snippet children(intent)}<TitledDialog
           open={presentation.owns(intent)}
-          title={text(
-            intent.kind === "create"
-              ? "new"
-              : intent.kind === "settings"
-                ? "settings"
-                : intent.kind,
-          )}
+          title={text(intent.kind === "create" ? "new" : intent.kind)}
           closeLabel={text("close")}
           onOpenChange={(open) => {
             if (!open && get(moduleView).phase !== "ready")
@@ -383,13 +380,7 @@
           ><DeferredViewStatus
             phase={$moduleView.phase}
             {lang}
-            label={text(
-              intent.kind === "create"
-                ? "new"
-                : intent.kind === "settings"
-                  ? "settings"
-                  : intent.kind,
-            )}
+            label={text(intent.kind === "create" ? "new" : intent.kind)}
             current={() => presentation.owns(intent)}
             retry={() => {
               if (presentation.owns(intent)) void presentation.module.retry();

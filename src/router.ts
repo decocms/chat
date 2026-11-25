@@ -1,3 +1,5 @@
+// HARD RULE (AGENTS.md, rule 14): a change here needs `bun scripts/router-bench.ts` before the pull request, with the
+// scores before and after in the pull request. A score must not go down. New behavior gets new bench cases.
 import { providerCost, caughtMessage } from "./providerMetadata";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText, Output } from "ai";

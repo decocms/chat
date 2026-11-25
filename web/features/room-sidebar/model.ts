@@ -9,8 +9,7 @@ import type { IconName } from "../../lib/studio/icons";
 import { prettyModel } from "../chat/model";
 import { epicStatus as storedStatus } from "../../../shared/epicStatus";
 /** A thread has 4 states (Gimenes #3989): to do, doing, requires action
- * (stored as `review`) and done. Archived without being done (`dismissed`)
- * shows as done. */
+ * (stored as `review`) and done. An old client's `dismissed` shows as done. */
 export const epicStatus = (
   epic: Parameters<typeof storedStatus>[0],
 ): EpicStatus => {
@@ -44,17 +43,17 @@ const epicStatusLooks = {
     text: "text-success",
   },
   dismissed: {
-    label: "Arquivado",
-    icon: "archive",
-    pill: "bg-muted text-muted-foreground",
-    text: "text-muted-foreground",
+    label: "Feito",
+    icon: "check-circle",
+    pill: "bg-success/15 text-success",
+    text: "text-success",
   },
 } satisfies Record<
   EpicStatus,
   { label: string; icon: IconName; pill: string; text: string }
 >;
 export const epicStatusLook = (status: EpicStatus) => epicStatusLooks[status];
-/** The status menu, in this order: the 4 states (no separate archive). */
+/** The status menu, in this order: the 4 states (dismissed is done). */
 export const epicStatusChoices = EPIC_STATUSES.filter(
   (value) => value !== "dismissed",
 ).map((value) => ({

@@ -10,6 +10,26 @@ export function reduceRoom(
   event: RoomEvent,
   id: string,
 ): Room | null {
+  if (event.t === "state" && event.resume && current?.id === id) {
+    // A resumed reconnect (cache plan PR 2): its messages and acks are upserted into the ones the room has; the rest
+    // replaces, as a full state does. epicsSame keeps the room's threads.
+    const { resume: _resume, epicsSame, t: _t, ...rest } = event;
+    const messages = new Map(current.messages.map((m) => [m.id, m]));
+    for (const m of event.messages) messages.set(m.id, m);
+    const fresh = new Set((event.acks ?? []).map((a) => a.msg_id));
+    return {
+      ...current,
+      ...rest,
+      filesAll: rest.filesAll,
+      typing: {},
+      messages: [...messages.values()].sort((a, b) => a.id - b.id),
+      epics: epicsSame ? current.epics : event.epics,
+      acks: [
+        ...(current.acks ?? []).filter((a) => !fresh.has(a.msg_id)),
+        ...(event.acks ?? []),
+      ],
+    };
+  }
   if (event.t === "state") return { ...event, id, typing: {} };
   if (!current || current.id !== id) return current;
   const s = current;
@@ -78,6 +98,8 @@ export function reduceRoom(
         ...s,
         epics: event.epics,
         roomTasks: event.roomTasks ?? s.roomTasks,
+        // The threads changed after the state: its hash no longer names them, so a reconnect gets them whole.
+        eh: undefined,
       };
     case "epicsPatch": {
       const have = new Map(s.epics.map((e) => [e.id, e]));
@@ -87,6 +109,7 @@ export function reduceRoom(
         ...s,
         epics: event.order.map((id) => have.get(id)!),
         roomTasks: event.roomTasks ?? s.roomTasks,
+        eh: undefined,
       };
     }
     case "docNotes":
@@ -190,6 +213,13 @@ export function reduceRoom(
       return { ...s, polls: { ...s.polls, [event.poll.id]: event.poll } };
     case "online":
       return { ...s, online: event.online };
+    case "call":
+      return {
+        ...s,
+        call: event.call,
+        callThread: event.thread,
+        ring: event.ring,
+      };
     default:
       return s;
   }

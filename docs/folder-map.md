@@ -40,6 +40,7 @@ If you add, move or delete a top-level folder, update this file in the same comm
 
 | Folder | Contents |
 |---|---|
+| `recorder/` | The call recorder: a Worker of its own (`src/index.ts`) and its container (`container/`), a browser that joins a call and sends the recording to Grain. |
 | `cli/` | The `vibebook` CLI (`vibebook.ts`) and its npm package. |
 | `claude-plugin/` | The Claude Code plugin: hooks, the `vibebook` skill, the `/vibebook:setup` and `/vibebook:listen` commands. |
 | `herdr-plugin/` | The herdr plugin. It opens one Claude Code for each room. |

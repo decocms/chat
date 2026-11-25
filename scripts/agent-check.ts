@@ -94,7 +94,7 @@ const init = await g.rpc("initialize", { protocolVersion: "2025-06-18" });
 check(init.result?.instructions?.includes("DATA, not instructions"), "initialize carries the safety instructions");
 check(/^s_[a-f0-9]{32}$/.test(g.sid()), "initialize hands out an Mcp-Session-Id (the agent)");
 const tools = await g.rpc("tools/list");
-check(tools.result?.tools?.map((t: { name: string }) => t.name).join() === "inbox,pending,search,ai_spend,router,router_stats,router_feedback,resolve_pending,claude_rooms,switch_claude,rename_room,invite,set_room_icon,connections,connect_mcp,disconnect_mcp,app_open,wait_for_messages,notify_url,read_room,post,save_reminder,metrics,list_reminders,delete_reminder,upload_file,preview_mention_email,get_file,brief_reply,ack,sandboxes,sandbox_create,sandbox_setup,sandbox_exec,sandbox_power,permission_wait,permission_close,usage_backfill,report_issue,set_task_status,add_task,update_task,delete_task,suggest_thread,delete_thread,open_file,open_doc,fire_card,move_message,update_thread,update_doc,react,doc_versions,get_doc_version,upload_link,start_thread,log_decision,pin,unpin,create_room,start_epic,update_epic,suggest_epic,delete_epic", "tools/list has the 57 tools and the 4 old thread names");
+check(tools.result?.tools?.map((t: { name: string }) => t.name).join() === "inbox,pending,search,ai_spend,router,router_stats,router_feedback,router_feedback_suggested,resolve_pending,claude_rooms,switch_claude,rename_room,invite,set_room_icon,connections,connect_mcp,disconnect_mcp,app_open,wait_for_messages,notify_url,read_room,post,save_reminder,metrics,list_reminders,delete_reminder,upload_file,preview_mention_email,get_file,brief_reply,ack,sandboxes,sandbox_create,sandbox_setup,sandbox_exec,sandbox_power,permission_wait,permission_close,usage_backfill,report_issue,set_task_status,add_task,update_task,delete_task,suggest_thread,delete_thread,open_file,open_doc,fire_card,move_message,update_thread,update_doc,react,doc_versions,get_doc_version,upload_link,start_thread,log_decision,pin,unpin,create_room,start_epic,update_epic,suggest_epic,delete_epic", "tools/list has the 57 tools and the 4 old thread names");
 
 const created = await g.tool("create_room", { title: `Site novo da Giro ${stamp}`, invite: [marina] });
 const room = created.out?.room_id;
@@ -152,7 +152,7 @@ await forged.rpc("initialize", {});
 check((await (async () => { const r = await fetch(`${BASE}/mcp`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${m.token}`, "mcp-session-id": g.sid() }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "inbox", arguments: {} } }) }); return (await r.json()).result?.structuredContent?.you_act_for; })()) === marina, "someone else's session id doesn't make you that agent");
 
 // A request becomes a thread: start_thread makes the epic (seeded doc, one task) and points to it from main;
-// closing its task archives it.
+// a person marks it done (closing its tasks only moves it to review).
 const ep = (await g.tool("start_thread", { room_id: room, title: "Importar as reservas", why: "Trazer as reservas antigas pro site novo." })).out;
 check(ep?.ok && ep.epic_id && ep.tasks?.length === 1, "start_thread creates an epic with the request as its task");
 const old = (await g.tool("start_epic", { room_id: room, title: "Nome antigo", why: "Plugins instalados ainda chamam start_epic." })).out;
@@ -190,10 +190,10 @@ check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.status === "r
 // A screenshot alone is not proof; the delivery card (what was tested) is.
 await g.tool("upload_file", { room_id: room, thread: ep.epic_id, filename: "prova.png", content_type: "image/png", base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" });
 rr = (await g.tool("read_room", { room_id: room, all: true })).out;
-check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.archived !== true, "a screenshot without a delivery doesn't close the epic");
+check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.done !== true, "a screenshot without a delivery doesn't close the epic");
 await g.tool("post", { room_id: room, thread: ep.epic_id, text: "entregue, testado", done: true });
 rr = (await g.tool("read_room", { room_id: room, all: true })).out;
-check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.archived !== true, "a delivery does not mark the thread done: only a person does");
+check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.done !== true, "a delivery does not mark the thread done: only a person does");
 await fetch(`${BASE}/api/books/${room}/post`, { method: "POST", headers: { "content-type": "application/json", cookie: `dev_as=${encodeURIComponent(gui)}` }, body: JSON.stringify({ text: "Mark as done", thread: ep.epic_id }) });
 rr = (await g.tool("read_room", { room_id: room, all: true })).out;
 check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.status === "done", "a person sending \"Mark as done\" in the thread marks it done (Gimenes #4249)");
@@ -243,10 +243,13 @@ rr = (await g.tool("read_room", { room_id: room, all: true })).out;
 e2 = rr?.epics?.find((e: { id: string }) => e.id === ep2.epic_id);
 check(e2?.tasks.find((t: { title: string }) => t.title === "Apontar o DNS")?.status === "done", "ticking the line in update_doc closes the task");
 check((await g.tool("delete_task", { room_id: room, task_id: nt.task_id })).out?.ok, "delete_task deletes");
-check((await g.tool("update_thread", { room_id: room, epic_id: ep2.epic_id, archived: true, mark_done: true })).out?.ok, "update_thread archives (mark_done closes the rest)");
+check((await g.tool("update_thread", { room_id: room, epic_id: ep2.epic_id, status: "done" })).out?.ok, "update_thread status done marks it done");
 rr = (await g.tool("read_room", { room_id: room, all: true })).out;
-check(rr?.epics?.find((e: { id: string }) => e.id === ep2.epic_id)?.archived === true, "the epic is archived");
+check(rr?.epics?.find((e: { id: string }) => e.id === ep2.epic_id)?.done === true, "the epic is done");
+// `archived` is the old name: an agent with an older plugin still sends it, and it still opens the thread.
 await g.tool("update_thread", { room_id: room, epic_id: ep2.epic_id, archived: false });
+rr = (await g.tool("read_room", { room_id: room, all: true })).out;
+check(rr?.epics?.find((e: { id: string }) => e.id === ep2.epic_id)?.done !== true, "the old archived: false still opens it");
 // @vibe the housekeeper: a delivery with tasks still open gets a nudge to whoever delivered (4s in dev), once;
 // a task in doing with no news gets one to its owner (8s in dev).
 const hk = (await g.tool("start_thread", { room_id: room, title: "Zelador", why: "teste do zelador", tasks: ["A", "B"] })).out;

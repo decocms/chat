@@ -7,7 +7,7 @@ import { storedMessageRows, storedChoices, storedCard, storedQuote, storedFileRe
 import { cachedTools } from "./mcpTools";
 import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTION_LIMIT, POLL_MIN_OPTIONS, POLL_MAX_OPTIONS } from "../shared/composition";
 import { reorderEpics } from "./epic-order";
-import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema } from "../shared/room";
+import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema, CallPeerSchema, RingSchema, type CallPeer, type Ring } from "../shared/room";
 import { isMarkDone } from "../shared/epicStatus";
 import { notificationFrom, notificationTitle } from "../shared/notificationTitle";
 import type { PostMessageResponse } from "../shared/rpc";
@@ -28,6 +28,7 @@ const REPEAT_SCAN_ROWS = 50;
 import { type Card, cardText } from "./card";
 import { poke } from "./person";
 import { dmTitle, isDmId } from "./dm";
+import type { LinkPeek } from "./linkTarget";
 import { dropBlock, parseBlock, reconcile, renderBlock } from "./taskblock";
 import { asLang, type Lang } from "./lang";
 import { DurableObject } from "cloudflare:workers";
@@ -41,7 +42,10 @@ import { DECLINE_HOLD_MS, docRoomStub } from "./rooms";
 import { findSecret, secretName } from "./secrets";
 import { cronWords, nextRun, parseCron } from "./cron";
 import { decide, type Question } from "./jev";
+import { runRouterActions, waitQuestion, WAIT_PEOPLE_MAX, WAIT_THRESHOLD, type ActionMessage, type ActionRoom } from "./routerActions";
 import { track } from "./track";
+import { addCallUsage, callsOn, recorderOn, startRecorder } from "./calls";
+import { CALL_THREAD, RING_MS, callLineText, callMinutes, isRecorder } from "../shared/call";
 import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
 import { bumpStat, ensureHandle } from "./profile";
@@ -67,10 +71,17 @@ export const epicDocSeed = (title: string, why = "") =>
 const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[\s\d.)\-–—:#]+/, "").replace(/\s+/g, " ").trim();
 
 const DEFAULT_TITLE = "Nova sala";
+/** A short hash of a wire value (djb2 + length): the epics' change detection and a reconnect's `eh`. */
+const wireHash = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
+/** A reconnect resumes (cache plan PR 2) only from a state at most this old, with at most this many changed rows. */
+const RESUME_MAX_AGE_MS = 6 * 3600_000, RESUME_MAX_ROWS = 200;
 
 const CLASSIFY_DELAY_MS = 30_000;
 // An answer epic still empty this long after its question gets one reminder for the person who asked (Gui #4210).
 const ANSWER_NUDGE_MS = 10 * 60_000;
+/** A person undoes what the router did within this time (opens again a thread it closed, deletes a reply thread it
+ *  made): the router was maybe wrong, so it becomes a suggested case in D1 router_feedback. */
+const UNDO_WINDOW_MS = 30 * 60_000;
 // Doc versions (docDirty): quiet window 10s doubling to 5 min, cut anyway after 15 min dirty; a tenth of that with DEV_EMAIL.
 const DOC_QUIET_MS = 10_000, DOC_QUIET_MAX_MS = 300_000, DOC_FORCE_MS = 900_000, DOC_VERSIONS_MAX = 200;
 const CLASSIFY_MIN_NEW_MSGS = 3; // after the first classification
@@ -148,8 +159,12 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS routed (msg_id INTEGER PRIMARY KEY, thread TEXT, author TEXT, text TEXT);
       CREATE INDEX IF NOT EXISTS message_edits_msg ON message_edits (msg_id, ts);
     `);
+    // A thread's done state was the column `archived` (Gimenes #4466, #4505: there is no archive, only done). It is
+    // renamed before the loop below, which would else add an empty `done` and open every done thread again.
+    const epicCols = this.sql.exec<{ name: string }>(`PRAGMA table_info(epics)`).toArray().map((c) => c.name);
+    if (epicCols.includes("archived") && !epicCols.includes("done")) this.sql.exec(`ALTER TABLE epics RENAME COLUMN archived TO done`);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "done INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"], ["decisions", "msg INTEGER"], ["decisions", "email TEXT"], ["decisions", "via TEXT"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -182,25 +197,24 @@ export class Book extends DurableObject<Env> {
       .toArray()
       .map((t) => ({ ...t, done: !!t.done, epic_id: "main", status: (t.done ? "done" : t.status && t.status !== "done" ? t.status : "todo") as Status }));
   }
-  /** Only the epics that changed since the last push, plus the order. The whole list (every archived epic with its
+  /** Only the epics that changed since the last push, plus the order. The whole list (every done epic with its
    * tasks) went out on each task move, ~64 KB per open tab in the product room: the biggest share of /ws bandwidth.
    * What the sockets last got is a hash per epic in meta `epics_sent` (the DO hibernates between pushes; the sockets
    * don't). No record yet = the whole list. */
   pushEpics(all: ReturnType<Book["epics"]>, roomTasks: ReturnType<Book["roomTasks"]>) {
     const epics = this.wireEpics(all);
-    const h = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
-    const now: Record<string, string> = Object.fromEntries(epics.map((e) => [e.id, h(JSON.stringify(e))]));
+    const now: Record<string, string> = Object.fromEntries(epics.map((e) => [e.id, wireHash(JSON.stringify(e))]));
     const raw = this.get("epics_sent");
     this.set("epics_sent", JSON.stringify(now));
     if (!raw) return this.broadcast({ t: "epics", epics, roomTasks });
     const prev = storedHashes(raw, (kind) => console.warn("book stored projection", kind));
     this.broadcast({ t: "epicsPatch", changed: epics.filter((e) => prev[e.id] !== now[e.id]), order: epics.map((e) => e.id), roomTasks });
   }
-  /** What the sockets get: an archived epic carries only its open tasks (18/11: 207 of 231 epics in the product room
-   *  were archived and their done tasks were ~150 KB of every room open). Opening one sends it whole (`full`, ?t= on
+  /** What the sockets get: a done epic carries only its open tasks (18/11: 207 of 231 epics in the product room
+   *  were done and their done tasks were ~150 KB of every room open). Opening one sends it whole (`full`, ?t= on
    *  open, doc.get after). */
   wireEpics(epics: ReturnType<Book["epics"]>, full = "") {
-    return epics.map((e) => (e.archived && e.id !== full ? { ...e, tasks: e.tasks.filter((t) => t.status !== "done") } : e));
+    return epics.map((e) => (e.done && e.id !== full ? { ...e, tasks: e.tasks.filter((t) => t.status !== "done") } : e));
   }
   epics() {
     // @vibe's grading (grade()): per epic, id → short notes on the epic itself and its tasks.
@@ -225,38 +239,38 @@ export class Book extends DurableObject<Env> {
     // The sidebar orders epics by their latest message (pinned ones first): when each thread last spoke.
     const last = new Map(this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, max(ts) AS ts FROM messages WHERE thread != 'main' GROUP BY thread`).toArray().map((r) => [r.thread, r.ts]));
     return this.sql
-      .exec<{ id: string; title: string; archived: number | null; from_msg: number | null; prod: string | null; owner: string | null; ts: number | null; pinned: number | null; status: string | null }>(`SELECT id, title, archived, from_msg, prod, owner, ts, pinned, status FROM epics ORDER BY pos IS NULL, pos, ts`)
+      .exec<{ id: string; title: string; done: number | null; from_msg: number | null; prod: string | null; owner: string | null; ts: number | null; pinned: number | null; status: string | null }>(`SELECT id, title, done, from_msg, prod, owner, ts, pinned, status FROM epics ORDER BY pos IS NULL, pos, ts`)
       .toArray()
       .map(({ ts, pinned, status: chosen, ...e }) => {
-        // The thread's one status (Gimenes #4247): done is the archive (the Done tab); otherwise todo, doing or review.
-        const status: EpicStatus = e.archived === 1 ? "done" : chosen === "doing" || chosen === "review" ? chosen : "todo";
+        // The thread's one status (Gimenes #4247): done is the Done tab; otherwise todo, doing or review.
+        const status: EpicStatus = e.done === 1 ? "done" : chosen === "doing" || chosen === "review" ? chosen : "todo";
         const f = flags[e.id] ?? {};
         // Deploy stage after "Claude fez": { stage: "deployed" | "verified", at, note } set by agents (update_thread prod).
-        return { ...e, status, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), archived: e.archived === 1, kept: e.archived === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
+        return { ...e, status, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), done: e.done === 1, kept: e.done === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
       });
   }
   // Every epic/task change: tell the sockets, and keep the epic titles in D1 so the home router can pick a
   // room + epic with one query instead of calling every room's DO.
-  // Thread status, one stored value (Gimenes #4247 #4251), once per room: archived (or done, dismissed) is done; an open
+  // Thread status, one stored value (Gimenes #4247 #4251), once per room: done (or dismissed) is done; an open
   // thread with no task started is todo; every other open thread is review, since no person marked it done.
   migrateEpicStatus() {
     if (this.get("epic_status_v2") === "1") return;
-    this.sql.exec(`UPDATE epics SET archived = 1, status = 'done' WHERE archived = 1 OR status IN ('done', 'dismissed')`);
+    this.sql.exec(`UPDATE epics SET done = 1, status = 'done' WHERE done = 1 OR status IN ('done', 'dismissed')`);
     this.sql.exec(
-      `UPDATE epics SET archived = 0, status = CASE WHEN EXISTS (SELECT 1 FROM tasks t WHERE t.epic_id = epics.id AND (t.done = 1 OR t.status IN ('doing', 'review', 'done'))) THEN 'review' ELSE 'todo' END WHERE COALESCE(archived, 0) != 1`,
+      `UPDATE epics SET done = 0, status = CASE WHEN EXISTS (SELECT 1 FROM tasks t WHERE t.epic_id = epics.id AND (t.done = 1 OR t.status IN ('doing', 'review', 'done'))) THEN 'review' ELSE 'todo' END WHERE COALESCE(done, 0) != 1`,
     );
     // The tasks already all done made that move; they do not make it again.
-    this.sql.exec(`INSERT OR REPLACE INTO meta (k, v) SELECT 'alldone:' || id, '1' FROM epics WHERE COALESCE(archived, 0) != 1`);
+    this.sql.exec(`INSERT OR REPLACE INTO meta (k, v) SELECT 'alldone:' || id, '1' FROM epics WHERE COALESCE(done, 0) != 1`);
     this.set("epic_status_v2", "1");
   }
   // A thread's status follows its tasks forward, never to done (Gimenes #4247): todo until a task starts, then doing;
   // review when its tasks become all done. It then goes between doing and review (a person or an agent with
-  // update_thread status) until a person marks it done. done is the only status that archives (the Done tab).
+  // update_thread status) until a person marks it done. done is the only status that leaves the Open tab.
   autoReview() {
     const closed: number[] = [];
     let changed = false;
     for (const e of this.epics()) {
-      if (e.archived || !e.tasks.length) continue;
+      if (e.done || !e.tasks.length) continue;
       const mark = `alldone:${e.id}`;
       const all = e.tasks.every((t) => t.status === "done");
       if (!all) {
@@ -279,13 +293,13 @@ export class Book extends DurableObject<Env> {
       const from = this.sql.exec(`SELECT from_msg FROM epics WHERE id = ?`, e.id).toArray()[0]?.from_msg;
       if (from && this.sql.exec(`UPDATE acks SET status = 'done', ts = ? WHERE msg_id = ? AND status = 'doing'`, Date.now(), from).rowsWritten) closed.push(from as number);
     }
-    // Only the acks that changed (the whole list was ~100 KB per tab on every archive, Nov 2026).
+    // Only the acks that changed (the whole list was ~100 KB per tab on every done, Nov 2026).
     if (closed.length) this.pushAcks(`msg_id IN (${closed.map(() => "?").join(",")})`, ...closed);
     return changed;
   }
   /** An agent's delivery (`done: true`) in an open thread: it waits on a person now. */
   delivered(thread: string) {
-    return this.sql.exec(`UPDATE epics SET status = 'review' WHERE id = ? AND COALESCE(archived, 0) != 1 AND COALESCE(status, '') != 'review'`, thread).rowsWritten > 0;
+    return this.sql.exec(`UPDATE epics SET status = 'review' WHERE id = ? AND COALESCE(done, 0) != 1 AND COALESCE(status, '') != 'review'`, thread).rowsWritten > 0;
   }
   epicsChanged() {
     this.autoReview();
@@ -296,14 +310,14 @@ export class Book extends DurableObject<Env> {
     const id = this.get("book_id");
     if (!id) return;
     // "Esperando você": a task in review waits on its owner. Rows of tasks that left review, and every wait in an
-    // archived epic's thread, go away.
-    const review = [...epics.filter((e) => !e.archived), { id: "main", title: "sala principal", tasks: roomTasks }].flatMap((e) => e.tasks.filter((t) => t.status === "review" && t.owner).map((t) => ({ t, e })));
+    // done epic's thread, go away.
+    const review = [...epics.filter((e) => !e.done), { id: "main", title: "sala principal", tasks: roomTasks }].flatMap((e) => e.tasks.filter((t) => t.status === "review" && t.owner).map((t) => ({ t, e })));
     const keep = review.map(({ t }) => `t${t.id}`);
-    const gone = epics.filter((e) => e.archived).map((e) => e.id);
+    const gone = epics.filter((e) => e.done).map((e) => e.id);
     const DB = this.env.DB;
     this.ctx.waitUntil(
       DB.batch([
-        DB.prepare(`UPDATE books SET epics = ? WHERE id = ?`).bind(JSON.stringify(epics.filter((e) => !e.archived).map((e) => ({ id: e.id, title: e.title, open: e.tasks.filter((t) => t.status !== "done").length }))), id),
+        DB.prepare(`UPDATE books SET epics = ? WHERE id = ?`).bind(JSON.stringify(epics.filter((e) => !e.done).map((e) => ({ id: e.id, title: e.title, open: e.tasks.filter((t) => t.status !== "done").length }))), id),
         DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref LIKE 't%' AND ref NOT IN (SELECT value FROM json_each(?))`).bind(id, JSON.stringify(keep)),
         DB.prepare(`DELETE FROM waits WHERE book_id = ? AND thread IN (SELECT value FROM json_each(?))`).bind(id, JSON.stringify(gone)),
         ...review.map(({ t, e }) => DB.prepare(`INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, '', ?, ?)`).bind(id, `t${t.id}`, t.owner, e.id, e.title, t.title, Date.now())),
@@ -314,13 +328,43 @@ export class Book extends DurableObject<Env> {
   }
   messageRows(rows: readonly unknown[]): Msg[] {
     let files: Map<string, FileMeta> | undefined;
-    return storedMessageRows(rows, this.get("book_id") ?? "", (id) => { files ??= new Map(this.files().map((file) => [file.id, file])); return files.get(id); }, (kind) => console.warn("book stored projection", kind));
+    return this.withReplyThreads(storedMessageRows(rows, this.get("book_id") ?? "", (id) => { files ??= new Map(this.files().map((file) => [file.id, file])); return files.get(id); }, (kind) => console.warn("book stored projection", kind)));
+  }
+  /** reply_thread on replies to a message of another thread: the quote's click goes there even when the quoted message
+   *  isn't loaded (one indexed lookup per page; same-thread replies, the common case, carry nothing). */
+  private withReplyThreads(messages: Msg[]): Msg[] {
+    const ids = [...new Set(messages.flatMap((m) => (m.reply_to ? [m.reply_to] : [])))];
+    if (!ids.length) return messages;
+    const threads = new Map<number, string>();
+    for (let i = 0; i < ids.length; i += 90) {
+      const chunk = ids.slice(i, i + 90);
+      for (const r of this.sql.exec<{ id: number; thread: string }>(`SELECT id, thread FROM messages WHERE id IN (${chunk.map(() => "?").join(",")})`, ...chunk).toArray()) threads.set(r.id, r.thread);
+    }
+    return messages.map((m) => {
+      const thread = m.reply_to ? threads.get(m.reply_to) : undefined;
+      return thread && thread !== m.thread ? { ...m, reply_thread: thread } : m;
+    });
   }
   messages(thread?: string, limit = 500): Msg[] {
     const rows = thread
       ? this.sql.exec(`SELECT * FROM messages WHERE thread = ? ORDER BY id DESC LIMIT ?`, thread, limit)
       : this.sql.exec(`SELECT * FROM messages ORDER BY id DESC LIMIT ?`, limit);
     return this.messageRows(rows.toArray()).reverse();
+  }
+  /** A reconnect resumes (cache plan PR 2, Gimenes #4638): 51% of room opens were reconnects (code 1006) that got the
+   * whole state again (390 KB in the product room). A socket that already has the room sends `since` (its newest
+   * message id), `at` (its last state's time) and `eh` (the hash of the threads it got). Nothing is kept per client.
+   * The answer: the open thread's window, every message newer than since or edited or deleted since at, and the
+   * threads only when their hash differs. null = send the whole state (no params, too old, or too much changed).
+   * Not caught up: a reaction or a card changed on an older message during the gap (live events carry those after). */
+  resumeOf(url: URL, open: string, window: Msg[], eh: string) {
+    const since = Number(url.searchParams.get("since")), at = Number(url.searchParams.get("at")), now = Date.now();
+    if (!(Number.isSafeInteger(since) && since > 0 && at > now - RESUME_MAX_AGE_MS && at <= now)) return null;
+    const rows = this.sql.exec(`SELECT * FROM messages WHERE id > ? OR edited >= ? OR deleted >= ? ORDER BY id LIMIT ?`, since, at, at, RESUME_MAX_ROWS + 1).toArray();
+    if (rows.length > RESUME_MAX_ROWS) return null;
+    const messages = new Map(window.filter((m) => m.thread === open).map((m) => [m.id, m]));
+    for (const m of this.messageRows(rows)) messages.set(m.id, m);
+    return { messages: [...messages.values()].sort((a, b) => a.id - b.id), epicsSame: url.searchParams.get("eh") === eh };
   }
   /** What a room open sends: the newest 60 messages of the open thread and the newest 5 of every other one (enough for
    * the sidebar, thread cards and the ✻); the app pages the rest with "older" when a thread opens. Apart, in origins
@@ -330,13 +374,13 @@ export class Book extends DurableObject<Env> {
   roomWindow(open = "main", me = "") {
     const rows = this.messageRows(this.sql
       .exec(
-        // Archived epics are left out (the open one aside): in the product room 126 of 133 epics were archived and
+        // Done epics are left out (the open one aside): in the product room 126 of 133 epics were done and
         // their 5 messages each were most of a 655 KB room open (Nov 2026). Opening one fetches it (fillOf / older).
         // answers_ask: a reply to your Claude's ⏸/❓ (Aprovar/Negar…), which the Fila leaves out even when the question
         // itself isn't loaded.
         `SELECT * FROM (SELECT m.*, ROW_NUMBER() OVER (PARTITION BY m.thread ORDER BY m.id DESC) AS rn,
            (SELECT 1 FROM messages q WHERE q.id = m.reply_to AND q.kind = 'agent' AND q.choices IS NOT NULL AND (q.text LIKE '⏸%' OR q.text LIKE '❓%')) AS answers_ask FROM messages m
-           WHERE m.thread = ? OR m.thread = 'main' OR m.thread IN (SELECT id FROM epics WHERE COALESCE(archived, 0) <= 0))
+           WHERE m.thread = ? OR m.thread = 'main' OR m.thread = '${CALL_THREAD}' OR m.thread IN (SELECT id FROM epics WHERE COALESCE(done, 0) <= 0))
          WHERE rn <= (CASE WHEN thread = ? THEN 60 ELSE 5 END)
          ORDER BY id`,
         open, open,
@@ -345,7 +389,7 @@ export class Book extends DurableObject<Env> {
     const have = new Set(rows.map((m) => m.id));
     const origins = this.messageRows(this.sql
       .exec(
-        `SELECT * FROM messages WHERE id IN (SELECT from_msg FROM epics WHERE from_msg IS NOT NULL AND (COALESCE(archived, 0) <= 0 OR id = ?))
+        `SELECT * FROM messages WHERE id IN (SELECT from_msg FROM epics WHERE from_msg IS NOT NULL AND (COALESCE(done, 0) <= 0 OR id = ?))
            OR (author = ? AND kind IS NULL AND ts > ? AND NOT EXISTS (SELECT 1 FROM acks a WHERE a.msg_id = messages.id AND a.email = ? AND a.status IN ('done', 'idle', 'dismissed'))
                -- your answer to your Claude's ⏸/❓ (Aprovar/Negar) is not a request: the hook already took it. The app
                -- only skipped it when the question was loaded too, so "Aprovar" rows filled the Fila (Gui, 14/11).
@@ -372,13 +416,16 @@ export class Book extends DurableObject<Env> {
   /** Decisions and approvals, oldest first: what the room agreed and who said yes. */
   decisions() {
     return this.sql
-      .exec<{ id: number; text: string; who: string; kind: string; ts: number }>(`SELECT * FROM (SELECT * FROM decisions ORDER BY id DESC LIMIT 100) ORDER BY id`)
-      .toArray();
+      .exec<{ id: number; text: string; who: string; kind: string; ts: number; msg: number | null; email: string | null; via: string | null }>(`SELECT * FROM (SELECT * FROM decisions ORDER BY id DESC LIMIT 100) ORDER BY id`)
+      .toArray()
+      .map(({ msg, email, via, ...d }) => ({ ...d, ...(msg ? { msg } : {}), ...(email ? { email } : {}), ...(via ? { via } : {}) }));
   }
-  logDecision(text: string, who: string, kind: "decision" | "approval" = "decision") {
+  /** msg: the message the decision came from, so the Decisions pane can jump to it. by: whose it is (their avatar)
+   * and, when an agent logged it, the agent's model (its mark on the avatar). */
+  logDecision(text: string, who: string, kind: "decision" | "approval" = "decision", msg?: number | null, by?: { email: string; via?: string }) {
     const t = text.trim().slice(0, 400);
     if (!t) return null;
-    const id = this.sql.exec(`INSERT INTO decisions (text, who, kind, ts) VALUES (?, ?, ?, ?) RETURNING id`, t, who.slice(0, 200), kind, Date.now()).one().id as number;
+    const id = this.sql.exec(`INSERT INTO decisions (text, who, kind, ts, msg, email, via) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`, t, who.slice(0, 200), kind, Date.now(), msg || null, by?.email || null, by?.via?.slice(0, 80) || null).one().id as number;
     this.broadcast({ t: "decisions", decisions: this.decisions() });
     return id;
   }
@@ -492,7 +539,7 @@ export class Book extends DurableObject<Env> {
     if (due.length) {
       const names = await this.names();
       for (const r of due) {
-        const thread = r.thread === "main" || this.epics().some((e) => e.id === r.thread) ? r.thread : "main";
+        const thread = this.knownThread(r.thread) ? r.thread : "main";
         // Old set_reminder rows (no file) posted as the person; file reminders are @vibe speaking for them.
         if (r.name) this.addMessage(thread, "ai", `⏰ **${r.name}** · ${this.en ? "reminder from" : "lembrete de"} ${(names[r.owner] ?? r.owner.split("@")[0]).split(" ")[0]}\n\n${r.text}`, { tag: "reminder", forWho: r.owner });
         else this.addMessage(thread, r.owner, `⏰ ${this.en ? "Reminder" : "Lembrete"}: ${r.text}`, { tag: "reminder" });
@@ -524,13 +571,13 @@ export class Book extends DurableObject<Env> {
     return storedSuggestions(this.get("suggestions"), (kind) => console.warn("book stored projection", kind)).filter((x) => x.title.trim() && !have.has(epicKey(x.title)) && !covered(x.title));
   }
   /** The one gate for epic suggestions (@vibe's classify and agents' suggest_thread): one Jev call asks, for each,
-   * whether an epic of this room, open or archived, already does it (by goal, not by name), and drops those.
+   * whether an epic of this room, open or done, already does it (by goal, not by name), and drops those.
    * Re-run over the stored ones on each pass, so a suggestion that became an epic since goes away. Jev down = kept
    * (it's only a suggestion; the word filter in suggestions() still applies). */
   async keepNewSuggestions(list: Suggestion[]): Promise<Suggestion[]> {
     if (!list.length) return list;
     const goal = (id: string) => (this.get(`doc:${id}`) ?? "").match(/\*\*Objetivo:\*\*\s*([^\n]*)/)?.[1]?.slice(0, 160) ?? "";
-    const epics = this.epics().map((e) => `- ${e.archived ? "[feito/arquivado] " : "[aberto] "}${e.title}${goal(e.id) ? `: ${goal(e.id)}` : ""}`).join("\n").slice(0, 9000);
+    const epics = this.epics().map((e) => `- ${e.done ? "[feito] " : "[aberto] "}${e.title}${goal(e.id) ? `: ${goal(e.id)}` : ""}`).join("\n").slice(0, 9000);
     const q: Record<string, Question> = {};
     list.forEach((s, i) => (q[`s${i}`] = { type: "noul", instructions: `O épico proposto "${s.title.slice(0, 200)}" (${(s.why ?? "").slice(0, 300)}) já foi feito ou está sendo feito por algum dos épicos desta sala? Responda sim se um deles já cobre o mesmo objetivo, mesmo com outro nome ou escopo um pouco diferente.` }));
     const r = await decide(this.env, { epicos_da_sala: epics || "(nenhum)" }, q);
@@ -673,7 +720,7 @@ export class Book extends DurableObject<Env> {
     if (Number(this.get(key) ?? 0) > Date.now() - 3600_000) return [];
     const quiet = Date.now() - 30 * 60e3;
     const out = this.epics()
-      .filter((e) => !e.archived)
+      .filter((e) => !e.done)
       .flatMap((e) => {
         const act = this.sql.exec<{ last: number | null; mine: number }>(`SELECT max(ts) AS last, sum(kind = 'agent' AND author = ?) AS mine FROM messages WHERE thread = ?`, email, e.id).one();
         if (!act.mine || (act.last ?? 0) > quiet) return [];
@@ -689,7 +736,7 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     const open = (t: { status: string }) => t.status !== "done";
     const fromEpics = this.epics()
-      .filter((e) => !e.archived)
+      .filter((e) => !e.done)
       .flatMap((e) => e.tasks.filter((t) => t.owner === email && open(t)).map((t) => ({ epic_id: e.id, epic: e.title as string | null, task_id: t.id, title: t.title, status: t.status, due: t.due })));
     const fromRoom = this.roomTasks()
       .filter((t) => t.owner === email && open(t))
@@ -712,7 +759,188 @@ export class Book extends DurableObject<Env> {
     return isDmId(this.get("book_id") ?? "");
   }
   online() {
-    return [...new Set(this.sockets().map((ws) => this.ctx.getTags(ws)[0]))];
+    // The call's recorder has the room open, and is not a person.
+    return [...new Set(this.sockets().map((ws) => this.ctx.getTags(ws)[0]))].filter((email) => !isRecorder(email));
+  }
+  // ---- calls (src/calls.ts): who is in the room's call, and the tracks each one publishes ----
+  callPeers(): CallPeer[] {
+    const parsed = z.array(CallPeerSchema).safeParse(JSON.parse(this.get("call") ?? "[]"));
+    return parsed.success ? parsed.data : [];
+  }
+  private setCall(peers: CallPeer[]) {
+    this.set("call", JSON.stringify(peers));
+    this.broadcastCall();
+  }
+  private broadcastCall() {
+    this.broadcast({ t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState() });
+  }
+  /** One session per person: joining again (another tab or device) replaces the earlier one.
+   *  Answers true when this join makes the call one to record: a second person is in it now and no recorder is
+   *  (a person alone in a call is not recorded: the first production recording was one person, 2026-11-24). */
+  callJoin(bookId: string, email: string, session: string, origin: string): boolean {
+    this.bind(bookId);
+    const before = this.callPeers(), first = !before.some((p) => !isRecorder(p.email));
+    if (first && !isRecorder(email)) {
+      // A new call: where the recorder's link points, and no restart of the recorder yet.
+      this.set("call_origin", origin);
+      this.set("call_rec_n", "0");
+      this.callStarted(email);
+    } else if (!isRecorder(email) && !before.some((p) => p.email === email)) {
+      // Someone besides its starter came: the call was answered.
+      this.set("call_many", "1");
+      if (this.ringState()?.to === email) this.stopRing();
+    }
+    const after = [...before.filter((p) => p.email !== email), { email, session, tracks: [] }];
+    this.setCall(after);
+    return !isRecorder(email) && after.filter((p) => !isRecorder(p.email)).length >= 2 && !after.some((p) => isRecorder(p.email));
+  }
+  /** The chat of the call that is on (beside the stage); none while nobody is in a call. */
+  liveCallThread(): string | undefined {
+    return this.callPeers().some((p) => !isRecorder(p.email)) ? this.callThread() : undefined;
+  }
+  /** The room's call chat: one for every call of the room (CALL_THREAD, never listed as a thread). A DM's call
+   *  is the conversation's. */
+  private callThread(): string {
+    return this.isDm ? "main" : CALL_THREAD;
+  }
+  /** A thread a message can go to: main, the room's call chat, an epic. */
+  knownThread(thread: string): boolean {
+    return thread === "main" || (thread === CALL_THREAD && !this.isDm) || this.epics().some((e) => e.id === thread);
+  }
+  /** Where the call was, for the recording's title: the room. The call is the room's (its chat is the room's one
+   *  call chat, not a thread), so no thread goes in the title. */
+  async callTitle(bookId: string): Promise<string> {
+    this.bind(bookId);
+    return (await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title || "deco.chat";
+  }
+  /** The recorder says the call is in Grain: the room gets a summary, the link and the transcript as a file. */
+  async callRecorded(bookId: string, call: { url: string; minutes: number; people: string[]; transcript: string; withheld: boolean; file: FileMeta | null }) {
+    this.bind(bookId);
+    const en = this.en;
+    let summary = "", cost = 0;
+    if (call.transcript) {
+      try {
+        const { text, usage } = await generateText({
+          model: this.model(this.env.MODEL_FAST, true),
+          maxOutputTokens: 700,
+          prompt: `${en ? "Summarize this call for people who were not in it. Write in English." : "Resuma esta call para quem não participou. Escreva em português."}\n${en ? "Give: what was decided, what is still open, and who does what next (with the person's name). Use short bullets. Use only what the transcript says. No title, no closing line." : "Traga: o que foi decidido, o que ficou em aberto, e quem faz o quê em seguida (com o nome da pessoa). Use tópicos curtos. Use só o que a transcrição diz. Sem título e sem frase de fecho."}\n\n<transcript>\n${call.transcript.slice(0, 60_000)}\n</transcript>`,
+        });
+        summary = text.trim().slice(0, 2500);
+        cost = costOf(usage);
+      } catch (e) {
+        console.error("call summary failed", String(e));
+      }
+    }
+    const head = `**${en ? "Call recorded" : "Call gravada"}**${call.minutes ? ` · ${Math.max(1, Math.round(call.minutes))} min` : ""}${call.people.length ? ` · ${call.people.slice(0, 12).join(", ")}` : ""}`;
+    const note = call.withheld ? (en ? "The transcript did not enter the room: it seems to contain a secret." : "A transcrição não entrou na sala: parece conter um segredo.") : "";
+    this.addMessage(this.callThread(), "ai", [head, summary, note, `${en ? "Recording" : "Gravação"}: ${call.url}`].filter(Boolean).join("\n\n"), call.file ? { files: [call.file] } : {});
+    this.ctx.waitUntil(track(this.env, "call_recorded", { dims: { book: bookId, minutes: Math.round(call.minutes), people: call.people.length, transcript: !!call.transcript, cost: +cost.toFixed(6) } }));
+  }
+  /** The recording did not start, or failed: the room is told, so that nobody counts on it. */
+  callRecordFailed(bookId: string, reason: string) {
+    this.bind(bookId);
+    const en = this.en;
+    this.addMessage(
+      this.callThread(),
+      "ai",
+      reason === "start"
+        ? en ? "The recorder did not start: this call is not being recorded." : "O gravador não iniciou: esta call não está sendo gravada."
+        : en ? "The recording of the call failed. Nothing of it went to Grain." : "A gravação da call falhou. Nada dela foi para o Grain.",
+    );
+    this.ctx.waitUntil(track(this.env, "call_record_failed", { dims: { book: bookId, reason: reason.slice(0, 80) } }));
+  }
+  // ---- the call's line in main, and a DM's ringing ----
+  /** A call starts: its line in main ("📞 iniciou uma call.", by who started it), and a DM rings the other person.
+   *  quiet: the line is no unread message, wakes no listener and plays no chime (the ring is what calls). */
+  private callStarted(email: string) {
+    const m = this.addMessage("main", email, callLineText({ state: "on" }, this.en), { tag: "call", quiet: true });
+    this.set("call_line", String(m.id));
+    this.set("call_at", String(m.ts));
+    this.set("call_many", "");
+    if (this.isDm) this.ctx.waitUntil(this.ringStart(email).catch((e) => console.error("call ring", String(e))));
+  }
+  /** The last person left: the line says how it went, in the same message (a DM nobody answered: missed). */
+  private callEnded() {
+    this.stopRing();
+    const id = Number(this.get("call_line") ?? 0);
+    if (!id) return;
+    this.set("call_line", "");
+    const missed = this.isDm && !this.get("call_many");
+    const text = callLineText(missed ? { state: "missed" } : { state: "ended", minutes: callMinutes(Number(this.get("call_at") ?? Date.now()), Date.now()) }, this.en);
+    this.sql.exec(`UPDATE messages SET text = ? WHERE id = ? AND tag = 'call'`, text, id);
+    this.broadcast({ t: "msgEdit", id, text });
+  }
+  /** The ring that is on: none once its time ran out. */
+  ringState(): Ring | undefined {
+    const raw = this.get("ring");
+    const parsed = raw ? RingSchema.safeParse(JSON.parse(raw)) : null;
+    return parsed?.success && parsed.data.until > Date.now() ? parsed.data : undefined;
+  }
+  /** A DM's call rings the other person wherever they are in the app (their personal channel, src/person.ts), and
+   *  on their devices (web push). It stops on its own after RING_MS (alarm). */
+  async ringStart(email: string) {
+    const bookId = this.get("book_id");
+    const to = (await this.members()).find((e) => e !== email);
+    // A DM with yourself rings nobody; a caller who already hung up rings nobody.
+    if (!bookId || !to || !this.callPeers().some((p) => p.email === email) || this.get("call_many")) return;
+    const ring: Ring = { from: email, to, until: Date.now() + RING_MS };
+    this.set("ring", JSON.stringify(ring));
+    this.broadcastCall();
+    const who = await this.env.DB.prepare(`SELECT name, avatar FROM users WHERE email = ?`).bind(email).first<{ name: string | null; avatar: number | null }>();
+    const name = who?.name || email.split("@")[0]!;
+    await Promise.all([
+      poke(this.env, [to], { t: "ring", book: bookId, from: email, until: ring.until, name, avatar: who?.avatar ?? null }),
+      this.wakeAt(ring.until),
+      this.notify([to], (en) => (en ? `${name} is calling you` : `${name} está ligando para você`), "📞", Number(this.get("call_line") ?? 0), "main"),
+    ]);
+  }
+  /** The ring stops (answered, declined, hung up, or out of time): the person rung is told, in every tab. */
+  private stopRing() {
+    const raw = this.get("ring"), bookId = this.get("book_id");
+    if (!raw) return;
+    this.set("ring", "");
+    const parsed = RingSchema.safeParse(JSON.parse(raw));
+    if (parsed.success && bookId) this.ctx.waitUntil(poke(this.env, [parsed.data.to], { t: "ring", book: bookId }));
+  }
+  /** The person rung says no: the ring stops, the caller stays in the call until they hang up. */
+  callDecline(bookId: string, email: string) {
+    this.bind(bookId);
+    if (this.ringState()?.to !== email) return;
+    this.stopRing();
+    this.broadcastCall();
+  }
+  /** The alarm: a ring whose time ran out stops. */
+  ringTimeout() {
+    if (this.get("ring") && !this.ringState()) {
+      this.stopRing();
+      this.broadcastCall();
+    }
+  }
+  /** Is `session` this person's, and is every session in `pulls` in this room's call? */
+  callCheck(email: string, session: string, pulls: string[]): boolean {
+    const peers = this.callPeers();
+    return peers.some((p) => p.email === email && p.session === session) && pulls.every((s) => peers.some((p) => p.session === s));
+  }
+  callTracks(email: string, add: string[], drop: string[]) {
+    this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, tracks: [...new Set([...p.tracks, ...add])].filter((t) => !drop.includes(t)) } : p)));
+  }
+  /** A recorder that leaves a call that goes on (Grain's 3 hours, or it stopped) is asked to come back.
+   *  `session`: only that session leaves (a hang-up, or a session the SFU no longer has); the person's newer
+   *  session (another tab joined since) stays. */
+  callLeave(email: string, session?: string) {
+    const peers = this.callPeers();
+    if (!peers.some((p) => p.email === email && (session === undefined || p.session === session))) return;
+    const left = peers.filter((p) => p.email !== email);
+    if (!left.some((p) => !isRecorder(p.email))) this.callEnded();
+    this.setCall(left);
+    const bookId = this.get("book_id") ?? "";
+    // Two people or more are still there: with one person left, the recorder is not called back.
+    if (!isRecorder(email) || left.filter((p) => !isRecorder(p.email)).length < 2 || !recorderOn(this.env, bookId)) return;
+    const attempt = Number(this.get("call_rec_n") ?? 0) + 1;
+    this.set("call_rec_n", String(attempt));
+    // ponytail: 6 recorders for one call at most. A recorder that stops each time would start one more for ever.
+    if (attempt > 5) return this.callRecordFailed(bookId, "start");
+    this.ctx.waitUntil(startRecorder(this.env, this.get("call_origin") ?? publicOrigin(this.env), bookId, attempt));
   }
   private pushedAt = new Map<string, number>();
   /** A native notification (web push) to these people's devices, unless they have this room open; ≤1 per person per
@@ -779,9 +1007,10 @@ export class Book extends DurableObject<Env> {
   }
 
   // ---- mutations (shared by humans over WS and by AI tools) ----
-  addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
+  addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire" | "call"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
     // A reply points at a message of this room; anything else is dropped rather than refused.
-    const replyTo = extra.replyTo && this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, extra.replyTo).toArray().length ? extra.replyTo : null;
+    const replied = extra.replyTo ? this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, extra.replyTo).toArray()[0] : undefined;
+    const replyTo = replied ? extra.replyTo! : null;
     const ts = Date.now();
     const files = extra.files ?? [];
     const id = this.sql
@@ -803,8 +1032,8 @@ export class Book extends DurableObject<Env> {
         extra.clientId ?? null,
       )
       .one().id as number;
-    const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}) };
-    // quiet: @vibe's routine lines (archived/reopened, nudges, the issue feed): drawn in the thread, but no unread dot,
+    const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, ...(replied && replied.thread !== thread ? { reply_thread: replied.thread } : {}), choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}) };
+    // quiet: @vibe's routine lines (done/reopened, nudges, the issue feed): drawn in the thread, but no unread dot,
     // no listener wake, no chime and no mention e-mail; the morning/evening catch-up carries them.
     this.broadcast({ t: "msg", m: extra.quiet ? { ...m, quiet: true } : m });
     // The D1 index keeps the newest id so the agent inbox is one query, not one DO call per room, and which kind
@@ -942,7 +1171,7 @@ export class Book extends DurableObject<Env> {
       if (!unread.length || !user || user.mention_mail === 0) { drop(); continue; }
       if ((sentToday?.n ?? 0) >= MAIL_DAY_MAX) { drop(); this.ctx.waitUntil(track(this.env, "mention_mail_skipped", { user: to, dims: { book: bookId, why: "day_cap" } })); continue; }
       // Only what needs them now goes out at once: a person (not a Claude, not @vibe) asking them something, which
-      // Jev already marked as a wait (findWaits ran on the 30s alarm, well before this 5 min). The rest is held for
+      // Jev already marked as a wait (the router pass at once, or findWaits within 2 min, well before this 5 min). The rest is held for
       // the 8h/18h catch-up (src/digest.ts).
       const asks = new Set(
         (await db.prepare(`SELECT ref FROM waits WHERE book_id = ? AND email = ? AND ref IN (${unread.map(() => "?").join(",")})`).bind(bookId, to, ...unread.map((i) => `m${i}`)).all<{ ref: string }>()).results.map((r) => r.ref),
@@ -1074,21 +1303,21 @@ export class Book extends DurableObject<Env> {
     this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, title.trim().slice(0, 200), id);
     this.epicsChanged();
   }
-  // Done (archived) or open again. Done leaves the Open tab and the board, keeps its tasks and discussion; markDone
+  // Done or open again. Done leaves the Open tab and the board, keeps its tasks and discussion; markDone
   // closes every task. Open again goes back to doing, and its old round of done tasks does not move it to review again.
-  archiveEpic(id: string, archived = true, markDone = false, changed = true) {
+  setDone(id: string, done = true, markDone = false, changed = true) {
     if (markDone) this.sql.exec(`UPDATE tasks SET done = 1, status = 'done' WHERE epic_id = ?`, id);
-    this.sql.exec(`UPDATE epics SET archived = ?, status = ? WHERE id = ?`, archived ? 1 : 0, archived ? "done" : "doing", id);
-    if (!archived) this.set(`alldone:${id}`, "1");
+    this.sql.exec(`UPDATE epics SET done = ?, status = ? WHERE id = ?`, done ? 1 : 0, done ? "done" : "doing", id);
+    if (!done) this.set(`alldone:${id}`, "1");
     if (changed) this.epicsChanged();
   }
-  // The thread bar's status menu and update_thread status: todo, doing, review or done (Gimenes #4247). done archives
-  // and closes the open tasks. An old client's "dismissed" is done. Production is not a status (Gimenes #3877).
+  // The thread bar's status menu and update_thread status: todo, doing, review or done (Gimenes #4247). done closes the thread
+  // and its open tasks. An old client's "dismissed" is done. Production is not a status (Gimenes #3877).
   setEpicStatus(id: string, status: EpicStatus) {
-    const row = this.sql.exec<{ archived: number | null }>(`SELECT archived FROM epics WHERE id = ?`, id).toArray()[0];
+    const row = this.sql.exec<{ done: number | null }>(`SELECT done FROM epics WHERE id = ?`, id).toArray()[0];
     if (!row) return new Refused("unknown epic");
-    if (status === "done" || status === "dismissed") return this.archiveEpic(id, true, true);
-    if (row.archived === 1) this.archiveEpic(id, false, false, false);
+    if (status === "done" || status === "dismissed") return this.setDone(id, true, true);
+    if (row.done === 1) this.setDone(id, false, false, false);
     this.sql.exec(`UPDATE epics SET status = ? WHERE id = ?`, status, id);
     this.epicsChanged();
   }
@@ -1096,6 +1325,14 @@ export class Book extends DurableObject<Env> {
   deleteEpic(id: string) {
     if (id === "main" || !this.epics().some((epic) => epic.id === id)) return new Refused("unknown epic");
     const bookId = this.get("book_id");
+    // A reply thread the router made, deleted soon: maybe the question was not one (a suggested case).
+    const made = this.get(`router_made:${id}`);
+    if (made) {
+      this.sql.exec(`DELETE FROM meta WHERE k = ?`, `router_made:${id}`);
+      const c = JSON.parse(made) as { msg: number; author: string; ts: number };
+      if (Date.now() - c.ts < UNDO_WINDOW_MS)
+        this.ctx.waitUntil(this.routerFeedback({ msgId: c.msg, action: "answer_thread", who: "", status: "suggested", expected: "no", reporter: c.author, note: "thread de resposta apagada logo depois" }).catch((e) => console.error("router feedback", String(e))));
+    }
     this.sql.exec(`DELETE FROM tasks WHERE epic_id = ?`, id);
     this.sql.exec(`DELETE FROM messages WHERE thread = ?`, id);
     this.sql.exec(`DELETE FROM epics WHERE id = ?`, id);
@@ -1183,19 +1420,160 @@ export class Book extends DurableObject<Env> {
   }
   // Continuing a finished thread: a person writing in a done thread opens it again (doing). Its old done tasks do not
   // move it to review; the next round's tasks do.
-  reopenIfArchived(thread: string) {
-    if (thread === "main" || !this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND archived = 1`, thread).toArray().length) return;
-    this.archiveEpic(thread, false);
+  reopenIfDone(thread: string) {
+    if (thread === "main" || !this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND done = 1`, thread).toArray().length) return;
+    this.setDone(thread, false);
   }
-  /** A person's message in a thread (Gimenes #4249): "Marcar como concluída" / "Mark as done" marks it done; any
-   *  other message opens a done thread again. */
-  personWrote(thread: string, text: string) {
-    if (thread !== "main" && isMarkDone(text) && this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND COALESCE(archived, 0) != 1`, thread).toArray().length) {
-      this.setEpicStatus(thread, "done");
-      this.ctx.waitUntil(track(this.env, "epic_status", { dims: { book: this.get("book_id") ?? "", status: "done", via: "mark_done" } }));
-      return;
+  /** A person's message (Gimenes #4249, #4369): any message opens a done thread again, except the exact "Marcar como
+   *  concluída" / "Mark as done". Then the router actions (src/routerActions.ts) run on it: the exact phrase closes the
+   *  thread at once, else one Jev call asks every action that applies (a question in main → an answer thread; "pode
+   *  fechar" in a thread → done). */
+  personWrote(thread: string, text: string, msg?: { id: number; author: string }) {
+    if (!(thread !== "main" && isMarkDone(text) && this.openThread(thread))) {
+      // Opened again soon after the router closed it in Jev's words: maybe the router was wrong (a suggested case).
+      const closed = this.get(`jev_done:${thread}`);
+      if (closed && !this.openThread(thread)) {
+        this.sql.exec(`DELETE FROM meta WHERE k = ?`, `jev_done:${thread}`);
+        const c = JSON.parse(closed) as { msg: number; author: string; ts: number };
+        if (Date.now() - c.ts < UNDO_WINDOW_MS && c.author)
+          this.ctx.waitUntil(this.routerFeedback({ msgId: c.msg, action: "mark_done", who: "", status: "suggested", expected: "no", reporter: c.author, note: "reaberta logo depois" }).catch((e) => console.error("router feedback", String(e))));
+      }
+      this.reopenIfDone(thread);
     }
-    this.reopenIfArchived(thread);
+    this.ctx.waitUntil(this.routerActions({ id: msg?.id ?? 0, thread, author: msg?.author ?? "", text }).catch((e) => console.error("router actions", String(e))));
+  }
+  openThread(thread: string) {
+    return thread !== "main" && this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND COALESCE(done, 0) != 1`, thread).toArray().length > 0;
+  }
+  /** The room as the router actions see it. */
+  actionRoom(): ActionRoom {
+    return {
+      isDm: this.isDm,
+      openThread: (thread) => this.openThread(thread),
+      listening: async (email) => {
+        const bookId = this.get("book_id");
+        return !!bookId && !!(await this.env.DB.prepare(`SELECT 1 FROM agents WHERE email = ? AND listening_at > ? AND (listen_room = ? OR listen_room IS NULL) LIMIT 1`).bind(email, Date.now() - 12 * 60e3, bookId).first());
+      },
+      hasThreadFrom: (msgId) => this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, msgId).toArray().length > 0,
+      markDone: (thread, via, m) => {
+        this.setEpicStatus(thread, "done");
+        this.ctx.waitUntil(track(this.env, "epic_status", { dims: { book: this.get("book_id") ?? "", status: "done", via: via === "exact" ? "mark_done" : "mark_done_jev" } }));
+        // A Jev close that a person undoes soon is a suggested case (personWrote).
+        if (via === "jev" && m?.id) this.set(`jev_done:${thread}`, JSON.stringify({ msg: m.id, author: m.author, ts: Date.now() }));
+        // Words, not the exact phrase: say what happened, so a wrong guess is one message away from undone.
+        if (via === "jev")
+          this.addMessage(thread, "ai", this.en
+            ? "✓ I marked this thread as done. Write anything here to open it again."
+            : "✓ Marquei esta thread como feita. Escreva qualquer coisa aqui para reabrir.");
+      },
+      makeAnswerThread: (m) => this.makeAnswerThread(m.id, m.author, m.text),
+      people: async (m) => {
+        if (!m.id || !m.author) return null;
+        const w = await this.waitNames();
+        return {
+          others: w.members.filter((e) => e !== m.author).map((email) => ({ email, name: w.nm(email) })),
+          roster: w.roster,
+          before: w.before(m.thread, m.id),
+          author: w.nm(m.author),
+          tagged: mentioned(m.text, w.members, w.names, m.author, false, w.handles),
+        };
+      },
+      saveWaits: (m, emails) => this.saveWaits(m.id, emails),
+    };
+  }
+  /** Names as the waits question reads them (shared by the router pass and findWaits). Two people with the same first
+   *  name (two Rafaels) are told apart by full name and @handle, or Jev reads an ask of one as an ask of both (Valls,
+   *  24/11: "@rafael-2" put the message in the other Rafael's inbox). */
+  async waitNames() {
+    const members = await this.members();
+    const names = await this.names();
+    const handles = await this.handles();
+    const clean = (x: string) => x.replace(/[<>"@\p{Cc}]/gu, "");
+    const first = (e: string) => clean((names[e] ?? e.split("@")[0]).split(/\s+/)[0] ?? "");
+    const same = (e: string) => members.filter((x) => x !== e && first(x) === first(e)).length > 0;
+    const nm = (e: string) => (same(e) ? `${clean(names[e] ?? e.split("@")[0])}${handles[e] ? ` (@${handles[e]})` : ""}` : first(e));
+    const roster = members.map((e) => (handles[e] ? `${nm(e)}${same(e) ? "" : ` (@${handles[e]})`}` : nm(e))).join(", ");
+    const before = (thread: string, id: number) =>
+      this.sql
+        .exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT 4`, thread, id)
+        .toArray()
+        .reverse()
+        .map((b) => `${b.author === "ai" ? "@vibe" : nm(b.author)}: ${b.text.slice(0, 240)}`)
+        .join("\n");
+    return { members, names, handles, nm, roster, before };
+  }
+  /** The people a message waits on become D1 `waits` rows (home, rail, MCP `pending`) and get a push. Whoever already
+   *  wrote in the thread after it, or reacted to it, is left out: answeredHere and reactedHere already ran for them,
+   *  before this pass (an LLM call) was done, so the message would stay orange (Gimenes #4604). */
+  async saveWaits(id: number, emails: string[]) {
+    const bookId = this.get("book_id");
+    const m = this.sql
+      .exec<{ thread: string; author: string; text: string; ts: number; reactions: string | null }>(`SELECT thread, author, text, ts, reactions FROM messages WHERE id = ?`, id)
+      .toArray()[0];
+    if (!bookId || !m) return;
+    const later = new Set(this.sql.exec<{ author: string }>(`SELECT DISTINCT author FROM messages WHERE thread = ? AND id > ? AND kind IS NULL`, m.thread, id).toArray().map((x) => x.author));
+    for (const who of Object.values(storedReactions(m.reactions) ?? {}).flat()) later.add(who);
+    const asked = emails.filter((e) => !later.has(e));
+    const topic = m.thread === "main" ? "" : (this.epics().find((e) => e.id === m.thread)?.title ?? "");
+    if (asked.length) {
+      const nm = (await this.waitNames()).nm(m.author);
+      this.ctx.waitUntil(this.notify(asked, (en) => (en ? `${nm} is waiting for your answer` : `${nm} espera sua resposta`), m.text.replace(/\s+/g, " "), id, m.thread));
+      const DB = this.env.DB;
+      await DB.batch(asked.map((e) => DB.prepare(`INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(bookId, `m${id}`, e, m.thread, topic, m.author, m.text.slice(0, 280), m.ts)));
+      this.pokeMembers();
+    }
+    // findWaits skips a person's message that this pass read (the newest 200 ids).
+    const live: number[] = JSON.parse(this.get("waits_live") ?? "[]");
+    this.set("waits_live", JSON.stringify([...live, id].slice(-200)));
+  }
+  /** A case for the router's bench (D1 router_feedback) about a router action or reading on a person's message, with
+   *  what the bench needs to run it again: the text, the thread, the talk before it and the room's other people. A
+   *  suggestion never replaces a case a person gave. `who`: for a reading, the person it is about (email or name).
+   *  The wake cases are written by MCP router_feedback (src/agent.ts), from routerInput. */
+  async routerFeedback(c: { msgId: number; action: string; who: string; status: "case" | "suggested"; expected: string; reporter: string; note?: string }) {
+    const bookId = this.get("book_id");
+    const m = this.sql.exec<{ thread: string; author: string; text: string }>(`SELECT thread, author, text FROM messages WHERE id = ?`, c.msgId).toArray()[0];
+    if (!bookId || !m || m.author === "ai") return { ok: false as const, error: "no such message from a person in this room" };
+    const w = await this.waitNames();
+    const people = w.members.filter((e) => e !== m.author).map((email) => ({ email, name: w.nm(email) }));
+    let who = "";
+    if (c.who) {
+      const q = c.who.trim().toLowerCase();
+      const hit = people.find((p) => p.email === q || p.name.toLowerCase() === q || p.name.toLowerCase().split(/\s+/)[0] === q.replace(/^@/, ""));
+      if (!hit) return { ok: false as const, error: `${c.who} is not another person in this room` };
+      who = hit.email;
+    }
+    const topic = m.thread === "main" ? "main" : (this.epics().find((e) => e.id === m.thread)?.title ?? "");
+    await this.env.DB.prepare(
+      `INSERT INTO router_feedback (book_id, msg_id, action, who, status, reporter, own, name, sender, text, thread, topic, recent, people, expected, note, ts)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (book_id, msg_id, action, who) DO UPDATE SET status = excluded.status, reporter = excluded.reporter, expected = excluded.expected, note = excluded.note, ts = excluded.ts
+       WHERE excluded.status = 'case' OR router_feedback.status = 'suggested'`,
+    )
+      .bind(bookId, c.msgId, c.action, who, c.status, c.reporter, w.nm(m.author), w.nm(m.author), m.text.slice(0, 1500), m.thread, topic, w.before(m.thread, c.msgId), JSON.stringify(people), c.expected, (c.note ?? "").slice(0, 300), Date.now())
+      .run();
+    this.ctx.waitUntil(track(this.env, "router_feedback", { user: c.reporter, dims: { book: bookId, action: c.action, status: c.status, expected: c.expected } }));
+    return { ok: true as const, who: who || undefined };
+  }
+  /** A person cleared a wait (the Inbox's ✓) that the router read from a person's message without them writing in
+   *  that thread: maybe it was not for them (a suggested waits case). */
+  async waitCleared(ref: string, email: string) {
+    const id = /^m\d+$/.test(ref) ? Number(ref.slice(1)) : 0;
+    const live: number[] = JSON.parse(this.get("waits_live") ?? "[]");
+    if (!id || !live.includes(id)) return;
+    await this.routerFeedback({ msgId: id, action: "waits", who: email, status: "suggested", expected: "no", reporter: email, note: "espera dispensada no inbox" });
+  }
+  /** One pass of the router actions over a person's message. Without Jev (MODEL_JUDGE unset or off) only the exact
+   *  phrases act. The exact path runs before any await (see runRouterActions). */
+  routerActions(m: ActionMessage) {
+    const jev = !!this.env.MODEL_JUDGE && this.env.MODEL_JUDGE !== "off";
+    return runRouterActions(m, this.actionRoom(), (state, questions) => (jev ? decide(this.env, state, questions) : Promise.resolve(null)), {
+      topic: m.thread === "main" ? "main" : (this.epics().find((e) => e.id === m.thread)?.title ?? ""),
+    }).then((r) => {
+      if (r.asked.length || r.action || r.read.waits)
+        this.ctx.waitUntil(track(this.env, "router_action", { user: m.author || undefined, dims: { book: this.get("book_id") ?? "", action: r.action ?? "none", via: r.via ?? "", asked: r.asked.join(","), p: Math.round(r.p * 100) / 100, cost: r.cost, waits: r.read.waits?.length ?? -1 } }));
+      return r;
+    });
   }
   // The room's doc, or an epic's own doc (a child of the room's) when epic is set.
   setDoc(text: string, by: string, except?: WebSocket, epic?: string) {
@@ -1305,6 +1683,8 @@ export class Book extends DurableObject<Env> {
     const now = Date.now();
     if (text === null) {
       if (!author && (by.agent || !(await this.isOwner(by.email)))) return { ok: false, error: "only its author or the room owner can delete a message" };
+      // A thread started from this message keeps its origin (Gimenes #4621): delete the thread first.
+      if (this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, id).toArray().length) return { ok: false, error: "a thread started from this message; it cannot be deleted" };
       this.sql.exec(`INSERT INTO message_edits (msg_id, kind, text, files, card, by, ts) VALUES (?, 'delete', ?, ?, ?, ?, ?)`, id, row.text, row.files, row.card, by.agent ? `${by.email}#agent` : by.email, now);
       this.sql.exec(`UPDATE messages SET text = '', files = NULL, card = NULL, choices = NULL, poll = NULL, deleted = ? WHERE id = ?`, now, id);
       // Its files leave the room too (Files tab, links, get_file): only the owner still opens them, from the history.
@@ -1345,27 +1725,45 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     return this.changeMessage(id, { email, agent: true }, text);
   }
-  /** A question or analysis asked in the main thread becomes an answer epic right away (Gui #2767): one Jev call (~1s)
-   *  asks whether it's to be answered with information; ≥0.7 and the author has a Claude listening here makes the epic
-   *  (title = the question, the doc's task list last), links it under the message and opens its doc in the author's
-   *  tabs, where "Claude está escrevendo a resposta…" shows until their Claude writes. Their Claude's start_thread for
-   *  that message returns this epic instead of a new one. Jev down = nothing happens (the Claude still answers). */
-  async answerIntent(msgId: number, email: string, text: string) {
+  /** One page of a thread for GET /api/books/:id/messages and the socket's "older" (cache plan, PR 1). The route checks
+   *  membership. after = the oldest `limit` after that id (catch up); else the newest `limit` before `before`. */
+  messagesPage(q: { thread: string; before?: number; after?: number; limit: number }) {
+    const limit = Math.min(Math.max(1, Math.trunc(q.limit)), 100);
+    const rows = q.after !== undefined
+      ? this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND id > ? ORDER BY id LIMIT ?`, q.thread, Math.trunc(q.after), limit + 1).toArray()
+      : this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT ?`, q.thread, Math.trunc(q.before ?? 0) || Number.MAX_SAFE_INTEGER, limit + 1).toArray();
+    const page = this.messageRows(rows.slice(0, limit));
+    const messages = q.after !== undefined ? page : page.reverse();
+    return { thread: q.thread, messages, acks: this.acksList(messages.map((r) => r.id)), more: rows.length > limit };
+  }
+  roomMessages(bookId: string, q: { thread: string; before?: number; after?: number; limit: number }) {
+    this.bind(bookId);
+    return this.messagesPage(q);
+  }
+  /** What a link to this room names (src/linkTarget.ts decides what the viewer may see). The route checks membership. */
+  linkPeek(bookId: string, q: { message?: number; thread?: string }): LinkPeek {
+    this.bind(bookId);
+    const epic = (id: string) => this.sql.exec<{ title: string | null; owner: string | null }>(`SELECT title, owner FROM epics WHERE id = ?`, id).toArray()[0];
+    const row = q.message === undefined ? undefined : this.sql.exec<{ thread: string | null; author: string; kind: string | null; tag: string | null; for_who: string | null; head: string | null }>(`SELECT thread, author, kind, tag, for_who, substr(text, 1, 16) AS head FROM messages WHERE id = ?`, Math.trunc(q.message)).toArray()[0];
+    const thread = q.thread ? epic(q.thread) : undefined;
+    const messageThread = row ? (row.thread ?? "main") : "main";
+    return {
+      message: row ? { thread: messageThread, author: row.author, kind: row.kind, tag: row.tag, forWho: row.for_who, ask: /^(⏸ Seu Claude|❓ Seu Claude)/.test(row.head ?? ""), threadTitle: messageThread === "main" ? null : (epic(messageThread)?.title ?? null) } : null,
+      thread: thread ? { title: thread.title ?? "", owner: thread.owner } : null,
+    };
+  }
+  /** The answer_thread router action (Gui #2767): a question or analysis asked in main becomes an answer epic right
+   *  away (title = the question), linked under the message, with its doc open in the author's tabs, where "Claude está
+   *  escrevendo a resposta…" shows until their Claude writes. Their Claude's start_thread for that message returns
+   *  this epic instead of a new one. */
+  async makeAnswerThread(msgId: number, email: string, text: string) {
     const bookId = this.get("book_id");
-    if (!bookId || text.length < 12 || this.env.MODEL_JUDGE === "off") return;
-    // A DM is only a conversation (no epics, Nov 2026): not even your own ("Você").
-    if (this.isDm) return;
-    const listening = await this.env.DB.prepare(`SELECT 1 FROM agents WHERE email = ? AND listening_at > ? AND (listen_room = ? OR listen_room IS NULL) LIMIT 1`).bind(email, Date.now() - 12 * 60e3, bookId).first();
-    if (!listening) return;
-    const r = await decide(this.env, { message: text.slice(0, 1500) }, {
-      asks: { type: "noul", instructions: "Is this message a question, or a request for an analysis, numbers, a summary, a report, a chart or a comparison: something to answer with information? Answer no for a request to build, change, fix, deploy or do something, for small talk, for an answer or OK to someone, and for a yes/no question to a person." },
-    }).catch(() => null);
-    const p = r?.answers.asks?.noul ?? 0;
-    this.ctx.waitUntil(track(this.env, "answer_intent", { user: email, dims: { book: bookId, p: Math.round(p * 100) / 100, cost: r?.cost ?? 0 } }));
-    if (p < 0.7 || this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, msgId).toArray().length) return;
+    if (!bookId || this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, msgId).toArray().length) return;
     const line = text.replace(/\s+/g, " ").trim(), cut = line.length > 70 ? `${line.slice(0, 70).replace(/\s+\S*$/, "")}…` : line;
     const id = this.createEpic(cut, [{ title: this.en ? "Answer in the doc" : "Responder no doc" }], [email.toLowerCase()], line.slice(0, 300));
     this.set(`answer:${id}`, "1");
+    // The router made it: deleted soon by a person = a suggested case (deleteEpic).
+    this.set(`router_made:${id}`, JSON.stringify({ msg: msgId, author: email.toLowerCase(), ts: Date.now() }));
     this.setDoc(`# ${cut}\n`, "tasks", undefined, id); // an answer's doc starts empty: the answer goes here, not a plan template (pushed to open tabs)
     this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email.toLowerCase(), msgId, id);
     this.epicsChanged();
@@ -1376,7 +1774,7 @@ export class Book extends DurableObject<Env> {
    *  asked, in the epic. It is in their Claudes' unacked and due_reminders until one acks it, and it wakes a listen. */
   nudgeUnanswered(now = Date.now()) {
     let next = 0;
-    for (const e of this.sql.exec<{ id: string; owner: string | null; ts: number }>(`SELECT e.id, COALESCE(e.owner, m.author) AS owner, e.ts FROM epics e LEFT JOIN messages m ON m.id = e.from_msg WHERE COALESCE(e.archived, 0) <= 0`).toArray()) {
+    for (const e of this.sql.exec<{ id: string; owner: string | null; ts: number }>(`SELECT e.id, COALESCE(e.owner, m.author) AS owner, e.ts FROM epics e LEFT JOIN messages m ON m.id = e.from_msg WHERE COALESCE(e.done, 0) <= 0`).toArray()) {
       // Only questions of the last day: an old one is stale context, not a question someone still waits on.
       if (!e.owner || e.owner === "ai" || e.ts < now - 864e5 || !this.answerPending(e.id) || this.get(`answer_nudge:${e.id}`)) continue;
       const due = e.ts + ANSWER_NUDGE_MS;
@@ -1490,7 +1888,7 @@ export class Book extends DurableObject<Env> {
     const mine = { has: (tag: string) => mentionWho(tag, tagPeople) === email };
     // @room in a person's message (not an agent's or @vibe's) mentions everyone but its author.
     const mentionsMe = (t: string, human = false) => tagsOf(t).some((h) => mine.has(h) || (human && ROOM_TAGS.has(h)));
-    const epics = this.epics().filter((e) => !(Number(e.archived) > 0));
+    const epics = this.epics().filter((e) => !(Number(e.done) > 0));
     const rows = this.sql.exec(`SELECT id, thread, author, kind, tag, for_who, text, reply_to FROM messages WHERE id > ? ORDER BY id LIMIT 30`, since).toArray();
     const messages = rows.map((m) => {
       const thread = m.thread as string;
@@ -1541,7 +1939,8 @@ export class Book extends DurableObject<Env> {
     // Display names are typed by people: no brackets, quotes or line breaks, so a name can't pose as someone's address.
     const who = (e: string) => (e === "ai" ? "@vibe" : names[e] ? `${names[e].replace(/[<>"@\p{Cc}]/gu, "").slice(0, 40)} <${e}>` : e);
     const epics = this.epics();
-    const threadName = (t: string) => (t === "main" ? "main" : `epic: ${epics.find((e) => e.id === t)?.title ?? t}`);
+    // The call chat is readable here (its thread id: "call"), and is not an epic: never in the epics list.
+    const threadName = (t: string) => (t === "main" ? "main" : t === CALL_THREAD ? "call chat" : `epic: ${epics.find((e) => e.id === t)?.title ?? t}`);
     // Messages edited since this agent's last read come again, with edited: true (Gui #4312: "vai estar no unread").
     // ponytail: one cursor per human + agent name in meta; a per-agent receipt column if it ever needs to be exact.
     const editKey = `edit_seen:${email}:${to.me ?? ""}`;
@@ -1561,6 +1960,9 @@ export class Book extends DurableObject<Env> {
         id: m.id,
         at: new Date(m.ts).toISOString(),
         thread: threadName(m.thread),
+        // The thread's id: two threads can have the same title, so an agent finds the thread by this, never by the
+        // title (@vibe #4571, Gimenes #4582).
+        epic_id: m.thread,
         from: who(m.author),
         by_agent: m.kind === "agent",
         mentions_you: !!email && m.author !== email && mentionsMe(m.text, !m.kind && m.author !== "ai"),
@@ -1607,7 +2009,7 @@ export class Book extends DurableObject<Env> {
       epics: epics.map((e) => ({
         id: e.id,
         title: e.title,
-        archived: e.archived || undefined,
+        done: e.done || undefined,
         status: e.status,
         from_message_id: e.from_msg ?? undefined,
         answer: this.get(`answer:${e.id}`) === "1" || undefined,
@@ -1621,7 +2023,7 @@ export class Book extends DurableObject<Env> {
       })),
       // The room's own tasks ("## Tarefas" in the room doc): add_task with epic_id "main".
       room_tasks: this.roomTasks().map((t) => ({ id: t.id, title: t.title, status: t.status, done: !!t.done, owner: t.owner ? who(t.owner) : null, due: t.due })),
-      decisions: this.decisions().map((d) => ({ text: d.text, who: d.who, kind: d.kind, at: new Date(d.ts).toISOString() })),
+      decisions: this.decisions().map((d) => ({ text: d.text, who: d.who, kind: d.kind, at: new Date(d.ts).toISOString(), message_id: d.msg })),
       pins: this.pins().map((p) => ({ id: p.id, kind: p.kind, ref: p.ref, title: p.title })),
       messages,
       // Reminders your human set that fired in the last 7 days and no agent of theirs closed with ack done yet.
@@ -1629,7 +2031,7 @@ export class Book extends DurableObject<Env> {
         ? this.sql
             .exec(`SELECT m.id, m.thread, m.text, m.ts FROM messages m WHERE m.tag = 'reminder' AND (m.author = ? OR m.for_who = ?) AND m.ts > ? AND NOT EXISTS (SELECT 1 FROM acks a WHERE a.msg_id = m.id AND a.status = 'done') ORDER BY m.id`, email, email, Date.now() - 7 * 864e5)
             .toArray()
-            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), text: m.text as string, at: new Date(m.ts as number).toISOString() }))
+            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), epic_id: m.thread as string, text: m.text as string, at: new Date(m.ts as number).toISOString() }))
         : undefined,
       // Your human's messages from the last 48h that none of their agents acked (doing/idle/done): what got skipped.
       unacked: email
@@ -1643,7 +2045,7 @@ export class Book extends DurableObject<Env> {
             .toArray()
             .reverse()
             .filter((m) => !forOther(String(m.text ?? "")))
-            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), text: String(m.text ?? "").slice(0, 300), at: new Date(m.ts as number).toISOString() }))
+            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), epic_id: m.thread as string, text: String(m.text ?? "").slice(0, 300), at: new Date(m.ts as number).toISOString() }))
         : undefined,
       ...(briefs.length
         ? {
@@ -1705,9 +2107,12 @@ export class Book extends DurableObject<Env> {
     // answered with reply_to in main left the epic on "Claude está escrevendo" forever.
     const answerOf = replyTo ? this.answerEpicOf(replyTo) : undefined;
     if (answerOf && (!thread || thread === "main")) thread = answerOf;
+    // A reply in main to a request that became a thread goes into that thread (Gui #4562: main is thread starts).
+    const threadOf = replyTo && !answerOf && (!thread || thread === "main") ? this.epicsFrom(replyTo, true)[0]?.id : undefined;
+    if (threadOf) thread = threadOf;
     // No thread given: a reply goes where the message it answers is (an epic's thread), anything else to main.
     if (!thread) thread = (replyTo && (this.sql.exec(`SELECT thread FROM messages WHERE id = ?`, replyTo).toArray()[0]?.thread as string)) || "main";
-    if (thread !== "main" && !this.epics().some((e) => e.id === thread)) return { ok: false, error: `unknown thread ${thread}; use "main" or an epic id from read_room` };
+    if (!this.knownThread(thread)) return { ok: false, error: `unknown thread ${thread}; use "main" or an epic id from read_room` };
     const secret = findSecret([text, ...(choices?.options ?? []), card ? cardText(card) : ""].join("\n"));
     if (secret) return { ok: false, error: `blocked: looks like a secret (${secret}). Never post secrets in a room; send them through a secure channel.` };
     // An old client's retry (no client_id): its post of the last seconds, not a second one.
@@ -1787,13 +2192,38 @@ export class Book extends DurableObject<Env> {
       id, agent, email, who.slice(0, 40), status, note, Date.now(),
     );
     this.pushAcks(`msg_id = ? AND agent = ?`, id, agent);
+    // An agent starts on a request in a thread: the thread is Fazendo (Gimenes #4368). The status is the one sign
+    // of work in the thread list; there is no separate "agent working" mark. Only a thread still to do moves.
+    if (status === "doing") {
+      const thread = this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, id).toArray()[0]?.thread;
+      if (thread && thread !== "main" && this.sql.exec(`UPDATE epics SET status = 'doing' WHERE id = ? AND status = 'todo' AND COALESCE(done, 0) != 1`, thread).rowsWritten)
+        this.epicsChanged();
+    }
+    // A request of the agent's own human in main, taken with no thread yet: the server opens its thread now
+    // (Gui #4562: main is almost only thread starts). start_thread for this message returns it, with the tasks.
+    const work = status === "doing" ? this.workThread(id as number, email) : undefined;
     this.ctx.waitUntil(this.markBusy(false));
     this.ctx.waitUntil(this.blockedWait(email, id as number, status === "blocked" ? note ?? "" : null));
     // A question that became an answer epic: say where the answer goes, so it isn't written in main (Gui #4210).
     const answer = this.answerEpicOf(id as number);
     if (answer && this.answerPending(answer))
       return { ok: true, message_id: id, answer_thread: answer, how: `This question has an answer thread (${answer}). Write the answer with update_doc epic_id=${answer}, then post 1-2 lines with thread=${answer}. Never answer it in main.` };
+    if (work) return { ok: true, message_id: id, thread: work, how: `This request now has its thread (${work}). Work there: start_thread with from_message_id=${id} returns it (pass the title and tasks), and post with thread=${work}. Never in main.` };
     return { ok: true, message_id: id };
+  }
+  /** The thread for a request in main of `email` (not a DM, not an agent's or a reminder's line) that has none yet,
+   *  made when their agent acks it (Gui #4562). Title = the request; no tasks until start_thread gives them. */
+  workThread(msgId: number, email: string) {
+    if (this.isDm) return;
+    const m = this.sql.exec<{ thread: string; author: string; kind: string | null; text: string }>(`SELECT thread, author, kind, text FROM messages WHERE id = ?`, msgId).toArray()[0];
+    if (!m || m.thread !== "main" || m.kind || m.author.toLowerCase() !== email.toLowerCase() || this.epicsFrom(msgId).length) return;
+    const line = m.text.replace(/\s+/g, " ").trim(), cut = line.length > 70 ? `${line.slice(0, 70).replace(/\s+\S*$/, "")}…` : line;
+    if (!cut) return;
+    const id = this.createEpic(cut, [], [email.toLowerCase()], line.slice(0, 300));
+    this.set(`auto:${id}`, "1");
+    this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ?, status = 'doing' WHERE id = ?`, email.toLowerCase(), msgId, id);
+    this.epicsChanged();
+    return id;
   }
   /** The "esperando você" row for a blocked agent (ref b<msg>), or its removal (text null; "" = no note). */
   async blockedWait(email: string, msgId: number, text: string | null) {
@@ -1966,12 +2396,17 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     return this.pinDel(id);
   }
-  async agentDecision(bookId: string, email: string, text: string, kind: "decision" | "approval") {
+  async agentDecision(bookId: string, email: string, text: string, kind: "decision" | "approval", messageId?: number, via?: string) {
     this.bind(bookId);
     const names = await this.names();
     const secret = findSecret(text);
     if (secret) return { ok: false, error: `blocked: looks like a secret (${secret})` };
-    const id = this.logDecision(text, `${names[email] ?? email.split("@")[0]} · via agent`, kind);
+    const msg =
+      messageId !== undefined && Number.isSafeInteger(messageId) && messageId > 0
+        ? (this.sql.exec<{ id: number }>(`SELECT id FROM messages WHERE id = ? AND coalesce(deleted, 0) = 0`, messageId).toArray()[0]?.id ?? null)
+        : null;
+    if (messageId !== undefined && !msg) return { ok: false, error: `no message ${messageId} in this room` };
+    const id = this.logDecision(text, `${names[email] ?? email.split("@")[0]} · via agent`, kind, msg, { email, via: via || "agent" });
     return id ? { ok: true, id } : { ok: false, error: "empty" };
   }
 
@@ -1997,7 +2432,7 @@ export class Book extends DurableObject<Env> {
       this.broadcast({ t: "msgCard", id: msgId, card: json });
       return { ok: true as const, id: msgId };
     }
-    if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
+    if (!this.knownThread(thread)) thread = "main";
     const m = this.addMessage(thread, email, text.slice(0, 500), { card, quiet: true });
     return { ok: true as const, id: m.id };
   }
@@ -2009,7 +2444,7 @@ export class Book extends DurableObject<Env> {
     const clientId = send?.clientId;
     const text = raw.trim().slice(0, MESSAGE_TEXT_LIMIT);
     if (!text) return { ok: false, error: en ? "Empty message." : "Mensagem vazia." };
-    if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
+    if (!this.knownThread(thread)) thread = "main";
     const secret = findSecret(text);
     if (secret) return { ok: false, error: en ? `Not sent: it looks like a secret (${secretName(secret)}). Secrets don't go in the room.` : `Não enviei: parece ${secret}. Segredo não entra na sala.` };
     if (send && !clientId) this.noClientId(email, "http");
@@ -2019,8 +2454,7 @@ export class Book extends DurableObject<Env> {
     const m = this.addMessage(thread, email, text, { clientId });
     // Sent from the Home's ask box: an answer here by someone else comes back to the sender's Home (routedReply).
     if (send?.routed) this.sql.exec(`INSERT OR REPLACE INTO routed (msg_id, thread, author, text) VALUES (?, ?, ?, ?)`, m.id, m.thread, email, text.slice(0, 280));
-    this.personWrote(thread, text);
-    if (thread === "main") this.ctx.waitUntil(this.answerIntent(m.id, email, text).catch((e) => console.error("answer intent", String(e))));
+    this.personWrote(thread, text, { id: m.id, author: email });
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", via: "home" } }));
     this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
     await this.wakeAt(Date.now() + CLASSIFY_DELAY_MS);
@@ -2067,10 +2501,10 @@ export class Book extends DurableObject<Env> {
     return this.epicsFrom(msgId).find((e) => this.get(`answer:${e.id}`) === "1")?.id;
   }
   /** The threads a request became, newest first: started from it, or from the line in main that links it (a request
-   *  inside a thread, threadOrigin). `open`: not archived. */
+   *  inside a thread, threadOrigin). `open`: not done. */
   epicsFrom(msgId: number, open = false) {
     return this.sql
-      .exec<{ id: string }>(`SELECT e.id FROM epics e LEFT JOIN messages o ON o.id = e.from_msg WHERE (e.from_msg = ? OR (o.thread = 'main' AND o.reply_to = ?))${open ? " AND COALESCE(e.archived, 0) <= 0" : ""} ORDER BY e.ts DESC`, msgId, msgId)
+      .exec<{ id: string }>(`SELECT e.id FROM epics e LEFT JOIN messages o ON o.id = e.from_msg WHERE (e.from_msg = ? OR (o.thread = 'main' AND o.reply_to = ?))${open ? " AND COALESCE(e.done, 0) <= 0" : ""} ORDER BY e.ts DESC`, msgId, msgId)
       .toArray();
   }
   async agentEpic(bookId: string, email: string, title: string, why = "", tasks: string[] = [], via = "", fromMsg?: number, agent = "", owner = "", backlog = false, answer = false) {
@@ -2090,8 +2524,22 @@ export class Book extends DurableObject<Env> {
     const src =
       (fromMsg && this.sql.exec(`SELECT id FROM messages WHERE id = ?`, fromMsg).toArray()[0]?.id) ??
       (backlog ? undefined : this.sql.exec(`SELECT id FROM messages WHERE author = ? AND kind IS NULL ORDER BY id DESC LIMIT 1`, email).toArray()[0]?.id);
-    // The server already turned this question into an answer epic (answerIntent, Gui #2767): the agent takes that one.
-    const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(archived, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1") : undefined;
+    // The server already turned this question into an answer epic (the answer_thread router action, Gui #2767): the agent takes that one.
+    const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(done, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1" || this.get(`auto:${e.id}`) === "1") : undefined;
+    if (made && this.get(`auto:${made.id}`) === "1") {
+      // The thread its ack opened (workThread): it takes the agent's title, goal and tasks, once.
+      this.set(`auto:${made.id}`, "");
+      for (const title of tasks.slice(0, 12)) {
+        const task = this.addTask(made.id, title);
+        if (task) this.sql.exec(`UPDATE tasks SET owner = ? WHERE id = ?`, email.toLowerCase(), task);
+      }
+      this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, t, made.id);
+      if (why.trim()) this.set(`doc:${made.id}`, epicDocSeed(t, why));
+      this.epicsChanged();
+      if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
+      const e = this.epics().find((x) => x.id === made.id);
+      return { ok: true, epic_id: made.id, thread: made.id, tasks: e?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [] };
+    }
     if (made) {
       if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
       if (t && t !== this.epics().find((e) => e.id === made.id)?.title) this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, t, made.id), this.epicsChanged();
@@ -2119,7 +2567,7 @@ export class Book extends DurableObject<Env> {
     const opened = answer ? await this.agentOpenDoc(bookId, email, id) : null;
     return { ok: true, epic_id: id, thread: id, tasks: epic?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [], ...(opened ? { doc_opened_in_tabs: "opened_in_tabs" in opened ? opened.opened_in_tabs : 0 } : {}) };
   }
-  /** An agent organizing the room itself (same powers as @vibe's tools): add/update/delete tasks, rename/archive
+  /** An agent organizing the room itself (same powers as @vibe's tools): add/update/delete tasks, rename/mark done
    * epics, rewrite a doc. Ids are checked, so a wrong one is an error instead of a silent no-op. */
   async agentEdit(bookId: string, email: string, op: string, a: Record<string, unknown>) {
     this.bind(bookId);
@@ -2158,7 +2606,7 @@ export class Book extends DurableObject<Env> {
           if (!title) return { ok: false, error: "title is required" };
           const tasks = (Array.isArray(a.tasks) ? a.tasks : []).map((t) => String(t).trim().slice(0, 300)).filter(Boolean).slice(0, 8);
           const mine = { title, tasks, why: s("why")?.trim().slice(0, 300) || undefined };
-          if (!(await this.keepNewSuggestions([mine])).length) return { ok: false, error: "an epic of this room (open or archived) already covers this; look at read_room epics and continue that one instead" };
+          if (!(await this.keepNewSuggestions([mine])).length) return { ok: false, error: "an epic of this room (open or done) already covers this; look at read_room epics and continue that one instead" };
           const list = [...this.suggestions().filter((x) => epicKey(x.title) !== epicKey(title)), mine].slice(-8);
           this.set("suggestions", JSON.stringify(list));
           this.broadcast({ t: "suggestions", suggestions: this.suggestions() });
@@ -2168,7 +2616,7 @@ export class Book extends DurableObject<Env> {
           const e = epic();
           if (!e) return { ok: false, error: "epic not found" };
           if (this.sql.exec(`SELECT 1 FROM messages WHERE thread = ? AND author != 'ai' LIMIT 1`, e).toArray().length)
-            return { ok: false, error: "people or agents wrote in this epic's thread: archive it instead (update_thread archived: true)" };
+            return { ok: false, error: "people or agents wrote in this epic's thread: mark it done instead (update_thread status: \"done\")" };
           this.deleteEpic(e);
           return { ok: true };
         }
@@ -2185,7 +2633,9 @@ export class Book extends DurableObject<Env> {
           const e = epic();
           if (!e) return { ok: false, error: "epic not found" };
           if (s("title")) this.renameEpic(e, s("title")!);
-          if (typeof a.archived === "boolean") this.archiveEpic(e, a.archived, a.archived && a.mark_done === true);
+          // `archived` is the old name of `done`: agents with an older plugin still send it.
+          const done = typeof a.done === "boolean" ? a.done : typeof a.archived === "boolean" ? a.archived : undefined;
+          if (done !== undefined) this.setDone(e, done, done && a.mark_done === true);
           if (a.status !== undefined) {
             const status = s("status");
             if (!status || !(EPIC_STATUSES as readonly string[]).includes(status)) return { ok: false, error: `status must be one of ${EPIC_STATUSES.join(", ")}` };
@@ -2234,10 +2684,11 @@ export class Book extends DurableObject<Env> {
     this.broadcast({ t: "meta", title });
     return { ok: true, title };
   }
-  // Search this room (Nov 2026, "memória do vibebook"): messages by text or attached file name, epics (archived too)
+  // Search this room (Nov 2026, "memória do vibebook"): messages by text or attached file name, epics (done too)
   // by title or doc. Each term must appear (AND), case-insensitive for ASCII. The caller (/api/search, MCP search)
   // fans out over the person's rooms.
   // ponytail: LIKE scan over the room's messages; FTS5 if a room's history makes it slow.
+  // The call chat is only seen beside the call's stage: its messages are not search results.
   search(bookId: string, q: string, limit = 8) {
     this.bind(bookId);
     const terms = q.toLowerCase().split(/\s+/).filter((w) => w.length > 1).slice(0, 6);
@@ -2248,7 +2699,7 @@ export class Book extends DurableObject<Env> {
     const messages = this.sql
       .exec<{ id: number; thread: string; author: string; kind: string | null; via: string | null; text: string | null; files: string | null; ts: number }>(
         `SELECT id, thread, author, kind, via, text, files, ts FROM messages
-         WHERE author != 'ai' AND ((${like("coalesce(text, '')")}) OR (${like("coalesce(files, '')")}))
+         WHERE author != 'ai' AND thread != '${CALL_THREAD}' AND ((${like("coalesce(text, '')")}) OR (${like("coalesce(files, '')")}))
          ORDER BY id DESC LIMIT ?`,
         ...args, ...args, limit,
       )
@@ -2260,11 +2711,11 @@ export class Book extends DurableObject<Env> {
           snippet: (at ? "…" : "") + text.slice(at, at + 200).replace(/\s+/g, " ") + (text.length > at + 200 ? "…" : "") };
       });
     const epics = this.sql
-      .exec<{ id: string; title: string; archived: number | null; ts: number }>(`SELECT id, title, archived, ts FROM epics ORDER BY ts DESC`)
+      .exec<{ id: string; title: string; done: number | null; ts: number }>(`SELECT id, title, done, ts FROM epics ORDER BY ts DESC`)
       .toArray()
       .filter((e) => { const hay = `${e.title}\n${this.get(`doc:${e.id}`) ?? ""}`.toLowerCase(); return terms.every((w) => hay.includes(w)); })
       .slice(0, limit)
-      .map((e) => ({ id: e.id, title: e.title, archived: (e.archived ?? 0) > 0, ts: e.ts }));
+      .map((e) => ({ id: e.id, title: e.title, done: (e.done ?? 0) > 0, ts: e.ts }));
     return { messages, epics };
   }
   agentTask(bookId: string, taskId: string, status: string, email: string) {
@@ -2313,7 +2764,8 @@ export class Book extends DurableObject<Env> {
       this.pokeMembers();
       const members = await this.members();
       // Kick sockets of anyone no longer a member.
-      for (const ws of this.sockets()) if (!members.includes(this.ctx.getTags(ws)[0])) ws.close(4003, "removed");
+      // The call's recorder has no row in the members and stays.
+      for (const ws of this.sockets()) if (!members.includes(this.ctx.getTags(ws)[0]) && !isRecorder(this.ctx.getTags(ws)[0])) ws.close(4003, "removed");
       // The docs' live editors too (the room's doc and each epic's), or a removed person keeps typing in them.
       const id = this.get("book_id");
       if (id) await Promise.all([undefined, ...this.epics().map((e) => e.id)].map((ep) => docRoomStub(this.env, id, ep).kickAll().catch(() => {})));
@@ -2346,6 +2798,8 @@ export class Book extends DurableObject<Env> {
     ]);
     const { dm, ...meta } = book ?? { title: DEFAULT_TITLE, owner: email, dm: null };
     const win = this.roomWindow(url.searchParams.get("t") || "main", email);
+    const epics = this.wireEpics(this.epics(), url.searchParams.get("t") || ""), eh = wireHash(JSON.stringify(epics));
+    const resume = this.resumeOf(url, url.searchParams.get("t") || "main", win.messages, eh);
     const state: Extract<RoomEvent, {t:"state"}> = {
         t: "state",
         me: email,
@@ -2355,10 +2809,14 @@ export class Book extends DurableObject<Env> {
         docNotes: this.docNotes(),
         // Only the open epic's doc; the app asks for another with "doc.get" when that epic opens (all of them were 70 KB).
         docs: this.epicDocs(url.searchParams.get("t") || ""),
-        epics: this.wireEpics(this.epics(), url.searchParams.get("t") || ""),
+        epics: resume?.epicsSame ? [] : epics,
         roomTasks: this.roomTasks(),
         // The newest of each thread; full = threads sent whole, counts = real totals (the sidebar's numbers).
         ...win,
+        // A reconnect that resumes gets only what changed; the app merges it into the room it has.
+        ...(resume ? { messages: resume.messages, resume: true, ...(resume.epicsSame ? { epicsSame: true } : {}) } : {}),
+        at: Date.now(),
+        eh,
         complete: false,
         // The newest 12 and the pinned ones; the whole list (~100 KB in the product room) when Arquivos opens ("files.get").
         files: storedFileRows(this.sql.exec(`SELECT * FROM files WHERE deleted IS NULL AND (id IN (SELECT id FROM files WHERE deleted IS NULL ORDER BY ts DESC LIMIT 12) OR id IN (SELECT ref FROM pins WHERE kind = 'file')) ORDER BY ts DESC`).toArray(), (kind) => console.warn("book stored projection", kind)),
@@ -2378,6 +2836,8 @@ export class Book extends DurableObject<Env> {
         handles,
         avatars,
         online: this.online(),
+        // Present only where calls are set up: the app draws the call button from it.
+        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), ring: this.ringState() } : {}),
         receipts: this.receiptsList(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
@@ -2388,7 +2848,7 @@ export class Book extends DurableObject<Env> {
     // messages split (18/11, to decide what to cut next): the open thread's window, the other threads' 5 each, and cards.
     const open = url.searchParams.get("t") || "main", kb = (xs: unknown[]) => Math.round(JSON.stringify(xs).length / 1000);
     const msgs = `open ${kb(win.messages.filter((m) => m.thread === open))}k, other ${kb(win.messages.filter((m) => m.thread !== open))}k, cards ${kb(win.messages.map((m) => m.card).filter(Boolean))}k`;
-    this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined } })); // rc: close code of the socket this one replaces (a reconnect)
+    this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : "epics") : url.searchParams.has("since") ? "full" : undefined } })); // rc: close code of the socket this one replaces (a reconnect)
     this.broadcast({ t: "online", online: this.online() });
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -2418,7 +2878,7 @@ export class Book extends DurableObject<Env> {
     switch (m.t) {
       case "msg": {
         const text = String(m.text ?? "").trim().slice(0, MESSAGE_TEXT_LIMIT);
-        const thread = m.thread === "main" || this.epics().some((e) => e.id === m.thread) ? m.thread : null;
+        const thread = this.knownThread(String(m.thread)) ? m.thread : null;
         const ids = Array.isArray(m.files) ? m.files.map(String).slice(0, MESSAGE_FILE_LIMIT) : [];
         const files = ids.length ? this.files().filter((f) => ids.includes(f.id)) : [];
         if ((!text && !files.length) || !thread) return new Refused(thread ? "empty message" : "unknown thread");
@@ -2439,10 +2899,9 @@ export class Book extends DurableObject<Env> {
         // gets it with the message (read_room viewing).
         const viewing = typeof m.viewing === "string" && this.files().some((f) => f.id === m.viewing) ? m.viewing : null;
         if (viewing) this.sql.exec(`UPDATE messages SET viewing = ? WHERE id = ?`, viewing, sent.id);
-        // Picking a button (choices or a card's) answers a question; it isn't new work: an archived epic stays archived.
+        // Picking a button (choices or a card's) answers a question; it isn't new work: a done epic stays done.
         const answers = Number(m.reply_to) && this.sql.exec(`SELECT 1 FROM messages WHERE id = ? AND (choices IS NOT NULL OR card IS NOT NULL)`, Number(m.reply_to)).toArray().length;
-        if (!answers) this.personWrote(thread, text);
-        if (!answers && thread === "main") this.ctx.waitUntil(this.answerIntent(sent.id, email, text).catch((e) => console.error("answer intent", String(e))));
+        if (!answers) this.personWrote(thread, text, { id: sent.id, author: email });
         this.ctx.waitUntil(
           track(this.env, "message", { user: email, dims: { book: this.get("book_id") ?? undefined, thread: thread === "main" ? "main" : "epic", files: files.length || undefined } }),
         );
@@ -2456,8 +2915,8 @@ export class Book extends DurableObject<Env> {
         const epic = String(m.epic ?? "");
         const all = this.epics(), e = epic ? all.find((item) => item.id === epic) : undefined;
         if (epic && !e) return new Refused("unknown epic");
-        // An archived epic went out with its open tasks only (wireEpics): opening it brings the rest.
-        if (e?.archived) this.sendTo([ws], { t: "epicsPatch", changed: [e], order: all.map((x) => x.id) });
+        // A done epic went out with its open tasks only (wireEpics): opening it brings the rest.
+        if (e?.done) this.sendTo([ws], { t: "epicsPatch", changed: [e], order: all.map((x) => x.id) });
         return this.sendTo([ws], { t: "doc", epic, text: this.get(epic ? `doc:${epic}` : "doc") ?? "", fetched: true });
       }
       // The automatic card is gone (Gui #3011); old tabs may still ask: ignored.
@@ -2495,15 +2954,20 @@ export class Book extends DurableObject<Env> {
         if (this.isDm) return new Refused("a DM has no epics");
         const title = String(m.title ?? "").trim();
         if (!title) return;
+        const from = m.from === undefined ? undefined : Number(m.from);
+        const origin =
+          from === undefined ? undefined : this.sql.exec<{ author: string }>(`SELECT author FROM messages WHERE id = ?`, from).toArray()[0];
+        if (from !== undefined && !origin) return new Refused("unknown message");
+        // A thread made from a person's message is that person's, not whoever clicked (Gimenes #4594). @vibe's messages
+        // have no person: the one who made the thread owns it.
+        const owner = origin && origin.author !== "ai" && origin.author.includes("@") ? origin.author : email;
         // The same id again is a retry of the same create: done already, nothing twice.
         if (m.id && this.sql.exec(`SELECT 1 FROM epics WHERE id = ?`, m.id).toArray().length) {
-          const mine = this.sql.exec<{ owner: string | null }>(`SELECT owner FROM epics WHERE id = ?`, m.id).toArray()[0]?.owner === email;
-          return mine ? undefined : new Refused("epic id in use");
+          const same = this.sql.exec<{ owner: string | null }>(`SELECT owner FROM epics WHERE id = ?`, m.id).toArray()[0]?.owner === owner;
+          return same ? undefined : new Refused("epic id in use");
         }
-        const from = m.from === undefined ? undefined : Number(m.from);
-        if (from !== undefined && !this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, from).toArray().length) return new Refused("unknown message");
         const id = this.createEpic(title, [], [], "", m.id);
-        this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, this.threadOrigin({ author: email }, from, title), id);
+        this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, owner, this.threadOrigin({ author: email }, from, title), id);
         this.epicsChanged();
         this.ctx.waitUntil(track(this.env, "thread_create", { user: email, dims: { book: this.get("book_id") ?? "", from: from === undefined ? "sidebar" : "message" } }));
         return;
@@ -2514,17 +2978,10 @@ export class Book extends DurableObject<Env> {
         if (String(m.title ?? "").trim()) this.addTask(String(m.epic), String(m.title).trim());
         return;
       case "older": {
-        // Scroll-back: 100 messages of a thread before an id.
-        // No id = the newest (a thread opened with nothing of it in the state yet).
-        const before = Number(m.before) || Number.MAX_SAFE_INTEGER;
-        const rows = this.sql
-          .exec(`SELECT * FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT 101`, String(m.thread ?? "main"), before)
-          .toArray();
-        const page = this.messageRows(rows.slice(0, 100)).reverse();
-        // The page's acks (the room's state carries only the loaded messages' ones).
-        const acks = this.acksList(page.map((r) => r.id));
-        if (acks.length) this.sendTo([ws], { t: "ackRows", acks });
-        return this.sendTo([ws], { t: "older", thread: String(m.thread ?? "main"), messages: page, more: rows.length > 100 });
+        // Scroll-back over the socket, for apps from before GET /messages (the same page).
+        const page = this.messagesPage({ thread: String(m.thread ?? "main"), before: Number(m.before) || undefined, limit: 100 });
+        if (page.acks.length) this.sendTo([ws], { t: "ackRows", acks: page.acks });
+        return this.sendTo([ws], { t: "older", thread: page.thread, messages: page.messages, more: page.more });
       }
       case "pin.add": {
         const r = await this.pinAdd(email, String(m.kind ?? ""), String(m.ref ?? ""), String(m.title ?? ""));
@@ -2579,6 +3036,14 @@ export class Book extends DurableObject<Env> {
         return this.deleteTask(String(m.id));
       case "task.assign":
         return void (await this.assignTask(String(m.id), m.owner === undefined ? undefined : String(m.owner), m.due === undefined ? undefined : String(m.due)));
+      case "call.leave":
+        return this.callLeave(email);
+      case "call.mute":
+        return this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, muted: m.muted } : p)));
+      case "call.usage":
+        // Only someone in the call reports what it cost (src/calls.ts, the month's screen-share budget).
+        if (this.callPeers().some((p) => p.email === email)) this.ctx.waitUntil(addCallUsage(this.env, m.bytes));
+        return;
       case "decision.del":
         this.sql.exec(`DELETE FROM decisions WHERE id = ?`, Number(m.id));
         return this.broadcast({ t: "decisions", decisions: this.decisions() });
@@ -2586,8 +3051,8 @@ export class Book extends DurableObject<Env> {
         return this.renameEpic(String(m.id), String(m.title ?? ""));
       case "epic.del":
         return this.deleteEpic(String(m.id));
-      case "epic.archive":
-        return this.archiveEpic(String(m.id), m.archived !== false);
+      case "epic.done":
+        return this.setDone(String(m.id), m.done !== false);
       case "epic.status": {
         const out = this.setEpicStatus(String(m.id), m.status);
         if (!out) this.ctx.waitUntil(track(this.env, "epic_status", { user: email, dims: { book: this.get("book_id") ?? "", status: m.status, via: "app" } }));
@@ -2607,7 +3072,7 @@ export class Book extends DurableObject<Env> {
         }
         return this.epicsChanged();
       case "poll.create": {
-        const thread = m.thread === "main" || this.epics().some((e) => e.id === m.thread) ? m.thread : null;
+        const thread = this.knownThread(String(m.thread)) ? m.thread : null;
         if (thread && Array.isArray(m.options)) this.createPoll(thread, email, String(m.question ?? ""), m.options.map(String), !!m.multi);
         return;
       }
@@ -2643,6 +3108,9 @@ export class Book extends DurableObject<Env> {
     try { ws.close(); } catch {}
     try {
       this.broadcast({ t: "online", online: this.online().filter((e) => this.sockets(ws).some((s) => this.ctx.getTags(s)[0] === e)) }, ws);
+      // The call lives on the room's socket: with no tab of this room left, the person is out of it.
+      const gone = this.ctx.getTags(ws)[0];
+      if (!this.sockets(ws).some((s) => this.ctx.getTags(s)[0] === gone)) this.callLeave(gone);
     } catch (e) {
       console.error("book webSocketClose", String(e)); // see DocRoom.webSocketClose
     }
@@ -2664,7 +3132,7 @@ export class Book extends DurableObject<Env> {
     const seen = new Map(this.sql.exec<{ id: string; sig: string }>(`SELECT id, sig FROM grades`).toArray().map((r) => [r.id, r.sig]));
     const goal = (id: string) => (this.get(`doc:${id}`) ?? "").replace(/## Tarefas[\s\S]*?(?=\n## |$)/, "").trim();
     const todo = this.epics()
-      .filter((e) => !e.archived && this.get(`answer:${e.id}`) !== "1" && e.tasks.some((t) => t.status !== "done")) // an answer has no plan to grade
+      .filter((e) => !e.done && this.get(`answer:${e.id}`) !== "1" && e.tasks.some((t) => t.status !== "done")) // an answer has no plan to grade
       .map((e) => ({ e, sig: hash([e.title, goal(e.id).slice(0, 1500), ...e.tasks.map((t) => `${t.title}:${t.status}`)].join("\n")) }))
       .filter((x) => seen.get(x.e.id) !== x.sig);
     let cost = 0;
@@ -2744,22 +3212,23 @@ export class Book extends DurableObject<Env> {
       .exec<{ id: number; thread: string; author: string; text: string; kind: string | null; ts: number }>(`SELECT id, thread, author, text, kind, ts FROM messages WHERE id > ? AND (tag IS NULL OR tag <> 'fire') ORDER BY id LIMIT 20`, since)
       .toArray();
     if (!msgs.length) return;
-    const members = await this.members();
-    const names = await this.names();
-    const handles = await this.handles();
-    const clean = (x: string) => x.replace(/[<>"@\p{Cc}]/gu, "");
-    const first = (e: string) => clean((names[e] ?? e.split("@")[0]).split(/\s+/)[0] ?? "");
-    // Two people with the same first name (two Rafaels) are told apart by full name and @handle, or Jev reads an
-    // ask of one as an ask of both (Valls, 24/11: "@rafael-2" put the message in the other Rafael's inbox).
-    const same = (e: string) => members.filter((x) => x !== e && first(x) === first(e)).length > 0;
-    const nm = (e: string) =>
-      same(e) ? `${clean(names[e] ?? e.split("@")[0])}${handles[e] ? ` (@${handles[e]})` : ""}` : first(e);
-    const epics = this.epics();
-    const topic = (t: string) => (t === "main" ? "" : epics.find((e) => e.id === t)?.title ?? "");
+    const w = await this.waitNames();
+    const live = new Set<number>(JSON.parse(this.get("waits_live") ?? "[]"));
     const DB = this.env.DB;
     let cost = 0;
     for (const m of msgs) {
-      const others = members.filter((e) => e !== m.author);
+      const others = w.members.filter((e) => e !== m.author);
+      const person = !m.kind && m.author !== "ai";
+      // A person's message is read live, in the router actions' Jev call (src/routerActions.ts, "waits"). Here only
+      // what that pass could not do (Jev down, the exact "Mark as done"), after 2 minutes so it is not read twice.
+      if (person && live.has(m.id)) {
+        this.set("waits_at_id", String(m.id));
+        continue;
+      }
+      if (person && Date.now() - m.ts < 2 * 60e3) {
+        await this.wakeAt(m.ts + 2 * 60e3);
+        break;
+      }
       if (m.author !== "ai" && m.text.trim() && Date.now() - m.ts < 7 * 864e5 && others.length) {
         const open = (await DB.prepare(`SELECT ref, text FROM waits WHERE book_id = ? AND thread = ? AND email = ? AND ref LIKE 'm%' LIMIT 8`).bind(bookId, m.thread, m.author).all<{ ref: string; text: string }>()).results;
         const q: Record<string, Question> = {};
@@ -2767,40 +3236,34 @@ export class Book extends DurableObject<Env> {
         // for the author's Claude, and an agent's "você" is its own human. Read as asks of everyone else, those filled
         // other members' inbox with someone else's requests and daily reports (Valls, 18/11: 25 of 29 were Guilherme's).
         const own = (e: string) =>
-          m.kind === "agent" ? ` Ela foi escrita pelo agent de ${nm(m.author)}: "você", "seu" e "suas" nela são ${nm(m.author)}, não ${nm(e)}.` : "";
-        others.slice(0, 12).forEach((e, i) => {
-          q[`p${i}`] = { type: "noul", instructions: `Esta mensagem pede algo a ${nm(e)}: uma resposta, decisão, aprovação, revisão ou ação que fica esperando por ${nm(e)}? Responda não se só informa, agradece, ou fala com todo mundo sem esperar nada de ${nm(e)} em especial. Nesta sala cada pessoa conversa com o próprio Claude: um pedido ou pergunta que não nomeia ninguém é pro Claude de quem escreveu, não pra ${nm(e)}; responda sim só se ela nomeia ${nm(e)} ou fala claramente com ${nm(e)}.${own(e)}` };
+          m.kind === "agent" ? ` Ela foi escrita pelo agent de ${w.nm(m.author)}: "você", "seu" e "suas" nela são ${w.nm(m.author)}, não ${w.nm(e)}.` : "";
+        others.slice(0, WAIT_PEOPLE_MAX).forEach((e, i) => {
+          q[`p${i}`] = { type: "noul", instructions: waitQuestion(w.nm(e), own(e)) };
         });
-        open.forEach((w, i) => {
-          q[`r${i}`] = { type: "noul", instructions: `Esta mensagem responde ou resolve este pedido feito antes a ${nm(m.author)}: "${w.text.slice(0, 300)}"?` };
+        open.forEach((x, i) => {
+          q[`r${i}`] = { type: "noul", instructions: `Esta mensagem responde ou resolve este pedido feito antes a ${w.nm(m.author)}: "${x.text.slice(0, 300)}"?` };
         });
-        const before = this.sql.exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT 4`, m.thread, m.id).toArray().reverse();
+        const topic = m.thread === "main" ? "" : (this.epics().find((e) => e.id === m.thread)?.title ?? "");
         const r = await decide(this.env, {
-          pessoas_na_sala: members.map((e) => (handles[e] ? `${nm(e)}${same(e) ? "" : ` (@${handles[e]})`}` : nm(e))).join(", "),
-          assunto: topic(m.thread) || "sala principal",
-          conversa_antes: before.map((b) => `${b.author === "ai" ? "@vibe" : nm(b.author)}: ${b.text.slice(0, 240)}`).join("\n") || "(início)",
-          autor: `${nm(m.author)}${m.kind === "agent" ? " (pelo agent dele ou dela)" : ""}`,
+          pessoas_na_sala: w.roster,
+          assunto: topic || "sala principal",
+          conversa_antes: w.before(m.thread, m.id) || "(início)",
+          autor: `${w.nm(m.author)}${m.kind === "agent" ? " (pelo agent dele ou dela)" : ""}`,
           mensagem: m.text.slice(0, 1500),
         }, q);
         if (!r) break; // the next pass starts from this message again
         cost += r.cost;
         const yes = (k: string, at: number) => (r.answers[k]?.noul ?? 0) >= at;
-        // Asked = Jev read it as an ask, or a person (not an agent) tagged them; minus whoever already wrote in this thread
-        // after it (the pass runs ~30s late, and answeredHere already ran for them).
-        const tagged = m.kind ? [] : mentioned(m.text, members, names, m.author, false, handles);
-        const later = new Set(this.sql.exec<{ author: string }>(`SELECT DISTINCT author FROM messages WHERE thread = ? AND id > ? AND kind IS NULL`, m.thread, m.id).toArray().map((x) => x.author));
         // A person who @mentions someone says who it is for: only the people tagged wait on it, not whoever Jev also
-        // reads into it.
-        const asked = others.filter((e, i) => (tagged.length ? tagged.includes(e) : i < 12 && yes(`p${i}`, 0.7)) && !later.has(e));
-        if (asked.length) this.ctx.waitUntil(this.notify(asked, (en) => (en ? `${nm(m.author)} is waiting for your answer` : `${nm(m.author)} espera sua resposta`), m.text.replace(/\s+/g, " "), m.id, m.thread));
-        await DB.batch([
-          ...asked.map((e) =>
-            DB.prepare(`INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(bookId, `m${m.id}`, e, m.thread, topic(m.thread), m.author, m.text.slice(0, 280), m.ts),
-          ),
-          ...open.filter((_, i) => yes(`r${i}`, 0.6)).map((w) => DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`).bind(bookId, w.ref, m.author)),
-          DB.prepare(`SELECT 1`),
-        ]);
-        this.pokeMembers();
+        // reads into it. An agent's message has no tags of its own.
+        const tagged = person ? mentioned(m.text, w.members, w.names, m.author, false, w.handles) : [];
+        const asked = others.filter((e, i) => (tagged.length ? tagged.includes(e) : i < WAIT_PEOPLE_MAX && yes(`p${i}`, WAIT_THRESHOLD)));
+        await this.saveWaits(m.id, asked);
+        const resolved = open.filter((_, i) => yes(`r${i}`, 0.6));
+        if (resolved.length) {
+          await DB.batch(resolved.map((x) => DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`).bind(bookId, x.ref, m.author)));
+          this.pokeMembers();
+        }
       }
       this.set("waits_at_id", String(m.id));
     }
@@ -2809,6 +3272,7 @@ export class Book extends DurableObject<Env> {
   }
 
   async alarm() {
+    this.ringTimeout();
     await this.refreshLang().catch(() => {});
     await this.fireReminders().catch((e) => console.error("reminders", String(e)));
     await this.cutVersions().catch((e) => console.error("doc versions", String(e)));

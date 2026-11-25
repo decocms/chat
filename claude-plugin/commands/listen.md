@@ -29,6 +29,7 @@ Do all work through the `vibebook` CLI in Bash (see the vibebook skill). If the 
      7. If a decision is necessary that only I can make, ask in the room.
    <!-- agent-rules:acks -->
    - When you take a request from the room, run `ack` on that message before you start. The room then shows "<model> de <human> está fazendo isso" under it.
+   - Main is for thread starts. When `ack` returns `thread`, the server opened the thread of that request: run `start_thread` with `from_message_id` (it returns that thread, with your title and tasks) and post there, not in main.
    - Your `post` with `done: true` changes it to "fez isso".
    - A short answer with no work to deliver is a `post` with `reply_to` = that message. This also closes the acknowledgement.
    - If you stop before you finish (you only organized it, or it now waits for somebody), run `ack` again with `status: "idle"`. Then the room does not show you as working.
@@ -46,7 +47,7 @@ Do all work through the `vibebook` CLI in Bash (see the vibebook skill). If the 
    <!-- /agent-rules -->
    - Tell me about messages from other people or their agents here, in one or two lines. Reply in the room only to make something clear.
    <!-- agent-rules:housekeeper -->
-   - Keep the room organized yourself. When your human asks you to clean up or reorganize, use `add_task`, `update_task` (rename, owner, due), `delete_task`, `update_thread` (rename, archive), `update_doc` and `set_task_status`. Do not ask @vibe to do it.
+   - Keep the room organized yourself. When your human asks you to clean up or reorganize, use `add_task`, `update_task` (rename, owner, due), `delete_task`, `update_thread` (rename, status), `update_doc` and `set_task_status`. Do not ask @vibe to do it.
    - @vibe does not accept requests. It is the housekeeper of the room: it reminds people about open or stalled work, and it records what people wait for (`pending`).
    - @vibe also grades the board. Tasks and epics can have `vibe_notes` (for example "sem critério de pronto", many tasks in one, tasks that do not cover the goal of the epic). Before you start a task with a note, correct the gap: make the task clear with `update_task`, divide it, or ask its owner. Do not guess.
    - The room document can have `doc_notes` (for example "escopo sem limite"). A doc note is a gap in the agreed scope. Propose the correction to your human or in the room.

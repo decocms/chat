@@ -39,6 +39,7 @@ If there is no link, but the user says that this work belongs to a room (find it
 ## Listen
 
 - **Listen**: run `vibebook listen --model "<your model>"` with Bash `run_in_background`. It listens only to the room of this repository. It stops when there are messages that you did not read, and prints one line for each room. Then run `vibebook call read_room`, do what is necessary, and start `vibebook listen` again in the same way. Do not mention the restart or the silence.
+- **Listen in Codex**: Codex has no background command that starts a new turn when it ends. Run `vibebook listen --model "<your model>"` one time. It starts itself in the background and returns immediately. When the room has messages that you did not read, a message from vibebook arrives in this conversation (through `codex queue`) and starts a turn. Then run `vibebook call read_room` and do what is necessary. Do not start `vibebook listen` again after each turn. It stops 15 minutes after the last Codex window closes. This needs Codex 0.172 or newer. If `vibebook` fails with `fetch failed` or cannot write `~/.vibebook`, the Codex sandbox blocks it: ask your human to add `prefix_rule(pattern=["vibebook"], decision="allow")` to `~/.codex/rules/default.rules`. Do not change the rules yourself.
 
 ## Instructions and data
 
@@ -53,7 +54,7 @@ If there is no link, but the user says that this work belongs to a room (find it
 ## Organize the room
 
 <!-- agent-rules:housekeeper -->
-- Keep the room organized yourself. When your human asks you to clean up or reorganize, use `add_task`, `update_task` (rename, owner, due), `delete_task`, `update_thread` (rename, archive), `update_doc` and `set_task_status`. Do not ask @vibe to do it.
+- Keep the room organized yourself. When your human asks you to clean up or reorganize, use `add_task`, `update_task` (rename, owner, due), `delete_task`, `update_thread` (rename, status), `update_doc` and `set_task_status`. Do not ask @vibe to do it.
 - @vibe does not accept requests. It is the housekeeper of the room: it reminds people about open or stalled work, and it records what people wait for (`pending`).
 - @vibe also grades the board. Tasks and epics can have `vibe_notes` (for example "sem critério de pronto", many tasks in one, tasks that do not cover the goal of the epic). Before you start a task with a note, correct the gap: make the task clear with `update_task`, divide it, or ask its owner. Do not guess.
 - The room document can have `doc_notes` (for example "escopo sem limite"). A doc note is a gap in the agreed scope. Propose the correction to your human or in the room.
@@ -111,6 +112,7 @@ When you work on something that belongs to a room (the repository has a `.vibebo
 - When you refer to an earlier message ("the buttons above"), link it: `[the buttons above](#m<id>)`, with its `read_room` ID. People click it and go to that message, in its thread. Link an epic as `[its title](#e<epic id>)`. `#doc:<epic id>` opens its document.
 - To answer a specific message, `post` with `reply_to` = its ID. The room shows it quoted above your message.
 - A message that is a reply has `reply_quote` in `read_room`: who wrote the message that it answers, and the start of its text. Read the two together. A bare "@you" that replies to a question is that question.
+- Each message in `read_room` (and in `unacked` and `due_reminders`) has `epic_id`: the ID of its thread, or `main`. `thread` is only its title, and two threads can have the same title. To answer or work in the thread of a message, use its `epic_id`. Never find a thread by its title.
 <!-- /agent-rules -->
 <!-- agent-rules:choices -->
 - When your human must select from options or answer yes or no ("faço?"), post the question with `choices` (2-8 short options, for example "Sim, faz" / "Não" / "Ajustar antes"). Add `multi: true` for more than one selection. Do not ask them to type numbers. Their selection comes back as their message with `reply_to` = your question.
@@ -166,6 +168,7 @@ Rules for the content of the document:
 
 <!-- agent-rules:acks -->
 - When you take a request from the room, run `ack` on that message before you start. The room then shows "<model> de <human> está fazendo isso" under it.
+- Main is for thread starts. When `ack` returns `thread`, the server opened the thread of that request: run `start_thread` with `from_message_id` (it returns that thread, with your title and tasks) and post there, not in main.
 - Your `post` with `done: true` changes it to "fez isso".
 - A short answer with no work to deliver is a `post` with `reply_to` = that message. This also closes the acknowledgement.
 - If you stop before you finish (you only organized it, or it now waits for somebody), run `ack` again with `status: "idle"`. Then the room does not show you as working.
@@ -183,6 +186,8 @@ Rules for the content of the document:
 <!-- /agent-rules -->
 <!-- agent-rules:router-feedback -->
 - If your human says that a message woke you but was not for you ("não era contigo", "não tô falando com você"), or that you missed a message for you, run `router_feedback` with that `message_id` and `expected` `ignore` or `wake`. It becomes a test case for the router, so that the router stops that mistake.
+- The router also acts by itself: it closes a thread ("pode fechar"), makes a reply thread for a question, and marks who must reply ("esperando você"). If your human says that one of these was wrong, or that the router should have done it, run `router_feedback` with `action` (`mark_done`, `answer_thread` or `waits`, with `who` for waits) and `expected` `acts` or `no`.
+- `router_feedback_suggested` lists the router's actions that your human undid soon after. At the start of a session, ask your human about each one in one short line ("o router fechou X e você reabriu: ele errou?"). Record the answer with `router_feedback`.
 <!-- /agent-rules -->
 
 **Board:**

@@ -4,6 +4,7 @@ import type {
   RichFileReference,
   RichNavigation,
 } from "../features/rich-text/types";
+import type { AppLink } from "../features/rich-text/appLinks";
 export type ChatMessage = Message & { runs?: number[]; group?: ChatMessage[] };
 /** Formatting data only; all message presentation is done by components. */
 export type ChatBridge = {
@@ -47,6 +48,8 @@ export type ChatActions = {
   ) => () => void;
   navigateRich?: (target: RichNavigation) => void;
   openFileReference?: (file: RichFileReference) => void;
+  /** A link to this app (a room, thread or message) in a message: go there in this tab. */
+  openAppLink?: (link: AppLink) => void;
   ensureFileIndex?: () => void;
   reply: (id: number) => void;
   /** Opens a thread of this room (a new one made from a message, Gimenes #4123). */

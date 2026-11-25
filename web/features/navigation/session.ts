@@ -5,7 +5,7 @@ import { epicAncestors, epicForest, type EpicForest } from "./model";
 export type NavigationState = {
   closed: ReadonlySet<string>;
   openedFor: string | null;
-  archived: boolean;
+  done: boolean;
   /** The Plan tab (@vibe's suggestions) is the one open. */
   suggestions: boolean;
 };
@@ -57,7 +57,7 @@ function persistClosed(
 /** The room host owns this session, so rail remounts keep the open tab and the folded threads. */
 export function createNavigationSession(
   roomId: string,
-  archived = false,
+  done = false,
   storage: NavigationStorage | null = browserStorage(),
 ): NavigationSession {
   return {
@@ -66,7 +66,7 @@ export function createNavigationSession(
     state: writable<NavigationState>({
       closed: readClosed(roomId, storage),
       openedFor: null,
-      archived,
+      done,
       suggestions: false,
     }),
   };
@@ -108,12 +108,12 @@ export function syncNavigationSession(
   current: NavigationSession | null,
   room: Pick<Room, "id" | "epics">,
   thread: string,
-  archived = false,
+  done = false,
 ) {
   const session =
     current?.roomId === room.id
       ? current
-      : createNavigationSession(room.id, archived);
+      : createNavigationSession(room.id, done);
   enterNavigationThread(session, epicForest(room.epics), thread);
   return session;
 }

@@ -16,6 +16,7 @@ import { isDmId, MUTUAL } from "../shared/dm";
 import { answerInvite, befriend, bookStub, invitesFor, joinRoom, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, typesError, waitsFor } from "./rooms";
 import { sendInviteEmail } from "./invite-mail";
 import { track } from "./track";
+import { callAnswer, callClose, callJoin, callsOn, callTracks, startRecorder } from "./calls";
 import { pushTo } from "./webpush";
 import { checkFreestyleKey, sandboxOps, saveKey } from "./sandbox";
 import { connOps } from "./mcpconn";
@@ -23,6 +24,7 @@ import { consentContext, grantOps } from "./connect";
 import { routerStats } from "./router";
 import { setHandle, setProfilePublic } from "./profile";
 import { aiSpend, infraMonitor } from "./reports";
+import { resolveLink } from "./linkTarget";
 
 // The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
 let appVersion: string | undefined;
@@ -145,7 +147,37 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     isMember: (roomId) => isMember(env.DB, roomId, email),
     allowStt:async()=> (await env.UPLOAD_LIMIT.limit({key:`stt:${email}`})).success,
     transcribe:(audio,query)=>transcribeSpeech(audio,query,input=>env.AI.run(WHISPER_MODEL,input)),
+    callsOn: callsOn(env),
+    allowCall: async () => (await env.AGENT_LIMIT.limit({ key: `call:${email}` })).success,
+    // The thread the person has open is not the call's: the call is the room's, its chat the room's call chat.
+    callJoin: async (roomId) => {
+      const { session, record } = await callJoin(env, roomId, email, new URL(req0.url).origin);
+      // The second person makes it a call to record: the recorder joins it, after the response.
+      if (record) ctx.waitUntil(startRecorder(env, new URL(req0.url).origin, roomId));
+      return { session };
+    },
+    callTracks: (roomId, body) => callTracks(env, roomId, email, body),
+    callAnswer: (roomId, session, answer) => callAnswer(env, roomId, email, session, answer),
+    callClose: (roomId, session, mids, names) => callClose(env, roomId, email, session, mids, names),
+    callLeave: (roomId, session) => bookStub(env, roomId).callLeave(email, session),
+    callDecline: (roomId) => bookStub(env, roomId).callDecline(roomId, email),
     humanPost: (roomId, text, thread, clientId, routed) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId, routed }),
+    roomMessages: (roomId, query) => bookStub(env, roomId).roomMessages(roomId, query),
+    linkTarget: (roomId, query) =>
+      resolveLink(
+        {
+          isMember: () => isMember(env.DB, roomId, email),
+          book: () => env.DB.prepare(`SELECT title, dm, icon FROM books WHERE id = ?`).bind(roomId).first<{ title: string | null; dm: string | null; icon: number | null }>().then((b) => (b ? { title: b.title ?? "", dm: b.dm, icon: b.icon } : null)),
+          peek: (q) => bookStub(env, roomId).linkPeek(roomId, q),
+          people: async (emails) =>
+            Object.fromEntries(
+              (await env.DB.prepare(`SELECT email, name, avatar FROM users WHERE email IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(emails)).all<{ email: string; name: string | null; avatar: number | null }>()).results.map((u) => [u.email, { name: u.name, avatar: u.avatar }]),
+            ),
+        },
+        roomId,
+        email,
+        query,
+      ),
     storeFile: (roomId, type, body, name) => storeFile(env, roomId, email, type, body, name, { requireMember: true }, en),
     fileTypes: FILE_TYPES,
     maxBytes,
@@ -155,6 +187,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     sqlBatch: async (query, rows) => { const st = env.DB.prepare(query); await env.DB.batch(rows.map((r) => st.bind(...r))); return; },
     track: (name, dims) => ctx.waitUntil(track(env, name, { user: email, ...(dims ? { dims } : {}) })),
     pokeMe: () => ctx.waitUntil(poke(env, [email], { t: "me" })),
+    waitCleared: (bookId, ref) => ctx.waitUntil(bookStub(env, bookId).waitCleared(ref, email).catch((e) => console.error("wait cleared", String(e)))),
     vapidKey: env.VAPID_PUBLIC_KEY ?? null,
     pushToMe: (p, endpoint) => pushTo(env, [email], p, endpoint),
     sqlAll: async (query, ...binds) => (await env.DB.prepare(query).bind(...binds).all()).results,

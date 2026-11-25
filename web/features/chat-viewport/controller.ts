@@ -1,9 +1,12 @@
 import type { Room, RoomEvent, Message } from "../../../shared/room";
+import { roomHasThread } from "../../../shared/call";
 import type { RoomCommand } from "../../../shared/commands";
 import { visibleChatMessages } from "../chat/privacy";
 
 export const CHAT_WINDOW = 60,
-  MESSAGE_SEARCH_PAGES = 15;
+  MESSAGE_SEARCH_PAGES = 15,
+  /** How long a jump to a message owns the scroll: long enough for a smooth scroll to land. */
+  JUMP_SETTLE_MS = 900;
 export type KeepChat = "stay" | boolean | undefined;
 export type ScrollMetrics = { top: number; height: number; client: number };
 export type ScrollCapture = ScrollMetrics & { scope: number };
@@ -11,7 +14,13 @@ export type ChatSurface = {
   connected(): boolean;
   metrics(): ScrollMetrics;
   top(value: number): void;
-  message(id: number): { reveal(): void; highlight(): void } | null;
+  message(id: number): {
+    /** Scrolls the message to the middle of the chat: smoothly, or at once (instant, or reduced motion). */
+    reveal(instant?: boolean): void;
+    highlight(): void;
+    /** Whether the message is already in the middle (or as close as the scroll can bring it). */
+    centered(): boolean;
+  } | null;
   listen(scroll: () => void, growth: () => void): () => void;
 };
 export function createChatViewport(options: {
@@ -39,6 +48,10 @@ export function createChatViewport(options: {
     deferred = new Set<unknown>();
   let pending: { id: number; pages: number; scope: number } | null = null,
     timer: unknown | null = null,
+    // A jump to a message in flight (a quote, a search hit, a #m link): until it lands, scroll events, the re-pin
+    // at the bottom and the scroll-back must not move the chat. Any scrollTop write cancels a smooth scroll: a
+    // late scroll event from the previous position re-pinned the chat and sent it back to the bottom.
+    jump: { id: number; timer: unknown } | null = null,
     surface: ChatSurface | null = null,
     stop: (() => void) | null = null,
     lastTop = 0;
@@ -76,11 +89,16 @@ export function createChatViewport(options: {
     }, milliseconds);
     deferred.add(value);
   }
+  function endJump() {
+    if (jump) cancel(jump.timer);
+    jump = null;
+  }
   function detach() {
     stop?.();
     stop = null;
     surface = null;
     clearTimer();
+    endJump();
     pending = null;
     for (const value of deferred) cancel(value);
     deferred.clear();
@@ -140,6 +158,19 @@ export function createChatViewport(options: {
     if (!element) return false;
     pinned = false;
     freezeWindow();
+    endJump();
+    const landing = { id, timer: null as unknown };
+    landing.timer = schedule(() => {
+      if (jump !== landing) return;
+      jump = null;
+      if (!owns(ticket) || surface !== previousSurface || !surface.connected())
+        return;
+      // Something still moved the chat mid-way (a late image, a render): put the message in the middle at once.
+      const target = surface.message(id);
+      if (target && !target.centered()) target.reveal(true);
+      lastTop = surface.metrics().top;
+    }, JUMP_SETTLE_MS);
+    jump = landing;
     element.reveal();
     if (owns(ticket) && surface === previousSurface && surface.connected())
       element.highlight();
@@ -155,11 +186,7 @@ export function createChatViewport(options: {
         ? loaded
         : undefined;
     const wanted = message?.thread || requested;
-    if (
-      wanted &&
-      wanted !== thread &&
-      (wanted === "main" || room.epics.some((epic) => epic.id === wanted))
-    ) {
+    if (wanted && wanted !== thread && roomHasThread(room, wanted)) {
       options.selectThread(wanted);
       if (
         !current() ||
@@ -229,6 +256,16 @@ export function createChatViewport(options: {
       const changedMessages =
         room?.messages !== next.messages || room?.origins !== next.origins;
       const changed = newConnection || selected !== thread;
+      // A message link still searching when the room is replaced (the copy from IndexedDB by the live one, a
+      // reconnect): the page asked on the old connection is dropped, so ask again on the new one (Gimenes #4843).
+      const searching =
+        pending &&
+        (changed || fresh) &&
+        room?.id === next.id &&
+        room.me === next.me &&
+        selected === thread
+          ? pending.id
+          : null;
       if (changed || fresh) {
         scope++;
         detach();
@@ -254,6 +291,8 @@ export function createChatViewport(options: {
         windowEnd = null;
       connectionGeneration = generation;
       live = authoritative;
+      // detach() above dropped the search; later() runs only while this scope still owns the viewport.
+      if (searching !== null) later(() => go(searching), 0);
       return changed;
     },
     selection(): {
@@ -342,6 +381,10 @@ export function createChatViewport(options: {
         () => {
           if (!owns(ticket) || surface !== next || !next.connected()) return;
           const value = next.metrics();
+          if (jump) {
+            lastTop = value.top;
+            return;
+          }
           const wasPinned = pinned;
           if (value.height - value.top - value.client < 80) pinned = true;
           else if (value.top < lastTop - 2) {
@@ -379,12 +422,16 @@ export function createChatViewport(options: {
         return;
       const ticket = scope,
         ownedSurface = surface;
-      if (keep === "stay") ownedSurface.top(before.top);
-      else if (keep)
+      // A jump in flight owns the position: holding it here would cancel its smooth scroll. A bottom intent measured
+      // before the jump waits too: on a cold #m link it sent the reader back to the bottom (Gimenes #4843). A real
+      // bottom intent (own send, "latest") ends the jump first (followLatest).
+      if (keep === "stay") {
+        if (!jump) ownedSurface.top(before.top);
+      } else if (keep)
         ownedSurface.top(
           before.top + ownedSurface.metrics().height - before.height,
         );
-      else {
+      else if (!jump) {
         windowEnd = null;
         pinned = true;
         bottom();
@@ -397,6 +444,7 @@ export function createChatViewport(options: {
      * not advance an unpinned window or grow its count. */
     followLatest() {
       if (current()) {
+        endJump();
         windowEnd = null;
         pinned = true;
       }

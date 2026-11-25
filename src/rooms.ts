@@ -1,5 +1,6 @@
 import "server-only";
 import { FILE_TYPES, maxBytes } from "../shared/composition";
+import { isRecorderOf } from "../shared/call";
 export { AUDIO_TYPES, FILE_TYPES, MAX_FILE_BYTES, MAX_AUDIO_BYTES, maxBytes } from "../shared/composition";
 import type { UploadFileResponse } from "../shared/rpc";
 import { checkEmbed } from "./embed";
@@ -12,8 +13,10 @@ import { findSecret, secretName } from "./secrets";
 import { track } from "./track";
 import { INBOX_MENTIONS_SQL } from "./digestItems";
 
+// The call's recorder (shared/call.ts) is a member of its own room, with no row: only a link that the Worker
+// signed gives a session for it (src/calls.ts).
 export const isMember = async (db: D1Database, bookId: string, email: string) =>
-  !!(await db.prepare(`SELECT 1 FROM members WHERE book_id = ? AND email = ?`).bind(bookId, email).first());
+  isRecorderOf(email, bookId) || !!(await db.prepare(`SELECT 1 FROM members WHERE book_id = ? AND email = ?`).bind(bookId, email).first());
 
 /** `a` accepts `b` (a row a→b). A connection = both rows, and it lets the two DM without sharing a room (src/dm.ts).
  *  A lone row b→a is b's message request to a; a accepting writes a→b. */

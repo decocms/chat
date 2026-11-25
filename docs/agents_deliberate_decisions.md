@@ -52,6 +52,146 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · refactor/thread-done · A thread is done, never archived
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked to purge "archived" for threads from the code base (#4466) and selected "everything, also the column (migration)" (#4505). He did not say how to migrate each room, what to do with agents that still send `archived`, or if the room archive changes (he did not select that option).
+- Decision:
+  - In each room, the Book renames `epics.archived` to `epics.done` (`ALTER TABLE … RENAME COLUMN`) when it starts, before the loop that adds missing columns. Otherwise that loop adds an empty `done` and every done thread opens again. The values stay: 1 = done, -1 = a person opened it again, 0 = open.
+  - The wire field `Epic.archived` becomes `done`. The socket command `epic.archive` becomes `epic.done`, the Done tab state is `done`, and `archiveEpic` becomes `setDone`.
+  - MCP: `update_thread` documents only `status`. It still accepts `archived` and `mark_done` without documentation, because agents with an older plugin send them. `read_room` and `search` send `done`.
+  - The thread texts that were not used ("Desarquivar thread", "Arquivar thread", "Arquivado") are removed. The old `dismissed` status shows as Feito.
+  - Unchanged: the room archive ("Arquivar sala", `members.archived_at`, `/archived`), the old entries in this file, and the words in the mark_done question ("pode arquivar", "arquiva essa"), because people still type them.
+- Other options: Keep the column and rename only the code (the column was part of the request). Drop the column and read only `status` (-1 has no place in `status`). Refuse `archived` from old agents (their `update_thread` calls fail).
+- Risk: medium. After the deploy, a plain revert reopens every done thread, because the old code adds an empty `archived` column.
+- Undo: Revert the commit and also add a reverse rename (`RENAME COLUMN done TO archived`) before the add-columns loop.
+- Status: open
+
+### 2026-11-24 · feat/router-action-cases · One feedback table for all of the router, with suggested cases
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked for reports and a self-improving loop for every part of the router, not only wake (#4481). He selected "1 + 2 + 3" and asked to move the old table into the new one (#4483), with the name `router_feedback` (#4485). He did not say which undo signals to use, how long "soon" is, or how the old table goes away.
+- Decision:
+  - One D1 table `router_feedback`, key (room, message, action, who). `action` is "wake" or the name of a router action or reading. The list comes from `ROUTER_ACTIONS` and `ROUTER_READINGS` (`FEEDBACK_ACTIONS`), so a new action gets reports and its own bench part ("<action> (D1)") with no other change.
+  - The old rows of `router_cases` are copied with `INSERT OR IGNORE` in the schema. The old table stays and nothing writes to it. The bench reads it only if `router_feedback` does not exist yet (before the deploy).
+  - Three undo signals write a `suggested` row: a thread opened again within 30 minutes after a Jev close, a reply thread the router made and a person deleted within 30 minutes, and a wait the router read that its person cleared with the Inbox's ✓. "Resolve all" does not count, because it is cleanup. A suggested row does not run in the bench. The person's agent asks them (`router_feedback_suggested`) and records the answer as a `case`. A suggestion never replaces a case.
+- Other options: One table for each action. Run suggested rows in the bench (a reopen is not always a router mistake). Drop `router_cases` (a destructive D1 change).
+- Risk: low. A wrong suggestion only makes an agent ask one question.
+- Undo: Revert the commit. The table and its rows stay, unused.
+- Status: open
+
+### 2026-11-24 · feat/router-bench-all · Every router bench case must pass, with the D1 cases
+
+- Agent: claude-opus-5-5
+- Context: Gimenes raised the bar (#4444, #4462): every case must pass, the repository cases and the production cases in D1, and the CI must read D1. He creates the Cloudflare token. He did not say how to handle Jev's noise or what CI can print.
+- Decision:
+  - A case that fails runs two more times. It passes only if both of those pass (2 of 3). A false yes is counted when the case still fails.
+  - The compare fails when a part of the pull request is under 100% or has a false yes, as well as when a score goes down. A part that main does not have must also pass all its cases.
+  - The D1 cases are their own part ("acordar (D1)"). The bench prints only their number and note, never their text, because the repository and its CI logs are public.
+  - The bench reads the database `chat` with `bunx wrangler` (it read `vibebook` with `npx`, which does not exist, so `--d1` never worked). CI needs only `CLOUDFLARE_API_TOKEN`; the account ID is in `wrangler.jsonc`.
+- Other options: Run each case 3 times always (3 times the cost). Fail on the first miss (Jev's noise fails good pull requests). Keep the D1 cases in the same part as the repository cases.
+- Risk: medium. A pull request that does not touch the router's behavior can fail on a case that Jev misses 2 of 3 times. Then fix the question or the case, or ask a human.
+- Undo: Revert the commit, and delete the `CLOUDFLARE_API_TOKEN` secret.
+- Status: open
+
+### 2026-11-24 · fix/email-theme · The e-mails use the app's light theme
+
+- Agent: claude-opus-5-5
+- Context: Gimenes said that the digest e-mail has the wrong background color and fonts (#4457). All e-mails use one layout (`emailHtml` in `src/auth.ts`), which still had the old blue theme and a Caprasimo title. He did not give the new colors.
+- Decision: The layout and the inline colors of the digest, mention and invite e-mails take the app's light tokens from `web/styles/tailwind.css`: the page is `--vb-muted`, the card is white with `--vb-border`, the text is `--vb-foreground`, the secondary text is `--vb-muted-foreground`, links are `--vb-link`, and buttons are `--vb-primary` (near black) with white text, as in the app. The font is Inter (from Google Fonts) with system fallbacks, and the title is Inter 600. The e-mail stays light only (`color-scheme: light`).
+- Other options: Lime brand buttons (`--vb-brand`). A dark version for mail apps in dark mode.
+- Risk: low. Only the look of the e-mails changes. A mail app that blocks web fonts shows the system font.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-24 · feat/phone-message-actions · Hold a message on the phone to open its actions
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked for the message actions on the phone (#4402). He approved a long press that opens a sheet (#4437, #4440), and said to keep only the right swipe, for reply. He did not give the time, the order or the reactions in the sheet.
+- Decision:
+  - Holding a message for 500 ms without moving more than 8 px opens a sheet from the bottom. Android's own long press (a contextmenu event) opens the same sheet, only once.
+  - The sheet has, from the top: six quick reactions and "more reactions", then Reply, Create thread, Copy text, Copy link, Edit, History, and Delete (in red, last). Each row closes the sheet, then acts. A row shows only when the hover toolbar shows the same button.
+  - The sheet is in `MessageActions`, next to the toolbar, so it uses the same copy, edit, delete and history code.
+  - The left swipe (copy and link) and the long right swipe (thread) are gone. A right swipe of any length replies.
+  - On a touch screen, a message is not selectable (`select-none`, no iOS callout), because a long press opens the sheet. "Copy text" in the sheet copies it.
+- Other options: A bar of buttons that a tap shows. Keep the long right swipe for a thread.
+- Risk: low. People cannot select a part of a message on a phone. They copy all of it from the sheet.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-24 · feat/router-actions-waits · The router questions at the 0.8 floor
+
+- Agent: claude-opus-5-5
+- Context: Gimenes fixed every action threshold at 0.8 (#4435) and asked for adversarial review agents to find a better use of Jev. He did not choose the variant.
+- Decision:
+  - Three review agents (wording, call structure, new cases) gave 32 new bench cases and four variants. The bench ran each variant with the real Jev.
+  - `answer_thread`: one short positive question plus two vetoes (V3). It got 22/22, also the "llm or regex?" case.
+  - `mark_done`: the new wording without vetoes (V1). It got 35/35. The vetoes stopped true cases ("pode fechar" at 0.95).
+  - The waits question gets one sentence: a request to the author's Claude to ask a person ("pergunta pro Bruno…") does not wait on that person.
+  - The veto threshold is 0.5 (`VETO`).
+  - The waits threshold stays 0.7, as before in production. The 0.8 floor is for actions only.
+- Other options: Two calls (actions without the room context, V2: 34, 21). Vetoes on both actions (V3: mark_done 30). The old questions at 0.8 (V0: 33, 18, two false yes).
+- Risk: low. In two runs of V4, one true case missed once ("arquiva essa" at 0.78). No false yes in either run.
+- Undo: Revert the questions in `src/routerActions.ts`.
+- Status: open
+
+### 2026-11-24 · feat/router-actions-waits · Router actions, stage 2: waits joins the router's Jev call
+
+- Agent: claude-opus-5-5
+- Context: Gimenes approved the 3 stages (#4379) and asked to start the follow-ups (#4425, #4426). Stage 2 moves "who waits on whom" (`findWaits`) into the one Jev call of the router actions. He did not say how.
+- Decision:
+  - A new kind of registry entry, a reading (`ROUTER_READINGS`): questions that join the same call, whose answers the room keeps. `waits` is the first one.
+  - For a message of a person, only the question "does this ask something of Ana?" moves. The question "does this answer an earlier ask?" is not needed there: `answeredHere` already deletes the author's earlier waits in that thread.
+  - Waits now appear at once, not about 30 seconds later.
+  - `findWaits` keeps the messages of agents (the router actions do not see them) and the messages of people that the router pass did not read, 2 minutes after the message.
+  - The bench runs each case as production does: all actions and readings in one call, in a room with three other people.
+- Other options: Keep `findWaits` on the alarm and only share the prompt. Move the messages of agents into the router pass too.
+- Risk: medium. With more questions and more context in one call, Jev can score `mark_done` or `answer_thread` differently. The bench shows it.
+- Undo: Remove `waits` from `ROUTER_READINGS` and the skip in `findWaits`.
+- Status: open
+
+### 2026-11-24 · feat/router-actions · How the router bench check compares
+
+- Agent: claude-opus-5-5
+- Context: Gimenes approved a GitHub Actions check for the router bench (#4412, #4414). He did not say what "worse" means or which version of the cases the base runs.
+- Decision:
+  - The check runs the branch's bench script and cases on main too, so both sides answer the same questions. A part that main does not have (for example the router actions before they merge) is "new": it is shown, not compared.
+  - It fails when a part's score goes down, when an action has more false "yes" answers, or when a part is gone.
+  - It is not a required check. Gimenes can make it required in the branch protection.
+- Other options: Compare with stored scores in the repository (they go stale). Allow a small drop (Jev can move by a case between runs).
+- Risk: low. Jev can answer a case near the threshold differently between runs, and then the check fails without a real change. Run it again, or move the case's threshold.
+- Undo: Delete `.github/workflows/router-bench.yml`.
+- Status: open
+
+### 2026-11-24 · feat/router-actions · Router actions, stage 1: the registry, answer_thread and mark_done
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked for router actions (#4369): actions that the server does without the person's agent, in one shape, so that future actions follow a template. He approved 3 stages (#4379). He did not give the thresholds, the message length, or how a person sees a wrong guess.
+- Decision:
+  - `src/routerActions.ts` holds the registry. Each action has `when` (synchronous), `ready` (asynchronous, optional), `exact`, `question`, `threshold` and `run`. All the actions that apply to a message share one Jev call.
+  - `answer_thread` is the old `answerIntent`, with the same question and the same threshold (0.7).
+  - `mark_done` keeps the exact phrase, without a model. Jev is asked only for a message of 60 characters or less in an open thread, with a threshold of 0.8. A short message is usually a closing word, so the cost and the false hits stay low.
+  - When Jev closes a thread, the server posts "✓ Marquei esta thread como feita. Escreva qualquer coisa aqui para reabrir." Any message from a person already opens a done thread again, so no new undo control is necessary.
+  - Without `MODEL_JUDGE` (tests) or with it set to `off`, only the exact phrases act.
+- Other options: Ask Jev about every message in a thread. Add an undo button that calls a server command.
+- Risk: medium. A wrong guess closes a thread. The line in the thread says so, and one message opens the thread again.
+- Undo: Remove the `mark_done` question (keep `exact`), or revert the commit.
+- Status: open
+
+### 2026-11-24 · feat/ack-doing-status · Which threads an agent's ack moves to Fazendo
+
+- Agent: claude-opus-5-5
+- Context: Gimenes (#4368) asked to remove the ✻ in the thread list and to move the thread to "doing" when an agent works on it. He did not say which statuses change.
+- Decision:
+  - Only an ack with `doing` on a message in a thread moves it, and only from A fazer. Review and done stay: a person set them. An archived thread stays archived.
+  - An ack on a message in main changes no thread.
+  - The ack does not move the thread back when the agent finishes. The thread stays Fazendo until a person or the tasks change it.
+  - The ✻ goes from the thread row only. The ✻ under a message in the chat ("X está trabalhando nisso") stays.
+- Other options: Move review back to doing too. Show Fazendo only while the ack is open (a computed status, not a stored one).
+- Risk: low. A thread can show Fazendo after the agent stopped, until somebody changes it.
+- Undo: Revert the commit.
+- Status: open
+
 ### 2026-11-24 · feat/notify-offer · One notifications offer for each device
 
 - Agent: claude-opus-5-5
@@ -1573,4 +1713,261 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: A delete that removes the content for the owner too (the first proposal in the doc). Gui chose that the owner sees it.
 - Risk: medium. A new command can change old messages. The worker test `scripts/message-edit.test.ts` covers who can do what, and that no one but the owner gets the old text.
 - Undo: Revert this commit. The new columns and table stay and are not read.
+- Status: open
+
+### 2026-11-24 · JonasJesus42/voice/screen-share-recording · Calls: the room is the channel
+
+- Agent: Claude Fable 5.2
+- Context: Jonas asked for voice channels, cameras and screen share on the Cloudflare Realtime SFU, at the lowest cost, with a move to Google Meet for the screen when the 1,000 GB free in a month are used.
+- Decision:
+  - One call for each room. No table of channels.
+  - The call is in the room's view and on the room's WebSocket. A person who opens a different room leaves the call. One person has one session.
+  - A person who opens a room with a call on joins it with the microphone off (Jonas asked for the automatic join; the microphone off is my choice).
+  - No SFU SDK and no TURN: the Worker calls the SFU's HTTPS API, and the browser uses `RTCPeerConnection` with STUN only.
+  - The limit uses Cloudflare's real traffic for the account (the analytics API, with the token that the reports use) and, as a second count, the bytes that the browsers report. A screen share stops at 900 GB (`CALL_SCREEN_LIMIT_GB`), not at 1,000, to leave a margin. The limit stops screens only, not cameras.
+  - To spare traffic, a browser receives no camera while a screen is on show, and one screen at a time.
+  - A microphone that is off is a disabled track, not a sender without a track: the SFU refuses to give the others a track that never sent (`empty_track_error`).
+  - The Google Meet path keeps no Google token (AGENTS.md, rule 1): the person opens `meet.new`, pastes the link, and the app posts it with a mention of each person in the call.
+  - The call's controls are under the stage with their text, not in the top bar (docs/design.md allows three controls there).
+  - Entering the call closes the pane and sends the sidebar to its rail. Leaving puts them back.
+  - The feature is off until the SFU app's two secrets exist.
+- Other options:
+  - RealtimeKit (ready UI, recording): Jonas refused it for its cost for each minute of each person.
+  - A call that stays when you open a different room, like Discord: it needs the call above the room's view and a second room socket. Add it if people ask.
+  - The Meet REST API to make the link: it needs a Google token on the server.
+- Risk: medium. The pure parts have unit tests. The WebRTC path was tested by hand and with two automatic browsers against a real SFU app on a local Worker, not on a deployed Worker and not with more than three people.
+- Undo: Revert this commit. The `call_usage` table in D1 and the `call` key in each room's `meta` stay and are not read.
+- Status: open
+
+### 2026-11-24 · JonasJesus42/voice/screen-share-recording · A dependency for the camera's background blur
+
+- Agent: Claude Fable 5.2
+- Context: Jonas asked for a camera dialog with a preview and a background out of focus, with levels, as Meet and Discord have.
+- Decision:
+  - Add `@mediapipe/tasks-vision` 1.2.3 (Apache 2.0, exact version) and keep its selfie segmenter model in `public/vendor/mediapipe/`. The browser has no feature that does this on all platforms.
+  - The runtime is 15 MB. It is in its own chunk and loads only when a person turns the blur on.
+  - The frames are drawn on a timer in the page. In a tab that is not on show the browser slows that timer, and the others see the camera almost still.
+  - Four more Untitled UI icons in the sprite, for the microphone off, the screen and the camera.
+- Other options: The `backgroundBlur` camera constraint (few platforms have it, and it has no levels). A worker with `MediaStreamTrackProcessor` (no slow timer, more code, Chrome only).
+- Risk: low. Without the blur the camera works as before. If the model does not load, the dialog says so and the camera goes without it.
+- Undo: Remove the dependency, `web/features/call/blur.ts`, the levels in `CameraDialog.svelte` and `public/vendor/mediapipe/`.
+- Status: open
+
+### 2026-11-24 · JonasJesus42/voice/screen-share-recording · The call recorder is a second Worker with a container
+
+- Agent: Claude Fable 5.2
+- Context: Jonas asked that calls go to Grain (the team pays for it) and approved a container, a Grain token on the server and a Worker apart from the chat.
+- Decision:
+  - The recorder is the room's own page in a Chromium, in a container, as one more participant. It records what a person sees and hears. This is the pattern of `decocms/channels` (one container for each thing that runs).
+  - A second Worker, `chat-recorder`, so that a failed image build never stops a deploy of the chat. The chat calls it with `fetch` and a shared secret, not with a service binding: `wrangler.jsonc` of the chat does not change.
+  - The recorder has an identity that is not a person (`gravador-<room>@call-recorder.invalid`). A link signed with `SESSION_SECRET`, good for 5 minutes, is the only way to a session for it. `isMember` accepts it for its one room.
+  - Each person sees "Gravando" while the recorder is in the call. No recorder, no mark.
+  - Grain refuses the browser's file, so ffmpeg converts it. Grain transcribes the audio and names all the voices "Speaker 1". Its summary does not run by itself on an upload: a person clicks "Run Intelligence" there.
+  - `GRAIN_API_TOKEN` is a new server credential (AGENTS.md, rule 1 has a list of exceptions). Jonas approved it. It is in the recorder Worker, not in the chat.
+  - Rooms are recorded only if `CALL_RECORD_ROOMS` lists them, because the Grain account is the operator's.
+- Other options: The SFU's WebSocket adapter with audio only (no video of the screen). RealtimeKit's recording (cost). A recorder in a participant's browser (it stops when that person leaves).
+- Risk: medium. A recorder container, a local chat and the real SFU and Grain ran together one time. The deployed Worker and its container were not tested with a real call.
+- Undo: Remove `RECORDER_URL` from the chat's secrets (recording stops at once). Then delete the `chat-recorder` Worker and `recorder/`.
+- Status: open
+
+### 2026-11-24 · JonasJesus42/call-recording-safety · A recorded call says who spoke, and a failed recording shows
+
+- Agent: Claude Fable 5.2
+- Context: After the first calls in production, Jonas asked for each call to be recorded, with the thread's name, a transcript with names, a summary in the room, better picture quality, and the cameras on show while a screen is shared. He also asked for the failures that nobody would see.
+- Decision:
+  - A call is of the thread that the first person had open. The recording's title has the room and the thread, and the summary goes to that thread.
+  - Our own transcript: Whisper (Workers AI, in the recorder Worker) on parts of 5 minutes, with each piece given to the person whose "speaking" mark covered it the most. The marks come from the recorder's page, each 200 ms. Two people who speak at one time get one name.
+  - The summary uses `MODEL_FAST`, the model that the mention e-mails use. This is a new cost for each recorded call.
+  - A person alone in a call is not recorded: the recorder comes when a second person joins. The first production recording was one person for 159 seconds.
+  - A piece of the transcript with nobody's mark near it and a high "no speech" score is dropped. In that first recording such pieces had the name "Desconhecido".
+  - A recorder that leaves a call that goes on is started again, 5 times at most.
+  - Quality: camera 360p at 24 frames and 500 kbps (it was 200 kbps, which gave 180p), screen 1080p and 2.5 Mbps, voice 32 kbps. Cameras are received while a screen is on show. Both cost more traffic.
+  - `CALL_RECORD_ROOMS` is `*` in production (Jonas: "gravar qualquer call"). Every room's calls go to the operator's Grain.
+  - A workflow deploys the recorder. It does nothing until a human makes the `RECORDER_DEPLOY_TOKEN` secret.
+- Other options: Grain's own transcript only (all voices are "Speaker 1"). The speech-to-text for each person's own track (exact names with two voices at one time, and much more code in the recorder). Parts sent to Grain during the call (nothing is lost when the recorder stops, and one call is many recordings).
+- Risk: medium. The parts ran together on a local machine with the real SFU, Workers AI and Grain. The deployed recorder with these changes was not tested with a real call.
+- Undo: Revert this commit and deploy the recorder again. To stop recording at once, remove `CALL_RECORD_ROOMS` from the chat's secrets.
+- Status: open
+
+
+### 2026-11-24 · danielfurt/app-composer-draft · An MCP app can put a draft in the composer
+
+- Agent: Claude Opus 5.5
+- Context: Daniel reviews blog posts in the content-os MCP app, in the Apps tab of a room. He selects a passage to comment on it. Each `ui/message` from the app asked "Allow" before the post. Daniel wants the passage to go in the composer of the thread, so that he can type or dictate the comment and send it himself.
+- Decision:
+  - A `ui/message` where each text block has `_meta: {"vibebook/compose": true}` does not post. The text goes in the composer of the thread, after the text that is already there, and the composer gets the focus. There is no question, because nothing goes to the room until the person sends it.
+  - The host context has `"vibebook/compose": true` only where the chat can do this (the Apps tab and app lines in documents). An app that does not see it keeps its own path.
+  - A `ui/message` without the mark on each text block is a post, as before.
+  - There is no `track()` event: no new control shows, and the browser has no event path. The message that the person sends is a normal message.
+- Other options: A new request method (`vibebook/compose`). The SDK on the side of the app sends only the methods that it knows, so an app would need its own code for the request. `ui/update-model-context` (silent, but in a room it has no target). An "always allow" in the confirmation of a post (a post without a question is a larger change in the security model).
+- Risk: low. An app can put text in the composer when the person does not expect it, but it cannot send it. It cannot remove the text of the person.
+- Undo: Revert this commit. Apps then get the question before each post again.
+- Status: open
+
+### 2026-11-25 · feat/ack-opens-thread · A request taken in main opens its thread on the ack
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#4562, #4565): main should be almost only thread starts. Agents answered requests in main instead of opening a thread.
+- Decision:
+  - When an agent acks (`doing`) a message of its own human in main that has no thread, the server opens a thread from it (title = the request, owner = that person, status doing). `start_thread` for that message returns this thread once and sets the agent's title, goal and tasks.
+  - A post in main with `reply_to` a request that has an open thread goes into that thread.
+- Other options: open a thread for every message of a person in main (also small talk and yes/no answers would become threads); only a stronger rule for agents (agents already had the rule and skipped it).
+- Risk: low. A short request that an agent acks with `doing` gets a thread with no tasks. Another person's message, an `idle` or `done` ack and DMs open nothing.
+- Undo: Revert this commit. Agents then open threads only with `start_thread`.
+
+### 2026-11-25 · danielfurt/composer-reference · An app's quote is a chip in the composer, and the mic stays on a computer
+
+- Agent: Claude Opus 5.5
+- Context: After the composer draft (#404), Daniel said that the quoted passage in the field looked bad. He asked for a reference like Notion's: a chip with the passage above the field, and an empty field for the comment. He also said that the mic goes away when the field has text, so he cannot dictate after the quote.
+- Decision:
+  - A draft block with `_meta["vibebook/reference"] = { label }` is a quote. The composer shows the label in a chip (the `Chip` atom, with an `x` to remove it). When the person sends, the text of each quote goes before the typed text, with a blank line between them. The message is the same text that the field had before, so agents and the thread read it as before.
+  - A quote alone can be sent. The quotes are part of the draft: they are kept in storage with the text and the reply, they come back when a send fails, and they clear when it is sent. At most 8 quotes; the same text once.
+  - A block without a usable label is text for the field. A host before this change does the same, so an app can send the reference mark at all times.
+  - On a computer (from `md`), the mic and send are two buttons, side by side. Send is off until there is something to send. On a phone they still share one cell (#3821), because the field is narrow. This changes #3821 on a computer.
+- Other options: Keep one cell and let a person hold Space to dictate (it works with text, but nobody finds it). A rich quote block inside the field (a larger change to the field). A structured quote in the message (a change to the room's message format and to every reader of it).
+- Risk: low. The composer looks different on a computer: an extra button. The send path changes only by the text that it joins.
+- Undo: Revert this commit. An app's reference then goes in the field as text, and the mic and send share one cell again.
+- Status: open
+
+### 2026-11-25 · feat/reconnect-resume · A reconnect resumes on the socket, before GET /room
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes approved the 5-PR cache plan (#4638, #4653, "vai, seu objetivo e ter tudo em main"). The plan's PR 2 was `GET /room` plus a light socket (`?lite=1`). The measurement (PR 0, #4649) showed that 51% of room opens are reconnects (code 1006) that get the whole `state` again (390 KB in the product room), and that the threads (192 KB) and the 5 messages of each other thread (144 KB) are most of it. Moving the same state to `GET /room` sends the same bytes.
+- Decision:
+  - A reconnect resumes on the socket. The app sends what it has: `since` (its newest message id), `at` (the time of its last state) and `eh` (the hash of the threads that it got). The Book keeps nothing for each client.
+  - The answer is a `state` with `resume: true`: the open thread's window and every message newer than `since`, or edited or deleted since `at`. The threads are left out (`epicsSame`) when their hash is the same. All other fields are sent whole, as before. The app merges messages and acks into the room it has.
+  - The whole state comes when there are no params, the state is older than 6 hours, or more than 200 rows changed. A cached room that opens again (the 12-room cache) also resumes.
+  - `ws_state` records `resume` (`same`, `epics` or `full`), so the next measure shows the effect.
+- Other options: `GET /room` with `?lite=1` first, as in the plan (the same bytes until IndexedDB and ETag come). A change log in the Book (rejected before, #4553).
+- Risk: medium. A reaction or a card that changed on an older message during the gap shows only after the next full state or live event. Any bug in the merge shows old or missing messages until a reload.
+- Undo: Revert this commit. The app then does not send `since`, and the Book sends the whole state.
+
+### 2026-11-25 · danielfurt/human-quotes · Lines that start with "> " are a quote in a person's message
+
+- Agent: Claude Opus 5.5
+- Context: The content-os reader puts a passage in the composer as a reference (#409). After the send, the message showed the raw `>` and the reference and the comment looked the same. Daniel asked for a different look for the reference, so that a thread with many comments stays easy to read.
+- Decision:
+  - In a person's message (the `human` mode, plain text), a run of lines that start with `> ` (or a lone `>`) is a quote block. It uses the same style as a quote in an agent's markdown (`border-l-2`, muted text). Mentions and links inside it still work.
+  - Only this one markdown rule applies. The rest of a person's message stays literal: `**`, `#`, backticks and HTML show as typed.
+  - The empty lines just before and after the block are removed, because the block has its own margins.
+- Other options: A structured quote in the message (a change to the message format, the server and every reader). Full markdown for people's messages (a large change to what people see when they type symbols).
+- Risk: low. A person who types `> ` at the start of a line now sees a quote, as in Slack and Discord.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · feat/room-cache · Rooms are saved in IndexedDB, without DMs, for 7 days
+
+- Agent: Claude Opus 5.5
+- Context: The cache plan's PR 3 (Gimenes #4653: "o indexeddb é pra evitar pegar um range grande de mensagens", "o room deveria ser stale-while-revalidate, entao deveria ser instantaneo mudar de sala"). PR 2 (#418) made a socket resume from a room that the app has. Before this change, the app had rooms only in memory (12 rooms), so a reload got each whole state again.
+- Decision:
+  - The app saves each room that you open in IndexedDB, with the newest 400 messages, and draws it before the socket answers. The socket then resumes from it.
+  - It does not save DMs (the plan said "no DMs at first"). A saved room expires after 7 days. A sign-out, a refused session or another account deletes all saved rooms. A room that `/api/me` does not list is deleted.
+  - After a reload, the app waits for `/api/me` (at most 300 ms) to know whose rooms to read. It never draws a saved room for an account that it does not know.
+  - The open waits at most 300 ms for IndexedDB, then the socket starts.
+- Other options: localStorage (5 MB, synchronous). A Service Worker cache of `GET /room` (no `GET /room` yet). Save DMs too.
+- Risk: medium. Room content stays on the device until a sign-out or 7 days, so a person who uses your browser profile while you are signed in can read it in the browser's storage. A bug in the merge shows old messages until the server answers.
+- Undo: Revert this commit. The app then keeps rooms in memory only, and old saved rooms stay unused in IndexedDB.
+- Status: open
+
+### 2026-11-25 · feat/link-chips · Link chips: new component, own endpoint, page cache
+
+- Agent: Claude Opus 5.5
+- Context: The product owner asked that a link to this app in a message show as a one-line chip of where it goes, and "Sala privada" when the viewer can't see it. The details below were not specified.
+- Decision:
+  - A new component `AppLinkChip.svelte` (no existing component draws an inline place: `Chip` is a control, the file and GitHub chips are part of `RichNodes`). It uses `PersonAvatar`, `RoomMark` and `Icon`.
+  - A new route `GET /api/books/:id/link` answers 200 with `{kind:"private"}` for a non-member, a missing room, thread or message, and a message the chat hides from the viewer, so the answer never tells them apart. The rules are in `src/linkTarget.ts`.
+  - Only a link whose text is the bare URL becomes a chip. A link with its own text stays a link, and a click opens it in the app.
+  - A file link (`#f`), an app link and `#doc` without a thread stay links.
+  - The open room's messages and threads come from its state. A link to the open room itself still asks the server, because only the server has the room's icon version.
+  - Answers are kept for the page's life, `private` too: a person who joins a room sees its chips after a reload. A failed request is not kept.
+  - One request per place, not one batched request for all links.
+- Other options: A batched endpoint for all links of a page. A chip for labelled links too. No cache for `private`.
+- Risk: low. A chip can show an old title until a reload.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · feat/one-room-memory · Memory keeps only the open room, and DMs are saved too
+
+- Agent: Claude Opus 5.5
+- Context: The cache plan's PR 4 ("Só a sala aberta em memória: sai o cache de 12 salas"), approved by Gimenes (#4653, #4670). PR 3 (#420) saved rooms in IndexedDB but not DMs ("no DMs at first"). Gimenes: "Dms sao rooms como qualquer outras, nao? tem do, tem tudo" (#4804).
+- Decision:
+  - IndexedDB saves DMs like other rooms. `/api/me` lists DMs that have messages, so the prune keeps them.
+  - With IndexedDB, memory keeps only the open room. A room that you open again draws from IndexedDB (at most 300 ms), then resumes.
+  - Without IndexedDB (a private window), memory keeps the 12 newest rooms, as before.
+- Other options: Keep DMs out of IndexedDB and in memory (the first version of this PR).
+- Risk: low. DM content now also stays on the device until a sign-out or 7 days, as room content does. A switch back to a room waits for IndexedDB (usually a few milliseconds) instead of memory.
+
+### 2026-11-25 · feat/room-context-menu · Room settings dialog becomes one context menu
+
+- Agent: Claude Opus 5.5
+- Context: The product owner asked for a Discord-like context menu on a room in place of the "Settings for <room>" dialog, with Mark as read, Invite people, Notifications, Color, Icon, Rename, Move, Copy link and Archive.
+- Decision:
+  - One menu for the whole app (`RoomMenu.svelte`, mounted by `AppNavigation`). It is the studio `DropdownMenu` anchored at the pointer (`customAnchor`), not one bits-ui `ContextMenu` per row. The rail, the phone's grid and list, and the DM rows only call `controller.openMenu(id, trigger, point)` through one action (`roomMenuTrigger.ts`): a right-click, a 500 ms touch long press, or Shift+F10 / the ContextMenu key.
+  - "Mark as read" got a small new path: `POST /api/books/:id/read` writes `human_reads` up to the room's last message. The dot goes at once in the client.
+  - Left out: "Invite people" (the invite form lives in the room's People panel; no route opens it from outside the room) and "Notifications" (the app has no per-room mute).
+  - "Rename room" shows only for the room that is open, as before: the rename goes through that room's socket.
+  - A DM gets "Mark as read" and "Copy conversation link" only. Archive is left out for a DM, because an archived DM would hide new messages from that person.
+  - Errors of a change and "Copied" show for 2.5 s in a small notice at the foot of the screen.
+- Other options: One `ContextMenu` per row (like the pins); keep the dialog and add a menu beside it; send the person to the room and open its People panel for "Invite people".
+- Risk: low. The same mutations as the dialog, from a different surface.
+- Undo: Revert this commit.
+||||||| parent of 7a68e433 (feat(cli): Codex wakes from the room through codex queue; the plugin works in Codex; herdr installs the plugin (1.7.9))
+
+### 2026-11-25 · viktor/codex-setup · Codex listens through codex queue
+
+- Agent: Claude Opus 5.5
+- Context: A person set up deco.chat in Codex with the prompt from `llms.txt`. Codex could read and post, but no room message ever woke it: `vibebook listen` prints one line and exits, and only Claude Code starts a turn when a background command ends. Codex also stopped the listen at the end of its turn. The same person asked for a setup that works for Codex and for new people. Codex 0.172 has `codex queue --thread <id> --message <text> --resume`, which starts a turn in a thread, and it sets `CODEX_THREAD_ID` in the env of each command.
+- Decision:
+  - Inside Codex (`CODEX_THREAD_ID` set, no `CLAUDE_CODE_SESSION_ID`), the agent is the Codex thread, as a Claude Code session is.
+  - `vibebook listen` in Codex starts itself detached with `--codex-wake <thread>` and returns at once. On news, the child queues one message into the thread with `codex queue --resume`. The same news within 10 minutes is not sent again. `--once` keeps the old one-shot listen.
+  - The child stops 15 minutes after no Codex window is open (the app-server daemon does not count, because it stays up). When the CLI file changes, it starts the new CLI itself.
+  - The Claude Code plugin is also the Codex plugin (`codex plugin add vibebook@vibebook` reads the same marketplace). The session hook detects Codex by its rollout `transcript_path` and gives Codex its own listen step. The permission hook names the agent after the Codex thread.
+  - The herdr runner installs the Claude Code plugin when it is missing. Without the plugin, the Claude it opens gets the listen prompt in words, not `/vibebook:listen`.
+  - `vibebook herdr --agent codex` opens Codex in each room. It installs the plugin in Codex and writes `~/.codex/rules/vibebook.rules`, a rule that runs only the `vibebook` command outside the Codex sandbox (Codex's sandbox has no network and cannot write `~/.vibebook`). Not `--dangerously-bypass-approvals-and-sandbox`: a room agent reads other people's messages, and that flag removes every approval for every command.
+- Other options: A Codex `Stop` hook that blocks until the room has news (it holds the turn open and the person cannot type). A separate Codex plugin folder (two copies of the same skill and hooks). Let the waker run while Codex is closed (queued turns then run in the daemon with nobody watching, on the person's plan).
+- Risk: medium. A queued turn starts while the person types in Codex. The process check can miss a Codex started in an unusual way; then the child stops after 15 minutes and the person runs listen again.
+- Undo: Revert this commit. Codex then reads and posts but is not woken, and the runner opens Claude with `/vibebook:listen` again.
+- Status: open
+
+### 2026-11-25 · fix/link-reveal · A message link survives the live room and an old bottom intent
+
+- Agent: Claude Opus 5.5
+- Context: A copied link to a message (`#m<id>`) still opened the room at the bottom after #434 (Gimenes #4843). Two causes:
+  - The room opens from IndexedDB, and the link search asks for an older page. Then the live room replaces the saved one (a new connection), the page of the old connection is dropped, and the search stopped.
+  - A render measured with bottom intent before the jump applied it during the jump.
+- Decision:
+  - When the same room and thread are replaced while a link search runs, the search starts again on the new connection.
+  - During a jump, a bottom intent of a render does not move the chat. A real bottom intent (own send, "latest") ends the jump first.
+- Other options: Keep the page of the old connection. Start the link search only when the room is live.
+- Risk: low. A search that starts again sends up to 15 more page requests.
+- Undo: Revert this commit.
+
+### 2026-11-25 · fix/ws-resume-params · The worker passes the resume to the Book, from a new small module
+
+- Agent: Claude Opus 5.5
+- Context: The worker's `/ws/:id` route built the Book's URL with only `book`, `t` and `rc`. It dropped `since`, `at` and `eh`, so no room open resumed (cache plan PR 2) and each open sent the whole room. In production, 0 of 166 opens in one hour resumed.
+- Decision:
+  - A new module `src/bookSocket.ts` builds the URL. `src/rooms.ts` (beside `bookStub`) imports Worker-only modules, so a test cannot import it.
+  - The worker passes only numbers for `since`, `at` and `rc`, and only letters, digits, `_` and `-` for `eh`. A resume needs both `since` and `at`.
+- Other options: Pass the whole query string to the Book. Keep the code in `src/index.ts` with no test.
+- Risk: medium. The resume path now runs in production for the first time. A bug in it shows wrong messages until the next full open.
+- Undo: Revert this commit. Opens then send the whole room again.
+- Status: open
+
+### 2026-11-25 · JonasJesus42/call-audio-test · RNNoise noise suppression in the call, on by default
+
+- Agent: Claude Opus 5.5
+- Context: In the first team call, the other side heard the construction behind Leandro (Grain bedd8d31). Jonas asked for a noise suppression like Discord's, on for all when the result is good, and a local test that captures the audios (#4961).
+- Decision:
+  - Add `@sapphi-red/web-noise-suppressor` 0.4.2 (MIT, exact version) and use its RNNoise worklet. The browser's own noise suppression is not enough for this noise.
+  - It is on by default. A switch in "Mais opções" turns it off on that device, and changes the track of the call with `replaceTrack`, without a new negotiation.
+  - The raw microphone stays for mute and for the speaking mark.
+  - After RNNoise, a gain of 2 (+6 dB) and a limiter at -6 dB. RNNoise alone left the voice about 6 dB lower (Jonas: "ficou baixo").
+- Measure (`scripts/call-audio-test.ts`, the fixture with construction, keys and a voice), what the other side hears:
+  - Browser noise suppression only: noise floor -49.7 dB, speech -13.0 dB.
+  - RNNoise only: noise floor -69.9 dB, speech -19.2 dB.
+  - RNNoise, gain and limiter: noise floor -61 dB, speech -14 dB, peak -6.2 dB.
+- Other options: DeepFilterNet (better, about 10 times the CPU and a larger model). GTCRN from the same package (newer, not measured yet). Krisp (paid, a key in the browser).
+- Risk: medium. RNNoise can cut a quiet voice. Each person can turn it off. It uses one more AudioContext and some CPU on each device in a call.
+- Undo: Revert this commit. The `vb-call-denoise` key in `localStorage` stays and is not read.
 - Status: open

@@ -30,6 +30,7 @@
   import HomeAsk from "./HomeAsk.svelte";
   import ChatList from "./ChatList.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
+  import UpdateRow from "../app-navigation/UpdateRow.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import HomeSkeleton from "./HomeSkeleton.svelte";
@@ -38,6 +39,7 @@
   import { mountCube } from "./cube";
   import { byImportance, fanClasses, inFan } from "./deskHand";
   import Onboarding from "../onboarding/Onboarding.svelte";
+  import NewMessage from "../app-navigation/NewMessage.svelte";
   import { createOnboardingSession } from "../onboarding/session";
   let {
     pwa,
@@ -52,10 +54,12 @@
     onhome,
     onarchived,
     onnew,
-    onroomsettings,
+    onroommenu,
     onsearch,
     onjoin,
     onanswer,
+    onconnect,
+    ondismiss,
   }: HomeBridge = $props();
   const account = $derived(personal.state);
   const mobile = new MediaQuery(MOBILE_QUERY);
@@ -324,6 +328,11 @@
       </h1>
       <AccountRow me={$account.me} row={false} />
     </header>
+    <!-- A new version: the desktop sidebar's green row (Valls, #334), first in the phone's list, never in a room
+      (Gimenes #4613, #4630). The sidebar's foot is desktop only, so a phone had no way to update. -->
+    {#if $account.updateAvailable}<div class="px-2 pt-1 md:hidden">
+        <UpdateRow {lang} />
+      </div>{/if}
     <div class="px-2 pt-1 pb-3">
       <button
         type="button"
@@ -346,18 +355,30 @@
       {lang}
       {ago}
       {onnavigate}
+      onmenu={onroommenu}
       {onjoin}
       {onanswer}
     />
-    <Button
-      variant="brand"
-      data-home-new
-      aria-label={text("new")}
-      class="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 size-14 rounded-2xl shadow-lg"
-      onclick={(event) => {
-        if (event.currentTarget.isConnected) onnew(event.currentTarget);
-      }}><Icon icon="plus" class="size-6" /></Button
-    >
+    <!-- The + makes a DM (people from your rooms, or an email) or a room (Gui #4572: it only made rooms). -->
+    {#if $account.me}<NewMessage
+        me={$account.me}
+        {lang}
+        {onconnect}
+        {ondismiss}
+        side="top"
+        onroom={(trigger) => {
+          if (trigger?.isConnected) onnew(trigger);
+          else onnew();
+        }}
+        >{#snippet trigger({ props })}<Button
+            {...props}
+            variant="brand"
+            data-home-new
+            aria-label={text("newMessage")}
+            class="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 size-14 rounded-2xl shadow-lg"
+            ><Icon icon="plus" class="size-6" /></Button
+          >{/snippet}</NewMessage
+      >{/if}
   </main>
 {:else}
   <!-- The desk home: the agent's cube, one sentence on what waits on you, the
@@ -485,7 +506,7 @@
                 seen={$account.seen[room.id] ?? 0}
                 waits={me.waits.filter((wait) => wait.book_id === room.id)}
                 {onnavigate}
-                onsettings={onroomsettings}
+                onmenu={onroommenu}
               />{/each}
             {#if gridRooms.length > GRID}<button
                 type="button"

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { get } from "svelte/store";
 import type { Epic, Message } from "../shared/room";
 import {
-  archivedEpics,
+  doneEpics,
   epicAncestors,
   epicForest,
   reorderEpics,
@@ -19,8 +19,8 @@ import {
 const epic = (
   id: string,
   parent: string | null = null,
-  archived = false,
-): Epic => ({ id, title: id, tasks: [], parent, archived });
+  done = false,
+): Epic => ({ id, title: id, tasks: [], parent, done });
 const storage = () => {
   const values = new Map<string, string>();
   return {
@@ -127,7 +127,7 @@ describe("epic navigation model", () => {
       ["other", false],
     ]);
   });
-  test("archive view orders by last message, then reverse canonical index", () => {
+  test("done view orders by last message, then reverse canonical index", () => {
     const records = [
       epic("open"),
       epic("a", null, true),
@@ -135,7 +135,7 @@ describe("epic navigation model", () => {
       epic("c", null, true),
     ];
     expect(
-      archivedEpics(records, [
+      doneEpics(records, [
         { id: 8, thread: "a", author: "me", ts: 0, text: "activity" },
       ]).map((row) => row.id),
     ).toEqual(["a", "c", "b"]);
@@ -205,7 +205,7 @@ describe("room-owned navigation session", () => {
     expect(other).not.toBe(session);
     expect(get(other.state).suggestions).toBe(false);
   });
-  test("returning from an archived thread is a new entry even while the active tab stays selected", () => {
+  test("returning from an done thread is a new entry even while the active tab stays selected", () => {
     const session = createNavigationSession("room", false, storage());
     const forest = epicForest([
       epic("a"),
@@ -222,20 +222,20 @@ describe("room-owned navigation session", () => {
     enterNavigationThread(session, forest, "a-leaf");
     expect([...get(session.state).closed]).toEqual(["b"]);
   });
-  test("entering a filtered archived child reveals its branch when its tab opens", () => {
+  test("entering a filtered done child reveals its branch when its tab opens", () => {
     const local = storage();
     local.setItem("vb.tree.room", '["parent"]');
     const session = createNavigationSession("room", false, local);
     enterNavigationThread(session, epicForest([epic("open")]), "child");
     expect(get(session.state).openedFor).toBeNull();
-    const archived = epicForest([
+    const done = epicForest([
       epic("parent", null, true),
       epic("child", "parent", true),
     ]);
-    enterNavigationThread(session, archived, "child");
+    enterNavigationThread(session, done, "child");
     expect([...get(session.state).closed]).toEqual([]);
     toggleNavigationBranch(session, "parent");
-    enterNavigationThread(session, archived, "child");
+    enterNavigationThread(session, done, "child");
     expect([...get(session.state).closed]).toEqual(["parent"]);
   });
   test("ancestor auto-opening runs once per thread entry, preserving manual collapse and the open tab", () => {

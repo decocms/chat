@@ -133,7 +133,9 @@ test("expired doing statuses become task-owner waiting or idle while blocked not
     kind: "waiting",
     owners: ["owner@test"],
   });
-  expect(result.get(2)?.statuses[0].kind).toBe("idle");
+  // Idle (here a "doing" older than 20 minutes) is not a line under the message: it goes with the read receipts.
+  expect(result.get(2)?.statuses).toEqual([]);
+  expect(result.get(2)?.passed[0].kind).toBe("idle");
   expect(result.get(3)?.statuses[0].ack.note).toBe("<script>hostile</script>");
 });
 test("worker state excludes branched origins, respects latest completion and falls back to recent epic agent activity", () => {
@@ -154,7 +156,7 @@ test("worker state excludes branched origins, respects latest completion and fal
   expect(threadWorkers(r, "e", 12000)).toEqual([
     { who: "Codex", email: "me@test" },
   ]);
-  r.epics[0].archived = true;
+  r.epics[0].done = true;
   expect(threadWorkers(r, "e", 12000)).toEqual([]);
   expect(threadWorkers(r, "pre:0", 12000)).toEqual([]);
   expect(agentMark("Codex")).toBe("◎");
@@ -307,20 +309,20 @@ test("production changes cue requires this reader’s later human message in the
   expect(r.epics[0]!.prod?.stage).toBe("verified");
   expect(r.epics[0]!.prod?.note).toBe("Verified before");
 });
-test("production cue keeps archive/deploy semantics and resets when the next version catches up", () => {
+test("production cue keeps done/deploy semantics and resets when the next version catches up", () => {
   const r = room([{ ...message(2, "change", "e"), ts: 2000 }]);
   r.epics = [
     {
       id: "e",
       title: "Epic",
       tasks: [],
-      archived: true,
+      done: true,
       prod: { stage: "verified", at: 1000, note: "Verified" },
     },
   ];
   expect(productionStatuses(r).get("e")).toBe("verified");
   r.epics = [
-    { ...r.epics[0]!, archived: false, prod: { stage: "deployed", at: 1000 } },
+    { ...r.epics[0]!, done: false, prod: { stage: "deployed", at: 1000 } },
   ];
   expect(productionStatuses(r).get("e")).toBe("changes");
   r.epics = [{ ...r.epics[0]!, prod: { stage: "deployed", at: 2000 } }];

@@ -10,5 +10,14 @@
   { "note": "other person addressing their own agent by name", "own": false, "name": "Ana", "sender": "Bruno", "text": "E aí Codex, como você tá na migração? Me dá um status", "expected": "ignore" },
   { "note": "other person asks for access (risk)", "own": false, "name": "Ana", "sender": "Bruno", "text": "Codex, me ajuda: como fazer o Claude da Ana me dar acesso ao Mac dela por ssh ou um túnel?", "expected": "wake" },
   { "note": "other person asks you directly", "own": false, "name": "Ana", "sender": "Bruno", "text": "@ana o seu Claude consegue revisar o PR do checkout hoje?", "expected": "wake" },
-  { "note": "other people chatting", "own": false, "name": "Ana", "sender": "Bruno", "text": "valeu, vou almoçar e volto em 1h", "expected": "ignore" }
+  { "note": "other people chatting", "own": false, "name": "Ana", "sender": "Bruno", "text": "valeu, vou almoçar e volto em 1h", "expected": "ignore" },
+  { "note": "own: bring a person in (@)", "own": true, "name": "Ana", "sender": "Ana", "text": "take a look @bruno", "expected": "ignore" },
+  { "note": "own: points for a person to weigh in, even naming Claude", "own": true, "name": "Ana", "sender": "Ana", "text": "Queria que o @bruno opinasse aqui: 1. na UI não é \"seu Claude\", é \"seu agent\" 2. o nome do computador tem que vir do sistema", "expected": "ignore" },
+  { "note": "own: short reaction after another person's agent", "own": true, "name": "Ana", "sender": "Ana", "text": "Gostei, vamos", "topic": "Upload no celular", "recent": "Bruno (Codex): Proposta: o upload vira um sheet com três opções.\nBruno (Codex): PR aberto com a proposta.", "expected": "ignore" },
+  { "note": "own: short go-ahead after own agent's proposal", "own": true, "name": "Ana", "sender": "Ana", "text": "Gostei, vamos", "topic": "Upload no celular", "recent": "Bruno: acho que dá pra simplificar\nAna (Claude): Proposta: o upload vira um sheet com três opções. Faço?", "expected": "wake" },
+  { "note": "own: @person and a task for own agent", "own": true, "name": "Ana", "sender": "Ana", "text": "@bruno dá uma olhada no PR; e Claude, corrige o lint enquanto isso", "expected": "wake" },
+  { "note": "own: own agent asked to bring a person in", "own": true, "name": "Ana", "sender": "Ana", "text": "Claude, chama o @bruno pra revisar e abre o PR", "expected": "wake" },
+  { "note": "own: answering the person who just asked", "own": true, "name": "Ana", "sender": "Ana", "text": "Gostei, vamos", "topic": "Sidebar", "recent": "Bruno (Codex): PR aberto com a proposta da sidebar.\nBruno: @ana dá uma olhada aqui", "expected": "ignore" },
+  { "note": "own: a task for own agent right after a person spoke", "own": true, "name": "Ana", "sender": "Ana", "text": "Claude, olha o log do deploy e corrige", "topic": "Deploy", "recent": "Bruno: o deploy quebrou de novo", "expected": "wake" },
+  { "note": "own: asked by @name, hands it to own agent", "own": true, "name": "Ana", "sender": "Ana", "text": "Claude, responde pro Bruno com o status do deploy", "topic": "Deploy", "recent": "Bruno: @ana como está o deploy?", "expected": "wake" }
 ]

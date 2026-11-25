@@ -88,14 +88,18 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     due: z.optional(z.string()),
   }),
   z.object({ t: z.literal("decision.del"), id: num }),
+  // The room's call (src/calls.ts): leave it; the bytes this browser received since its last report.
+  z.object({ t: z.literal("call.leave") }),
+  z.object({ t: z.literal("call.usage"), bytes: num }),
+  z.object({ t: z.literal("call.mute"), muted: z.boolean() }),
   z.object({ t: z.literal("epic.rename"), id, title: z.string() }),
   z.object({ t: z.literal("epic.del"), id }),
   z.object({
-    t: z.literal("epic.archive"),
+    t: z.literal("epic.done"),
     id,
-    archived: z.optional(z.boolean()),
+    done: z.optional(z.boolean()),
   }),
-  // The epic bar's status menu: "done" and "dismissed" archive it, the open ones reopen it (Book.setEpicStatus).
+  // The epic bar's status menu: "done" and "dismissed" mark it done, the open ones reopen it (Book.setEpicStatus).
   z.object({ t: z.literal("epic.status"), id, status: z.enum(EPIC_STATUSES) }),
   z.object({ t: z.literal("epic.order"), ids: z.array(z.string()) }),
   z.object({ t: z.literal("epic.pin"), id: z.string(), pinned: z.boolean() }),

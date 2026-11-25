@@ -91,17 +91,17 @@ try {
   const child = await newEpic("Child workflow", parent);
   const leaf = await newEpic("Leaf workflow", child);
   const other = await newEpic("Second branch");
-  const oldParent = await newEpic("Archived parent");
-  const oldChild = await newEpic("Archived child", oldParent);
+  const oldParent = await newEpic("Done parent");
+  const oldChild = await newEpic("Done child", oldParent);
   await agent("update_thread", {
     room_id: id,
     epic_id: oldParent,
-    archived: true,
+    done: true,
   });
   await agent("update_thread", {
     room_id: id,
     epic_id: oldChild,
-    archived: true,
+    done: true,
   });
   result.epics = { parent, child, leaf, other, oldParent, oldChild };
   let ready = false;
@@ -166,8 +166,8 @@ try {
   await title(parent).click();
   await expect(title(parent)).toHaveAttribute("aria-current", "page");
   await expect(row(child)).toBeVisible();
-  step("Checking the archived list and keyboard ordering");
-  await nav.getByRole("tab", { name: /^Archived/ }).click();
+  step("Checking the done list and keyboard ordering");
+  await nav.getByRole("tab", { name: /^Done/ }).click();
   await expect(row(oldParent)).toBeVisible();
   await expect(row(oldChild)).toBeVisible();
   await expect(nav.locator("[data-new-epic]")).toHaveCount(0);
@@ -319,7 +319,7 @@ try {
   assert.deepEqual(errors, []);
   result.status = "pass";
   console.log(
-    "PASS epic navigation: flat list, live updates, archive, ordering/drag, persistence, responsive EN/PT axe",
+    "PASS epic navigation: flat list, live updates, done, ordering/drag, persistence, responsive EN/PT axe",
   );
 } catch (error) {
   result.status = "fail";

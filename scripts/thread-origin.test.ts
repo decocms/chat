@@ -73,7 +73,6 @@ function fixture() {
     } as unknown as ConstructorParameters<typeof Book>[1],
   );
   book.set("book_id", "abcdef");
-  book.answerIntent = async () => {};
   book.wakeAt = async () => {};
   book.members = async () => [email];
   let rpc = 0;
@@ -241,4 +240,21 @@ test("an agent's start_thread with no request: its line in main is the thread's 
   expect(line).toMatchObject({ thread: "main", kind: "agent" });
   expect(line.text).toContain("Limpeza");
   expect(f.epic(out.epic_id)?.from_msg).toBe(line.id);
+});
+
+test("a thread made from someone else's message is theirs, a retry still works, and @vibe's goes to the maker (Gimenes #4594)", async () => {
+  const f = fixture();
+  const gui = "gui@example.test";
+  const theirs = f.book.addMessage("main", gui, "e se a gente mudar o inbox?");
+  expect(
+    await f.run({ t: "epic", title: "Inbox", from: theirs.id, id: "aaaa0010" }),
+  ).toEqual({ ok: true });
+  expect(f.epic("aaaa0010")?.owner).toBe(gui);
+  // The same click again (a lost answer) is not refused.
+  expect(
+    await f.run({ t: "epic", title: "Inbox", from: theirs.id, id: "aaaa0010" }),
+  ).toEqual({ ok: true });
+  const vibe = f.book.addMessage("main", "ai", "lembrete: revisar o PR");
+  await f.run({ t: "epic", title: "Revisar", from: vibe.id, id: "aaaa0011" });
+  expect(f.epic("aaaa0011")?.owner).toBe(email);
 });

@@ -12,7 +12,7 @@ type Command = Extract<
       | "epic.order"
       | "epic.pin"
       | "epic.rename"
-      | "epic.archive"
+      | "epic.done"
       | "epic.status"
       | "epic.del"
       | "suggestion";
@@ -88,7 +88,7 @@ export function createRoomMutations(
     if (command.t === "epic.status") return epic.status === command.status;
     if (command.t === "epic.rename")
       return epic.title === command.title.trim().slice(0, 200);
-    return !!epic.archived === (command.archived !== false);
+    return !!epic.done === (command.done !== false);
   }
   function settle() {
     const op = operation;

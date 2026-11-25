@@ -6,6 +6,10 @@
   import Requests from "../app-navigation/Requests.svelte";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
+  import {
+    roomMenuTrigger,
+    type MenuPoint,
+  } from "../app-navigation/roomMenuTrigger";
   import { homeText, type HomeLanguage } from "./copy";
   import { byImportance } from "./deskHand";
   import {
@@ -40,6 +44,7 @@
     lang,
     ago,
     onnavigate,
+    onmenu,
     onjoin,
     onanswer,
   }: {
@@ -49,6 +54,8 @@
     lang: HomeLanguage;
     ago: (time: number) => string;
     onnavigate: (target: RoomTarget) => void;
+    /** Opens a room's or DM's menu (a long press, a right-click, Shift+F10). */
+    onmenu?: (id: string, trigger: HTMLElement, point?: MenuPoint) => void;
     onjoin?: (room: string, yes: boolean) => Promise<void>;
     onanswer?: (email: string, accept: boolean) => Promise<void>;
   } = $props();
@@ -74,6 +81,7 @@
         invites={me.invites ?? []}
         requests={me.requests}
         {lang}
+        variant="list"
         {onjoin}
         {onanswer}
       />
@@ -129,7 +137,11 @@
         room,
         seen[room.id] ?? 0,
       )}
-      <li>
+      <li
+        use:roomMenuTrigger={onmenu
+          ? (trigger, point) => onmenu(room.id, trigger, point)
+          : undefined}
+      >
         <RoomLink
           {room}
           {dm}

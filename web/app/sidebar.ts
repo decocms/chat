@@ -41,6 +41,10 @@ export type SidebarProps = {
   phoneMenu?: import("svelte").Snippet;
   /** Phones: your avatar (a link to Settings) at the end of the room's row in the drawer. */
   phoneAccount?: import("svelte").Snippet;
+  /** The room's call while one is on: a row under the room's name (a green phone in the narrow rail). */
+  call?: import("svelte").Snippet<[collapsed: boolean]>;
+  /** The call I am in, right above the foot (CallPanel); in the narrow rail, a green phone over the foot. */
+  callPanel?: import("svelte").Snippet<[collapsed: boolean]>;
   /** Desktop: pinned to the bottom of the sidebar (you and your Claude). */
   /** The foot: your agent, then (desktop) `rows` = your agents' rows, then you. */
   footer?: import("svelte").Snippet<
@@ -51,7 +55,7 @@ export type SidebarProps = {
   send: SendRoomCommand;
   request: RequestRoomCommand;
   onopen: (id: string) => void;
-  onarchchange: (archived: boolean) => void;
+  ondonechange: (done: boolean) => void;
   navigation: NavigationSession;
   pins: PinsSession;
   onopenpinfile: (file: Attachment) => void;

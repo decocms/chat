@@ -11,7 +11,7 @@ const strings = z.array(str);
 
 export const TASK_STATUSES = ["todo", "doing", "review", "done"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
-/** An epic's status, in the order of its menu. `dismissed` = archived without being done. */
+/** An epic's status, in the order of its menu. `dismissed` is an old client's done. */
 export const EPIC_STATUSES = [
   "todo",
   "doing",
@@ -42,8 +42,26 @@ export const DecisionSchema = z.object({
   who: str,
   kind: str,
   ts: num,
+  /** The message it was decided in, when the agent that logged it said so. */
+  msg: opt(num),
+  /** Whose decision it is (their avatar and name). */
+  email: opt(str),
+  /** Set when an agent logged it: the agent's model, or "agent". */
+  via: opt(str),
 });
 export type Decision = z.infer<typeof DecisionSchema>;
+/** Someone in the room's call: their SFU session and the names of the tracks they publish ("mic", "screen"). */
+export const CallPeerSchema = z.object({
+  email: str,
+  session: str,
+  tracks: strings,
+  /** The person's microphone is off. */
+  muted: opt(bool),
+});
+export type CallPeer = z.infer<typeof CallPeerSchema>;
+/** A DM's call ringing the other person (`to`) until `until` (shared/call.ts RING_MS). */
+export const RingSchema = z.object({ from: str, to: str, until: num });
+export type Ring = z.infer<typeof RingSchema>;
 export const PinSchema = z.object({
   id: str,
   kind: str,
@@ -78,7 +96,7 @@ export const EpicSchema = z.object({
   id: str,
   title: str,
   tasks: z.array(TaskSchema),
-  archived: opt(bool),
+  done: opt(bool),
   owner: maybe(str),
   from_msg: maybe(num),
   parent: maybe(str),
@@ -117,6 +135,9 @@ export const MessageSchema = z.object({
   tag: maybe(str),
   via: maybe(str),
   reply_to: maybe(num),
+  // The thread of the message it answers, only when that is another thread: a click on the quote opens it there
+  // even when the quoted message isn't loaded (it may be weeks back, or in a thread the room open didn't send).
+  reply_thread: opt(str),
   choices: maybe(str),
   poll: maybe(str),
   card: maybe(str),
@@ -203,6 +224,14 @@ export const RoomSnapshotSchema = z.object({
   roomTasks: opt(z.array(TaskSchema)),
   members: strings,
   online: strings,
+  /** Who is in the room's call. Missing = calls are not set up on this server (src/calls.ts). */
+  call: opt(z.array(CallPeerSchema)),
+  /** The thread of the call that is on (its own thread, made when the call starts): the chat beside the stage. */
+  callThread: opt(str),
+  /** A DM's call that rings someone now. */
+  ring: opt(RingSchema),
+  /** This room's calls are recorded (CALL_RECORD_ROOMS): a call here without the recorder shows a warning. */
+  callRecorded: opt(bool),
   names: opt(z.record(str, str)),
   /** email → @handle: what a mention picked from the list inserts (shared/mention.ts). */
   handles: opt(z.record(str, str)),
@@ -232,6 +261,13 @@ export const RoomSnapshotSchema = z.object({
   pins: opt(z.array(PinSchema)),
   polls: opt(z.record(str, PollSchema)),
   briefs: opt(z.array(BriefSchema)),
+  /** When the Book built this state, and the hash of its epics: a reconnect sends them back (since/at/eh) to resume. */
+  at: opt(num),
+  eh: opt(str),
+  /** A resumed state (cache plan PR 2): only what changed since the app's last one, merged into the room it has.
+   *  epicsSame = the threads did not change, so epics is empty and the app keeps its own. */
+  resume: opt(bool),
+  epicsSame: opt(bool),
 });
 /** The room as the browser keeps it: the snapshot plus its id and who is typing. */
 export type Room = z.infer<typeof RoomSnapshotSchema> & {

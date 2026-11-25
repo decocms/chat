@@ -21,6 +21,7 @@
   import { threadTitle } from "../room-sidebar/model";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import { isDmId } from "../../../shared/dm";
+  import type { SendRoomCommand } from "../../../shared/commands";
   import AgentBanners from "../agents/AgentBanners.svelte";
   import AgentTrigger from "../agents/AgentTrigger.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
@@ -28,6 +29,15 @@
   import UpdateRow from "../app-navigation/UpdateRow.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
+  import { roomAvatarVersion } from "../room-scope/model";
+  import CallControls from "../call/CallControls.svelte";
+  import CallStage from "../call/CallStage.svelte";
+  import CallSidebarRow from "../call/CallSidebarRow.svelte";
+  import CallPanel from "../call/CallPanel.svelte";
+  import { createCallApi } from "../call/callApi";
+  import { createCallSession } from "../call/session";
+  import { callIntent } from "../call/ring";
+  import { CALL_THREAD, isRecorder, roomHasThread } from "../../../shared/call";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
@@ -90,6 +100,147 @@
     view = owner.state,
     geometry = layout.state;
   scoped = owner;
+  // The room's call (voice and screen). It lives with this view, so threads, panes and pins keep it on; leaving
+  // the room leaves the call (the room's socket closes, and the room takes the person out of the call:
+  // Book.webSocketClose).
+  const sendCommand: SendRoomCommand = (command) =>
+    get(owner.state)?.decisions.send(command) ?? false;
+  const callApi = createCallApi(browser.fetcher);
+  const call = createCallSession(
+    captured.roomId,
+    callApi,
+    sendCommand,
+    () => get(owner.state)?.header.thread ?? "main",
+  );
+  const callView = call.state;
+  // A DM's call rings the other person (Atender joins); a room's call is joined by opening the room.
+  $effect(() =>
+    call.setPeers(
+      $view?.header.room.call,
+      $view?.header.room.me,
+      !$view?.header.room.book.dm,
+    ),
+  );
+  // A click on a call's button elsewhere (the ring's card, a call line in the chat) for this room: done here, where
+  // the room's call lives.
+  $effect(() => {
+    const intent = $callIntent,
+      ready = !!$view?.header.room;
+    if (!intent || !ready || intent.room !== captured.roomId) return;
+    untrack(() => {
+      callIntent.set(null);
+      if (intent.action === "join") call.join();
+      else void callApi.decline(captured.roomId).catch(() => {});
+    });
+  });
+  const inCall = $derived($callView.phase !== "idle");
+  // In the call, the stage is on show until a click elsewhere (a thread, a pane, a pin) closes it: the call goes on
+  // (the voices keep playing) and the sidebar's call panel or the top bar's green phone open it again.
+  let stageOpen = $state(false);
+  const staged = $derived(inCall && stageOpen);
+  // The chat column beside the stage: the person can hide it, so the call has all the width.
+  let chatHidden = $state(false);
+  let cameraOpen = $state(false);
+  // What opening the stage changed in the layout (the doc beside the chat closes, so the stage has the room's
+  // width), to put it back when the stage closes.
+  let closedPane = false;
+  // The stage shows the call's own thread beside it (room.callThread): opening it goes there once.
+  let toCallThread = false,
+    asked = "";
+  function openStage() {
+    if (!stageOpen && !layout.read().mobile) {
+      closedPane = layout.read().documentVisible;
+      if (closedPane) layout.toggleDocument();
+    }
+    stageOpen = true;
+    toCallThread = true;
+    asked = "";
+  }
+  function closeStage() {
+    stageOpen = false;
+    toCallThread = false;
+    chatHidden = false;
+    // The stage in full screen (CallStage) leaves it with the stage.
+    if (document.fullscreenElement) void document.exitFullscreen();
+    if (closedPane && !layout.read().documentVisible) layout.toggleDocument();
+    closedPane = false;
+  }
+  // Joining opens the stage; leaving closes it.
+  let wasInCall = false;
+  $effect(() => {
+    const now = inCall;
+    untrack(() => {
+      if (now && !wasInCall) openStage();
+      if (!now && wasInCall) closeStage();
+      wasInCall = now;
+    });
+  });
+  // Another thread (the sidebar, a link, Back) closes the stage; the call's chat keeps it. The call chat is only
+  // seen beside the stage: with the stage closed (hung up, or a link to it), the person goes back to where they were.
+  let lastThread = "",
+    returnTo = "main",
+    sentBack = "";
+  $effect(() => {
+    const room = $view?.header.room,
+      thread = $view?.header.thread ?? "",
+      target = room?.callThread,
+      open = staged;
+    untrack(() => {
+      const moved = thread !== lastThread;
+      lastThread = thread;
+      if (moved && thread !== CALL_THREAD) returnTo = thread || "main";
+      if (!open) {
+        if (thread === CALL_THREAD && sentBack !== thread) {
+          sentBack = thread;
+          owner.actions.setThread(
+            returnTo !== CALL_THREAD && room && roomHasThread(room, returnTo)
+              ? returnTo
+              : "main",
+          );
+        }
+        if (thread !== CALL_THREAD) sentBack = "";
+        return;
+      }
+      if (moved && thread !== target) return closeStage();
+      if (!toCallThread || !target || !room) return;
+      if (thread === target) toCallThread = false;
+      else if (asked !== target && roomHasThread(room, target)) {
+        asked = target;
+        owner.actions.setThread(target);
+      }
+    });
+  });
+  // A pane that opens (doc, files, apps, people, a pinned file) closes the stage too.
+  let lastDoc = false,
+    lastPane = "";
+  $effect(() => {
+    const shown = $geometry.mobile
+        ? $geometry.sheet === "doc"
+        : $geometry.documentVisible,
+      pane = $geometry.pane,
+      open = staged;
+    untrack(() => {
+      const opened = shown && (!lastDoc || pane !== lastPane);
+      lastDoc = shown;
+      lastPane = pane;
+      if (open && opened) closeStage();
+    });
+  });
+  // Where the call is: the room (a DM: the person).
+  const callTitle = $derived($view?.header.room.book.title ?? "");
+  // "Iniciar call" shows while the room has no call. With a call on, the stage or its one-line bar has the controls.
+  const callIdle = $derived(
+    !!$view?.header.room.call &&
+      !$view.header.room.call.some((peer) => !isRecorder(peer.email)) &&
+      $callView.phase === "idle",
+  );
+  // The top bar's call button: the room has calls, and the stage is not on show (it has its own controls). In the
+  // call with the stage closed, it opens the stage again.
+  const callReady = $derived(!!$view?.header.room.call && !staged);
+  const personName = (email: string) =>
+    ($view?.header.room.names?.[email] ?? email.split("@")[0] ?? "").split(
+      /\s+/,
+    )[0] ?? "";
   provideRichFileIndex(owner.richFiles);
   function back(expectedThread: string) {
     const value = get(owner.state);
@@ -215,6 +366,7 @@
   });
   onDestroy(() => {
     active = false;
+    call.leave();
     filesModule.dispose();
     decisionsModule.dispose();
     remindersModule.dispose();
@@ -251,13 +403,61 @@
   };
 </script>
 
+<!-- Outside RoomLayout, so they are not taken for its snippets. -->
+{#snippet callControls()}<CallControls
+    {call}
+    peers={$view?.header.room.call}
+    name={personName}
+    onopen={openStage}
+    t={services.t}
+  />{/snippet}
+{#snippet callPanel(collapsed: boolean)}<CallPanel
+    {call}
+    title={callTitle}
+    {collapsed}
+    onopen={openStage}
+    oncamera={() => (cameraOpen = true)}
+    t={services.t}
+  />{/snippet}
+{#snippet callRow(collapsed: boolean)}{#if $view}<CallSidebarRow
+      {call}
+      peers={$view.header.room.call}
+      {collapsed}
+      avatar={(email) =>
+        roomAvatarVersion($view?.header.room, $personal.me, email)}
+      name={personName}
+      t={services.t}
+    />{/if}{/snippet}
+{#snippet callStage(fill: boolean)}{#if $view}<CallStage
+      room={$view.header.room}
+      {call}
+      send={sendCommand}
+      open={browser.openExternal}
+      avatar={(email) =>
+        roomAvatarVersion($view?.header.room, $personal.me, email)}
+      title={callTitle}
+      {fill}
+      {staged}
+      bind:cameraOpen
+      chatHidden={fill ? chatHidden : undefined}
+      onchat={() => (chatHidden = !chatHidden)}
+      t={services.t}
+    />{/if}{/snippet}
+{#snippet callBeside()}{@render callStage(true)}{/snippet}
 <RoomLayout
   controller={layout}
+  stage={staged ? callBeside : undefined}
+  stageOnly={chatHidden}
   {labels}
   onChatSurface={owner.attachChat}
   onCells={edgeBack}
 >
-  {#snippet sidebar()}{#if $view}<Sidebar {...$view.sidebar} hideSheetHandle>
+  {#snippet sidebar()}{#if $view}<Sidebar
+        {...$view.sidebar}
+        hideSheetHandle
+        call={$view.header.room.call?.length ? callRow : undefined}
+        callPanel={inCall ? callPanel : undefined}
+      >
         <!-- Phones: the drawer keeps the tabs that the strip under the top bar and the people avatars do not show (Apps, Agents; A2, Gimenes #4331). -->
         {#snippet phoneMenu()}{#if $view && $geometry.mobile}<div
               data-phone-menu
@@ -308,6 +508,7 @@
         {current}
         {back}
         tabs={$view.toolbar}
+        viewControls={callReady ? callControls : undefined}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}
@@ -322,6 +523,17 @@
   {#snippet attention()}{#if $view}
       <div>
         <NotifyOffer owner={services.pwa} lang={services.language} />
+        <!-- Phones: the top bar has no space for the controls of the view (docs/design.md). -->
+        {#if callIdle}<div class="flex justify-end px-4 pt-2 md:hidden">
+            {@render callControls()}
+          </div>{/if}
+        <!-- Phones in the call with the stage closed: the call's panel, to open it again (the drawer has no foot). -->
+        {#if $geometry.mobile && inCall && !stageOpen}<div class="px-4 pt-2">
+            {@render callPanel(false)}
+          </div>{/if}
+        <!-- Desktop, on the stage: it is at the left of the chat (RoomLayout's `stage`), not here. Closed: only its
+             toasts and the camera's dialog. -->
+        {#if $geometry.mobile || !staged}{@render callStage(false)}{/if}
         <div>
           {#if $view.banners}<AgentBanners
               {...$view.banners}

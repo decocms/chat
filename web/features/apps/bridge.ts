@@ -10,7 +10,7 @@ import {
   type CallToolResult,
 } from "@modelcontextprotocol/sdk/types.js";
 import { OpaqueAppTransport } from "./transport";
-import { safeOpenLink } from "./model";
+import { APP_COMPOSE, appDraft, safeOpenLink, type AppDraft } from "./model";
 import { toolError, type AppAsk } from "./tools";
 export type RoomAppBridgeOptions = {
   frame: HTMLIFrameElement;
@@ -19,6 +19,8 @@ export type RoomAppBridgeOptions = {
   tools: Tool[];
   call(name: string, args: Record<string, unknown>): Promise<CallToolResult>;
   message(text: string): Promise<CallToolResult>;
+  /** Put text in the composer of the thread. It does not post: the person reads it, adds to it and sends it. */
+  compose?(draft: AppDraft): void;
   ask: AppAsk;
   open(url: string): void;
   first?: Promise<CallToolResult>;
@@ -60,6 +62,10 @@ export function createRoomAppBridge(options: RoomAppBridgeOptions) {
       inflight--;
     }
   };
+  const context = (): McpUiHostContext =>
+    options.compose
+      ? { ...options.context(), [APP_COMPOSE]: true }
+      : options.context();
   const bridge = new AppBridge(
     null,
     { name: "vibebook", version: "1" },
@@ -70,7 +76,7 @@ export function createRoomAppBridge(options: RoomAppBridgeOptions) {
       message: { text: {} },
       updateModelContext: { text: {}, structuredContent: {} },
     },
-    { hostContext: options.context() },
+    { hostContext: context() },
   );
   const transport = new OpaqueAppTransport(
     options.frame,
@@ -100,6 +106,15 @@ export function createRoomAppBridge(options: RoomAppBridgeOptions) {
     }
   };
   bridge.onmessage = async (params) => {
+    const compose = options.compose,
+      draft = compose ? appDraft(params.content) : null;
+    if (compose && draft !== null) {
+      // No question: nothing is posted until the person sends it from the composer.
+      if ((!draft.text && !draft.quotes.length) || !(await attest()))
+        return { isError: true };
+      compose(draft);
+      return {};
+    }
     const text = params.content
       .filter((block) => block.type === "text")
       .map((block) => block.text)
@@ -166,7 +181,7 @@ export function createRoomAppBridge(options: RoomAppBridgeOptions) {
     loadHtml: (html: string) => transport.loadHtml(html),
     loadFile: (url: string) => transport.loadFile(url),
     update() {
-      if (current()) bridge.setHostContext(options.context());
+      if (current()) bridge.setHostContext(context());
     },
     dispose() {
       if (!active) return;

@@ -5,7 +5,7 @@ import {
 } from "../../../shared/composition";
 import { EMOJI } from "../../../shared/emoji";
 import type { Attachment, Message, Room } from "../../../shared/room";
-import type { ComposerAgent } from "./types";
+import type { ComposerAgent, ComposerQuote } from "./types";
 export const AUDIO_EXT: Readonly<Record<string, string>> = {
   m4a: "audio/x-m4a",
   mp3: "audio/mpeg",
@@ -349,3 +349,12 @@ export function composerError(
     return `${error.slice(11).trim()}: ${t("Arquivo vazio.")}`;
   return error;
 }
+export const MAX_COMPOSER_QUOTES = 8;
+/** The text of the message: each quote, then what the person typed, with a blank line between them. */
+export const composedText = (s: {
+  text: string;
+  quotes: readonly ComposerQuote[];
+}) =>
+  [...s.quotes.map((quote) => quote.text.trim()), s.text.trim()]
+    .filter(Boolean)
+    .join("\n\n");

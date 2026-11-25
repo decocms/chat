@@ -1,11 +1,14 @@
 import { get, writable } from "svelte/store";
 import type { Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
+import type { MessagesPage } from "../../../shared/schemas";
 import {
   createRoomConnection,
   type RoomConnectionOptions,
 } from "../../app/roomConnection";
 import { reduceRoom } from "../../app/roomStore";
+import { isRoomMember, roomHasThread } from "../../../shared/call";
+import type { RoomCache } from "../room-cache/store";
 
 export type RootConnection = ReturnType<typeof createRoomConnection>;
 export type RootRoomSnapshot = {
@@ -23,8 +26,15 @@ export type RootRoomTransition = {
   previous: Room | null;
   snapshot: RootRoomSnapshot;
 };
+/** Events that are only true now: a saved room never waits on them. */
+const TRANSIENT = new Set<RoomEvent["t"]>(["typing", "delta", "online"]);
 export function createRootRoomSession(options: {
-  url(roomId: string, thread: string, lastCloseCode: string): string;
+  url(
+    roomId: string,
+    thread: string,
+    lastCloseCode: string,
+    resume?: { since: number; at: number; eh?: string },
+  ): string;
   /** Temporary host thread adapter; callers can instead use selectThread. */
   thread?: () => string;
   acceptIdentity(account: string): boolean;
@@ -35,6 +45,18 @@ export function createRootRoomSession(options: {
   onTransition(transition: RootRoomTransition): void;
   onTerminal(snapshot: RootRoomSnapshot): void;
   connection?: (options: RoomConnectionOptions) => RootConnection;
+  /** Rooms saved in IndexedDB (cache plan PR 3); without it, rooms live in memory only. */
+  persist?: RoomCache;
+  /** The signed-in person before any state arrives (a reload): which account's saved rooms to read. */
+  whenAccount?: (found: (email: string) => void) => () => void;
+  schedule?: (fn: () => void, ms: number) => unknown;
+  /** Scroll-back over HTTP (GET /messages, cache plan PR 1): "older" goes here instead of the socket; null = send it
+   *  on the socket as before. */
+  older?: (
+    roomId: string,
+    thread: string,
+    before: number | undefined,
+  ) => Promise<MessagesPage | null>;
 }) {
   const blank = (generation: number): RootRoomSnapshot => ({
     roomId: null,
@@ -68,6 +90,8 @@ export function createRootRoomSession(options: {
     if (!owns(ticket, connection)) return;
     const current = read();
     if (current.roomId) cache.delete(current.roomId);
+    if (current.roomId && phase === "removed")
+      options.persist?.drop(current.roomId);
     // Revoke public state before notifying consumers or disposing pending requests.
     generation++;
     const next = { ...blank(generation), roomId: current.roomId, phase };
@@ -100,6 +124,7 @@ export function createRootRoomSession(options: {
       if (options.acceptIdentity(event.me) || !owns(ticket, connection)) return;
       if (account !== null && account !== event.me) {
         cache.clear();
+        options.persist?.clear();
       }
       account = event.me;
     }
@@ -113,10 +138,7 @@ export function createRootRoomSession(options: {
     }
     // Membership is authority, not a presentation update. Do not publish a
     // nonmember snapshot or wait for a subsequent socket close to revoke it.
-    if (
-      (event.t === "state" || event.t === "members") &&
-      !room.members.includes(room.me)
-    ) {
+    if ((event.t === "state" || event.t === "members") && !isRoomMember(room)) {
       terminal(ticket, connection, "removed");
       return;
     }
@@ -137,12 +159,19 @@ export function createRootRoomSession(options: {
       typingNotes: notes,
     };
     if (event.t === "state") cache.delete(roomId);
-    if (
-      room.members.includes(room.me) &&
-      (options.cacheAllowed?.(room) ?? true)
-    )
+    if (isRoomMember(room) && (options.cacheAllowed?.(room) ?? true)) {
       cache.set(roomId, room);
-    else cache.delete(roomId);
+      // Durable changes only: typing, streaming deltas and presence are never written.
+      if (account && !TRANSIENT.has(event.t))
+        options.persist?.save(account, room);
+    } else {
+      cache.delete(roomId);
+      options.persist?.drop(roomId);
+    }
+    // Cache plan PR 4: with IndexedDB, memory keeps only the open room; a switch reads the saved one. Without it
+    // (a private window), memory keeps the 12 newest rooms, as before.
+    if (options.persist)
+      for (const id of cache.keys()) if (id !== roomId) cache.delete(id);
     while (cache.size > 12) {
       const oldest = cache.keys().next();
       if (oldest.done) break;
@@ -169,7 +198,7 @@ export function createRootRoomSession(options: {
       const cached = cache.get(roomId);
       const room =
         cached &&
-        cached.members.includes(cached.me) &&
+        isRoomMember(cached) &&
         (account === null || cached.me === account)
           ? cached
           : null;
@@ -177,16 +206,20 @@ export function createRootRoomSession(options: {
         room &&
         selected !== "main" &&
         !selected.startsWith("pre:") &&
-        !room.epics.some((epic) => epic.id === selected)
+        !roomHasThread(room, selected)
           ? "main"
           : selected;
       const connection = (options.connection ?? createRoomConnection)({
         url: (code) => {
           const current = options.thread?.() ?? read().thread;
+          // The room this socket already has (a reconnect, or a cached room opened again) resumes from it.
+          const had = read().roomId === roomId ? read().room : null;
+          const since = had?.messages.at(-1)?.id;
           return options.url(
             roomId,
             current.startsWith("pre:") ? "main" : current,
             code,
+            had?.at && since ? { since, at: had.at, eh: had.eh } : undefined,
           );
         },
         onEvent: (event) => receive(event, roomId, ticket, connection),
@@ -203,13 +236,86 @@ export function createRootRoomSession(options: {
       };
       state.set(next);
       if (owns(ticket, connection)) options.onOpen(next);
-      if (owns(ticket, connection)) connection.start();
+      // Not in memory: the room saved in IndexedDB draws first and the socket resumes from it (cache plan PR 3).
+      // The read waits at most 300 ms, then the socket starts anyway. After a reload the account is not known
+      // yet: it waits for it in the same 300 ms, and a saved room never draws for an account that is not known.
+      const persist = options.persist;
+      const whenAccount = options.whenAccount;
+      if (room || !persist || (!account && !whenAccount)) {
+        if (owns(ticket, connection)) connection.start();
+        return;
+      }
+      let started = false;
+      const start = () => {
+        if (started || !owns(ticket, connection)) return;
+        started = true;
+        connection.start();
+      };
+      const schedule = options.schedule ?? setTimeout;
+      schedule(start, 300);
+      const who = account
+        ? Promise.resolve(account)
+        : new Promise<string | null>((resolve) => {
+            const stop = whenAccount!((email) => resolve(email));
+            schedule(() => {
+              stop();
+              resolve(null);
+            }, 300);
+          });
+      void who
+        .then((who) => (who && !started ? persist.load(who, roomId) : null))
+        .then((saved) => {
+          if (
+            saved &&
+            !started &&
+            owns(ticket, connection) &&
+            !read().room &&
+            isRoomMember(saved) &&
+            (account === null || saved.me === account)
+          )
+            state.update((current) => ({
+              ...current,
+              room: options.present ? options.present(saved) : saved,
+              phase: "cached",
+            }));
+          start();
+        });
     },
     selectThread(thread: string) {
       if (active) state.update((current) => ({ ...current, thread }));
     },
     send(command: RoomCommand): boolean {
-      return active ? (read().connection?.send(command) ?? false) : false;
+      if (!active) return false;
+      const { connection, roomId } = read();
+      if (command.t !== "older" || !options.older || !connection || !roomId)
+        return connection?.send(command) ?? false;
+      // The page comes back as the socket's events would (ackRows, then older), so nothing above changes.
+      const ticket = generation;
+      void options
+        .older(roomId, command.thread, command.before)
+        .then((page) => {
+          if (!owns(ticket, connection)) return;
+          if (!page) return void connection.send(command);
+          if (page.acks.length)
+            receive(
+              { t: "ackRows", acks: page.acks },
+              roomId,
+              ticket,
+              connection,
+            );
+          receive(
+            {
+              t: "older",
+              thread: page.thread,
+              messages: page.messages,
+              more: page.more,
+            },
+            roomId,
+            ticket,
+            connection,
+          );
+        });
+      return true;
     },
     request(command: RoomCommand, timeout?: number): Promise<CommandOutcome> {
       const connection = read().connection,
@@ -247,6 +353,7 @@ export function createRootRoomSession(options: {
     leave,
     resetAccount() {
       cache.clear();
+      options.persist?.clear();
       account = null;
       leave();
     },
