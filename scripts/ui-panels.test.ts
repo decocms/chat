@@ -628,7 +628,7 @@ describe("room panels", () => {
       }
     }
   }, 30_000);
-  test("account row: you at a sidebar's foot (or a phone's top bar) is a link to your settings page", async () => {
+  test("account row: you in the user center (or a phone's top bar) is a link to your settings page", async () => {
     const { default: AccountRow } =
       await import("../web/features/app-navigation/AccountRow.svelte");
     const me = {
