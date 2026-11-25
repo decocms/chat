@@ -28,6 +28,7 @@
     type MessageFooter as Footer,
   } from "./model";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import VibeCube from "../home/VibeCube.svelte";
   import { AGENT_NAMES, agentProvider } from "../../lib/components/agent";
   import Badge from "../../lib/studio/Badge.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
@@ -317,11 +318,9 @@
         aria-hidden="true"
         class="pointer-events-none absolute top-1/2 -bottom-1 left-[19px] w-[29px] rounded-tl-md border-t-2 border-l-2 border-solid border-r-0 border-b-0 border-muted-foreground/35"
       ></span>
-      {#if quote}{#if quote.author === "ai"}<span
-            aria-hidden="true"
-            class="flex size-4 shrink-0 items-center justify-center text-[0.6875rem] select-none"
-            >✦</span
-          >{:else}<PersonAvatar
+      {#if quote}{#if quote.author === "ai"}<VibeCube
+            size="2xs"
+          />{:else}<PersonAvatar
             size="2xs"
             email={quote.author}
             version={vb.avatarVersion(quote.author)}
@@ -341,8 +340,7 @@
   <!-- The row's shape is shared with the room's loading state (room-shell/shape.ts). -->
   <div class={MESSAGE_ROW}>
     <div data-message-avatar class={MESSAGE_AVATAR}>
-      {#if !continuous}{#if m.author === "ai"}<AgentMark
-            mark="✦"
+      {#if !continuous}{#if m.author === "ai"}<VibeCube
             size="base"
             class="text-base"
           />{:else if m.kind === "agent"}<!-- As in the classic app: the agent's tile, with the person it speaks for in the corner. -->

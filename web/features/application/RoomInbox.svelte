@@ -2,6 +2,7 @@
   import { onMount, tick, untrack } from "svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import VibeCube from "../home/VibeCube.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Badge from "../../lib/studio/Badge.svelte";
@@ -560,8 +561,7 @@
                           >{:else if row.kind === "task"}<span
                             class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
                             ><Icon icon="check-circle" size={14} /></span
-                          >{:else if row.author === "ai"}<AgentMark
-                            mark="✦"
+                          >{:else if row.author === "ai"}<VibeCube
                             class="mt-0.5 text-sm text-foreground"
                           />{:else}<PersonAvatar
                             data-avatar="person"

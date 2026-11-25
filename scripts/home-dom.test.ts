@@ -510,15 +510,17 @@ test("Home waits and the Inbox share one avatar language: people circles, agents
   ];
   const expected = [
     ["person", ""],
-    ["agent", "✦"],
+    ["vibe", ""],
     ["agent", "✻"],
   ];
-  // Agent marks say so (data-avatar); any other Studio avatar is a person only when round.
+  // Agent marks say so (data-avatar), @vibe is its cube; any other Studio avatar is a person only when round.
   const shapes = (root: ParentNode) =>
     [...root.querySelectorAll("[data-avatar], [data-slot=avatar]")].map((el) =>
       el.getAttribute("data-avatar") === "agent"
         ? ["agent", el.textContent?.trim()]
-        : [el.classList.contains("rounded-full") ? "person" : "", ""],
+        : el.getAttribute("data-avatar") === "vibe"
+          ? ["vibe", ""]
+          : [el.classList.contains("rounded-full") ? "person" : "", ""],
     );
   const home = document.createElement("div");
   document.body.append(home);
@@ -583,7 +585,7 @@ test("Home waits and the Inbox share one avatar language: people circles, agents
   await flush();
   expect(shapes(home)).toEqual(expected);
   const dialog = document.querySelector('[role="dialog"]')!;
-  expect(shapes(dialog)).toEqual([...expected, ["agent", "✦"]]);
+  expect(shapes(dialog)).toEqual([...expected, ["vibe", ""]]);
 });
 test("global Inbox (/?inbox) rejects old connected account controls and closes on identity replacement", async () => {
   let resolves = 0;

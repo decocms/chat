@@ -36,6 +36,7 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import HomeSkeleton from "./HomeSkeleton.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import VibeCube from "./VibeCube.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { mountCube } from "./cube";
   import { byImportance, fanClasses, inFan } from "./deskHand";
@@ -628,8 +629,7 @@
                       /><span
                         class="min-w-0 flex-1 truncate font-medium text-destructive"
                         >{who(wait)} · {text("needsYou")}</span
-                      >{:else if wait.author === "ai"}<AgentMark
-                        mark="✦"
+                      >{:else if wait.author === "ai"}<VibeCube
                         size="2xs"
                         class="text-[10px]"
                       /><span class="min-w-0 flex-1 truncate">{who(wait)}</span

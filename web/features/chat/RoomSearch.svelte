@@ -2,6 +2,7 @@
   import { onDestroy } from "svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import VibeCube from "../home/VibeCube.svelte";
   import Badge from "../../lib/studio/Badge.svelte";
   import { AGENT_NAMES, agentProvider } from "../../lib/components/agent";
   import Spinner from "../../lib/studio/Spinner.svelte";
@@ -132,8 +133,7 @@
           class="flex w-full cursor-pointer gap-3 rounded-lg border-0 bg-transparent p-2.5 text-left font-sans text-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
           onclick={() => onjump(hit.id, hit.thread)}
           ><!-- Who wrote it, drawn as in the chat: @vibe's ✦, an agent's tile with its person in the corner, or the person. -->
-          {#if hit.author === "ai"}<AgentMark
-              mark="✦"
+          {#if hit.author === "ai"}<VibeCube
               size="sm"
               class="text-sm"
             />{:else if hit.kind === "agent"}<span
