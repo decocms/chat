@@ -2080,6 +2080,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A partly selected Markdown message gives its shown text, not its Markdown source.
 - Undo: Revert this commit.
 
+### 2026-11-25 · fix/thread-order · The sidebar lists threads by when they were made, newest first
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#5603): on desktop, a thread goes up when he clicks it. The order must never change: sort by `created_at` in Mine, Open and Done. He did not say newest or oldest first. This replaces "recent threads first" (viktor/stable-room-nav, below). A room still reopens the thread you left.
+- Decision: Pinned threads stay on top, in their shared order. Then all threads, in the three tabs, by when they were made, newest first. A visit or a new message does not move a row. The server sends each epic's `created` (its `ts`, set once, when it is made). Without it (an older server), the order is the reverse of the server's.
+- Other options: Oldest first (a new thread would be at the bottom, after "Ver mais"). Keep the 3 recent threads on top (Gimenes asked that a click never moves a row). Keep Done by its last message.
+- Risk: low. Only the order of the sidebar's rows changes.
+- Undo: Revert the commit.
+- Status: open
+
 ### 2026-11-25 · viktor/stable-room-nav · A room reopens your thread; recent threads first
 
 - Agent: claude-opus-5-5

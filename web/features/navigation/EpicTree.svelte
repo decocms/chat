@@ -42,7 +42,6 @@
     setNavigationView,
     type NavigationSession,
   } from "./session";
-  import { roomVisits } from "./recent";
 
   let {
     room,
@@ -109,14 +108,7 @@
         (position.get(b.id) ?? order.length),
     );
   });
-  const visits = roomVisits.state;
-  /** The threads you opened last here go first (after the pinned ones). */
-  const recent = $derived(
-    $visits.account === room.me ? ($visits.visits[room.id]?.recent ?? []) : [],
-  );
-  const active = $derived(
-    sidebarEpics(activeEpics(orderedEpics, thread), room.messages, recent),
-  );
+  const active = $derived(sidebarEpics(activeEpics(orderedEpics, thread)));
   /** Past EPIC_PAGE unpinned epics the list stops at "Ver mais" (the open one always shows). */
   let showAll = $state(false);
   /** How many epics fit before the user center with "Ver mais" and the next section's title still above it, so the
@@ -153,7 +145,7 @@
       observer.observe(node);
     return () => observer.disconnect();
   });
-  const done = $derived(doneEpics(orderedEpics, room.messages));
+  const done = $derived(doneEpics(orderedEpics));
   /** The Open list's threads that are yours, in the same order. */
   const mine = $derived(mineEpics(active, room.me));
   // Three tabs (Viktor): Mine (the open threads you own), Open (to do, doing,
