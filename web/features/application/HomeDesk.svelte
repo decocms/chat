@@ -441,6 +441,11 @@
     closed = false;
     sent = null;
   }
+  // A thing open beside the thread (an app, a file, the doc) takes the room: the list goes slim (avatars only)
+  // until you open it again; Expandir hides it.
+  let wide = $state(false),
+    listOpen = $state(false);
+  const slim = $derived(wide && !listOpen);
   function close() {
     closed = true;
     sent = null;
@@ -672,7 +677,12 @@
 >
   <div
     data-home-list
-    class="flex min-h-0 w-[420px] shrink-0 flex-col border-r border-border"
+    data-slim={slim || undefined}
+    class={cn(
+      "flex min-h-0 w-[420px] shrink-0 flex-col border-r border-border",
+      slim && "hidden",
+      $paneFocus && "hidden",
+    )}
   >
     <!-- The ask box on top of the list (16px above it, 20px under it), as high as the open item's header:
          the two rows of tabs line up. -->
@@ -727,6 +737,15 @@
               if (live(event)) done(picked);
             }}>{t("Resolver selecionados")}</Button
           ></span
+        >{/if}
+      {#if wide}<IconButton
+          data-home-list-collapse
+          label={t("Recolher a lista")}
+          size="icon-sm"
+          tooltipSide="bottom"
+          class="size-8 shrink-0 self-center text-muted-foreground"
+          onclick={() => (listOpen = false)}
+          ><Icon icon="layout-left" size={15} /></IconButton
         >{/if}
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -795,6 +814,44 @@
       {/if}
     </div>
   </div>
+  {#if slim && !$paneFocus}<nav
+      data-home-list-slim
+      aria-label={t("Caixa de entrada")}
+      class="flex min-h-0 w-16 shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-border py-3"
+    >
+      <IconButton
+        data-home-list-expand
+        label={t("Mostrar a lista")}
+        size="icon-sm"
+        tooltipSide="right"
+        class="mb-2 size-9 text-muted-foreground"
+        onclick={() => (listOpen = true)}
+        ><Icon icon="layout-left" size={16} /></IconButton
+      >
+      {#each order as item (item.key)}<button
+          type="button"
+          data-home-slim-row={item.key}
+          aria-current={working?.key === item.key || undefined}
+          title={item.kind === "task"
+            ? item.text
+            : `${name(item)} · ${item.where || item.room}`}
+          class={cn(
+            "relative grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg border-0 bg-transparent hover:bg-muted",
+            working?.key === item.key &&
+              "bg-secondary-hover hover:bg-secondary-hover",
+          )}
+          onclick={(event) => {
+            if (live(event)) open(item);
+          }}
+          >{#if item.kind === "task"}<Icon
+              icon="circle"
+              size={18}
+              class="text-muted-foreground"
+            />{:else}{@render face(item)}{/if}{#if fresh(item)}<span
+              class="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-destructive"
+            ></span>{/if}</button
+        >{/each}
+    </nav>{/if}
   <div data-home-workspace class="min-h-0 min-w-0 flex-1">
     {#if working}
       {#key working.key}<TaskWorkspace
@@ -821,6 +878,7 @@
           }}
           onclose={close}
           itemActions={working.key.startsWith("x:") ? undefined : itemActions}
+          onartifact={(on) => (wide = on)}
         />{/key}
     {:else if !loading && !($inbox.error && !order.length)}{@render empty(
         order.length
@@ -1037,16 +1095,16 @@
     {#if row.kind === "review" && row.wait}<Button
         data-home-approve
         size="sm"
-        class="h-8 px-3"
+        class="h-7 px-2.5 text-xs"
         disabled={!!acting[row.key]}
         onclick={(event) => {
           if (live(event)) void approve(row);
-        }}><Icon icon="check" size={14} />{t("Aprovar")}</Button
+        }}><Icon icon="check" size={13} />{t("Aprovar")}</Button
       ><Button
         data-home-reject
         size="sm"
         variant="outline"
-        class="h-8 px-3"
+        class="h-7 px-2.5 text-xs"
         disabled={!!acting[row.key]}
         onclick={(event) => {
           if (live(event)) void reject(row);
@@ -1056,7 +1114,7 @@
         data-home-choice={option}
         size="sm"
         variant={index ? "outline" : "default"}
-        class="h-8 max-w-full px-3"
+        class="h-7 max-w-full px-2.5 text-xs"
         disabled={!!acting[row.key]}
         onclick={(event) => {
           if (live(event)) void choose(row, option);
@@ -1066,8 +1124,8 @@
       data-inbox-ack
       size="sm"
       variant="outline"
-      class="h-8 px-3"
+      class="h-7 px-2.5 text-xs"
       onclick={(event) => {
         if (live(event)) done([row]);
-      }}><Icon icon="check" size={14} />{doneLabel(row)}</Button
+      }}><Icon icon="check" size={13} />{doneLabel(row)}</Button
     >{/if}{/snippet}

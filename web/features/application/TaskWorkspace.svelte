@@ -57,6 +57,7 @@
     onopen,
     onclose,
     itemActions,
+    onartifact,
   }: {
     services: BrowserApplicationServices;
     drafts: ComposerDrafts;
@@ -74,6 +75,8 @@
     onclose: () => void;
     /** What the open item asks of you, above the composer: Ciente, Aprovar / Reprovar, your Claude's choices. */
     itemActions?: Snippet;
+    /** Whether a thing is shown beside the thread: the Home gives it the room (the list goes slim). */
+    onartifact?: (shown: boolean) => void;
   } = $props();
   const roomId = untrack(() => book),
     selected = untrack(() => thread),
@@ -320,6 +323,10 @@
     });
   });
   const richActions = { navigate: actions.navigate, openFile };
+  $effect(() => {
+    const on = !!(room && shown);
+    untrack(() => onartifact?.(on));
+  });
   /** Enter on the Inbox: the composer takes the keyboard. */
   export function focusComposer() {
     if (room) entry().focus();
@@ -358,8 +365,9 @@
   aria-label={header.thread ? `${header.room} › ${header.thread}` : header.room}
   class="flex h-full min-h-0 min-w-0 flex-col bg-background"
 >
-  <!-- One row, as high as the ask box on the list's side, so the two rows of tabs line up. -->
-  <header class="flex h-[92px] shrink-0 items-center gap-2.5 px-6">
+  <header
+    class="flex h-14 shrink-0 items-center gap-2.5 border-b border-border pr-3 pl-5"
+  >
     <RoomAvatar
       title={header.room}
       icon={summary ? roomIcon(summary) : null}
@@ -372,6 +380,16 @@
       {#if header.thread}<span class="shrink-0 text-subtle-foreground">›</span
         ><span class="min-w-0 truncate font-medium">{header.thread}</span>{/if}
     </h2>
+    <Button
+      data-task-open-room
+      size="sm"
+      variant="ghost"
+      class="h-8 shrink-0 px-2.5 text-xs text-muted-foreground"
+      onclick={onopen}
+      ><Icon icon="link-external-01" size={13} />{t(
+        "Ver a conversa inteira na sala",
+      )}</Button
+    >
     <IconButton
       data-task-close
       label={t("Fechar")}
@@ -381,12 +399,12 @@
       onclick={onclose}><Icon icon="x" size={16} /></IconButton
     >
   </header>
-  <!-- Wide enough (960px+), the artifact and the thread side by side; narrower, the artifact on top. -->
-  <div class="@container flex min-h-0 flex-1">
-    <div class="flex min-h-0 min-w-0 flex-1 flex-col @[960px]:flex-row">
+  <!-- The artifact and the thread, always side by side. -->
+  <div class="flex min-h-0 flex-1">
+    <div class="flex min-h-0 min-w-0 flex-1">
       {#if room && shown}<div
           data-task-artifact={shown.kind}
-          class="flex min-h-0 min-w-0 flex-1 flex-col border-t border-border @[960px]:border-r"
+          class="flex min-h-0 min-w-0 flex-1 flex-col border-r border-border"
         >
           <!-- One bar, as high as the list's tabs: the thread's artifacts as tabs, the shown one's actions. -->
           <div
@@ -491,33 +509,10 @@
         class={cn(
           "flex min-h-0 flex-col",
           room && shown
-            ? cn(
-                "h-[42%] shrink-0 border-t border-border @[960px]:h-auto @[960px]:w-[380px]",
-                $paneFocus && "hidden",
-              )
+            ? cn("w-[360px] shrink-0", $paneFocus && "hidden")
             : "min-w-0 flex-1",
         )}
       >
-        <!-- Only the stretch of the conversation around the ask; the whole of it is in the room. -->
-        <div
-          class="flex h-11 shrink-0 items-center gap-2 border-b border-border pr-2 pl-6"
-        >
-          <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground"
-            >{#if cut.before}{t("{n} mensagens antes", {
-                n: cut.before,
-              })}{/if}</span
-          >
-          <Button
-            data-task-open-room
-            size="sm"
-            variant="ghost"
-            class="h-8 shrink-0 px-2.5 text-xs text-muted-foreground"
-            onclick={onopen}
-            ><Icon icon="link-external-01" size={13} />{t(
-              "Ver a conversa inteira na sala",
-            )}</Button
-          >
-        </div>
         <div
           bind:this={scroller}
           data-task-body
@@ -544,7 +539,11 @@
                     </div>
                   </div>{/each}
               </div>{/if}
-          {:else}<Chat
+          {:else}{#if cut.before}<p
+                class="m-0 pt-3 text-center text-xs text-muted-foreground"
+              >
+                {t("{n} mensagens antes", { n: cut.before })}
+              </p>{/if}<Chat
               {room}
               thread={selected}
               list={excerpt}
@@ -572,7 +571,7 @@
         {#if room}<div data-task-answer class="shrink-0 pt-2">
             {#if itemActions}<div
                 data-task-item-actions
-                class="flex flex-wrap items-center gap-2 px-6 pb-1"
+                class="flex flex-wrap items-center gap-1.5 px-4 pb-1"
               >
                 {@render itemActions()}
               </div>{/if}
