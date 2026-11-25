@@ -755,12 +755,13 @@ export class Book extends DurableObject<Env> {
     const thread = this.get("call_thread") ?? "main";
     return this.epics().some((e) => e.id === thread) ? thread : "main";
   }
-  /** Where the call was, for the recording's title: the room, and the thread when it is not the main one. */
+  /** Where the call was, for the recording's title: the room and the thread. */
   async callTitle(bookId: string): Promise<string> {
     this.bind(bookId);
     const room = (await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title || "deco.chat";
     const thread = this.callThread(), epic = thread === "main" ? "" : (this.epics().find((e) => e.id === thread)?.title ?? "");
-    return epic ? `${room} · ${epic}` : room;
+    // The thread is always in the title: the main one by its name in the app ("Sala principal").
+    return `${room} · ${epic || (this.en ? "Main room" : "Sala principal")}`;
   }
   /** The recorder says the call is in Grain: the room gets a summary, the link and the transcript as a file. */
   async callRecorded(bookId: string, call: { url: string; minutes: number; people: string[]; transcript: string; withheld: boolean; file: FileMeta | null }) {

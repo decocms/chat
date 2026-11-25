@@ -302,10 +302,10 @@ async function record(job: Job) {
     // Grain refuses the browser's file as it is (tested 2026-11-24): H.264 main, yuv420p, 30 frames, stereo AAC.
     await run("ffmpeg", ["-v", "error", "-y", "-i", RAW, "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "main", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", OUT]);
     log("mp4", statSync(OUT).size, "bytes");
-    const when = started.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
     const { lines, language } = await transcribe(job, marks, names);
     log("transcript lines:", lines.length);
-    const url = await toGrain(`${title} · call · ${when}`, started, names, lines, language);
+    // The title is where the call was (the room and the thread). Grain shows the date, and that it is a call.
+    const url = await toGrain(title, started, names, lines, language);
     log("in Grain:", url);
     await tell(origin, { room: job.room, url, minutes: (seconds - alone) / 60, people: names, transcript: lines.map((line) => ({ name: line.name === UNKNOWN ? "Desconhecido" : line.name, start: line.start / 1000, text: line.text.slice(0, 4000) })) });
   } catch (error) {
