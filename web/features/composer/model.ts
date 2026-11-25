@@ -4,7 +4,7 @@ import {
   maxBytes,
 } from "../../../shared/composition";
 import { EMOJI } from "../../../shared/emoji";
-import type { Attachment, Message, Room, Task } from "../../../shared/room";
+import type { Attachment, Message, Room } from "../../../shared/room";
 import type { ComposerAgent, ComposerQuote } from "./types";
 export const AUDIO_EXT: Readonly<Record<string, string>> = {
   m4a: "audio/x-m4a",
@@ -358,9 +358,3 @@ export const composedText = (s: {
   [...s.quotes.map((quote) => quote.text.trim()), s.text.trim()]
     .filter(Boolean)
     .join("\n\n");
-
-/** Your tasks in review in this thread (the "t" waits of src/book.ts): the composer asks about them first. */
-export const reviewWaiting = (room: Room, thread: string): Task[] =>
-  (
-    room.epics.find((epic) => epic.id === thread && !epic.done)?.tasks ?? []
-  ).filter((task) => task.status === "review" && task.owner === room.me);
