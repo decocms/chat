@@ -30,7 +30,6 @@
   import Badge from "../../lib/studio/Badge.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import MessageActions from "./MessageActions.svelte";
-  import { cn } from "../../lib/studio/utils";
   import MessageFooter from "./MessageFooter.svelte";
   import MessageReactions from "./MessageReactions.svelte";
   import Attachments from "./Attachments.svelte";
@@ -167,6 +166,11 @@
   const reactable = $derived(
     !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder",
   );
+  const reacted = $derived(
+    Object.values(m.reactions ?? {}).some((who) => who.length),
+  );
+  // Nothing under the message: no chips, no acks. Its quick reactions float in the space under it (see the bar).
+  const bare = $derived(!footer && !reacted);
   const quote = $derived(
     m.reply_to
       ? [...room.messages, ...(room.origins || [])].find(
@@ -258,8 +262,8 @@
   onfocusin={showToolbar}
   class={[
     continuous
-      ? "group relative rounded-control px-3 py-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
-      : "group relative mt-3 rounded-control px-3 pt-1 pb-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
+      ? "group relative rounded-control px-3 pt-0.5 pb-3 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
+      : "group relative mt-0.5 rounded-control px-3 pt-1 pb-3 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
     // A long press opens the actions sheet, so on a touch screen it does not also select text (the sheet copies).
     origin ? "" : "pointer-coarse:select-none [-webkit-touch-callout:none]",
     waiting ? "border-l-2 border-warning bg-warning/10" : "",
@@ -489,13 +493,8 @@
       <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. Only when there
            is something in it: an empty bar spread a run of messages from the same person apart. Not selectable:
            copying a conversation takes the messages, not ✓ ⏳ ✻ and the reaction chips (Gimenes #3622). -->
-      {#if !origin && (footer || reactable || Object.values(m.reactions ?? {}).some((who) => who.length))}<div
-          class={cn(
-            "flex flex-wrap items-center justify-between gap-x-3 select-none",
-            !footer &&
-              !Object.values(m.reactions ?? {}).some((who) => who.length) &&
-              "hidden pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex",
-          )}
+      {#if !origin && !bare && (footer || reactable || reacted)}<div
+          class="flex flex-wrap items-center justify-between gap-x-3 select-none"
         >
           {#if reactable}<MessageReactions
               message={m}
@@ -509,6 +508,15 @@
         </div>{/if}
     </div>
   </div>
+  <!-- With nothing under the message yet, the quick reactions show on hover over the space every message keeps under
+       it (its bottom padding and the line spacing of the next one), at the message's bottom left: no message moves
+       and none is covered (no layout shift on hover). Phones react from the sheet a long press opens. -->
+  {#if !origin && bare && reactable}<div
+      data-reaction-bar={m.id}
+      class="pointer-events-none invisible absolute -bottom-1.5 left-16 z-10 flex h-6 items-center rounded-full bg-card px-0.5 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,visibility] duration-150 select-none group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:visible group-has-focus-visible:opacity-100 has-[[data-picking]]:pointer-events-auto has-[[data-picking]]:visible has-[[data-picking]]:opacity-100 motion-reduce:transition-none pointer-coarse:hidden"
+    >
+      <MessageReactions message={m} me={room.me} {actions} {vb} />
+    </div>{/if}
   {#if toolbar}<MessageActions
       bind:this={actionController}
       bind:sheet
