@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import type { Room } from "../../../shared/room";
   import type { SendRoomCommand } from "../../../shared/commands";
   import Button from "../../lib/studio/Button.svelte";
@@ -73,21 +74,31 @@
       "Você saiu da call (a conexão caiu ou você entrou por outra aba).",
     ),
   });
-  // A failed join shows as a toast for a few seconds, not as a line in the room.
-  let toast = $state<"" | "mic" | "failed" | "dropped">("");
-  $effect(() => {
-    const error = $view.error;
-    toast = error;
-    if (!error) return;
-    const timer = setTimeout(() => (toast = ""), 6000);
-    return () => clearTimeout(timer);
-  });
   const notices = $derived({
     "": "",
     alone: t("Só você está na call: não há ninguém para ver a sua tela."),
     idle: t(
       "Sua tela parou de ser compartilhada: ela ficou 10 minutos sem mudar.",
     ),
+  });
+  // Every problem or notice of the call is a toast for a few seconds, not a line in the room.
+  let toast = $state<{ text: string; error: boolean; retry: boolean } | null>(
+    null,
+  );
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  function showToast(text: string, error = true, retry = false) {
+    toast = { text, error, retry };
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toast = null), 6000);
+  }
+  onDestroy(() => clearTimeout(toastTimer));
+  $effect(() => {
+    const error = $view.error;
+    if (error) showToast(errors[error], true, error !== "mic");
+  });
+  $effect(() => {
+    const notice = $view.notice;
+    if (notice) showToast(notices[notice], false);
   });
   // The screen I chose; else the first that someone shares; else my own, so I see what I share.
   const screenOf = (email: string) =>
@@ -345,13 +356,6 @@
               )}{/each}
           </div>{/if}
       </div>
-      {#if $view.notice}<p
-          data-call-notice
-          role="status"
-          class="m-0 px-3 pt-2 text-center text-xs text-call-muted-foreground"
-        >
-          {notices[$view.notice]}
-        </p>{/if}
       {#if $view.limit}<div
           data-call-limit
           class="mx-3 mt-2 space-y-2 rounded-xl bg-card p-3 text-card-foreground"
@@ -527,28 +531,33 @@
   </div>{/if}
 {#if toast}<div
     data-call-toast
-    role="alert"
-    class="fixed bottom-24 left-1/2 z-50 flex w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-xl bg-foreground py-2 pr-2 pl-3.5 font-sans text-sm text-background shadow-lg"
+    role={toast.error ? "alert" : "status"}
+    class="fixed bottom-24 left-1/2 z-[60] flex w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-xl bg-foreground py-2 pr-2 pl-3.5 font-sans text-sm text-background shadow-lg"
   >
-    <Icon icon="alert-circle" size={16} class="shrink-0 text-destructive" />
-    <p class="m-0 min-w-0 flex-1">{errors[toast]}</p>
-    {#if toast !== "mic"}<Button
+    <Icon
+      icon={toast.error ? "alert-circle" : "info-circle"}
+      size={16}
+      class={toast.error ? "shrink-0 text-destructive" : "shrink-0"}
+    />
+    <p class="m-0 min-w-0 flex-1">{toast.text}</p>
+    {#if toast.retry}<Button
         size="sm"
         variant="secondary"
         class="shrink-0 rounded-full"
         onclick={() => {
-          toast = "";
+          toast = null;
           call.join();
         }}>{t("Tentar de novo")}</Button
       >{/if}
     <IconButton
       label={t("Fechar")}
       class="size-8 shrink-0 rounded-full text-background hover:bg-background/15 hover:text-background"
-      onclick={() => (toast = "")}><Icon icon="x" size={14} /></IconButton
+      onclick={() => (toast = null)}><Icon icon="x" size={14} /></IconButton
     >
   </div>{/if}
 <CameraDialog
   bind:open={cameraOpen}
   onconfirm={(stream, stop) => call.startCamera(stream, stop)}
+  onproblem={(text) => showToast(text)}
   {t}
 />
