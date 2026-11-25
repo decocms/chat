@@ -34,8 +34,6 @@
     fill = false,
     chatHidden,
     onchat,
-    full = false,
-    onfull,
     staged = true,
     cameraOpen = $bindable(false),
     t,
@@ -53,9 +51,6 @@
     /** Desktop: is the chat column beside the stage hidden? Missing = there is no column to hide (phones). */
     chatHidden?: boolean;
     onchat?(): void;
-    /** Desktop: the call (stage and chat) is in full screen, and the way to turn that on and off. */
-    full?: boolean;
-    onfull?(): void;
     /** In the call with the stage closed (the person reads the room): only the toasts and the camera's dialog. */
     staged?: boolean;
     /** The camera's dialog is open (the sidebar's call panel opens it too). */
@@ -152,10 +147,19 @@
       },
     };
   }
-  // Desktop: the room goes to full screen, so the chat can open beside the stage. Phones: the video alone.
-  const canFull = $derived(!!onfull || !!shown);
-  const fullscreen = () =>
-    onfull ? onfull() : void video?.requestFullscreen();
+  // Desktop: the stage alone goes to full screen, edge to edge, like a video app (Esc or the button brings the room
+  // back as it was). Phones: the shared screen's video alone.
+  let stage = $state<HTMLElement | null>(null);
+  let full = $state(false);
+  const canFull = $derived(fill || !!shown);
+  function fullscreen() {
+    if (!fill) return void video?.requestFullscreen();
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void stage?.requestFullscreen();
+  }
+  function onfullscreenchange() {
+    full = !!stage && document.fullscreenElement === stage;
+  }
   function sendLink() {
     if (!valid) return;
     if (send({ t: "msg", thread: "main", text: meetMessage(room, valid, t) })) {
@@ -165,7 +169,7 @@
   }
   // The camera's dialog opens over the page: out of full screen first, or it stays behind.
   function openCamera() {
-    if (full) onfull?.();
+    if (full) void document.exitFullscreen();
     cameraOpen = true;
   }
   // A round control of the bar: 44px, solid. `on`: a white button (the camera or the screen goes out).
@@ -173,6 +177,7 @@
     "size-11 rounded-full text-call-foreground hover:text-call-foreground [&_svg]:size-5";
 </script>
 
+<svelte:document {onfullscreenchange} />
 <!-- A person in the call: the camera, or the face on the person's color. The green ring: speaking now. A click
      puts that person on the stage (and takes them off); with a screen on the stage, it picks whose screen. -->
 {#snippet tile(
@@ -243,13 +248,21 @@
     ></button
   >{/snippet}
 {#if $view.phase !== "idle" && staged}<!-- Desktop: the stage sits a little inside its column, apart from the chat. -->
-  <div class={fill ? "h-full min-h-0 md:p-2" : ""}>
+  <div
+    bind:this={stage}
+    data-call-full={full || undefined}
+    class={full
+      ? "h-full min-h-0 bg-call-stage"
+      : fill
+        ? "h-full min-h-0 md:p-2"
+        : ""}
+  >
     <section
       data-call-stage
       aria-label={t("Call da sala")}
       class={[
         "flex min-h-0 flex-col bg-call-stage font-sans text-sm text-call-foreground",
-        fill ? "h-full md:rounded-xl" : "",
+        full ? "h-full" : fill ? "h-full md:rounded-xl" : "",
       ]}
     >
       <!-- The stage's top bar: recording, where the call is, how many are in it, full screen. -->

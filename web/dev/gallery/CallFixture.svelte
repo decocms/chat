@@ -215,7 +215,6 @@
       fill={!phone}
       chatHidden={phone ? undefined : chatHidden}
       onchat={() => (chatHidden = !chatHidden)}
-      onfull={phone ? undefined : () => {}}
       staged={stageOpen}
       bind:cameraOpen
       {t}
