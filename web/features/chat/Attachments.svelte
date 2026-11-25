@@ -7,6 +7,7 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import { appFocusRequest } from "../room-layout/focus";
   import IconButton from "../../lib/studio/IconButton.svelte";
+  import AttachmentCard, { cardIconClass } from "./AttachmentCard.svelte";
   let {
     roomId,
     files = [],
@@ -32,6 +33,17 @@
     file.type === "text/markdown" ||
     file.type === "text/plain" ||
     /\.(md|markdown|txt)$/i.test(file.name);
+  const extension = (file: Attachment) =>
+    (file.name.split(".").pop() ?? "").toUpperCase();
+  const fileMeta = (file: Attachment) =>
+    `${extension(file)} · ${kb(file.size)}`;
+  /** Text you read (Markdown, plain text) gets the page icon; anything else the plain file. */
+  const fileIcon = (file: Attachment) =>
+    file.type === "text/markdown" ||
+    file.type === "text/plain" ||
+    /\.(md|markdown|txt)$/i.test(file.name)
+      ? ("file-06" as const)
+      : ("file-02" as const);
   function open(event: MouseEvent, file: Attachment) {
     if (
       !active ||
@@ -55,6 +67,23 @@
   }
 </script>
 
+{#snippet fileActions(file: Attachment)}<IconButton
+    label={vb.t("Abrir em tela cheia")}
+    data-file-expand
+    href={url(file)}
+    size="icon"
+    class={cardIconClass}
+    onclick={(event) => open(event, file)}
+    ><Icon icon="expand-01" size={18} /></IconButton
+  ><IconButton
+    label={vb.t("Baixar")}
+    data-file-download
+    href={url(file)}
+    download={file.name}
+    size="icon"
+    class={cardIconClass}><Icon icon="download-01" size={18} /></IconButton
+  >{/snippet}
+
 {#if files.length}<div
     data-message-attachments
     class="mt-2 flex flex-wrap gap-2"
@@ -64,59 +93,44 @@
           file.name.slice(
             5,
             -5,
-          )}<!-- A room app: one flat gray card (tile, name, who made it); the body opens it beside the chat, two quiet icons open it beside or expand it. -->
-        <div
+          )}<!-- A room app: the shared card; the body opens it beside the chat, the icons open it beside or expand it. -->
+        <AttachmentCard
           data-room-app-card={tool}
-          class="flex w-full max-w-md min-w-0 items-center gap-1 rounded-2xl bg-muted p-1.5 pr-2.5"
+          icon="grid-01"
+          name={tool}
+          meta={vb.t("App · {who}", { who: vb.name(file.author) })}
+          disabled={!actions.openApp}
+          openData={{ "data-room-app-open": true }}
+          open={(event) => {
+            if (!active || !event.currentTarget.isConnected) return;
+            appFocusRequest.set(null);
+            actions.openApp?.({ connection: "room", tool });
+          }}
         >
-          <button
-            type="button"
-            data-room-app-open
-            disabled={!actions.openApp}
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-xl border-0 bg-transparent p-2 text-left text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-default"
-            onclick={(event) => {
-              if (!active || !event.currentTarget.isConnected) return;
-              appFocusRequest.set(null);
-              actions.openApp?.({ connection: "room", tool });
-            }}
-            ><span
-              data-room-app-icon
-              aria-hidden="true"
-              class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary-hover text-muted-foreground"
-              ><Icon icon="grid-01" size={18} /></span
-            ><span class="min-w-0 flex-1"
-              ><span class="block truncate text-base text-foreground"
-                >{tool}</span
-              ><span
-                data-room-app-meta
-                class="block truncate text-sm text-muted-foreground"
-                >{vb.t("App · {who}", { who: vb.name(file.author) })}</span
-              ></span
-            ></button
-          ><IconButton
-            label={vb.t("Abrir ao lado")}
-            data-room-app-beside
-            size="icon"
-            disabled={!actions.openApp}
-            class="text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
-            onclick={(event) => {
-              if (!active || !event.currentTarget.isConnected) return;
-              appFocusRequest.set(null);
-              actions.openApp?.({ connection: "room", tool });
-            }}><Icon icon="layout-right" size={18} /></IconButton
-          ><IconButton
-            label={vb.t("Expandir")}
-            data-room-app-expand
-            size="icon"
-            disabled={!actions.openApp}
-            class="text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
-            onclick={(event) => {
-              if (!active || !event.currentTarget.isConnected) return;
-              appFocusRequest.set(tool);
-              actions.openApp?.({ connection: "room", tool });
-            }}><Icon icon="expand-01" size={18} /></IconButton
-          >
-        </div>
+          {#snippet trailing()}<IconButton
+              label={vb.t("Abrir ao lado")}
+              data-room-app-beside
+              size="icon"
+              disabled={!actions.openApp}
+              class={cardIconClass}
+              onclick={(event) => {
+                if (!active || !event.currentTarget.isConnected) return;
+                appFocusRequest.set(null);
+                actions.openApp?.({ connection: "room", tool });
+              }}><Icon icon="layout-right" size={18} /></IconButton
+            ><IconButton
+              label={vb.t("Expandir")}
+              data-room-app-expand
+              size="icon"
+              disabled={!actions.openApp}
+              class={cardIconClass}
+              onclick={(event) => {
+                if (!active || !event.currentTarget.isConnected) return;
+                appFocusRequest.set(tool);
+                actions.openApp?.({ connection: "room", tool });
+              }}><Icon icon="expand-01" size={18} /></IconButton
+            >{/snippet}
+        </AttachmentCard>
       {:else if file.embed}<Embed
           url={url(file)}
           {file}
@@ -124,48 +138,22 @@
           {actions}
           {vb}
         />
-      {:else if beside(file) && actions.openSideFile}<!-- One card that opens the file beside the chat; full screen and download are icons, so it holds at any width. -->
-        <div
+      {:else if beside(file) && actions.openSideFile}<!-- The same card: the body opens the file beside the chat; full screen and download are icons, so it holds at any width. -->
+        <AttachmentCard
           data-html-file-card
-          class="flex w-full max-w-md min-w-0 items-center gap-1 rounded-control border border-border p-1.5 pr-2"
+          icon={fileIcon(file)}
+          name={file.name}
+          meta={actions.sideFileName === file.name
+            ? vb.t("aberto ao lado")
+            : fileMeta(file)}
+          openData={{ "data-file-open-beside": true }}
+          open={(event) => {
+            if (active && event.currentTarget.isConnected)
+              actions.openSideFile?.(file);
+          }}
         >
-          <button
-            type="button"
-            data-file-open-beside
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[calc(var(--radius-control)-2px)] border-0 bg-transparent p-1.5 text-left text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
-            onclick={(event) => {
-              if (active && event.currentTarget.isConnected)
-                actions.openSideFile?.(file);
-            }}
-            ><span
-              class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
-              ><Icon icon="file-02" size={18} /></span
-            ><span class="min-w-0 flex-1"
-              ><span class="block truncate text-sm font-semibold"
-                >{file.name}</span
-              ><span class="block truncate text-xs text-muted-foreground"
-                >{actions.sideFileName === file.name
-                  ? vb.t("aberto ao lado")
-                  : `${(file.name.split(".").pop() ?? "").toUpperCase()} · ${kb(file.size)}`}</span
-              ></span
-            ></button
-          ><IconButton
-            label={vb.t("Abrir em tela cheia")}
-            href={url(file)}
-            size="icon"
-            class="text-muted-foreground hover:text-foreground"
-            onclick={(event) => open(event, file)}
-            ><Icon icon="expand-01" size={18} /></IconButton
-          ><IconButton
-            label={vb.t("Baixar")}
-            data-file-download
-            href={url(file)}
-            download={file.name}
-            size="icon"
-            class="text-muted-foreground hover:text-foreground"
-            ><Icon icon="download-01" size={18} /></IconButton
-          >
-        </div>
+          {#snippet trailing()}{@render fileActions(file)}{/snippet}
+        </AttachmentCard>
       {:else if file.type.startsWith("audio/")}<div
           class="max-w-full space-y-1"
         >
@@ -193,16 +181,19 @@
             class="box-border block max-h-[260px] min-w-full max-w-full rounded-control border border-border object-cover object-top"
           /></a
         >
-      {:else}<a
-          href={url(file)}
-          target="_blank"
-          rel="noopener"
-          onclick={(event) => open(event, file)}
-          class="inline-flex max-w-full items-center gap-2 rounded-control border border-border bg-muted px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-          ><Icon icon="file-02" size={16} /><span class="min-w-0 break-words"
-            >{file.name}</span
-          ><small class="shrink-0 text-muted-foreground">{kb(file.size)}</small
-          ></a
-        >{/if}
+      {:else}<!-- Any other file: the same card; the body opens it (the viewer, or the browser for what it can't show). -->
+        <AttachmentCard
+          data-file-card
+          icon={fileIcon(file)}
+          name={file.name}
+          meta={fileMeta(file)}
+          openData={{ "data-file-open": true }}
+          open={(event) => {
+            if (active && event.currentTarget.isConnected)
+              actions.openFile(file);
+          }}
+        >
+          {#snippet trailing()}{@render fileActions(file)}{/snippet}
+        </AttachmentCard>{/if}
     {/each}
   </div>{/if}

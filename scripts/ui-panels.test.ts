@@ -2811,10 +2811,34 @@ describe("chat", () => {
     const attachments = target.querySelector<HTMLElement>(
       "#m8 [data-message-attachments]",
     )!;
+    // Every file is the same card as a room app: same block, tile, name, "EXT · size" meta and quiet icons.
+    const fileCard =
+      attachments.querySelector<HTMLElement>("[data-file-card]")!;
+    const appLike = attachments.querySelector<HTMLElement>(
+      "[data-room-app-card]",
+    )!;
+    expect(fileCard.className).toBe(appLike.className);
+    expect(fileCard.querySelector("[data-card-icon]")!.className).toBe(
+      appLike.querySelector("[data-card-icon]")!.className,
+    );
+    expect(fileCard.querySelector("[data-card-name]")!.textContent).toBe(
+      "report.html",
+    );
+    expect(fileCard.querySelector("[data-card-meta]")!.textContent).toBe(
+      "HTML · 1 KB",
+    );
+    expect(
+      fileCard.querySelector("[data-file-expand]")!.getAttribute("aria-label"),
+    ).toBe("Abrir em tela cheia");
+    expect(
+      fileCard.querySelector("[data-file-download]")!.getAttribute("download"),
+    ).toBe("report.html");
+    fileCard.querySelector<HTMLButtonElement>("[data-file-open]")!.click();
+    expect(opened).toEqual(["old-version"]);
     attachments
       .querySelector<HTMLAnchorElement>('a[href$="old-version"]')!
       .click();
-    expect(opened).toEqual(["old-version"]);
+    expect(opened).toEqual(["old-version", "old-version"]);
     expect(attachments.querySelector("audio")?.getAttribute("src")).toContain(
       "/audio",
     );
@@ -2825,13 +2849,14 @@ describe("chat", () => {
       '[data-room-app-card="demo"]',
     )!;
     expect(appCard.className).toContain("max-w-md");
-    expect(appCard.className).toContain("bg-muted");
+    expect(appCard.className).toContain("bg-secondary-hover");
+    expect(appCard.className).toContain("rounded-2xl");
     expect(appCard.className).not.toMatch(/\/\d|border|shadow/);
-    expect(appCard.querySelector("[data-room-app-icon] svg")).not.toBeNull();
+    expect(appCard.querySelector("[data-card-icon] svg")).not.toBeNull();
     expect(appCard.textContent).toContain("demo");
-    expect(
-      appCard.querySelector("[data-room-app-meta]")!.textContent!.trim(),
-    ).toBe("App · you@test");
+    expect(appCard.querySelector("[data-card-meta]")!.textContent!.trim()).toBe(
+      "App · you@test",
+    );
     expect(appCard.querySelector("iframe,a")).toBeNull();
     expect(
       appCard
