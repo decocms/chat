@@ -227,6 +227,8 @@
     onanswer: services.navigation.callbacks.answerRequest,
     onconnect: services.navigation.callbacks.connect,
     ondismiss: services.navigation.callbacks.dismiss,
+    company: services.navigation.company,
+    oncompany: services.navigation.joinCompany,
     onlanguage: language,
   });
   onMount(() => {

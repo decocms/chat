@@ -63,6 +63,8 @@
     onanswer,
     onconnect,
     ondismiss,
+    company,
+    oncompany,
   }: HomeBridge = $props();
   const account = $derived(personal.state),
     draft = $derived(personal.draft);
@@ -438,6 +440,8 @@
       onmenu={onroommenu}
       {onjoin}
       {onanswer}
+      company={$company ?? []}
+      {oncompany}
     />
     <!-- The + makes a DM (people from your rooms, or an email) or a room (Gui #4572: it only made rooms). -->
     {#if $account.me}<NewMessage

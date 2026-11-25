@@ -61,6 +61,8 @@ Short version: **your Claude calls deco.chat. deco.chat does not call your Claud
 
 **Room links.** A person with the link can see the title of the room. They cannot see more. They can ask for access, and a member approves or refuses.
 
+**Rooms open to your company.** A room is private when it starts. A member who signed in with a company email can open the room to that email domain (People, "Aberta pra @<domain>"). Then each person signed in with that same domain can see the title of the room, who opened it and the number of people, and can join it without a request. Before they join, they cannot see more. A member can close the room again. The people who joined stay members. A direct message (DM) never opens. The rules are in `src/orgRooms.ts`.
+
 **Room members.** Each member can invite people and remove a member. Nobody can remove the person who made the room.
 
 **What other people in a room cannot do:**

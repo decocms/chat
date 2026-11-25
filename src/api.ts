@@ -92,6 +92,9 @@ import {
   RoomOrderBody,
   TINTS,
   TintBody,
+  RoomOrgBody,
+  type RoomOrgResult,
+  type OrgRoomsResult,
   type UploadFileResult,
   type LoginContext,
   LoginContextQuery,
@@ -175,6 +178,12 @@ export interface ApiServices {
   pokeFocus(roomId: string): void;
   /** Ask to join a room: unknown room, already a member, over the rate limit, or asked (the owner is told once). */
   requestAccess(roomId: string): Promise<"not_found" | "member" | "limited" | "asked">;
+  /** Your company domain and the domain the room is open to (src/orgRooms.ts); the route checks membership. */
+  roomOrg(roomId: string): Promise<RoomOrgResult>;
+  /** Open the room to your company domain, or close it; the route checks membership. */
+  setRoomOrg(roomId: string, open: boolean): Promise<"dm" | "no_domain" | { org: string | null }>;
+  /** The rooms open to your company domain where you are not a member yet (the home's "Da sua empresa"). */
+  orgRooms(): Promise<OrgRoomsResult>;
   /** A member approves (invites) or denies a pending request; false = no such pending request. */
   decideRequest(roomId: string, email: string, ok: boolean): Promise<boolean>;
   createRoom(title?: string): Promise<string>;
@@ -386,6 +395,28 @@ export const api = roomPosts
     const known = (TINTS as readonly string[]).includes(tint ?? "");
     await svc.sql(`UPDATE members SET tint = ? WHERE book_id = ? AND email = ?`, known ? tint ?? null : null, id, c.get("email"));
     return c.json(ok, 200);
+  })
+  // "Aberta pra @<domain>" in People: a member opens the room to their company email domain, or closes it.
+  .get("/api/books/:id/org", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    return c.json((await svc.roomOrg(id)) satisfies RoomOrgResult, 200);
+  })
+  .post("/api/books/:id/org", body(RoomOrgBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    const { open } = c.req.valid("json");
+    const r = await svc.setRoomOrg(id, open);
+    if (r === "dm") return c.json({ error: svc.en ? "A direct message can't open." : "Uma conversa direta não abre." } satisfies ErrorBody, 400);
+    if (r === "no_domain") return c.json({ error: svc.en ? "Sign in with a company email to open a room." : "Entre com um email da empresa pra abrir a sala." } satisfies ErrorBody, 400);
+    svc.track("room_org", { book: id, open });
+    return c.json((await svc.roomOrg(id)) satisfies RoomOrgResult, 200);
+  })
+  // The home's "Da sua empresa": rooms open to your domain that you did not join. Not in /api/me (cached per person).
+  .get("/api/org/rooms", async (c) => {
+    const svc = c.get("svc"), out = await svc.orgRooms();
+    if (out.rooms.length) svc.track("org_rooms_listed", { n: out.rooms.length });
+    return c.json(out satisfies OrgRoomsResult, 200);
   })
   // Archive is per person; archived: false restores.
   .post("/api/books/:id/archive", body(ArchiveBody), async (c) => {

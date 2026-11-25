@@ -63,7 +63,8 @@
     lang: HomeLanguage;
   } = $props();
   const personal = $derived(controller.personal.state),
-    nav = $derived(controller.state);
+    nav = $derived(controller.state),
+    company = $derived(controller.company);
   const dms = $derived(dmEntries($personal.me));
   const waits = $derived(waitsByRoom($personal.me?.waits ?? []));
   const current = $derived($nav.roomId ?? null);
@@ -141,15 +142,17 @@
         />
       </li>{/if}
     {#if dms}{@render dm(dms.self)}
-      {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<li
+      {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length || $company.length)}<li
           class="mt-3"
         >
           <Requests
             invites={$personal.me.invites ?? []}
             requests={$personal.me.requests}
+            company={$company}
             {lang}
             onjoin={controller.callbacks.answerInvite}
             onanswer={controller.callbacks.answerRequest}
+            oncompany={controller.joinCompany}
           />
         </li>{/if}
       {#if dms.talked.length}<li class="mt-3">

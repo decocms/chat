@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { MeResult } from "../../../shared/schemas";
+  import type { MeResult, OrgRoom } from "../../../shared/schemas";
   import Button from "../../lib/studio/Button.svelte";
   import RoomLink from "../app-navigation/RoomLink.svelte";
   import RoomRow from "../app-navigation/RoomRow.svelte";
@@ -47,6 +47,8 @@
     onmenu,
     onjoin,
     onanswer,
+    company = [],
+    oncompany,
   }: {
     me: MeResult;
     seen: Record<string, number>;
@@ -58,6 +60,9 @@
     onmenu?: (id: string, trigger: HTMLElement, point?: MenuPoint) => void;
     onjoin?: (room: string, yes: boolean) => Promise<void>;
     onanswer?: (email: string, accept: boolean) => Promise<void>;
+    /** Rooms open to your company domain that you did not join. */
+    company?: readonly OrgRoom[];
+    oncompany?: (room: string) => Promise<void>;
   } = $props();
   const rows = $derived(chatList(me));
   const byRoom = $derived(waitsByRoom(me.waits));
@@ -76,14 +81,18 @@
 </script>
 
 <nav data-home-chats aria-label={homeText(lang, "chats")} class="w-full">
-  {#if me.requests.length || me.invites?.length}<div class="mb-2">
+  {#if me.requests.length || me.invites?.length || company.length}<div
+      class="mb-2"
+    >
       <Requests
         invites={me.invites ?? []}
         requests={me.requests}
+        {company}
         {lang}
         variant="list"
         {onjoin}
         {onanswer}
+        {oncompany}
       />
     </div>{/if}
   {#if pinned.length}<section data-home-waiting class="mb-2">

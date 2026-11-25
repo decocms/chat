@@ -2037,3 +2037,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A failure leaves the recording where it was, shared with the people of the call. A workspace token (not personal) cannot make the playlist: the log says so.
 - Undo: Revert this commit. The playlist stays in Grain.
 - Status: open
+
+### 2026-11-25 · feat/org-rooms · Rooms open to your company: the open choices
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes approved "rooms open to your company" (a switch in People, a "Da sua empresa" list on the home, join without a request). He did not say where the rules live, how the home gets the list, or how the rows look.
+- Decision:
+  - The rules are in a new file `src/orgRooms.ts` with only D1 (`requestAccess` moved there with ports), because `src/services.ts` and `src/rooms.ts` import `cloudflare:workers` and do not load in `bun test`.
+  - The home list is a second section of the existing `Requests.svelte` ("Da sua empresa"), with the same rows and only "Entrar" (no ×). No new component. The navigation controller reads `/api/org/rooms` again each time `/api/me` changes.
+  - The row shows the room's marble, not its icon, because `/api/books/:id/icon` is for members only.
+  - The People switch uses the `users-01` icon (no building icon is in the sprite), and a short line under it says who can see the room.
+  - An index `books_org` on `books (org)`, so that the home's query does not read all the rooms.
+  - `track()` events: `room_org` (switch), `org_room_joined` (join), and `org_rooms_listed` (the home gets a list that is not empty).
+  - "Ask for access" on a room link also lets in a person with the same domain (the existing page opens the room on `member: true`). Its label stays "Pedir acesso".
+- Other options: A new `OrgRooms.svelte` (duplicates the rows). The list in `/api/me` (cached per person, so it goes stale). A tests-only copy of the rules (the tests do not test the real code).
+- Risk: low
+- Undo: Revert the commit. The columns `org` and `org_by` stay in D1 and are not used.
+- Status: open

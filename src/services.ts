@@ -25,6 +25,7 @@ import { routerStats } from "./router";
 import { setHandle, setProfilePublic } from "./profile";
 import { aiSpend, infraMonitor } from "./reports";
 import { resolveLink } from "./linkTarget";
+import { orgRooms, requestAccess, roomOrg, setRoomOrg } from "./orgRooms";
 
 // The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
 let appVersion: string | undefined;
@@ -276,19 +277,29 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     pokeAgents: (roomId) => ctx.waitUntil(poke(env, [email], { t: "agents", book: roomId })),
     pokeListeners: (roomId) => ctx.waitUntil(poke(env, [email], { t: "me", book: roomId })),
     pokeFocus: (roomId) => ctx.waitUntil(poke(env, [email], { t: "focus", book: roomId })),
-    requestAccess: async (roomId) => {
-      // A DM can't be asked into (src/dm.ts): to anyone outside it, it doesn't exist.
-      if (isDmId(roomId) || !(await env.DB.prepare(`SELECT 1 FROM books WHERE id = ?`).bind(roomId).first())) return "not_found";
-      if (await isMember(env.DB, roomId, email)) return "member";
-      if (!(await env.LOGIN_LIMIT.limit({ key: `ask:${email}` })).success) return "limited";
-      const r = await env.DB.prepare(`INSERT OR IGNORE INTO access_requests (book_id, email, ts) VALUES (?, ?, ?)`).bind(roomId, email, Date.now()).run();
-      if (r.meta.changes) {
-        const name = (await env.DB.prepare(`SELECT name FROM users WHERE email = ?`).bind(email).first<{ name: string | null }>())?.name ?? undefined;
-        await bookStub(env, roomId).fetch(`https://book/access-requested?book=${roomId}`, { method: "POST", body: JSON.stringify({ who: email, name }) });
-        ctx.waitUntil(track(env, "access_requested", { user: email, dims: { book: roomId } }));
-      }
-      return "asked";
-    },
+    requestAccess: (roomId) =>
+      requestAccess(
+        {
+          db: env.DB,
+          isMember: (id) => isMember(env.DB, id, email),
+          // A room open to your company: in at once, like an accepted invite; your home's list drops it.
+          join: async (id) => {
+            await joinRoom(env, id, email);
+            ctx.waitUntil(poke(env, [email], { t: "me" }));
+          },
+          allowAsk: async () => (await env.LOGIN_LIMIT.limit({ key: `ask:${email}` })).success,
+          told: async (id) => {
+            const name = (await env.DB.prepare(`SELECT name FROM users WHERE email = ?`).bind(email).first<{ name: string | null }>())?.name ?? undefined;
+            await bookStub(env, id).fetch(`https://book/access-requested?book=${id}`, { method: "POST", body: JSON.stringify({ who: email, name }) });
+          },
+          track: (name, id) => ctx.waitUntil(track(env, name, { user: email, dims: { book: id } })),
+        },
+        roomId,
+        email,
+      ),
+    roomOrg: (roomId) => roomOrg(env.DB, roomId, email),
+    setRoomOrg: (roomId, open) => setRoomOrg(env.DB, roomId, email, open),
+    orgRooms: () => orgRooms(env.DB, email),
     decideRequest: async (roomId, who, approve) => {
       if (isDmId(roomId)) return false;
       const req = await env.DB.prepare(`SELECT email FROM access_requests WHERE book_id = ? AND email = ? AND denied = 0`).bind(roomId, who).first<{ email: string }>();
