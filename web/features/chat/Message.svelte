@@ -547,9 +547,9 @@
             {actions}
             {vb}
           />{/each}{/if}
-      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. A message people
-           can react to always keeps it, 24px high, so the quick reactions that show there on hover (Gui #4726) move
-           nothing; the message's own padding is tight to make up for it. It pulls up over the body's 4px gap, inside
+      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. With chips or
+           acks it is always there; with nothing yet it opens on hover with the quick reactions (Gui #4726, #5347), so
+           a run of messages stays together. It pulls up over the body's 4px gap, inside
            the message. Not selectable: copying a conversation takes the messages, not ✓ ⏳ ✻ and the reaction chips
            (Gimenes #3622). Not while the
            text is a box: its "esc / enter" line sits there. -->
@@ -557,7 +557,10 @@
           data-reaction-row={m.id}
           class={[
             "-mt-1 flex min-h-6 flex-wrap items-center justify-between gap-x-3 select-none",
-            bare && "pointer-coarse:hidden",
+            // Nothing in the row yet: it opens only on hover (or focus, or while the picker is open), so adjacent
+            // messages stay together and the hover makes the room (Gui #5347). Phones react from the long press.
+            bare &&
+              "hidden pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex has-[[data-picking]]:flex",
           ]}
         >
           {#if reactable}<MessageReactions
