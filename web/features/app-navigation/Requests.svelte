@@ -15,13 +15,16 @@
    * from someone outside your rooms: their face, their first message and
    * Aceitar (opens the DM with it). × declines either; nothing from them
    * reaches you before a yes. `variant` follows the rows around it: the
-   * sidebar's small rows or the phone list's bigger ones.
+   * sidebar's small rows or the phone list's bigger ones. `center`: rows of
+   * the user center on desktop, like "Your agent", with no section title and
+   * the × on hover (docs/design.md, "The user center"; Gimenes #5064).
    */
   let {
     invites,
     requests,
     lang,
     variant = "sidebar",
+    center = false,
     onjoin,
     onanswer,
   }: {
@@ -29,6 +32,7 @@
     requests: readonly MeFriendRequest[];
     lang: HomeLanguage;
     variant?: NavRowVariant;
+    center?: boolean;
     onjoin?: (room: string, yes: boolean) => Promise<void>;
     onanswer?: (email: string, accept: boolean) => Promise<void>;
   } = $props();
@@ -90,19 +94,28 @@
 )}<li data-request={key}>
     <div
       class={[
-        "flex min-w-0 items-center px-2 font-sans",
-        small ? "min-h-9 gap-2 py-1 text-sm" : "min-h-12 gap-3 py-1.5",
+        "flex min-w-0 items-center font-sans",
+        center
+          ? "group min-h-12 gap-2.5 rounded-lg px-2.5 py-2 text-sm hover:bg-sidebar-accent"
+          : small
+            ? "min-h-9 gap-2 px-2 py-1 text-sm"
+            : "min-h-12 gap-3 px-2 py-1.5",
       ]}
     >
       {@render cover(of)}
       <span class="flex min-w-0 flex-1 flex-col">
-        <span class="truncate">{title}</span>
+        <span class={["truncate", center && "font-medium"]}>{title}</span>
         <span
           class="truncate text-xs leading-4 text-muted-foreground"
           title={full}>{meta}</span
         >
       </span>
-      <span class="flex shrink-0 items-center gap-0.5">
+      <span
+        class={[
+          "flex shrink-0 items-center gap-0.5",
+          center && "flex-row-reverse",
+        ]}
+      >
         <Button
           size="xs"
           disabled={!!busy || !answer}
@@ -112,7 +125,9 @@
         ><IconButton
           size="icon-xs"
           label={homeText(lang, "decline")}
-          class="text-muted-foreground hover:text-foreground"
+          class={center
+            ? "hidden text-muted-foreground group-focus-within:inline-flex group-hover:inline-flex hover:text-foreground"
+            : "text-muted-foreground hover:text-foreground"}
           disabled={!!busy || !answer}
           onclick={() => run(key, answer && (() => answer(false)))}
           ><Icon icon="x" size={14} /></IconButton
@@ -130,13 +145,13 @@
       </p>{/if}
   </li>{/snippet}
 
-{#if count}<section data-requests>
-    <SectionHeader level={4} title={homeText(lang, "requests")}>
-      {#snippet action()}<span
-          class="px-1.5 text-xs leading-4 text-muted-foreground tabular-nums"
-          >{count}</span
-        >{/snippet}
-    </SectionHeader>
+{#if count}<section data-requests={center ? "center" : ""}>
+    {#if !center}<SectionHeader level={4} title={homeText(lang, "requests")}>
+        {#snippet action()}<span
+            class="px-1.5 text-xs leading-4 text-muted-foreground tabular-nums"
+            >{count}</span
+          >{/snippet}
+      </SectionHeader>{/if}
     <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
       {#each invites as invite (invite.book_id)}{@render row(
           `room:${invite.book_id}`,
