@@ -29,15 +29,16 @@
   import UpdateRow from "../user-center/UpdateRow.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
+  import Requests from "../app-navigation/Requests.svelte";
   import { roomAvatarVersion } from "../room-scope/model";
   import CallControls from "../call/CallControls.svelte";
   import CallStage from "../call/CallStage.svelte";
+  import { createStageNav } from "../call/stageNav";
+  import { joinsByItself } from "../call/session";
   import CallSidebarRow from "../call/CallSidebarRow.svelte";
   import CallPanel from "../call/CallPanel.svelte";
-  import { createCallApi } from "../call/callApi";
-  import { createCallSession } from "../call/session";
-  import { callIntent } from "../call/ring";
-  import { CALL_THREAD, isRecorder, roomHasThread } from "../../../shared/call";
+  import { callHub } from "../call/hub";
+  import { isRecorder, roomHasThread } from "../../../shared/call";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
@@ -105,32 +106,25 @@
   // Book.webSocketClose).
   const sendCommand: SendRoomCommand = (command) =>
     get(owner.state)?.decisions.send(command) ?? false;
-  const callApi = createCallApi(browser.fetcher);
-  const call = createCallSession(
-    captured.roomId,
-    callApi,
-    sendCommand,
-    () => get(owner.state)?.header.thread ?? "main",
-  );
+  // The room's call session is the app's (callHub): in the call, it goes on when this view closes (another room,
+  // Home), and the sidebar's call panel shows it everywhere. Leaving is a hang-up.
+  const hub = callHub(),
+    liveCall = hub.live;
+  const call = hub.session(captured.roomId, {
+    thread: () => get(owner.state)?.header.thread ?? "main",
+    title: () => get(owner.state)?.header.room.book.title ?? "",
+  });
   const callView = call.state;
-  // A DM's call rings the other person (Atender joins); a room's call is joined by opening the room.
-  $effect(() =>
-    call.setPeers(
-      $view?.header.room.call,
-      $view?.header.room.me,
-      !$view?.header.room.book.dm,
-    ),
-  );
-  // A click on a call's button elsewhere (the ring's card, a call line in the chat) for this room: done here, where
-  // the room's call lives.
+  // Who is in the room's call. Opening a room never joins its call: a click does (Entrar na call, Iniciar call,
+  // Atender; a DM's call rings). The call I am in hears the room from its own socket (hub.ts): the room's view, which
+  // may show a saved room for a moment, does not tell it who is in it.
   $effect(() => {
-    const intent = $callIntent,
-      ready = !!$view?.header.room;
-    if (!intent || !ready || intent.room !== captured.roomId) return;
+    const peers = $view?.header.room.call,
+      me = $view?.header.room.me;
     untrack(() => {
-      callIntent.set(null);
-      if (intent.action === "join") call.join();
-      else void callApi.decline(captured.roomId).catch(() => {});
+      if (!hub.isLive(call)) call.setPeers(peers, me);
+      // The room's recorder is not a person: its page joins by itself, to record (joinsByItself).
+      if (me && joinsByItself(me, peers, get(call.state))) call.join(true);
     });
   });
   const inCall = $derived($callView.phase !== "idle");
@@ -144,29 +138,28 @@
   // What opening the stage changed in the layout (the doc beside the chat closes, so the stage has the room's
   // width), to put it back when the stage closes.
   let closedPane = false;
-  // The stage shows the call's own thread beside it (room.callThread): opening it goes there once.
-  let toCallThread = false,
-    asked = "";
+  // The stage shows the call's own thread beside it (room.callThread): opening it goes there once (stageNav.ts).
+  const stageNav = createStageNav();
   function openStage() {
     if (!stageOpen && !layout.read().mobile) {
       closedPane = layout.read().documentVisible;
       if (closedPane) layout.toggleDocument();
     }
     stageOpen = true;
-    toCallThread = true;
-    asked = "";
+    stageNav.opened();
   }
   function closeStage() {
     stageOpen = false;
-    toCallThread = false;
+    stageNav.closed();
     chatHidden = false;
     // The stage in full screen (CallStage) leaves it with the stage.
     if (document.fullscreenElement) void document.exitFullscreen();
     if (closedPane && !layout.read().documentVisible) layout.toggleDocument();
     closedPane = false;
   }
-  // Joining opens the stage; leaving closes it.
-  let wasInCall = false;
+  // Joining opens the stage; leaving closes it. A view that opens on a call already on (I came back from another
+  // screen) opens the stage only when a click asked for it (hub.openStage, taken below).
+  let wasInCall = untrack(() => inCall);
   $effect(() => {
     const now = inCall;
     untrack(() => {
@@ -175,39 +168,36 @@
       wasInCall = now;
     });
   });
-  // Another thread (the sidebar, a link, Back) closes the stage; the call's chat keeps it. The call chat is only
-  // seen beside the stage: with the stage closed (hung up, or a link to it), the person goes back to where they were.
-  let lastThread = "",
-    returnTo = "main",
-    sentBack = "";
+  // The stage asked for from another screen (the call's panel, Atender): opened once the room is up and this view's
+  // first look at its thread and panes is done. Opened before, that first look took it for a move away and closed it
+  // (Jonas, 2026-11-25: the panel brought him back to the room's chat).
+  $effect(() => {
+    if (!$view?.header.room || !inCall) return;
+    void tick().then(() => {
+      if (!active || !inCall) return;
+      const asked = hub.takeStage(captured.roomId);
+      if (!asked) return;
+      openStage();
+      if (asked.camera) cameraOpen = true;
+    });
+  });
+  // Another thread (the sidebar, a link, Back) closes the stage; the call's own thread keeps it. The call's thread
+  // is a normal thread (a room's call has one, a DM's is the conversation): with the stage closed it stays open as
+  // any other, so nothing ever sends the person back to it.
   $effect(() => {
     const room = $view?.header.room,
       thread = $view?.header.thread ?? "",
       target = room?.callThread,
       open = staged;
     untrack(() => {
-      const moved = thread !== lastThread;
-      lastThread = thread;
-      if (moved && thread !== CALL_THREAD) returnTo = thread || "main";
-      if (!open) {
-        if (thread === CALL_THREAD && sentBack !== thread) {
-          sentBack = thread;
-          owner.actions.setThread(
-            returnTo !== CALL_THREAD && room && roomHasThread(room, returnTo)
-              ? returnTo
-              : "main",
-          );
-        }
-        if (thread !== CALL_THREAD) sentBack = "";
-        return;
-      }
-      if (moved && thread !== target) return closeStage();
-      if (!toCallThread || !target || !room) return;
-      if (thread === target) toCallThread = false;
-      else if (asked !== target && roomHasThread(room, target)) {
-        asked = target;
-        owner.actions.setThread(target);
-      }
+      const move = stageNav.see(
+        thread,
+        target,
+        open,
+        (id) => !!room && roomHasThread(room, id),
+      );
+      if (move && "close" in move) closeStage();
+      else if (move) owner.actions.setThread(move.go);
     });
   });
   // A pane that opens (doc, files, apps, people, a pinned file) closes the stage too.
@@ -228,6 +218,21 @@
   });
   // Where the call is: the room (a DM: the person).
   const callTitle = $derived($view?.header.room.book.title ?? "");
+  $effect(() => hub.retitle(captured.roomId, callTitle));
+  // The call I am in, in this room or another one: the sidebar's panel shows it. In another room, opening it goes
+  // back to the call's room, whose view opens the stage.
+  const elsewhere = $derived(
+    $liveCall && $liveCall.room !== captured.roomId ? $liveCall : null,
+  );
+  function openLiveCall(camera = false) {
+    if (!elsewhere) {
+      openStage();
+      if (camera) cameraOpen = true;
+      return;
+    }
+    hub.openStage(elsewhere.room, camera);
+    services.actions.navigate(`/b/${elsewhere.room}`);
+  }
   // "Iniciar call" shows while the room has no call. With a call on, the stage or its one-line bar has the controls.
   const callIdle = $derived(
     !!$view?.header.room.call &&
@@ -366,7 +371,7 @@
   });
   onDestroy(() => {
     active = false;
-    call.leave();
+    hub.release(captured.roomId, call);
     filesModule.dispose();
     decisionsModule.dispose();
     remindersModule.dispose();
@@ -412,11 +417,11 @@
     t={services.t}
   />{/snippet}
 {#snippet callPanel(collapsed: boolean)}<CallPanel
-    {call}
-    title={callTitle}
+    call={elsewhere?.session ?? call}
+    title={elsewhere?.title ?? callTitle}
     {collapsed}
-    onopen={openStage}
-    oncamera={() => (cameraOpen = true)}
+    onopen={() => openLiveCall()}
+    oncamera={() => openLiveCall(true)}
     t={services.t}
   />{/snippet}
 {#snippet callRow(collapsed: boolean)}{#if $view}<CallSidebarRow
@@ -441,6 +446,7 @@
       bind:cameraOpen
       chatHidden={fill ? chatHidden : undefined}
       onchat={() => (chatHidden = !chatHidden)}
+      onclose={fill ? closeStage : undefined}
       t={services.t}
     />{/if}{/snippet}
 {#snippet callBeside()}{@render callStage(true)}{/snippet}
@@ -456,7 +462,7 @@
         {...$view.sidebar}
         hideSheetHandle
         call={$view.header.room.call?.length ? callRow : undefined}
-        callPanel={inCall ? callPanel : undefined}
+        callPanel={inCall || elsewhere ? callPanel : undefined}
       >
         <!-- Phones: the drawer keeps the tabs that the strip under the top bar and the people avatars do not show (Apps, Agents; A2, Gimenes #4331). -->
         {#snippet phoneMenu()}{#if $view && $geometry.mobile}<div
@@ -484,7 +490,14 @@
               owner={services.pwa}
               lang={services.language}
               row
-            />{/if}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
+            />{#if $personal.me}<Requests
+                center
+                invites={$personal.me.invites ?? []}
+                requests={$personal.me.requests}
+                lang={services.language === "en" ? "en" : "pt"}
+                onjoin={services.navigation.callbacks.answerInvite}
+                onanswer={services.navigation.callbacks.answerRequest}
+              />{/if}{/if}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
             <div
               data-document-pane="agents"
               data-agent-footer

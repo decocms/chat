@@ -1,4 +1,5 @@
 import { writable, type Readable } from "svelte/store";
+import { CALL_THREAD } from "../../../shared/call";
 
 /** How many threads you opened last go to the top of the sidebar's list. */
 export const RECENT_THREADS = 3;
@@ -55,7 +56,8 @@ function parse(raw: string | null): Visits {
  * the three already on top keeps their order, so the row you click stays put.
  */
 export function recordRecent(recent: readonly string[], thread: string) {
-  if (thread === "main" || thread.startsWith("pre:")) return [...recent];
+  if (thread === "main" || thread === CALL_THREAD || thread.startsWith("pre:"))
+    return [...recent];
   if (recent.includes(thread)) return [...recent];
   return [thread, ...recent].slice(0, RECENT_THREADS);
 }
@@ -103,7 +105,9 @@ export function createRoomVisits(
     state: state as Readable<{ account: string | null; visits: Visits }>,
     /** A thread of the room is on screen. */
     enter(owner: string, roomId: string, thread: string) {
-      if (thread.startsWith("pre:")) return;
+      // The room's old call chat (before each call had its own thread) is never where a room reopens: a person
+      // left in it came back to it on every visit (Gimenes, 2026-11-25, "não sai").
+      if (thread.startsWith("pre:") || thread === CALL_THREAD) return;
       load(owner);
       const prior = visits[roomId];
       if (prior?.last === thread) return;
@@ -120,7 +124,8 @@ export function createRoomVisits(
     /** The thread to reopen when you come back to the room without a link to one. */
     last(owner: string, roomId: string) {
       load(owner);
-      return visits[roomId]?.last ?? null;
+      const last = visits[roomId]?.last ?? null;
+      return last === CALL_THREAD ? null : last;
     },
     recent(owner: string, roomId: string): readonly string[] {
       load(owner);
