@@ -2352,7 +2352,7 @@ describe("chat", () => {
       owner.dispose();
     }
   }, 30_000);
-  test("quick reactions never move a message, show an emoji given once, and the picker is a popover next to them", async () => {
+  test("quick reactions sit in the row each message keeps, never move a message, show an emoji given once, and the picker is a popover next to them", async () => {
     const sent: RoomCommand[] = [];
     const reacted = {
       ...message(9, "Has a reaction"),
@@ -2391,15 +2391,19 @@ describe("chat", () => {
       expect(el.className).toContain("invisible");
       expect(el.className.split(/\s+/)).not.toContain("hidden");
     }
-    // A message with nothing under it gets the bar over the space it keeps, out of the flow.
-    const bar = target.querySelector<HTMLElement>(
-      '#m10 [data-reaction-bar="10"]',
-    );
-    expect(bar?.className).toContain("absolute");
-    expect(
-      target.querySelectorAll("#m10 [data-message-reactions]"),
-    ).toHaveLength(1);
-    expect(target.querySelector("#m9 [data-reaction-bar]")).toBeNull();
+    // Every message keeps its reaction row in the flow, inside its own box (nothing floats over the next message),
+    // 24px high even with nothing in it yet.
+    for (const id of [9, 10]) {
+      const row = target.querySelector<HTMLElement>(
+        `#m${id} [data-reaction-row="${id}"]`,
+      );
+      expect(row?.className).toContain("min-h-6");
+      expect(row?.className.split(/\s+/)).not.toContain("absolute");
+      expect(
+        target.querySelectorAll(`#m${id} [data-message-reactions]`),
+      ).toHaveLength(1);
+    }
+    expect(target.querySelector("[data-reaction-bar]")).toBeNull();
     // 🙂 opens the picker in a popover next to it; the four quick ones stay where they were.
     const before = offered(10);
     expect(before).toEqual(["👍", "❤️", "😂", "🎉"]);
