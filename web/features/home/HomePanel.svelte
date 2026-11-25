@@ -19,7 +19,7 @@
     roomIcon,
     targetHref,
     waitTarget,
-    plainWaitText,
+    homeWaitText,
     claudeWait,
     personVersion,
     dmEntry,
@@ -33,7 +33,7 @@
   import RoomTile from "./RoomTile.svelte";
   import ChatList from "./ChatList.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
-  import UpdateRow from "../app-navigation/UpdateRow.svelte";
+  import UpdateRow from "../user-center/UpdateRow.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import HomeSkeleton from "./HomeSkeleton.svelte";
@@ -408,7 +408,7 @@
       <AccountRow me={$account.me} row={false} />
     </header>
     <!-- A new version: the desktop sidebar's green row (Valls, #334), first in the phone's list, never in a room
-      (Gimenes #4613, #4630). The sidebar's foot is desktop only, so a phone had no way to update. -->
+      (Gimenes #4613, #4630). The user center is desktop only, so a phone had no way to update. -->
     {#if $account.updateAvailable}<div class="px-2 pt-1 md:hidden">
         <UpdateRow {lang} />
       </div>{/if}
@@ -424,7 +424,7 @@
       >
     </div>
     <div class="mb-2 px-2">
-      <NotifyOffer owner={pwa} {lang} card />
+      <div class="md:hidden"><NotifyOffer owner={pwa} {lang} card /></div>
       <InstallCard owner={pwa} {lang} compact />
     </div>
     <ChatList
@@ -479,7 +479,7 @@
       ]}
     >
       <div class="w-full max-w-xl">
-        <NotifyOffer owner={pwa} {lang} card />
+        <div class="md:hidden"><NotifyOffer owner={pwa} {lang} card /></div>
         <InstallCard owner={pwa} {lang} compact />
       </div>
       <section class="mt-[10vh] flex flex-col items-center max-md:mt-4">
@@ -755,7 +755,7 @@
                     ></span
                   ><b
                     class="line-clamp-4 text-[17px] leading-[1.3] font-medium tracking-[-0.01em] break-words"
-                    >{plainWaitText(wait.text)}</b
+                    >{homeWaitText(wait, lang)}</b
                   ></span
                 ></a
               >{/each}

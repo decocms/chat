@@ -1986,3 +1986,127 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. The model is 16 MB (was 250 KB): the first blur takes longer to start, then the browser keeps it in its cache. On a slow computer or phone the frame rate can go down.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · feat/dm-same-domain · Colleagues by company email domain in "Nova mensagem"
+
+- Agent: Claude Opus 5.5
+- Context: The product owner asked that people with the same company email find each other when they start a DM, with no change to the UI (Gimenes #5006, after the corporate rooms mockup). The details below were not specified.
+- Decision:
+  - A company domain is the domain of the email, except a list of free providers (gmail.com, hotmail.com, outlook.com, icloud.com, uol.com.br and others, `shared/dm.ts`).
+  - A colleague is a person with an account (a `users` row) on your company domain. The picker shows up to 200 of them after the people from your rooms, with "pelo seu e-mail @domínio".
+  - You can DM a colleague without a message request (`canDm`), the same as a person from your rooms.
+  - Nothing changes for rooms. A colleague does not see your rooms.
+- Other options: Let a company turn this on (a list of domains). Show colleagues only after you type. Keep the message request for colleagues.
+- Risk: medium. On a shared domain that is not in the list (a university, an ISP), strangers see each other's email, name and picture and can DM without a request.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · JonasJesus42/dm-record-consent · How a DM asks for the recording
+
+- Agent: Claude Opus 5.5
+- Context: Jonas: "DM tem que ter o aviso e só grava se aceitar". A room's call stays recorded always, with the notice.
+- Decision:
+  - Each new DM call asks both people on the stage ("Gravar esta call no Grain?", Gravar / Não gravar). The recorder starts only after both said yes.
+  - One "Não gravar" ends the question for that call: a later yes does not record it. The next call asks again.
+  - The answer is stored in the Book's meta for the current call only (`call_consent`), and it counts from a stage that shows before the room has the person in the call.
+- Other options: Only the person who starts the call asks, and the other sees a notice. A setting per DM that stays between calls. Never record a DM.
+- Risk: low. A room's call does not change. A DM call where nobody answers is not recorded.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · JonasJesus42/grain-share-participants · A recording is shared with the people of the call
+
+- Agent: Claude Opus 5.5
+- Context: The recordings that the recorder sends to Grain stay in the account of the token (deco@deco.cx), with `workspace_shared` off: they are not in the teammates' meeting lists. Jonas chose to share each recording with the people who were in the call. He will look for a Grain setting that shares every recording with the workspace.
+- Decision:
+  - The chat keeps the emails of everyone who joined the call (`call_people`). `POST /api/calls/recorded` answers them.
+  - The recorder matches them with the Grain users (`POST /users`, by email) and shares the recording with each match (`PUT /recordings/:id/users`).
+  - A person without a Grain account with the same email is skipped. A failure to share leaves the recording where it was.
+- Other options: Share with the whole workspace (the Grain API has no field for `workspace_shared`). A Grain team for the recordings (the workspace has no teams).
+- Risk: low. It adds readers to a recording; it removes nothing.
+- Undo: Revert this commit and deploy the recorder again. The shares that were made stay.
+- Status: open
+
+
+### 2026-11-25 · JonasJesus42/grain-workspace-playlist · The recordings reach the workspace through a playlist
+
+- Agent: Claude Opus 5.5
+- Context: Jonas turned on every Grain setting to share recordings with the workspace, and the calls still did not show there. Those settings apply to Grain's bot and desktop recordings, not to uploads. The API reads `workspace_shared` and cannot write it. Jonas: "bora fazer o que tiver no nosso alcance para aparecer no workspace".
+- Decision: The recorder puts each recording in the playlist "Calls do deco.chat", with `share_state` "workspace". It finds the playlist by title, and makes it the first time. No new variable: the title is the key.
+- Other options: A Grain team with everyone, and each recording shared with that team (a team to keep up to date). A `GRAIN_PLAYLIST_ID` variable (a Cloudflare change for each environment).
+- Risk: low. A failure leaves the recording where it was, shared with the people of the call. A workspace token (not personal) cannot make the playlist: the log says so.
+- Undo: Revert this commit. The playlist stays in Grain.
+- Status: open
+
+
+### 2026-11-25 · fix/answer-opens-call · The call keeps a socket of its own to its room
+
+- Agent: Claude Opus 5.5
+- Context: Valls asked for the call to follow the person across the app (another room, a DM, Home) and end only with a hang-up. The server took a person out of the call when their last socket to the room closed, and the room's socket closes when its view does.
+- Decision: While in a call, the app keeps a second, light socket to the call's room (`/ws/:id?call=1`, tag `call`). The Book sends it only `{ t: "call" }` and takes only `call.*` commands from it, and it does not count as "online". The server keeps the rule "no socket left = out of the call", now with the call's socket counted. The call session moved from the room's view to an app-level hub (`web/features/call/hub.ts`).
+- Other options: Keep the whole room's socket open (the full room state and every message on the wire for a room nobody looks at). Drop the socket rule and rely on an SFU or HTTP heartbeat (a dead tab stays in the call until a timeout, and the call still needs the room's word on who is in it).
+- Risk: medium. One more socket per person in a call. A stale view of the room no longer feeds the live call: only the call's socket does.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · viktor/thread-tabs-mine · Thread tabs Mine, Open and Done
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked to change the sidebar's tabs "Threads abertas | Feitas" to "Mine / Open / Done", with screens of all states. He did not say what Mine contains for sub-threads, which tab opens first, what an empty tab shows, or how the tab is kept.
+- Decision:
+  - Mine is the Open list filtered to the threads whose `owner` is you (`mineEpics`, case-insensitive; the server stores owners in lower case). It has the same order as Open (pinned first, then the newest activity), so it follows any change to the order of Open.
+  - The list stays flat, as Open and Done already are: a sub-thread that you own is a plain row. Its parent does not show as context.
+  - Only Open lets you drag or move a row (Alt+Arrow). Mine and Done do not, because a move in a filtered list changes the order of rows that you cannot see. Mine shows the pin icon, because pinned rows are at its top. "Ver mais" works in all tabs.
+  - The labels are the English words "Mine", "Open", "Done" in both languages, as Viktor wrote them. The i18n check needs a Portuguese key, so the keys are the same English words.
+  - All tabs are always enabled. Done is no longer disabled when it is empty. Each empty tab shows the existing `EmptyState` (icon, title, one line), also Open in a room without threads (before, the list was blank).
+  - The tab is kept per room on the device (`localStorage` key `vb.threads.<room>`). Before, the Done flag was kept only in memory for the open room, so there is no old stored value to read. A missing or unknown value opens Open, the tab that showed first before.
+  - The loading skeleton draws the three tabs, with the stored tab selected.
+  - No `track()` event: the browser app has no event path (the same as the earlier entries), and a tab switch makes no server call.
+- Other options: Mine as a tree with the parent row as context (the list was made flat before). Mine as the first tab that opens (an empty Mine in most rooms). Mine also with the threads where you own a task (Viktor said owner). Disable an empty tab (an empty state says why it is empty). A new API route for a browser `track()` event (a server change for one tab).
+- Risk: low. Only the sidebar's tabs change.
+- Undo: Revert this commit. The stored `vb.threads.*` values are then not read.
+- Status: open
+
+### 2026-11-25 · viktor/copy-selection · A copy takes only the selected text
+- Agent: claude-opus-5-5
+- Context: The human said that when they select a part of a message and copy it, the full message is copied. The cause: a selection that ends past a message's text (in its footer or body, which is easy with the mouse) went to the transcript copy of 2026-11-23, which writes each full message.
+- Decision:
+  - Each message in a copy gives only the part of its text that is selected. The full text (the Markdown source) is used only when the selection takes in all of the message's text.
+  - A selection in one message's text, also one that ends past the text, copies only the selected text, without the name and the time. The `[time, date] name:` line stays when the selection takes in two or more messages, or the name line or avatar of one message.
+  - A message that the selection touches only outside its text is left out.
+  - A copy in a field (the edit box) is the browser's copy.
+  - This changes the line "A message that the selection only touches gives its full text" of the 2026-11-23 entry.
+- Other options: Let the browser copy each selection (the names, marks and reaction chips come back, Gimenes #3955). Keep the full text for each message that the selection takes in (the bug).
+- Risk: low. A partly selected Markdown message gives its shown text, not its Markdown source.
+- Undo: Revert this commit.
+
+### 2026-11-25 · viktor/stable-room-nav · A room reopens your thread; recent threads first
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked that a room you come back to opens the thread you left, and that the sidebar lists your last 3 opened threads first. He did not say what happens when you open a thread that is already among the 3, where the pinned threads go, which kinds of navigation restore the thread, or where the visits are kept.
+- Decision:
+  - When you open a thread that is already among the 3 recent ones, the list does not change order. The row under the cursor does not move. Only a thread outside the 3 goes to the top and pushes out the oldest.
+  - The pinned threads stay above the recent ones. Their order is shared by the room and set by drag.
+  - The thread is restored only when a room opens without a target (a `RoomTarget` with only `roomId`: the rail, the home, search). A link to a thread, a message, a file or a pane goes where it says. A click on the room that is already open goes to main.
+  - The visits are kept in device storage (`localStorage`, key `vb.visits.<account>`), one entry per room. They are not synced to other devices. Without storage they last until the tab closes.
+- Other options: Move a thread to the top each time it opens (the rows jump under the cursor). Put the recent threads above the pinned ones. Restore the thread on each navigation to the room, also from links. Keep the visits on the server, so they follow you to other devices (a new write on each thread change, and more data per person).
+- Risk: low. It changes only which thread opens first and the order of the open threads in the sidebar.
+- Undo: Revert the commit. The `vb.visits.*` keys stay in `localStorage`, unused.
+- Status: open
+
+### 2026-11-25 · feat/composer-markdown-shortcuts · Shortcuts write marks, and person messages show them
+
+- Agent: Claude Opus 5.5
+- Context: Pedro asked for shortcuts that put Markdown marks on the selected text, and the message must show the result (bold after "command + *"). A person's message was plain text: only agent messages rendered Markdown.
+- Decision:
+  - ⌘B / Ctrl+B is bold (`**`), ⌘I italic (`_`), ⌘E code (`` ` ``), ⌘⇧X strikethrough (`~~`), as in Slack, Discord and Notion. A second press removes the marks. On a Mac only ⌘ counts, because Ctrl+B and Ctrl+E move the caret. No link shortcut: ⌘K opens the search.
+  - The edit goes through `document.execCommand("insertText")`, so ⌘Z undoes it. This API is deprecated, but it is the only one that keeps the undo history of a textarea. A fallback uses `setRangeText`.
+  - Pedro found the bold too thin. `strong` is now `font-bold` (600 in this theme), not `font-semibold` (500). This also changes the bold in agent messages, so the two stay the same.
+  - The `human` mode renders only these four marks, on one line. `_` and `*` count only between words, so `snake_case` and `2*3*4` stay text. Headings, lists and tables stay text, so "1. Preview" does not become a list.
+  - Pedro then selected four more: ⌘U underline, a URL pasted over selected text makes `[text](url)`, ⌘⇧E code block and ⌘⇧9 quote. Underline is `__x__`, as in Discord: Markdown has no underline. In agent messages (full Markdown), `__x__` stays bold. An underline has the text's color, because a link is blue with no underline. ⌘⇧9 uses the physical key (`Digit9`), because ⇧9 writes "(" on most layouts.
+  - Pedro asked for ⌘⇧K: a selected URL becomes `[name](url)`. The name comes from the URL only (GitHub "org/repo #42", else the last word-like path part and the host, else the host). The app does not open the page to read its title: that is a server call to a third party (rule 1), and the browser cannot read another site (CORS). In a field, ⌘⇧K stops the event, because the ⌘K search does not look at ⇧.
+  - The `message` event gets `marks: true` when the text has a mark or a code block (`shared/inlineMarks.ts`), so we can see if people use them.
+- Other options: Full Markdown for person messages (it changes many existing messages). Only the shortcut, with no render (the person sees the marks). `<u>x</u>` for underline (hard to type and read).
+- Risk: low. An old message that has `**x**` or `_x_` now shows the mark.
+- Undo: Revert this commit.
+- Status: open

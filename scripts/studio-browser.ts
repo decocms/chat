@@ -26,6 +26,18 @@ const reference = z
     ),
   );
 
+/**
+ * Deliberate departures from the frozen Studio source, per theme. Each one is
+ * a design decision of this app, not drift; the capture itself stays as
+ * Studio shipped it.
+ * - dark `--edge-ring`: Studio's dark ring is a 3% white inset that leaves the
+ *   panel without a visible edge; here it is a solid 1px border, like light
+ *   (#447).
+ */
+const deviations: Record<"light" | "dark", Record<string, string>> = {
+  light: {},
+  dark: { "--edge-ring": "0 0 0 1px var(--border)" },
+};
 /** Compare the actual built theme with the frozen source; workspace role evidence is a separate M4 gate. */
 export type StudioRenderedRole = {
   role: string;
@@ -88,7 +100,7 @@ export async function verifyStudioPalette(
     ),
   );
   const report = await page.evaluate(
-    ({ reference, theme, renderedRoles }) => {
+    ({ reference, theme, renderedRoles, deviations }) => {
       const baseline: Record<string, string> = {};
       for (const rule of reference.referenceRules) {
         if (
@@ -105,6 +117,7 @@ export async function verifyStudioPalette(
         )
           Object.assign(baseline, rule.declarations);
       }
+      Object.assign(baseline, deviations[theme]);
       const keys = new Set(
         Object.entries(baseline)
           .filter(
@@ -272,7 +285,12 @@ export async function verifyStudioPalette(
         actual.remove();
       }
     },
-    { reference, theme, renderedRoles: renderedRoles ?? null },
+    {
+      reference,
+      theme,
+      renderedRoles: renderedRoles ?? null,
+      deviations,
+    },
   );
   assert.deepEqual(
     report.mismatches,

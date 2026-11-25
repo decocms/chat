@@ -21,6 +21,10 @@
     knownMention,
     mentionPicks,
     emojiTyped,
+    roomPicks,
+    roomReference,
+    roomLinks,
+    appLinksIn,
     quoteSnippet,
     composerError,
   } from "./model";
@@ -32,8 +36,10 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import Chip from "../../lib/studio/Chip.svelte";
+  import RoomMark from "../room-sidebar/RoomMark.svelte";
   import OrphanDrafts from "./OrphanDrafts.svelte";
   import ChatField from "./ChatField.svelte";
+  import { linkResolver } from "../rich-text/linkResolver";
   import PollCreateDialog from "./PollCreateDialog.svelte";
   let {
     room,
@@ -44,6 +50,7 @@
     upload,
     navigate,
     agents = [],
+    rooms = [],
     hidden = false,
     speechFactory,
     mediaFactory,
@@ -115,13 +122,34 @@
       ? mentionPicks($draft.text, caret, room, vb.knownNames, agents)
       : null,
   );
-  // `:sho` suggests emoji the same way `@par` suggests people (same list, keys and close rules).
-  const emojis = $derived(
+  // Any link to this app in the draft asks the chat's resolver where it goes, so the field draws its chip (the plain
+  // link shows until the answer comes). A link still being typed at the end of the text waits for what comes after
+  // it; a paste or a drop asks at once.
+  let linkText = "";
+  $effect(() => {
+    const text = $draft.text,
+      grew = text.length - linkText.length > 1;
+    linkText = text;
+    untrack(() => {
+      for (const { end, link } of appLinksIn(text, window.location.href))
+        if (end < text.length || grew) linkResolver.request(link, room);
+    });
+  });
+  // `#sal` suggests rooms and this room's threads, `:sho` emoji, the same way `@par` suggests people (same list,
+  // keys and close rules).
+  const places = $derived(
     !hidden && !mentionClosed && !mentions
+      ? roomPicks($draft.text, caret, rooms, room, window.location.origin)
+      : null,
+  );
+  const emojis = $derived(
+    !hidden && !mentionClosed && !mentions && !places
       ? emojiTyped($draft.text, caret)
       : null,
   );
-  const items = $derived(mentions?.items || emojis?.items || []);
+  const items = $derived(
+    mentions?.items || places?.items || emojis?.items || [],
+  );
   const selected = $derived(items.length ? pickAt % items.length : 0);
   const busy = $derived(
     $draft.phase === "pending" || $draft.phase === "unconfirmed",
@@ -198,6 +226,15 @@
       selectionEnd = caret;
       caret = emojis.start;
       field?.insert(`${pick.emoji} `);
+      return;
+    }
+    if (places) {
+      const pick = places.items[index];
+      if (!pick) return;
+      // Replace the typed "#sal" (from its # to the caret) with the room's link.
+      selectionEnd = caret;
+      caret = places.start;
+      field?.insert(`${roomReference(pick)} `);
       return;
     }
     const pick = mentions?.items[index];
@@ -430,7 +467,11 @@
   {#if items.length}<div
       id={`${uid}-mentions`}
       role="listbox"
-      aria-label={emojis ? vb.t("Emoji") : vb.t("Mencionar")}
+      aria-label={emojis
+        ? vb.t("Emoji")
+        : places
+          ? vb.t("Mencionar sala")
+          : vb.t("Mencionar")}
       class="absolute bottom-full left-3 z-20 max-h-64 max-w-[calc(100%-1.5rem)] overflow-auto rounded-xl bg-popover p-1 text-popover-foreground shadow-edge-raised"
     >
       {#if emojis}{#each emojis.items as item, index}<button
@@ -450,6 +491,46 @@
             ><span aria-hidden="true" class="w-6 text-center text-lg"
               >{item.emoji}</span
             ><span class="text-muted-foreground">:{item.name}:</span></button
+          >{/each}{:else if places}{#each places.items as item, index}<button
+            id={`${uid}-mention-${index}`}
+            type="button"
+            role="option"
+            aria-selected={selected === index}
+            data-room-pick={item.kind === "room"
+              ? item.id
+              : `${room.id}?t=${item.id}`}
+            class={selected === index
+              ? "flex min-h-8 w-full min-w-56 cursor-pointer items-center gap-2 rounded-lg bg-accent px-2 py-1.5 text-left"
+              : "flex min-h-8 w-full min-w-56 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-accent"}
+            onpointerdown={(event) => {
+              event.preventDefault();
+              choose(index);
+            }}
+            onclick={() => choose(index)}
+            ><span
+              aria-hidden="true"
+              class="flex size-4 shrink-0 items-center justify-center"
+              >{#if item.kind === "room"}<RoomMark
+                  title={item.title}
+                  src={item.icon
+                    ? `/api/books/${encodeURIComponent(item.id)}/icon?v=${item.icon}`
+                    : undefined}
+                  size="2xs"
+                />{:else}<Icon
+                  icon="message-circle-01"
+                  size={16}
+                  class="text-muted-foreground"
+                />{/if}</span
+            >{#if item.kind === "thread"}<span
+                class="min-w-12 shrink-[999] truncate font-medium text-muted-foreground"
+                >{item.room}</span
+              ><Icon
+                icon="chevron-right"
+                size={14}
+                class="-mx-0.5 shrink-0 text-muted-foreground"
+              />{/if}<span class="min-w-0 truncate font-medium"
+              >{item.title}</span
+            ></button
           >{/each}{:else}
         {#each mentions?.items || [] as item, index}<button
             id={`${uid}-mention-${index}`}
@@ -531,6 +612,14 @@
     }}
     onkeydown={keydown}
     mention={(handle) => knownMention(handle, room, vb.knownNames)}
+    links={(text) =>
+      roomLinks(text, rooms, room, window.location.href, {
+        read: (link) => {
+          const state = linkResolver.read(link, room);
+          return state.status === "ready" ? state.value : null;
+        },
+        t: vb.t,
+      })}
     t={vb.t}
     locale={vb.locale || "pt-BR"}
     id="input"
@@ -680,6 +769,16 @@
           field?.insert(before && !/\s$/.test(before) ? " @" : "@");
           mentionClosed = false;
         }}><Icon icon="at-sign" />{vb.t("Mencionar alguém")}</Button
+      ><Button
+        variant="menu"
+        role="menuitem"
+        onclick={(event) => {
+          if (!canInteract(event)) return;
+          close();
+          const before = $draft.text.slice(0, caret);
+          field?.insert(before && !/\s$/.test(before) ? " #" : "#");
+          mentionClosed = false;
+        }}><Icon icon="hash-02" />{vb.t("Mencionar sala")}</Button
       ><Button
         variant="menu"
         role="menuitem"

@@ -9,7 +9,7 @@ The room screen has five areas, from left to right.
 | Area | Component | Contents |
 |---|---|---|
 | Rail | `AppNavigation` | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room. |
-| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), which is also the main thread, then the epics and the people. |
+| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), which is also the main thread, then the epics in three tabs (Mine, Open, Done; `EpicTree`) and the people. At the bottom: the user center (`UserCenter`). |
 | Top bar | `RoomHeader` (room-shell) | The name of the view, the controls of the view, the pane tabs. |
 | Main view | `RoomScene` | The chat of a thread. |
 | Pane | `DocumentToolbar` and the pane | The doc, the files, the apps, beside the main view. |
@@ -17,6 +17,16 @@ The room screen has five areas, from left to right.
 The sidebar names the room. The top bar names the view. Do not show the room's name two times.
 
 A room has no Inbox of its own. The Inbox is global: the home's page at `/?inbox` (`HomeInbox`, which draws `RoomInbox`). Desktop opens it from the rail. Do not add an Inbox entry to a room.
+
+## The user center
+
+The user center (`web/features/user-center/`, `UserCenter`) is the box at the bottom of the sidebar, in a room and on the home. It shows what is about the person, not about a room.
+
+- Each item is one row in the box: an icon tile, a title, one line under it and, if necessary, one button on the right. The rows have the same height and the same background as "Your agent" (`AgentFoot`) and your account (`AccountRow`).
+- The new version (`UpdateRow`) is the only row with the brand color.
+- The order is: the new version, then the person's notices, then "Your agent", then the person.
+- A notice row goes away when the person does its action.
+- Do not put a notice about a room in the user center. For example, a request to join a room stays in the room.
 
 ## The top bar
 

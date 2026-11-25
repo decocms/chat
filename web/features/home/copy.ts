@@ -19,8 +19,9 @@ const pt = {
   join: "Entrar",
   wantsToTalk: "quer conversar",
   newMessage: "Nova mensagem",
-  newMessageHint: "Pessoas das suas salas, ou um email",
+  newMessageHint: "Pessoas das suas salas ou da sua empresa, ou um email",
   inRooms: "em {rooms}",
+  sameDomain: "pelo seu e-mail @{domain}",
   writeTo: "Escrever para {email}",
   requestNote:
     "Vocês não estão numa sala juntos: a mensagem chega como um pedido, e a conversa abre quando a pessoa aceitar. Se ela ainda não usa o deco.chat, recebe um convite por email.",
@@ -202,8 +203,9 @@ const en: Record<keyof typeof pt, string> = {
   join: "Join",
   wantsToTalk: "wants to talk",
   newMessage: "New message",
-  newMessageHint: "People from your rooms, or an email",
+  newMessageHint: "People from your rooms or your company, or an email",
   inRooms: "in {rooms}",
+  sameDomain: "from your email @{domain}",
   writeTo: "Write to {email}",
   requestNote:
     "You're not in a room together: the message arrives as a request, and the conversation opens once they accept. If they're not on deco.chat yet, they get an invite by email.",

@@ -551,6 +551,8 @@ export const MePerson = z.object({
   avatar: num,
   /** The rooms you share, newest first (≤2 titles). */
   rooms: z.array(z.string()),
+  /** A colleague: your company email domain, with no room shared (Gimenes #5006). */
+  domain: z.optional(z.boolean()),
 });
 export type MePerson = z.infer<typeof MePerson>;
 /** Writing to someone: `id` = the DM, open now; no id = it went as a message request. */
@@ -568,7 +570,8 @@ export type MeFriendRequest = z.infer<typeof MeFriendRequest>;
 export const MeWait = z.object({
   book_id: z.string(),
   room: z.string(),
-  /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you. */
+  /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you, e<epic> an open thread
+   *  you own (text status|done/total, author "ai" once @vibe called you about it: shared/threadWait.ts). */
   ref: z.string(),
   thread: z.string(),
   topic: str,
@@ -629,6 +632,8 @@ export const InboxResult = z.object({
   waits: z.array(MeWait),
   mentions: z.array(InboxMention),
   tasks: z.array(InboxTask),
+  /** Every open thread you own (waits e<epic>), quiet ones too: the Inbox's "Suas threads". */
+  threads: z.optional(z.array(MeWait)),
 });
 export type InboxResult = z.infer<typeof InboxResult>;
 

@@ -15,8 +15,22 @@
   } from "./speech";
   import { createDictationController } from "./dictation";
   import type { FireCaptureFactory } from "./fireAudio";
+  import { markdownPaste, markdownShortcut } from "./markdownShortcuts";
   import { insertAt, mentionKey, mentionSegments } from "./model";
   import EmojiPicker from "./EmojiPicker.svelte";
+  import RoomMark from "../room-sidebar/RoomMark.svelte";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import {
+    fieldView,
+    fromView,
+    snapSelection,
+    storedSlice,
+    toStored,
+    toView,
+    tokenKey,
+    type FieldLink,
+    type FieldToken,
+  } from "./fieldTokens";
 
   /** The one chat box: the room's composer and the home's ask box both render it,
    *  so they look and behave the same: emoji, + menu, the field, dictation and send. */
@@ -57,6 +71,7 @@
     oninputtext,
     onblurfield,
     mention,
+    links,
   }: {
     /** The text in the field. */
     value: string;
@@ -116,6 +131,9 @@
     /** Whether `@handle` names someone here: known mentions are tinted behind the text and
      *  Backspace, Delete and the arrows treat each one as a single unit. */
     mention?: (handle: string) => boolean;
+    /** The room and thread links in the text that the field shows as their chip (the text keeps the link). Each one
+     *  is a single unit: one Backspace deletes it, the caret can't go inside it, copy keeps the link. */
+    links?: (text: string) => FieldLink[];
   } = $props();
 
   let active = true,
@@ -128,15 +146,75 @@
     mirror = $state<HTMLElement | null>(null),
     // Where the last typed character went: Backspace right there edits a hand-typed mention letter by letter.
     typedAt = -1;
-  const segments = $derived(mention ? mentionSegments(value, mention) : []);
-  const tinted = $derived(segments.some((segment) => segment.mention));
+  // What the textarea holds: the text with each room/thread link as a token the mirror draws as its chip.
+  const viewOf = (text: string) => fieldView(text, links ? links(text) : []);
+  const view = $derived(viewOf(value));
+  // Every chip the field has shown, by its text: undo puts a deleted chip's text back, and it is that link again.
+  const known = new Map<string, string>();
+  $effect(() => {
+    for (const token of view.tokens)
+      if (!known.has(token.text)) known.set(token.text, token.url);
+  });
+  // A link's answer can come while you type elsewhere in the field: the text under the caret changes (the link turns
+  // into its chip), so the caret goes back where it was in the stored text instead of jumping to the end.
+  let shownValue = untrack(() => value),
+    shownView = untrack(() => view.text);
+  $effect(() => {
+    const next = view;
+    untrack(() => {
+      const swapped = value === shownValue && next.text !== shownView;
+      shownValue = value;
+      shownView = next.text;
+      if (
+        !swapped ||
+        !textarea ||
+        textarea.value !== next.text ||
+        document.activeElement !== textarea
+      )
+        return;
+      textarea.setSelectionRange(
+        toView(next, caret),
+        toView(next, selectionEnd),
+        textarea.selectionDirection,
+      );
+    });
+  });
+  type Part =
+    | { kind: "text"; text: string }
+    | { kind: "mention"; text: string }
+    | { kind: "chip"; text: string; token: FieldToken };
+  const parts = $derived.by(() => {
+    const out: Part[] = [];
+    const plain = (text: string) => {
+      if (!text) return;
+      if (!mention) {
+        out.push({ kind: "text", text });
+        return;
+      }
+      for (const segment of mentionSegments(text, mention))
+        out.push({
+          kind: segment.mention ? "mention" : "text",
+          text: segment.text,
+        });
+    };
+    let at = 0;
+    for (const token of view.tokens) {
+      plain(view.text.slice(at, token.from));
+      out.push({ kind: "chip", text: token.text, token });
+      at = token.to;
+    }
+    plain(view.text.slice(at));
+    return out;
+  });
+  // Mentions and chips are drawn by the mirror, in color: the textarea's own text turns transparent (the caret stays).
+  const styled = $derived(parts.some((part) => part.kind !== "text"));
   // The highlight layer and the textarea share these classes (type, padding), so the mirror's
   // text wraps exactly where the field's does.
   const FIELD_TYPE =
     "px-1.5 py-1.5 text-[15px] pointer-coarse:text-[16px] leading-5 [scrollbar-gutter:stable]";
   function mentionKeydown(event: KeyboardEvent) {
     if (
-      !mention ||
+      (!mention && !view.tokens.length) ||
       !textarea ||
       event.isComposing ||
       event.shiftKey ||
@@ -147,7 +225,11 @@
     )
       return false;
     const at = textarea.selectionStart,
-      step = mentionKey(value, at, event.key, mention, typedAt === at);
+      step =
+        tokenKey(view, at, event.key) ??
+        (mention
+          ? mentionKey(view.text, at, event.key, mention, typedAt === at)
+          : null);
     if (!step) return false;
     if ("select" in step) {
       // Leave the key to the browser: it deletes the selection, with undo and an input event.
@@ -203,15 +285,19 @@
     read: () => ({
       text: value,
       revision: currentRevision(),
-      start: textarea?.selectionStart ?? value.length,
-      end: textarea?.selectionEnd ?? value.length,
+      start: textarea ? toStored(view, textarea.selectionStart) : value.length,
+      end: textarea ? toStored(view, textarea.selectionEnd) : value.length,
     }),
     write: (text, at) => {
       if (!ok()) return;
       onedit(text);
       if (textarea) {
-        textarea.value = text;
-        if (at !== undefined) textarea.setSelectionRange(at, at);
+        const next = viewOf(text);
+        textarea.value = next.text;
+        if (at !== undefined) {
+          const shown = toView(next, at);
+          textarea.setSelectionRange(shown, shown);
+        }
       }
       readCaret();
     },
@@ -258,14 +344,39 @@
     await tick();
     if (!ok() || !textarea?.isConnected || permit?.() === false) return;
     textarea.focus();
-    if (at !== undefined) textarea.setSelectionRange(at, at);
+    if (at !== undefined) {
+      const shown = toView(view, at);
+      textarea.setSelectionRange(shown, shown);
+    }
     readCaret();
   }
-  function readCaret() {
-    if (textarea) {
-      caret = textarea.selectionStart;
-      selectionEnd = textarea.selectionEnd;
+  /** Reads the caret back (in the stored text), first moving it out of any chip. `back` = it moved left. */
+  function readCaret(back = false) {
+    if (!textarea) return;
+    if (view.tokens.length) {
+      const { selectionStart, selectionEnd: end } = textarea,
+        [from, to] = snapSelection(view, selectionStart, end, back);
+      if (from !== selectionStart || to !== end)
+        textarea.setSelectionRange(from, to, textarea.selectionDirection);
     }
+    caret = toStored(view, textarea.selectionStart);
+    selectionEnd = toStored(view, textarea.selectionEnd);
+  }
+  /** Copy and cut keep the links the chips stand for. */
+  function clip(event: ClipboardEvent, cut: boolean) {
+    if (!textarea || !event.clipboardData || !view.tokens.length) return;
+    const { selectionStart: start, selectionEnd: end } = textarea;
+    if (start === end || !view.tokens.some((t) => t.from < end && t.to > start))
+      return;
+    event.preventDefault();
+    event.clipboardData.setData(
+      "text/plain",
+      storedSlice(view, value, start, end),
+    );
+    if (!cut || !ok()) return;
+    const from = toStored(view, start);
+    onedit(value.slice(0, from) + value.slice(toStored(view, end)));
+    void focus(from);
   }
   async function submit() {
     if (!ok() || waiting) return;
@@ -341,6 +452,7 @@
     }
     if (speech.keydown(event)) return;
     if (onkeydown?.(event)) return;
+    if (markdownShortcut(event)) return;
     if (mentionKeydown(event)) return;
     if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
@@ -498,19 +610,53 @@
         ></span>{clock}</span
       >{/if}
     <div class="relative flex min-w-0 flex-1">
-      {#if mention}<div
+      {#if mention || links}<div
           bind:this={mirror}
           aria-hidden="true"
           data-mention-mirror
           class={cn(
-            "pointer-events-none absolute inset-0 overflow-hidden break-words whitespace-pre-wrap text-transparent",
+            "pointer-events-none absolute inset-0 overflow-hidden break-words whitespace-pre-wrap",
+            styled ? "text-foreground" : "text-transparent",
             FIELD_TYPE,
           )}
         >
-          {#if tinted}{#each segments as segment, index (index)}{#if segment.mention}<mark
-                  class="rounded-sm bg-brand-purple/15 text-transparent ring-2 ring-brand-purple/15"
-                  >{segment.text}</mark
-                >{:else}{segment.text}{/if}{/each}{/if}{"​"}
+          <!-- Same type as the field, so each glyph sits under the textarea's own (transparent) one: the
+               mention is the chat's purple text and the link is its chip, drawn over its token's width. -->
+          {#if styled}{#each parts as part, index (index)}{#if part.kind === "mention"}<mark
+                  data-field-mention
+                  class="rounded-sm bg-brand-purple/15 text-brand-purple-text ring-2 ring-brand-purple/15 [-webkit-text-stroke:0.3px_currentColor]"
+                  >{part.text}</mark
+                >{:else if part.kind === "chip"}<span
+                  data-field-chip={part.token.kind}
+                  data-field-link={part.token.url}
+                  class={cn(
+                    "relative rounded-md ring-3",
+                    part.token.kind === "private"
+                      ? "bg-secondary text-muted-foreground ring-secondary"
+                      : "bg-brand-purple/15 text-brand-purple-text ring-brand-purple/15",
+                  )}
+                  ><span
+                    class="absolute top-1/2 left-0.5 flex size-4 -translate-y-1/2 items-center justify-center"
+                    >{#if part.token.mark.kind === "room"}<RoomMark
+                        title={part.token.mark.title}
+                        src={part.token.mark.icon
+                          ? `/api/books/${encodeURIComponent(part.token.mark.id)}/icon?v=${part.token.mark.icon}`
+                          : undefined}
+                        size="2xs"
+                      />{:else if part.token.mark.kind === "person"}<PersonAvatar
+                        email={part.token.mark.email}
+                        version={part.token.mark.avatar}
+                        size="2xs"
+                      />{:else if part.token.mark.kind === "lock"}<Icon
+                        icon="lock-01"
+                        size={14}
+                      />{:else}<Icon
+                        icon="message-circle-01"
+                        size={16}
+                        class="text-brand-purple-text/70"
+                      />{/if}</span
+                  >{part.text}</span
+                >{:else}{part.text}{/if}{/each}{/if}{"​"}
         </div>{/if}
       <Textarea
         bind:ref={textarea}
@@ -518,11 +664,12 @@
         rows={lines}
         {maxlength}
         {placeholder}
-        {value}
+        value={view.text}
         {...inputProps}
         disabled={off}
         class={cn(
           "relative block max-h-40 min-h-8 min-w-0 flex-1 resize-none rounded-lg bg-transparent break-words shadow-none [field-sizing:content] hover:bg-transparent focus-visible:outline-none md:max-h-64",
+          styled && "text-transparent caret-foreground transition-none",
           FIELD_TYPE,
         )}
         onscroll={() => {
@@ -531,21 +678,38 @@
         oninput={(event) => {
           if (!ok()) return;
           speech.cancel();
+          const node = event.currentTarget,
+            back = fromView(view, node.value, known),
+            at = back.at(node.selectionStart);
           typedAt =
             "inputType" in event && event.inputType === "insertText"
-              ? event.currentTarget.selectionStart
+              ? node.selectionStart
               : -1;
-          onedit(event.currentTarget.value);
-          readCaret();
+          onedit(back.text);
+          // A pasted link to a room turns into its chip: the field's text changes under the caret.
+          const next = viewOf(back.text);
+          if (next.text !== node.value) {
+            node.value = next.text;
+            const shown = toView(next, at);
+            node.setSelectionRange(shown, shown);
+            typedAt = -1;
+          }
+          caret = toStored(next, node.selectionStart);
+          selectionEnd = toStored(next, node.selectionEnd);
           oninputtext?.();
         }}
-        onselect={readCaret}
-        onclick={readCaret}
+        oncopy={(event) => clip(event, false)}
+        oncut={(event) => clip(event, true)}
+        onselect={() => readCaret()}
+        onclick={() => readCaret()}
         onkeyup={(event) => {
           speech.keyup(event);
-          readCaret();
+          readCaret(event.key === "ArrowLeft" || event.key === "ArrowUp");
         }}
         onkeydown={keydown}
+        onpaste={(event) => {
+          if (ok()) markdownPaste(event);
+        }}
         onblur={() => {
           if (!waiting) speech.cancel();
           onblurfield?.();

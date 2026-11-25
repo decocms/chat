@@ -195,6 +195,11 @@
                     >{text("inRooms", {
                       rooms: person.rooms.join(", "),
                     })}</span
+                  >{:else if person.domain}<span
+                    class="block truncate text-xs text-muted-foreground"
+                    >{text("sameDomain", {
+                      domain: person.email.split("@")[1] ?? "",
+                    })}</span
                   >{/if}</span
               ></button
             >

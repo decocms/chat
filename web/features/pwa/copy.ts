@@ -30,6 +30,8 @@ const en = {
   tryAgain: "Try again",
   offer: "Notify you when someone talks to you?",
   offerOn: "Turn on",
+  offerOff: "Off on this device",
+  offerLater: "Not now",
 } as const;
 const pt: Record<keyof typeof en, string> = {
   close: "Fechar",
@@ -62,6 +64,8 @@ const pt: Record<keyof typeof en, string> = {
   tryAgain: "Tentar de novo",
   offer: "Avisar quando falarem com você?",
   offerOn: "Ativar",
+  offerOff: "Desligadas aqui",
+  offerLater: "Agora não",
 };
 export const pwaText = (lang: string, key: keyof typeof en) =>
   lang.startsWith("en") ? en[key] : pt[key];

@@ -124,8 +124,29 @@
     return () => clearTimeout(timer);
   });
   // A person alone in a call is not recorded, and gets no warning.
+  // A DM's call is recorded only when both say yes (Book.callConsent): the stage asks, and says who is waited for.
+  const consent = $derived(
+    room.book.dm && room.callRecorded
+      ? (room.consent ?? { yes: [], no: [] })
+      : null,
+  );
+  const ask = $derived(
+    !!consent &&
+      !recording &&
+      !consent.no.length &&
+      !consent.yes.includes(room.me),
+  );
+  const consented = $derived(
+    !consent ||
+      (!consent.no.length &&
+        peers.every((peer) => consent.yes.includes(peer.email))),
+  );
   const unrecorded = $derived(
-    !!room.callRecorded && !recording && waited && peers.length > 1,
+    !!room.callRecorded &&
+      !recording &&
+      waited &&
+      peers.length > 1 &&
+      consented,
   );
   // The person I put on the stage (a click on a tile). Gone from the call: the grid again.
   let pinned = $state("");
@@ -293,7 +314,34 @@
             <TooltipContent side="bottom"
               >{t("Gravando: esta call vai para o Grain")}</TooltipContent
             >
-          </Tooltip>{:else if unrecorded}<span
+          </Tooltip>{:else if ask}<span
+            data-call-consent
+            role="status"
+            class="flex shrink-0 items-center gap-1.5 font-medium text-call-foreground"
+            >{t(
+              "Gravar esta call no Grain? Só grava se as duas pessoas aceitarem.",
+            )}<Button
+              size="sm"
+              variant="secondary"
+              data-call-consent-yes
+              onclick={() => send({ t: "call.consent", yes: true })}
+              >{t("Gravar")}</Button
+            ><Button
+              size="sm"
+              variant="outline"
+              data-call-consent-no
+              onclick={() => send({ t: "call.consent", yes: false })}
+              >{t("Não gravar")}</Button
+            ></span
+          >{:else if consent && !recording && consent.no.length}<span
+            data-call-consent-declined
+            class="shrink-0 rounded-full bg-call-chip px-2 py-1 font-medium text-call-foreground"
+            >{t("Esta call não vai ser gravada")}</span
+          >{:else if consent && !recording && !consented}<span
+            data-call-consent-waiting
+            class="shrink-0 rounded-full bg-call-chip px-2 py-1 font-medium text-call-foreground"
+            >{t("Gravação: esperando a outra pessoa aceitar")}</span
+          >{:else if unrecorded}<span
             data-call-unrecorded
             role="alert"
             class="flex shrink-0 items-center gap-1.5 rounded-full bg-warning px-2 py-1 font-medium text-warning-foreground"

@@ -15,6 +15,7 @@
   import {
     canEditMessage,
     canStartThread,
+    threadFrom,
     startsThread,
     continues,
     issueParts,
@@ -73,6 +74,8 @@
   let threadBusy = false,
     threadError = $state("");
   const threadable = $derived(!origin && canStartThread(room, m));
+  // A message with a thread offers "Abrir thread" instead (Gimenes #5068).
+  const hasThread = $derived(origin ? undefined : threadFrom(room, m));
   const editable = $derived(!origin && canEditMessage(room, m));
   // Edited in place (like Discord): the text is a box until Enter or Esc; no toolbar meanwhile.
   const editing = $derived(
@@ -254,6 +257,7 @@
   data-continuous={continuous || undefined}
   data-fire-hot={fireHot}
   data-waiting={waiting}
+  data-editing={editing || undefined}
   use:highlight
   use:swipeMessage={{
     enabled: !origin && !editing,
@@ -282,6 +286,8 @@
     waiting ? "border-l-2 border-warning bg-warning/10" : "",
     attention ? "animate-pulse motion-reduce:animate-none" : "",
     flash || sheet ? "bg-accent" : "",
+    // While its text is a box, the message looks selected exactly like on hover, even with the mouse elsewhere.
+    editing ? "bg-accent/55" : "",
     fireHot
       ? "after:pointer-events-none after:absolute after:inset-0 after:animate-pulse after:rounded-surface after:ring-2 after:ring-warning motion-reduce:after:animate-none"
       : "",
@@ -541,7 +547,12 @@
       me={room.me}
       message={m}
       roomId={room.id}
-      onthread={threadable ? () => void startThread() : undefined}
+      onthread={threadable
+        ? () => void startThread()
+        : hasThread
+          ? () => actions.openThread?.(hasThread)
+          : undefined}
+      threadOpen={!threadable && !!hasThread}
       canEdit={editable}
       canDelete={!m.deleted &&
         !startsThread(room, m) &&

@@ -19,6 +19,7 @@ import type {
   ApplicationRoomIntent,
 } from "../web/features/application/types";
 import { homeApi, me, manualClock, settle, deferred } from "./home-fixtures";
+import { createRoomVisits } from "../web/features/navigation/recent";
 
 function canonical(id = "aaaaaa", account = "me@test.com"): Room {
   return {
@@ -101,7 +102,9 @@ function fixture(
     saveToken: async () => ({ ok: true }),
     removeToken: async () => ({ ok: true }),
   };
+  const visits = createRoomVisits(null);
   const services = createApplicationServices({
+    visits,
     browser: {
       origin: "http://vb.test",
       href: () => href,
@@ -228,6 +231,7 @@ function fixture(
   });
   return {
     services,
+    visits,
     connections,
     channels,
     history,
@@ -862,5 +866,33 @@ test("a room switch starts its view transition before anything changes, holds it
   expect(h.services.rootRoom.read().roomId).toBe(dmB);
   void updates[4]!();
   expect(h.services.rootRoom.read().roomId).toBe("cccccc");
+  h.services.dispose();
+});
+
+test("coming back to a room by itself reopens the thread you left; a link still goes where it says", async () => {
+  const h = fixture("http://vb.test/b/aaaaaa");
+  h.services.start();
+  await settle();
+  await h.services.personal.refresh();
+  const email = get(h.services.personal.state).me!.email;
+  const room = { ...canonical("aaaaaa", email) };
+  room.epics = [{ id: "e1", title: "E1", tasks: [] }];
+  h.connections[0]!.callbacks.onEvent(event(room));
+  const shell = adapter();
+  h.services.attachRoom(h.services.roomScope()!, shell.owner);
+  h.services.actions.selectThread("e1");
+  expect(h.visits.last(email, "aaaaaa")).toBe("e1");
+  expect(h.visits.recent(email, "aaaaaa")).toEqual(["e1"]);
+  h.services.actions.navigate({ roomId: "bbbbbb" });
+  expect(applicationRoute(h.history.at(-1)!)).toMatchObject({
+    target: { roomId: "bbbbbb", thread: "main" },
+  });
+  h.connections.at(-1)!.callbacks.onEvent(event(canonical("bbbbbb", email)));
+  h.services.attachRoom(h.services.roomScope()!, adapter().owner);
+  h.services.actions.navigate({ roomId: "aaaaaa" });
+  expect(new URL(h.history.at(-1)!, "http://vb.test").search).toBe("?t=e1");
+  h.services.actions.navigate({ roomId: "bbbbbb" });
+  h.services.actions.navigate({ roomId: "aaaaaa", thread: "main" });
+  expect(new URL(h.history.at(-1)!, "http://vb.test").search).toBe("");
   h.services.dispose();
 });

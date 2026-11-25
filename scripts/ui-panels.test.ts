@@ -28,6 +28,7 @@ import type { FilesProps } from "../web/features/files/types";
 import type { PeopleAction } from "../web/features/people/model";
 import { createComposerDrafts } from "../web/features/composer/drafts";
 import { editingMessage, startEditing } from "../web/features/chat/editing";
+import { appFocusRequest } from "../web/features/room-layout/focus";
 
 // Compile the real components, then run their DOM events with the browser Svelte
 // runtime. Run with: bun test --conditions=browser scripts/ui-panels.test.ts
@@ -341,7 +342,7 @@ function hoverMessages(target: HTMLElement) {
 }
 
 test("a copy across messages reads as WhatsApp's; inside one message's text the browser copies (Gimenes #3955)", async () => {
-  const { selectedMessageIds, transcriptText } =
+  const { selectedMessages, transcriptText } =
     await import("../web/features/chat/clipboard");
   const root = window.document.createElement("section");
   root.innerHTML =
@@ -356,17 +357,15 @@ test("a copy across messages reads as WhatsApp's; inside one message's text the 
   };
   const a = root.querySelector("#a")!.firstChild!;
   const b = root.querySelector("#b")!.firstChild!;
-  expect(selectedMessageIds(range(a, a), root as unknown as Element)).toBe(
-    null,
-  );
-  expect(selectedMessageIds(range(a, b), root as unknown as Element)).toEqual([
-    "1",
-    "2",
-  ]);
+  const ids = (r: Range) =>
+    selectedMessages(r, root as unknown as Element)?.map((m) => m.id) ?? null;
+  expect(ids(range(a, a))).toBe(null);
+  expect(ids(range(a, b))).toEqual(["1", "2"]);
   const head = root.querySelector("[data-message-head]")!.firstChild!;
-  expect(
-    selectedMessageIds(range(head, a), root as unknown as Element),
-  ).toEqual(["1"]);
+  expect(ids(range(head, a))).toEqual(["1"]);
+  expect(selectedMessages(range(head, a), root as unknown as Element)).toEqual([
+    { id: "1", text: "f", whole: false, head: true },
+  ]);
   expect(
     transcriptText([
       { when: "14:02, 23/11/2026", who: "Ana", text: "first line\nmore " },
@@ -627,7 +626,7 @@ describe("room panels", () => {
       }
     }
   }, 30_000);
-  test("account row: you at a sidebar's foot (or a phone's top bar) is a link to your settings page", async () => {
+  test("account row: you in the user center (or a phone's top bar) is a link to your settings page", async () => {
     const { default: AccountRow } =
       await import("../web/features/app-navigation/AccountRow.svelte");
     const me = {
@@ -903,9 +902,10 @@ describe("room panels", () => {
       }),
     );
     try {
-      // Three signals: the one number (asks and reviews together), the new-messages dot, the ✻. The cloud is words only.
+      // Three signals: the one number (the messages that ask you; a task in review lives in the Inbox), the
+      // new-messages dot, the ✻. The cloud is words only.
       expect(target.querySelector("[data-room-badge=cloud]")).toBeNull();
-      expect(target.querySelector("[data-count]")?.textContent).toBe("2");
+      expect(target.querySelector("[data-count]")?.textContent).toBe("1");
       expect(
         target.querySelector('[data-room-badge="unread-human"]'),
       ).not.toBeNull();
@@ -1562,6 +1562,117 @@ describe("chat", () => {
       },
     };
   }
+  describe("copy in the timeline", () => {
+    const people = (): Room => ({
+      ...fixture(),
+      messages: [
+        { ...message(1, "hello world"), author: "ana@test", kind: null },
+        { ...message(2, "second message"), author: "bia@test", kind: null },
+      ],
+    });
+    const textOf = (target: HTMLElement, id: number) =>
+      target.querySelector(`[data-chat-message="${id}"] [data-rich-content]`)!;
+    // The text node that holds a message's words.
+    const wordsOf = (node: Node): Node =>
+      node.nodeType === Node.TEXT_NODE && node.textContent?.trim()
+        ? node
+        : [...node.childNodes].map(wordsOf).find(Boolean)!;
+    const select = (from: [Node, number], to: [Node, number]) => {
+      const range = window.document.createRange();
+      range.setStart(...from);
+      range.setEnd(...to);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    };
+    const copy = (on: Element) => {
+      const event = new (
+        window as unknown as { ClipboardEvent: typeof ClipboardEvent }
+      ).ClipboardEvent("copy", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: new (
+          window as unknown as { DataTransfer: typeof DataTransfer }
+        ).DataTransfer(),
+      });
+      on.dispatchEvent(event);
+      return {
+        text: event.clipboardData!.getData("text/plain"),
+        native: !event.defaultPrevented,
+      };
+    };
+    const line = (
+      m: import("../web/app/chatTypes").ChatMessage,
+      text: string,
+    ) =>
+      `[09:00, ${new Date(m.ts).toLocaleDateString(undefined)}] ${vb.name(m.author)}: ${text}`;
+    afterEach(() => window.getSelection()?.removeAllRanges());
+
+    test("a part of one message's text copies as the browser copies it", () => {
+      const h = renderChat(people());
+      flushSync();
+      const text = textOf(h.target, 1);
+      const words = wordsOf(text);
+      select([words, 2], [words, 7]);
+      expect(window.getSelection()!.toString()).toBe("llo w");
+      expect(copy(text)).toEqual({ text: "", native: true });
+    });
+
+    test("a part of one message's text that ends past the text copies only that part, not the full message", () => {
+      const h = renderChat(people());
+      flushSync();
+      const text = textOf(h.target, 1);
+      const words = wordsOf(text);
+      const body = h.target.querySelector(
+        '[data-chat-message="1"] [data-message-body]',
+      )!;
+      select([words, 6], [body, body.childNodes.length]);
+      expect(copy(text)).toEqual({ text: "world", native: false });
+    });
+
+    test("a selection across messages copies the selected part of each message, one line each", () => {
+      const room = people();
+      const h = renderChat(room);
+      flushSync();
+      const first = textOf(h.target, 1);
+      const a = wordsOf(first);
+      const b = wordsOf(textOf(h.target, 2));
+      select([a, 6], [b, 6]);
+      expect(copy(first)).toEqual({
+        text: `${line(room.messages[0]!, "world")}\n${line(room.messages[1]!, "second")}`,
+        native: false,
+      });
+      select([a, 0], [b, "second message".length]);
+      expect(copy(first).text).toBe(
+        `${line(room.messages[0]!, "hello world")}\n${line(room.messages[1]!, "second message")}`,
+      );
+    });
+
+    test("a selection in a field (the edit box) copies as the browser copies it", () => {
+      const h = renderChat(people());
+      flushSync();
+      const body = h.target.querySelector(
+        '[data-chat-message="1"] [data-message-body]',
+      )!;
+      const field = window.document.createElement("textarea");
+      field.value = "hello world";
+      body.append(field);
+      select(
+        [body, body.childNodes.length - 1],
+        [body, body.childNodes.length],
+      );
+      expect(copy(field)).toEqual({ text: "", native: true });
+    });
+
+    test("with no selection the copy is the browser's", () => {
+      const h = renderChat(people());
+      flushSync();
+      const text = textOf(h.target, 1);
+      const words = wordsOf(text);
+      select([words, 3], [words, 3]);
+      expect(copy(text)).toEqual({ text: "", native: true });
+    });
+  });
   test("production endcard shows requested corrections without rewriting verified or done state", async () => {
     const room = fixture();
     room.epics = [
@@ -2810,21 +2921,79 @@ describe("chat", () => {
     const attachments = target.querySelector<HTMLElement>(
       "#m8 [data-message-attachments]",
     )!;
-    attachments
-      .querySelector<HTMLAnchorElement>('a[href$="old-version"]')!
-      .click();
+    // Every file is the same card as a room app: same block, tile, name, "EXT · size" meta and quiet icons.
+    const fileCard =
+      attachments.querySelector<HTMLElement>("[data-file-card]")!;
+    const appLike = attachments.querySelector<HTMLElement>(
+      "[data-room-app-card]",
+    )!;
+    expect(fileCard.className).toBe(appLike.className);
+    expect(fileCard.querySelector("[data-card-icon]")!.className).toBe(
+      appLike.querySelector("[data-card-icon]")!.className,
+    );
+    expect(fileCard.querySelector("[data-card-name]")!.textContent).toBe(
+      "report.html",
+    );
+    expect(fileCard.querySelector("[data-card-meta]")!.textContent).toBe(
+      "HTML · 1 KB",
+    );
+    expect(
+      fileCard.querySelector("[data-file-expand]")!.getAttribute("aria-label"),
+    ).toBe("Abrir em tela cheia");
+    expect(
+      fileCard.querySelector("[data-file-download]")!.getAttribute("download"),
+    ).toBe("report.html");
+    fileCard.querySelector<HTMLButtonElement>("[data-file-open]")!.click();
     expect(opened).toEqual(["old-version"]);
+    attachments
+      .querySelector<HTMLAnchorElement>(
+        'a[data-file-expand][href$="old-version"]',
+      )!
+      .click();
+    expect(opened).toEqual(["old-version", "old-version"]);
     expect(attachments.querySelector("audio")?.getAttribute("src")).toContain(
       "/audio",
     );
     expect(attachments.querySelector("img")?.getAttribute("src")).toContain(
       "/image",
     );
-    const appRow = attachments.querySelector("[data-room-app-row]")!;
-    expect(appRow.textContent).toContain("demo");
-    expect(appRow.querySelector("iframe,a")).toBeNull();
-    appRow.querySelector<HTMLButtonElement>("button")!.click();
+    const appCard = attachments.querySelector<HTMLElement>(
+      '[data-room-app-card="demo"]',
+    )!;
+    expect(appCard.className).toContain("max-w-md");
+    expect(appCard.className).toContain("bg-secondary-hover");
+    expect(appCard.className).toContain("rounded-2xl");
+    expect(appCard.className).not.toMatch(/\/\d|border|shadow/);
+    expect(appCard.querySelector("[data-card-icon] svg")).not.toBeNull();
+    expect(appCard.textContent).toContain("demo");
+    expect(appCard.querySelector("[data-card-meta]")!.textContent!.trim()).toBe(
+      "App · you@test",
+    );
+    expect(appCard.querySelector("iframe,a")).toBeNull();
+    expect(
+      appCard
+        .querySelector("[data-room-app-beside]")!
+        .getAttribute("aria-label"),
+    ).toBe("Abrir ao lado");
+    expect(
+      appCard
+        .querySelector("[data-room-app-expand]")!
+        .getAttribute("aria-label"),
+    ).toBe("Expandir");
+    appFocusRequest.set(null);
+    appCard.querySelector<HTMLButtonElement>("[data-room-app-open]")!.click();
     expect(apps).toEqual([{ connection: "room", tool: "demo" }]);
+    expect(get(appFocusRequest)).toBeNull();
+    appCard.querySelector<HTMLButtonElement>("[data-room-app-expand]")!.click();
+    expect(apps).toHaveLength(2);
+    expect(get(appFocusRequest)).toBe("demo");
+    appCard.querySelector<HTMLButtonElement>("[data-room-app-beside]")!.click();
+    expect(apps).toEqual([
+      { connection: "room", tool: "demo" },
+      { connection: "room", tool: "demo" },
+      { connection: "room", tool: "demo" },
+    ]);
+    expect(get(appFocusRequest)).toBeNull();
     expect(attachments.querySelectorAll("iframe")).toHaveLength(1);
     const iframe = attachments.querySelector("iframe")!;
     expect(mountedEmbeds).toHaveLength(1);
@@ -3372,6 +3541,13 @@ describe("chat", () => {
       expect(input.value).toBe("hello");
       expect(document.activeElement).toBe(input);
       expect(input.selectionStart).toBe(5);
+      // Selected like on hover for as long as the box is open, mouse or not.
+      const row = target.querySelector<HTMLElement>("#m3")!;
+      expect(row.dataset.editing).toBe("true");
+      expect(row.classList).toContain("bg-accent/55");
+      expect(target.querySelector<HTMLElement>("#m1")!.classList).not.toContain(
+        "bg-accent/55",
+      );
       expect(target.querySelector("#m3 [data-message-toolbar]")).toBeNull();
       expect(target.querySelector('[data-reaction-row="3"]')).toBeNull();
       expect(target.querySelector('[data-reaction-row="1"]')).not.toBeNull();
@@ -3384,6 +3560,8 @@ describe("chat", () => {
       type(input, "changed");
       expect(key(input, "Escape").defaultPrevented).toBe(true);
       expect(box(target)).toBeNull();
+      expect(row.dataset.editing).toBeUndefined();
+      expect(row.classList).not.toContain("bg-accent/55");
       expect(target.querySelector("#m3")?.textContent).toContain("hello");
       expect(requests).toEqual([]);
     });
@@ -3434,6 +3612,9 @@ describe("chat", () => {
       expect(requests).toEqual([
         { t: "msg.edit", id: 3, text: "saved by click" } satisfies RoomCommand,
       ]);
+      expect(target.querySelector<HTMLElement>("#m3")!.classList).not.toContain(
+        "bg-accent/55",
+      );
       startEditing("r", 3);
       flushSync();
       target
@@ -3826,7 +4007,7 @@ describe("stable sidebar integration", () => {
       onopen: (id) => {
         opened.push(id);
       },
-      ondonechange: () => {},
+      onviewchange: () => {},
       vb: {
         ...vb,
         epicBusy: () => null,
@@ -4117,7 +4298,9 @@ describe("stable sidebar integration", () => {
         ...vb,
         epicBusy: () => null,
         waitsIn: (id: string) =>
-          id === "main" ? [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }] : [],
+          id === "main"
+            ? [{ ref: "m1" }, { ref: "m4" }, { ref: "a2" }, { ref: "t3" }]
+            : [],
         waitsInRoom: () => [{ ref: "m9" }],
       },
     });
@@ -4125,9 +4308,10 @@ describe("stable sidebar integration", () => {
       "button[data-room-title]",
     )!;
     expect(title.querySelector("[data-room-mark]")).not.toBeNull();
+    // Only the unread messages that ask you: the task and Claude's question are in the Inbox.
     expect(
       title.querySelector("[data-wait-badge] [data-count]")?.textContent,
-    ).toBe("3");
+    ).toBe("2");
     // The Inbox is global (the rail, or the phone Home's bar): a room has no entry to it.
     expect(h.target.querySelector("[data-inbox-toggle]")).toBeNull();
     const rename = title.parentElement!.querySelector(
@@ -4161,20 +4345,26 @@ describe("stable sidebar integration", () => {
     const title = h.target.querySelector("button[data-room-title]")!;
     expect(title.querySelector("[data-wait-badge]")).toBeNull();
   });
-  test("epic and rail indicators count asks and task reviews in one lime number", async () => {
+  test("epic and rail indicators count the unread asks in one red number; task reviews stay in the Inbox", async () => {
     const room = fixture();
     const base = {
       ...vb,
       epicBusy: () => "Claude",
       waitsIn: (id: string) =>
         id === "e"
-          ? [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }, { ref: "t4" }]
+          ? [
+              { ref: "m1" },
+              { ref: "m5" },
+              { ref: "a2" },
+              { ref: "t3" },
+              { ref: "t4" },
+            ]
           : [],
     };
     const h = sidebar(room, { vb: base });
     const epic = h.target.querySelector('[data-epic="e"]')!;
     const badge = epic.querySelector("[data-wait-badge] [data-count]");
-    expect(badge?.textContent?.trim()).toBe("4");
+    expect(badge?.textContent?.trim()).toBe("2");
     // One colour for every kind of wait: red (Valls).
     expect(badge?.className.split(/\s+/)).toContain("bg-destructive");
     // One slot at the end (Gimenes #3904): the count takes the status's place.
@@ -4185,7 +4375,8 @@ describe("stable sidebar integration", () => {
       ...h.props,
       vb: {
         ...base,
-        waitsIn: (id: string) => (id === "e" ? [{ ref: "t3" }] : []),
+        waitsIn: (id: string) =>
+          id === "e" ? [{ ref: "m3" }, { ref: "t4" }] : [],
       },
     });
     await tick();
@@ -4197,7 +4388,7 @@ describe("stable sidebar integration", () => {
     h.view.update({
       ...h.props,
       collapsed: true,
-      vb: { ...base, waitsIn: () => [{ ref: "t3" }] },
+      vb: { ...base, waitsIn: () => [{ ref: "m3" }, { ref: "t4" }] },
     });
     await tick();
     flushSync();
@@ -4254,6 +4445,53 @@ describe("stable sidebar integration", () => {
       ),
     ).toBeNull();
   }, 30_000);
+  test("the threads tabs are Mine, Open and Done; Mine lists your open threads and each empty tab says so", () => {
+    const room = fixture();
+    room.epics = [
+      { id: "e", title: "Epic", tasks: [], owner: "me@test" },
+      { id: "theirs", title: "Theirs", tasks: [], owner: "you@test" },
+      { id: "old", title: "Old", tasks: [], owner: "me@test", done: true },
+    ];
+    const listed = (rendered: ReturnType<typeof sidebar>) =>
+      [...rendered.target.querySelectorAll<HTMLElement>("li[data-epic]")].map(
+        (row) => row.dataset.epic,
+      );
+    const open = sidebar(room);
+    expect(
+      [...open.target.querySelectorAll<HTMLElement>("[data-threads-tab]")].map(
+        (tab) => tab.textContent?.trim(),
+      ),
+    ).toEqual(["Mine", "Open", "Done"]);
+    expect(listed(open)).toEqual(["e", "theirs"]);
+    expect(open.target.querySelector("[data-epics-empty]")).toBeNull();
+    open.destroy();
+    const mine = sidebar(room, {
+      navigation: createNavigationSession(room.id, "mine"),
+    });
+    expect(listed(mine)).toEqual(["e"]);
+    mine.destroy();
+    const done = sidebar(room, {
+      navigation: createNavigationSession(room.id, "done"),
+    });
+    expect(listed(done)).toEqual(["old"]);
+    done.destroy();
+    const empty = { ...room, epics: [room.epics[1]!] };
+    const nothingMine = sidebar(empty, {
+      navigation: createNavigationSession(room.id, "mine"),
+    });
+    expect(listed(nothingMine)).toEqual([]);
+    expect(
+      nothingMine.target.querySelector("[data-epics-empty=mine]")?.textContent,
+    ).toContain("Nenhuma thread aberta é sua");
+    nothingMine.destroy();
+    const nothingDone = sidebar(empty, {
+      navigation: createNavigationSession(room.id, "done"),
+    });
+    expect(
+      nothingDone.target.querySelector("[data-epics-empty=done]")?.textContent,
+    ).toContain("Nenhuma thread feita ainda");
+    nothingDone.destroy();
+  });
   test("the threads list has no Nova thread and no title form: a thread starts from a message (Gimenes #4286)", () => {
     const rendered = sidebar(fixture());
     expect(rendered.target.querySelector("[data-new-epic]")).toBeNull();
@@ -4380,7 +4618,7 @@ describe("stable sidebar integration", () => {
       onopenpinapp: () => {},
       send: () => true,
       onopen: () => {},
-      ondonechange: () => {},
+      onviewchange: () => {},
       friends: ["friend@test"],
       vb: sidebarBridge,
     };
@@ -5917,6 +6155,288 @@ describe("composer ownership and interactions", () => {
     await dialogClosed();
     expect(input.value).toBe("before 🔥 after");
   }, 30_000);
+  test("# suggests rooms then this room's threads, filters as you type, inserts the link, and the sent link is the room's chip", async () => {
+    const room: Room = { ...fixture(), id: "abcdef12" };
+    const rooms = [
+      { id: "abcdef12", title: "Room", icon: 0 },
+      { id: "zzzzzz99", title: "Projeto Ágil", icon: 0 },
+      { id: "yyyyyy77", title: "Vendas", icon: 0 },
+    ];
+    const { target, entry } = renderComposer(room, { rooms });
+    const key = (input: HTMLTextAreaElement, name: string) => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: name,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      flushSync();
+    };
+    // "#" alone: every room, then this room's open threads.
+    let input = edit(target, "#");
+    const listbox = () => target.querySelector('[role="listbox"]');
+    expect(listbox()?.getAttribute("aria-label")).toBe("Mencionar sala");
+    expect(
+      [...target.querySelectorAll("[data-room-pick]")].map((item) =>
+        item.getAttribute("data-room-pick"),
+      ),
+    ).toEqual(["abcdef12", "zzzzzz99", "yyyyyy77", "abcdef12?t=e"]);
+    // A thread row is its icon, the room (muted), a chevron and the title, the same size as a room row.
+    expect(
+      target.querySelector('[data-room-pick="abcdef12?t=e"]')?.textContent,
+    ).toBe("RoomEpic");
+    // Typing filters (accents folded); Esc closes.
+    input = edit(target, "veja #agi");
+    expect(listbox()?.textContent).toContain("Projeto Ágil");
+    expect(listbox()?.textContent).not.toContain("Vendas");
+    key(input, "Escape");
+    expect(listbox()).toBeNull();
+    // Arrows and Enter pick; the draft gets the room's plain link.
+    input = edit(target, "veja #");
+    key(input, "ArrowDown");
+    key(input, "Enter");
+    await tick();
+    flushSync();
+    expect(get(entry.state).text).toBe(`veja ${location.origin}/b/zzzzzz99 `);
+    // A thread of this room links with ?t=.
+    input = edit(target, "#epi");
+    key(input, "Tab");
+    await tick();
+    flushSync();
+    expect(get(entry.state).text).toBe(`${location.origin}/b/abcdef12?t=e `);
+    // Sent, the links are the app link chips that a pasted URL already makes: the room's mark and name, the
+    // thread, and "Sala privada" for a room you can't see.
+    globalThis.fetch = (async (request: RequestInfo | URL) => {
+      const url = String(request instanceof Request ? request.url : request);
+      return Response.json(
+        url.includes("zzzzzz99")
+          ? {
+              kind: "room",
+              room: "zzzzzz99",
+              title: "Projeto Ágil",
+              icon: null,
+            }
+          : { kind: "private" },
+      );
+    }) as typeof fetch;
+    const text = `veja ${location.origin}/b/zzzzzz99 e ${location.origin}/b/abcdef12?t=e e ${location.origin}/b/xxxxxx55`;
+    const sent: Room = {
+      ...room,
+      messages: [{ id: 1, author: "you@test", text, thread: "main", ts: 1000 }],
+    };
+    const chatTarget = document.createElement("div");
+    document.body.append(chatTarget);
+    active.push(
+      mountView("chat", chatTarget, {
+        room: sent,
+        thread: "main",
+        list: sent.messages,
+        vb: chatBridge,
+        actions: {
+          request: async (): Promise<CommandOutcome> => ({ ok: true }),
+          draftReply: () => {},
+          reply: () => {},
+          navigate: () => {},
+          openFile: () => {},
+        },
+        onloadolder: () => {},
+      }),
+    );
+    for (
+      let frame = 0;
+      frame < 20 && !chatTarget.querySelector('[data-app-link="private"]');
+      frame++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      flushSync();
+    }
+    expect(
+      chatTarget.querySelector('a[data-app-link="room"]')?.textContent,
+    ).toContain("Projeto Ágil");
+    expect(
+      chatTarget.querySelector('a[data-app-link="thread"]')?.textContent,
+    ).toContain("Epic");
+    expect(
+      chatTarget.querySelector('[data-app-link="private"]')?.textContent,
+    ).toContain("Sala privada");
+  }, 30_000);
+  test("a picked room shows in the field as its chip, one unit: Backspace deletes it whole, copy keeps the link", async () => {
+    const room: Room = { ...fixture(), id: "abcdef12" };
+    const rooms = [
+      { id: "abcdef12", title: "Room", icon: 0 },
+      { id: "zzzzzz99", title: "Projeto Ágil", icon: 0 },
+    ];
+    const { target, entry } = renderComposer(room, { rooms });
+    const key = (input: HTMLTextAreaElement, name: string) => {
+      const event = new KeyboardEvent("keydown", {
+        key: name,
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      flushSync();
+      return event;
+    };
+    let input = edit(target, "veja #proj");
+    key(input, "Enter");
+    await tick();
+    flushSync();
+    const url = `${location.origin}/b/zzzzzz99`;
+    // The draft keeps the link; the field shows the chip (the room's mark and name), not the URL.
+    expect(get(entry.state).text).toBe(`veja ${url} `);
+    expect(input.value).not.toContain("http");
+    expect(input.value).toContain("Projeto\u00a0Ágil");
+    const chip = target.querySelector<HTMLElement>('[data-field-chip="room"]')!;
+    expect(chip.getAttribute("data-field-link")).toBe(url);
+    expect(chip.textContent).toContain("Projeto\u00a0Ágil");
+    expect(chip.querySelector("[data-room-mark]")).not.toBeNull();
+    expect(chip.className).toContain("bg-brand-purple/15");
+    expect(chip.className).toContain("text-brand-purple-text");
+    // The textarea's own text is transparent: the mirror draws it, chip included.
+    expect(input.className).toContain("text-transparent");
+    // The caret can't sit inside the chip: a click in it goes to its end.
+    const from = "veja ".length,
+      to = input.value.length - 1;
+    input.setSelectionRange(from + 3, from + 3);
+    input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    flushSync();
+    expect(input.selectionStart).toBe(to);
+    // Copy keeps the link.
+    input.setSelectionRange(0, input.value.length);
+    const copied = new Event("copy", {
+      bubbles: true,
+      cancelable: true,
+    }) as ClipboardEvent;
+    let clipboard = "";
+    Object.defineProperty(copied, "clipboardData", {
+      value: { setData: (_: string, text: string) => (clipboard = text) },
+    });
+    input.dispatchEvent(copied);
+    expect(clipboard).toBe(`veja ${url} `);
+    // Backspace right after the chip selects all of it, so the browser's delete removes it in one go.
+    input.setSelectionRange(to, to);
+    const back = key(input, "Backspace");
+    expect(back.defaultPrevented).toBe(false);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([from, to]);
+    input.value = input.value.slice(0, from) + input.value.slice(to);
+    input.setSelectionRange(from, from);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    expect(get(entry.state).text).toBe("veja  ");
+    expect(target.querySelector("[data-field-chip]")).toBeNull();
+    // A pasted link to one of your rooms (or a thread of this one) becomes its chip too.
+    input = edit(target, `${location.origin}/b/abcdef12?t=e`);
+    expect(get(entry.state).text).toBe(`${location.origin}/b/abcdef12?t=e`);
+    expect(
+      target.querySelector('[data-field-chip="thread"]')?.textContent,
+    ).toContain("Room\u00a0›\u00a0Epic");
+    expect(input.selectionStart).toBe(input.value.length);
+  }, 30_000);
+  test("a pasted link to anywhere in the app turns into the chat's chip in the field: another room's thread, a message, a room you can't see", async () => {
+    const room: Room = { ...fixture(), id: "abcdef12" };
+    const rooms = [{ id: "abcdef12", title: "Room", icon: 0 }];
+    const asked: string[] = [];
+    globalThis.fetch = (async (request: RequestInfo | URL) => {
+      const url = String(request instanceof Request ? request.url : request);
+      asked.push(url);
+      if (url.includes("tttttt22"))
+        return Response.json({
+          kind: "thread",
+          room: "tttttt22",
+          thread: "x1",
+          title: "Lançamento",
+          owner: null,
+          ownerName: null,
+        });
+      if (url.includes("mmmmmm11"))
+        return Response.json({
+          kind: "message",
+          room: "mmmmmm11",
+          id: 7,
+          thread: "main",
+          author: "ana@test",
+          name: "Ana",
+          avatar: null,
+          threadTitle: null,
+          roomTitle: "Vendas",
+        });
+      return Response.json({ kind: "private" });
+    }) as typeof fetch;
+    const { target, entry } = renderComposer(room, { rooms });
+    const thread = `${location.origin}/b/tttttt22?t=x1`,
+      message = `https://chat.decocms.com/b/mmmmmm11#m7`,
+      locked = `${location.origin}/b/pppppp33`,
+      other = "https://example.com/b/qqqqqq44";
+    const text = `veja ${thread} e ${message} e ${locked} e ${other}`;
+    const input = target.querySelector<HTMLTextAreaElement>("textarea")!;
+    input.focus();
+    edit(target, text);
+    // Until the answers come, the field shows the plain links.
+    expect(input.value).toContain(thread);
+    for (
+      let frame = 0;
+      frame < 40 && target.querySelectorAll("[data-field-chip]").length < 3;
+      frame++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      flushSync();
+    }
+    // The draft keeps every link; the field draws the three app links as the chat's chips, the other link as text.
+    expect(get(entry.state).text).toBe(text);
+    const chip = (kind: string) =>
+      target.querySelector<HTMLElement>(`[data-field-chip="${kind}"]`);
+    expect(chip("thread")?.getAttribute("data-field-link")).toBe(thread);
+    expect(chip("thread")?.textContent).toContain("Lançamento");
+    expect(chip("message")?.getAttribute("data-field-link")).toBe(message);
+    expect(chip("message")?.textContent).toContain("Ana\u00a0em\u00a0Vendas");
+    expect(chip("private")?.getAttribute("data-field-link")).toBe(locked);
+    expect(chip("private")?.textContent).toContain("Sala\u00a0privada");
+    expect(chip("private")?.className).toContain("bg-secondary");
+    expect(input.value).not.toContain("tttttt22");
+    expect(input.value).not.toContain("mmmmmm11");
+    expect(input.value).not.toContain("pppppp33");
+    expect(input.value).toContain(other);
+    expect(asked.some((url) => url.includes("qqqqqq44"))).toBe(false);
+    // The swap keeps the caret where it was: after the last link, at the end.
+    expect(input.selectionStart).toBe(input.value.length);
+    // Editing around the chips keeps each one its own link, even two with the same words.
+    const second = `${location.origin}/b/pppppp34`;
+    input.value = input.value + " " + second + " ";
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    for (
+      let frame = 0;
+      frame < 40 &&
+      target.querySelectorAll('[data-field-chip="private"]').length < 2;
+      frame++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      flushSync();
+    }
+    expect(target.querySelectorAll('[data-field-chip="private"]').length).toBe(
+      2,
+    );
+    input.value = "oi " + input.value;
+    input.setSelectionRange(3, 3);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    expect(get(entry.state).text).toBe(`oi ${text} ${second} `);
+  }, 30_000);
+  test("an @mention in the field is drawn in the chat's mention purple", () => {
+    const room = fixture();
+    const { target } = renderComposer(room);
+    const input = edit(target, "oi @you");
+    const mark = target.querySelector<HTMLElement>("[data-field-mention]");
+    expect(mark?.textContent).toBe("@you");
+    expect(mark?.className).toContain("text-brand-purple-text");
+    expect(input.className).toContain("text-transparent");
+    // Plain text keeps the field's own color.
+    edit(target, "oi");
+    expect(target.querySelector("[data-field-mention]")).toBeNull();
+    expect(input.className).not.toContain("text-transparent");
+  });
   test("more menu keyboard focus and thread drafts stay scoped across remounts", async () => {
     const room = fixture();
     const { target, update } = renderComposer(room);
@@ -5936,8 +6456,8 @@ describe("composer ownership and interactions", () => {
     const items = target.querySelectorAll<HTMLButtonElement>(
       '[role="menu"] button',
     );
-    // Attach, mention and poll (no "O que precisa de mim aqui?", Gimenes #4155).
-    expect(items.length).toBe(3);
+    // Attach, mention someone, mention a room and poll (no "O que precisa de mim aqui?", Gimenes #4155).
+    expect(items.length).toBe(4);
     expect(document.activeElement === items[0]).toBe(true);
     items[0].dispatchEvent(
       new KeyboardEvent("keydown", {
@@ -7066,7 +7586,7 @@ describe("collapsed sidebar and typed presence", () => {
       },
       send: () => false,
       onopen: () => {},
-      ondonechange: () => {},
+      onviewchange: () => {},
       onopenpinfile: () => {},
       onopenpinapp: () => {},
       ontogglerail: () => {
