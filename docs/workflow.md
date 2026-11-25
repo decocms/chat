@@ -113,6 +113,34 @@ The Worker `chat` (chat.decocms.com, in the deco Cloudflare account) deploys wit
 - Each push to another branch runs the same build, then `npx wrangler preview`. That makes a Worker Preview at `https://<branch>-chat.deco-cx.workers.dev`. The Preview uses the `previews` block of `wrangler.jsonc`: its own D1 (`chat-preview`), KV and R2 (`chat-preview-files`), its own Durable Object storage and its own `SESSION_SECRET`. It never touches production data. Preview URLs are public.
 - To make a Preview from a computer: `npx wrangler preview --name <name>`. To delete it: `npx wrangler preview delete --name <name>`.
 
+## Test the call locally
+
+Each change to the call (`web/features/call/`, `src/calls.ts`, `recorder/`) gets this test, and its screenshots go in the pull request.
+
+1. In `.dev.vars`, set `REALTIME_SFU_APP_ID` and `REALTIME_SFU_APP_SECRET` (the SFU app; the media goes through it) and `DEV_EMAIL`.
+2. Run `bun run build:ui`, then `bun run dev`.
+3. Run `bun scripts/call-browser.ts`. Two people (fake microphone, camera and screen) join a call, share a screen and leave. The screenshots go to `/tmp/vibebook-call-browser` (`TEST_OUTPUT_DIR`).
+
+To test the recorder too:
+
+1. In `.dev.vars`, also set `RECORDER_URL=http://127.0.0.1:8790`, `RECORDER_SECRET` (any long value) and `CALL_RECORD_ROOMS=*`. Restart `bun run dev`.
+2. Build and start the recorder's container. Give it a Grain token only if the test may send a recording to Grain; else give it any value, and the upload fails after the transcript:
+
+   ```
+   cd recorder/container && docker build -t chat-recorder:local .
+   docker run -d --name rec -p 8789:8080 -e RECORDER_SECRET=<same> -e GRAIN_API_TOKEN=<token or x> chat-recorder:local
+   ```
+
+3. The container opens the chat at `127.0.0.1:8797`, which is its own address in Docker. Forward that port to the computer:
+
+   ```
+   docker exec -d rec node -e "const n=require('net');n.createServer(c=>{const s=n.connect(8797,'host.docker.internal');c.pipe(s).pipe(c);c.on('error',()=>{});s.on('error',()=>{})}).listen(8797,'127.0.0.1')"
+   ```
+
+4. Run `RECORDER_SECRET=<same> CF_TOKEN=<token that can run Workers AI> bun scripts/call-recorder-local.ts`. It stands in for the recorder Worker.
+5. Run `TEST_RECORDER=1 bun scripts/call-browser.ts`. Read the container's log with `docker logs rec`: it shows who it saw, the transcript lines and each step. With a fake Grain token, the last step fails at the upload, as expected.
+6. Remove the container: `docker rm -f rec`.
+
 ## The call recorder
 
 The recorder (`recorder/`) is a Worker of its own, `chat-recorder`, with a container. Workers Builds does not deploy it.
