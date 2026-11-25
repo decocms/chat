@@ -156,9 +156,9 @@
               aria-hidden="true"
               data-readers-check
               class={[
-                "relative z-0 -mb-1 inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full bg-muted pr-[3px] pl-[4px] text-[8px] font-bold leading-none tracking-[-0.25em] text-muted-foreground shadow-[0_0_0_1.5px_var(--vb-background)]",
+                "relative z-0 -mb-1 inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full bg-muted pr-[3px] pl-[5px] text-[8px] font-bold leading-none tracking-[-0.25em] text-muted-foreground shadow-[0_0_0_1.5px_var(--vb-background)]",
                 // Under the +X circle's corner, or just under the last face's agent badge.
-                more ? "-ml-1.5" : "ml-0",
+                more ? "-ml-2.5" : "-ml-[3px]",
               ]}>{read ? "✓✓" : "✓"}</span
             >{/if}
         </span>
