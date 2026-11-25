@@ -1198,6 +1198,7 @@ const EN: Readonly<Record<string, string>> = {
   "Não deu pra copiar o arquivo {name}. Tente de novo.":
     "Couldn't copy the file {name}. Try again.",
   "Não deu pra encaminhar. Tente de novo.": "Couldn't forward. Try again.",
+  "Não deu pra copiar. Tente de novo.": "Couldn't copy. Try again.",
   "Encaminhado de {from}": "Forwarded from {from}",
   "Anexo: {name}": "Attachment: {name}",
   "Anexos: {names}": "Attachments: {names}",

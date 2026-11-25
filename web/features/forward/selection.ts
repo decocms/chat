@@ -1,6 +1,8 @@
 import { get, writable } from "svelte/store";
 import type { ChatMessage } from "../../app/chatTypes";
+import { copyChatText } from "../chat/clipboard";
 import { pickMessage } from "./model";
+import type { ForwardPort } from "./types";
 
 /**
  * Selection mode of "Encaminhar" (forward), like WhatsApp: the messages picked in one thread. A store, as
@@ -61,4 +63,29 @@ export function clickForward(
     messages,
     ranged: current.ranged || (shift && current.anchor !== null),
   });
+}
+
+/**
+ * "Copiar" in the bar: the picked messages, in thread order, go to the clipboard as the forward package. Then
+ * selection mode ends. If the browser refuses the copy, selection mode stays and the result is false.
+ */
+export async function copyForward(
+  port: Pick<ForwardPort, "text" | "copied">,
+  write: (text: string) => Promise<void> = copyChatText,
+): Promise<boolean> {
+  const current = get(forwardSelection);
+  if (!current?.ids.length) return false;
+  const messages = current.ids.flatMap((id) =>
+    current.messages[id] ? [current.messages[id]] : [],
+  );
+  try {
+    await write(port.text(messages));
+  } catch {
+    return false;
+  }
+  port.copied(messages, current.ranged);
+  const now = get(forwardSelection);
+  if (now?.room === current.room && now.thread === current.thread)
+    stopForward();
+  return true;
 }

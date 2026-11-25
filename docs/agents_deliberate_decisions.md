@@ -2137,3 +2137,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. One D1 row per forward. No text leaves the browser.
 - Undo: Remove the route, `ForwardedBody` and `reportForward`.
 - Status: open
+
+### 2026-11-25 · viktor/forward-messages · Forward bar: Copiar puts the package in the clipboard
+
+- Agent: claude-opus-5-5
+- Context: Rafael Valls asked for a button that copies the selected messages to the clipboard, next to the forward to a room or thread. Viktor approved it and said to copy the same package as the forward. Nobody said how files go, what the feedback is, or how phones show the button.
+- Decision:
+  - "Copiar" copies the forward package as plain text (`forwardPackage`, the same function the forward uses): "Encaminhado de {room} › {thread}", then each message as a "> " quote with `**name**`, time and date. Files go as their names ("> Anexo: plano.pdf"), because the clipboard helper (`copyChatText`) writes text only. Each message is copied as the room has it now: an edit after the pick counts.
+  - On success, selection mode ends and the room notice (`showNotice`, the pill at the foot of the room) says "Copiado" for 2.5 s. The bar goes away at once, so the word cannot be in the bar. On failure, the bar stays with "Não deu pra copiar. Tente de novo." in it, and the person can press Copiar again.
+  - Copiar is an outline button with `copy-01`. Phones show only the icon (the word stays for screen readers), so the count still fits next to the x and Encaminhar.
+  - The copy counts as a forward: `messages_forwarded` with `to: "clipboard"` and `thread: false`. No new route.
+- Other options: The WhatsApp-style transcript ("[time] name: text", `transcriptText`) that the browser copy of a selection makes; it reads better in a mail, but it is a second format for the same action. A separate event `messages_copied` (a second route for one button).
+- Risk: low. The Markdown marks (`>`, `**`) show as text where the paste target does not read Markdown.
+- Undo: Remove the Copiar button, `copyForward`, `ForwardPort.text`/`copied` and the `clipboard` value of `ForwardedBody.to`.
+- Status: open

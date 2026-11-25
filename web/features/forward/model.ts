@@ -1,5 +1,6 @@
-import type { ChatMessage } from "../../app/chatTypes";
-import { messageKind } from "../chat/model";
+import type { ChatBridge, ChatMessage } from "../../app/chatTypes";
+import { messageAuthor, messageKind } from "../chat/model";
+import { chatTime } from "../chat/time";
 
 /** A message you can forward: a person's or an agent's message with text or files. Not a notice, an issue, a
  *  reminder, a deleted message or an agent that is still typing. */
@@ -90,6 +91,27 @@ export function forwardText(
   });
   if (!blocks.length) return "";
   return `${t("Encaminhado de {from}", { from })}\n${blocks.join("\n>\n")}`;
+}
+
+/** The package of whole messages, oldest first: each message's author, time ("14:32, 25/11/2026"), text and file
+ *  names. "Encaminhar" puts it in a composer, "Copiar" puts it in the clipboard. */
+export function forwardPackage(
+  messages: readonly ChatMessage[],
+  from: string,
+  vb: Pick<ChatBridge, "t" | "name"> & { locale: string },
+): string {
+  return forwardText(
+    [...messages]
+      .sort((a, b) => a.id - b.id)
+      .map((message) => ({
+        who: messageAuthor(message, vb),
+        when: `${chatTime(vb.locale, message.ts)}, ${new Date(message.ts).toLocaleDateString(vb.locale)}`,
+        text: message.text ?? "",
+        files: (message.files ?? []).map((file) => file.name),
+      })),
+    from,
+    vb.t,
+  );
 }
 
 /** The package after what the composer already holds, with an empty line between them. */

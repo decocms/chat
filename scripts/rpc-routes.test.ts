@@ -620,6 +620,17 @@ test("a forward sends counts only, from a member of the room", async () => {
     expect((await f.json("/api/books/room/forwarded", bad)).status).toBe(
       "text" in bad ? 200 : 400,
     );
+  // "Copiar" counts as a forward to the clipboard.
+  expect(
+    (
+      await f.json("/api/books/room/forwarded", {
+        ...body,
+        to: "clipboard",
+        thread: false,
+      })
+    ).status,
+  ).toBe(200);
+  expect(events.at(-1)?.dims?.to).toBe("clipboard");
   const outsider = fixture({ isMember: async () => false, track });
   expect((await outsider.json("/api/books/room/forwarded", body)).status).toBe(
     403,

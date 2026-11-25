@@ -616,6 +616,8 @@ if (flag("publish")) {
  * "Encaminhar" (forward, --forward): every state at 1440 and 390 px, and a video of the desktop flow. Two test people
  * talk in a new room (Bruno joins with the dev_as cookie), Ana's message has an image, and the room has a thread.
  * The forward goes to a second new room, "Sala destino", whose composer gets the package; nothing is sent.
+ * Then "Copiar" in the bar, at both widths: the bar with Copiar, and the room's "Copiado" after the copy. The run
+ * fails if the clipboard does not hold the package.
  */
 async function forwardScreens(
   browser: import("playwright").Browser,
@@ -662,6 +664,7 @@ async function forwardScreens(
     // Desktop in Portuguese, the phone in English: both languages of each text.
     locale: "pt-BR",
     recordVideo: { dir: video, size: { width: 1440, height: 900 } },
+    permissions: ["clipboard-read", "clipboard-write"],
   });
   const desk = await context.newPage();
   await desk.goto(`${base}/b/${source}`, { waitUntil: "networkidle" });
@@ -745,6 +748,31 @@ async function forwardScreens(
   await row(desk, "Encaminhado de").waitFor();
   await desk.mouse.move(0, 0);
   await shot(desk, "forward-sent-1440.png");
+  // "Copiar": back in the source room, three messages to the clipboard.
+  const copied = async (page: Page, pt: boolean) => {
+    await page
+      .locator("aside[role=status]", { hasText: pt ? "Copiado" : "Copied" })
+      .waitFor();
+    await page.locator("[data-forward-bar]").waitFor({ state: "detached" });
+    const text = await page.evaluate(() => navigator.clipboard.readText());
+    const head = pt ? "Encaminhado de Evento de fim de ano" : "Forwarded from";
+    const file = pt ? "> Anexo: plano-do-evento.png" : "> Attachment:";
+    if (!text.startsWith(head) || !text.includes(file))
+      throw new Error(`Copiar: the clipboard holds ${JSON.stringify(text)}`);
+  };
+  await desk.goto(`${base}/b/${source}`, { waitUntil: "networkidle" });
+  await row(desk, "Combinado. Obrigada").waitFor();
+  await row(desk, "fechei o orçamento").hover();
+  await row(desk, "fechei o orçamento").locator("[data-forward]").click();
+  await desk.locator("[data-forward-bar] [role=toolbar]").waitFor();
+  await row(desk, "Dá sim. A primeira").click();
+  await row(desk, "Segue o plano").click();
+  await desk.locator("[data-forward-copy]").hover();
+  await shot(desk, "forward-copy-1440.png");
+  await desk.locator("[data-forward-copy]").click();
+  await copied(desk, true);
+  await desk.mouse.move(0, 0);
+  await shot(desk, "forward-copied-1440.png");
   await context.close();
   const recorded = await desk.video()?.path();
   if (recorded) {
@@ -788,8 +816,33 @@ async function forwardScreens(
   await phone.locator("[data-forward-open]").tap();
   await phone.locator("[data-forward-picker]").waitFor();
   await shot(phone, "forward-picker-390.png");
+  // Filtered, as on desktop: a dev database with many test rooms lists the new one past the first rooms.
+  await phone.keyboard.type("destino");
   await phone.locator(`[data-forward-target="${target}:main"]`).tap();
   await phone.waitForURL(new RegExp(`/b/${target}`));
   await filled(phone);
   await shot(phone, "forward-composer-390.png");
+  // "Copiar" on the phone: the bar shows its icon only.
+  await phone.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await phone.goto(`${base}/b/${source}`, { waitUntil: "networkidle" });
+  await row(phone, "Combinado. Obrigada").waitFor();
+  const again = (await row(phone, "fechei o orçamento").boundingBox())!;
+  const at = [{ x: again.x + again.width / 2, y: again.y + again.height / 2 }];
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: at,
+  });
+  await phone.waitForTimeout(700);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await phone.locator("[data-sheet-forward]").tap();
+  await phone.locator("[data-forward-bar] [role=toolbar]").waitFor();
+  await row(phone, "Dá sim. A primeira").tap();
+  await row(phone, "Segue o plano").tap();
+  await shot(phone, "forward-copy-390.png");
+  await phone.locator("[data-forward-copy]").tap();
+  await copied(phone, false);
+  await shot(phone, "forward-copied-390.png");
 }

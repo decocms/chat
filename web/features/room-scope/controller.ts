@@ -4,7 +4,7 @@ import { derived, get, readonly, writable } from "svelte/store";
 import type { Attachment, Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
 import type { RequestRoomCommand } from "../../app/roomConnection";
-import type { ChatActions, ChatBridge } from "../../app/chatTypes";
+import type { ChatActions, ChatBridge, ChatMessage } from "../../app/chatTypes";
 import type {
   RootRoomSnapshot,
   RootRoomTransition,
@@ -68,9 +68,9 @@ import {
   permissionAsk,
 } from "../chat/privacy";
 import { canAnswer, choicesOf } from "../chat-interactive/eligibility";
-import { messageAuthor, threadWorkers } from "../chat/model";
+import { threadWorkers } from "../chat/model";
 import { forwardDestinations, searchThreads } from "../forward/destinations";
-import { forwardText, withDraft } from "../forward/model";
+import { forwardPackage, withDraft } from "../forward/model";
 import { holdForward, takeForward } from "../forward/pending";
 import { reportForward } from "../forward/api";
 import type { ForwardOutcome, ForwardPort } from "../forward/types";
@@ -640,6 +640,17 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     if (clock) clock.schedule(focus, 80);
     else setTimeout(focus, 80);
   }
+  /** The forward package of these messages: "Encaminhado de <room> › <thread>", then each message as a quote. */
+  function forwardPackageOf(value: Room, messages: readonly ChatMessage[]) {
+    const epic = value.epics.find((item) => item.id === selected());
+    const from = [
+      roomLabel(me(), value.id, value.book.title, lang === "en" ? "en" : "pt"),
+      epic?.title,
+    ]
+      .filter(Boolean)
+      .join(" › ");
+    return forwardPackage(messages, from, { t, name, locale });
+  }
   /** "Encaminhar": the messages as one quote (forwardText) and a copy of each file go to the composer of the
    *  destination, and the app goes there. Nothing is sent: the person presses Enter. */
   async function forwardTo(
@@ -672,23 +683,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         }
         if (!current()) return { ok: false, error: "gone" };
       }
-    const epic = value.epics.find((item) => item.id === thread);
-    const from = [
-      roomLabel(me(), value.id, value.book.title, lang === "en" ? "en" : "pt"),
-      epic?.title,
-    ]
-      .filter(Boolean)
-      .join(" › ");
-    const text = forwardText(
-      list.map((message) => ({
-        who: messageAuthor(message, { t, name }),
-        when: `${chatTime(locale, message.ts)}, ${new Date(message.ts).toLocaleDateString(locale)}`,
-        text: message.text ?? "",
-        files: (message.files ?? []).map((file) => file.name),
-      })),
-      from,
-      t,
-    );
+    const text = forwardPackageOf(value, list);
     holdForward({
       account: scope.account,
       roomId: target.roomId,
@@ -733,6 +728,36 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         scope.roomId,
       ),
     send: (target, messages, ranged) => forwardTo(target, messages, ranged),
+    // "Copiar": each message as the room has it now (an edit after the pick counts), else as it was picked.
+    text: (messages) => {
+      const value = room();
+      if (!value) return "";
+      const live = roomMessages(value);
+      return forwardPackageOf(
+        value,
+        messages.map(
+          (message) => live.find((item) => item.id === message.id) ?? message,
+        ),
+      );
+    },
+    copied: (messages, ranged) => {
+      if (!current()) return;
+      showNotice(t("Copiado"), 2500);
+      reportForward(
+        scope.roomId,
+        {
+          n: messages.length,
+          files: messages.reduce(
+            (sum, message) => sum + (message.files?.length ?? 0),
+            0,
+          ),
+          to: "clipboard",
+          thread: false,
+          range: ranged,
+        },
+        browser.fetcher,
+      );
+    },
   };
   function reply(id: number, draft?: { thread: string; text: string }) {
     if (!current() || defer(() => reply(id, draft))) return;

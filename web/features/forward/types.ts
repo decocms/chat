@@ -19,4 +19,8 @@ export type ForwardPort = Readonly<{
     messages: readonly ChatMessage[],
     ranged: boolean,
   ): Promise<ForwardOutcome>;
+  /** "Copiar": the package that `send` puts in a composer, as plain text. The files go by name only. */
+  text(messages: readonly ChatMessage[]): string;
+  /** The package is in the clipboard: the room says "Copiado" and counts it. */
+  copied(messages: readonly ChatMessage[], ranged: boolean): void;
 }>;

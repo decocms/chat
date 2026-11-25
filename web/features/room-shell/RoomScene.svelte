@@ -57,6 +57,7 @@
   import DeferredViewStatus from "../deferred-view/DeferredViewStatus.svelte";
   import ForwardBar from "../forward/ForwardBar.svelte";
   import {
+    copyForward,
     forwardPicking,
     forwardSelection,
     stopForward,
@@ -595,6 +596,10 @@
           vb={$view.composer.vb}
           oncancel={stopForward}
           onforward={() => forwardPicking.set(true)}
+          oncopy={() =>
+            $view?.chat?.actions.forward
+              ? copyForward($view.chat.actions.forward)
+              : Promise.resolve(false)}
         />{/if}<Composer
         {...$view.composer}
         hidden={$view.composer.hidden || forwarding}
