@@ -376,3 +376,55 @@ test("a dragged row whose node moved shows above the page again (Gimenes #4232)"
   }
   expect(relift(null)).toBe(false);
 });
+
+test("sidebar epics: your last threads go first after the pinned ones", () => {
+  const epic = (id: string, extra: Partial<Epic> = {}): Epic => ({
+    id,
+    title: id,
+    tasks: [],
+    ...extra,
+  });
+  const epics = [
+    epic("old", { last: 10 }),
+    epic("pin", { pinned: true, last: 1 }),
+    epic("new", { last: 30 }),
+    epic("mine", { last: 2 }),
+    epic("gone", { last: 3 }),
+  ];
+  expect(
+    sidebarEpics(epics, [], ["mine", "old", "deleted"]).map((e) => e.id),
+  ).toEqual(["pin", "mine", "old", "new", "gone"]);
+});
+
+test("room visits: the room reopens the thread you left, and the recent three keep their order", async () => {
+  const { createRoomVisits, recordRecent } =
+    await import("../web/features/navigation/recent");
+  expect(recordRecent(["a", "b", "c"], "b")).toEqual(["a", "b", "c"]);
+  expect(recordRecent(["a", "b", "c"], "d")).toEqual(["d", "a", "b"]);
+  expect(recordRecent(["a"], "main")).toEqual(["a"]);
+  const saved = new Map<string, string>();
+  const storage = {
+    getItem: (k: string) => saved.get(k) ?? null,
+    setItem: (k: string, v: string) => void saved.set(k, v),
+  };
+  const visits = createRoomVisits(storage, () => 1);
+  visits.enter("me@x.com", "room1", "e1");
+  visits.enter("me@x.com", "room1", "e2");
+  visits.enter("me@x.com", "room1", "main");
+  visits.enter("me@x.com", "room1", "pre:0");
+  expect(visits.last("me@x.com", "room1")).toBe("main");
+  expect(visits.recent("me@x.com", "room1")).toEqual(["e2", "e1"]);
+  visits.enter("me@x.com", "room1", "e1");
+  const again = createRoomVisits(storage);
+  expect(again.last("me@x.com", "room1")).toBe("e1");
+  expect(again.recent("me@x.com", "room1")).toEqual(["e2", "e1"]);
+  expect(again.last("other@x.com", "room1")).toBeNull();
+  const broken = createRoomVisits({
+    getItem: () => "{not json",
+    setItem: () => {
+      throw new Error("full");
+    },
+  });
+  broken.enter("me@x.com", "room1", "e1");
+  expect(broken.last("me@x.com", "room1")).toBe("e1");
+});

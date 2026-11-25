@@ -15,6 +15,7 @@ import {
   applicationLocale,
   createApplicationCopy,
 } from "./copy";
+import { roomVisits } from "../navigation/recent";
 
 /** IndexedDB, or undefined where reading it throws (a private window, blocked site data): rooms then stay in memory. */
 function readIndexedDb(win: Window): IDBFactory | undefined {
@@ -165,6 +166,7 @@ export function createBrowserApplicationServices(options: {
     roomCache: createRoomCache(readIndexedDb(win)),
     runnerFetch: fetcher,
     onIdentityReset: options.onIdentityReset,
+    visits: roomVisits,
   });
   return {
     ...services,
