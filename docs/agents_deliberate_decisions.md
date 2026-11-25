@@ -1789,3 +1789,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit and deploy the recorder again. To stop recording at once, remove `CALL_RECORD_ROOMS` from the chat's secrets.
 - Status: open
 
+
+### 2026-11-24 · danielfurt/app-composer-draft · An MCP app can put a draft in the composer
+
+- Agent: Claude Opus 5.5
+- Context: Daniel reviews blog posts in the content-os MCP app, in the Apps tab of a room. He selects a passage to comment on it. Each `ui/message` from the app asked "Allow" before the post. Daniel wants the passage to go in the composer of the thread, so that he can type or dictate the comment and send it himself.
+- Decision:
+  - A `ui/message` where each text block has `_meta: {"vibebook/compose": true}` does not post. The text goes in the composer of the thread, after the text that is already there, and the composer gets the focus. There is no question, because nothing goes to the room until the person sends it.
+  - The host context has `"vibebook/compose": true` only where the chat can do this (the Apps tab and app lines in documents). An app that does not see it keeps its own path.
+  - A `ui/message` without the mark on each text block is a post, as before.
+  - There is no `track()` event: no new control shows, and the browser has no event path. The message that the person sends is a normal message.
+- Other options: A new request method (`vibebook/compose`). The SDK on the side of the app sends only the methods that it knows, so an app would need its own code for the request. `ui/update-model-context` (silent, but in a room it has no target). An "always allow" in the confirmation of a post (a post without a question is a larger change in the security model).
+- Risk: low. An app can put text in the composer when the person does not expect it, but it cannot send it. It cannot remove the text of the person.
+- Undo: Revert this commit. Apps then get the question before each post again.
+- Status: open

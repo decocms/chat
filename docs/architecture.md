@@ -111,7 +111,7 @@ A send can become "not confirmed" (a timeout, a dropped socket, a server error) 
 |---|---|---|
 | Native card | `src/card.ts` | A JSON spec. The app draws it. No HTML. |
 | HTML embed and room app | `src/embed.ts`, `apps/<name>.html` files | Runs in a sandboxed iframe with an opaque origin and `connect-src 'none'`. A Jev check runs before it is stored. |
-| MCP connection and MCP app | `src/mcpconn.ts`, `src/mcpauth.ts` | The browser calls the MCP server. Each person signs in with their own account. |
+| MCP connection and MCP app | `src/mcpconn.ts`, `src/mcpauth.ts`, `web/features/apps/bridge.ts` | The browser calls the MCP server. Each person signs in with their own account. A `ui/message` is a post, and the person confirms it first. If each text block has `_meta["vibebook/compose"]`, the text goes in the composer of the thread and the person sends it. |
 | Files | `src/rooms.ts` (`storeFile`), `src/fileHeaders.ts` | Members only. HTML is sandboxed. SVG is not permitted. |
 
 ## Calls (voice, camera and screen)
