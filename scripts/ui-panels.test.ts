@@ -5976,6 +5976,112 @@ describe("composer ownership and interactions", () => {
     await dialogClosed();
     expect(input.value).toBe("before 🔥 after");
   }, 30_000);
+  test("# suggests rooms then this room's threads, filters as you type, inserts the link, and the sent link is the room's chip", async () => {
+    const room: Room = { ...fixture(), id: "abcdef12" };
+    const rooms = [
+      { id: "abcdef12", title: "Room", icon: 0 },
+      { id: "zzzzzz99", title: "Projeto Ágil", icon: 0 },
+      { id: "yyyyyy77", title: "Vendas", icon: 0 },
+    ];
+    const { target } = renderComposer(room, { rooms });
+    const key = (input: HTMLTextAreaElement, name: string) => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: name,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      flushSync();
+    };
+    // "#" alone: every room, then this room's open threads.
+    let input = edit(target, "#");
+    const listbox = () => target.querySelector('[role="listbox"]');
+    expect(listbox()?.getAttribute("aria-label")).toBe("Mencionar sala");
+    expect(
+      [...target.querySelectorAll("[data-room-pick]")].map((item) =>
+        item.getAttribute("data-room-pick"),
+      ),
+    ).toEqual(["abcdef12", "zzzzzz99", "yyyyyy77", "abcdef12?t=e"]);
+    // A thread row is its icon, the room (muted), a chevron and the title, the same size as a room row.
+    expect(
+      target.querySelector('[data-room-pick="abcdef12?t=e"]')?.textContent,
+    ).toBe("RoomEpic");
+    // Typing filters (accents folded); Esc closes.
+    input = edit(target, "veja #agi");
+    expect(listbox()?.textContent).toContain("Projeto Ágil");
+    expect(listbox()?.textContent).not.toContain("Vendas");
+    key(input, "Escape");
+    expect(listbox()).toBeNull();
+    // Arrows and Enter pick; the draft gets the room's plain link.
+    input = edit(target, "veja #");
+    key(input, "ArrowDown");
+    key(input, "Enter");
+    await tick();
+    flushSync();
+    expect(input.value).toBe(`veja ${location.origin}/b/zzzzzz99 `);
+    // A thread of this room links with ?t=.
+    input = edit(target, "#epi");
+    key(input, "Tab");
+    await tick();
+    flushSync();
+    expect(input.value).toBe(`${location.origin}/b/abcdef12?t=e `);
+    // Sent, the links are the app link chips that a pasted URL already makes: the room's mark and name, the
+    // thread, and "Sala privada" for a room you can't see.
+    globalThis.fetch = (async (request: RequestInfo | URL) => {
+      const url = String(request instanceof Request ? request.url : request);
+      return Response.json(
+        url.includes("zzzzzz99")
+          ? {
+              kind: "room",
+              room: "zzzzzz99",
+              title: "Projeto Ágil",
+              icon: null,
+            }
+          : { kind: "private" },
+      );
+    }) as typeof fetch;
+    const text = `veja ${location.origin}/b/zzzzzz99 e ${location.origin}/b/abcdef12?t=e e ${location.origin}/b/xxxxxx55`;
+    const sent: Room = {
+      ...room,
+      messages: [{ id: 1, author: "you@test", text, thread: "main", ts: 1000 }],
+    };
+    const chatTarget = document.createElement("div");
+    document.body.append(chatTarget);
+    active.push(
+      mountView("chat", chatTarget, {
+        room: sent,
+        thread: "main",
+        list: sent.messages,
+        vb: chatBridge,
+        actions: {
+          request: async (): Promise<CommandOutcome> => ({ ok: true }),
+          draftReply: () => {},
+          reply: () => {},
+          navigate: () => {},
+          openFile: () => {},
+        },
+        onloadolder: () => {},
+      }),
+    );
+    for (
+      let frame = 0;
+      frame < 20 && !chatTarget.querySelector('[data-app-link="private"]');
+      frame++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      flushSync();
+    }
+    expect(
+      chatTarget.querySelector('a[data-app-link="room"]')?.textContent,
+    ).toContain("Projeto Ágil");
+    expect(
+      chatTarget.querySelector('a[data-app-link="thread"]')?.textContent,
+    ).toContain("Epic");
+    expect(
+      chatTarget.querySelector('[data-app-link="private"]')?.textContent,
+    ).toContain("Sala privada");
+  }, 30_000);
   test("more menu keyboard focus and thread drafts stay scoped across remounts", async () => {
     const room = fixture();
     const { target, update } = renderComposer(room);
@@ -5995,8 +6101,8 @@ describe("composer ownership and interactions", () => {
     const items = target.querySelectorAll<HTMLButtonElement>(
       '[role="menu"] button',
     );
-    // Attach, mention and poll (no "O que precisa de mim aqui?", Gimenes #4155).
-    expect(items.length).toBe(3);
+    // Attach, mention someone, mention a room and poll (no "O que precisa de mim aqui?", Gimenes #4155).
+    expect(items.length).toBe(4);
     expect(document.activeElement === items[0]).toBe(true);
     items[0].dispatchEvent(
       new KeyboardEvent("keydown", {

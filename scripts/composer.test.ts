@@ -11,6 +11,8 @@ import {
   normalizeFile,
   fileIssue,
   mentionPicks,
+  roomPicks,
+  roomReference,
   knownMention,
   mentionSpans,
   mentionSegments,
@@ -954,4 +956,31 @@ test("the drafts' storage keeps the newest MAX_STORED drafts and survives a stor
   expect(() => safe.write("k", { text: "x" })).not.toThrow();
   expect(safe.read("k")).toBeUndefined();
   expect(() => safe.remove("k")).not.toThrow();
+});
+
+test("# picks rooms (folded, capped) then open threads of this room, and writes their plain link", () => {
+  const room = {
+    id: "abcdef12",
+    book: { title: "Sala", owner: "me@test" },
+    epics: [
+      { id: "e1", title: "Ágil", tasks: [] },
+      { id: "e2", title: "Fechada", tasks: [], done: true },
+    ],
+  };
+  const rooms = [
+    { id: "abcdef12", title: "Sala", icon: 0 },
+    { id: "zzzzzz99", title: "Projeto Ágil", icon: 3 },
+  ];
+  const origin = "https://chat.decocms.com";
+  expect(roomPicks("a#ag", 4, rooms, room, origin)).toBeNull();
+  expect(roomPicks("# x", 3, rooms, room, origin)).toBeNull();
+  const picks = roomPicks("veja #ag", 8, rooms, room, origin)!;
+  expect(picks.start).toBe(5);
+  expect(picks.items.map((item) => item.url)).toEqual([
+    `${origin}/b/zzzzzz99`,
+    `${origin}/b/abcdef12?t=e1`,
+  ]);
+  expect(roomReference(picks.items[1]!)).toBe(`${origin}/b/abcdef12?t=e1`);
+  expect(roomPicks("#", 1, rooms, room, origin)?.items).toHaveLength(3);
+  expect(roomPicks("#nada", 5, rooms, room, origin)).toBeNull();
 });
