@@ -70,9 +70,9 @@ export const SCREEN_TRACK = "screen";
 
 /** A new SFU session (one RTCPeerConnection) for this person, entered in the room's call.
  *  `first`: no person was in the call before, so this join starts it (and its recorder: startRecorder). */
-export async function callJoin(env: Env, bookId: string, email: string, origin: string, thread = "main") {
+export async function callJoin(env: Env, bookId: string, email: string, origin: string) {
   const session = z.object({ sessionId: z.string() }).parse(await sfu(env, "POST", "/sessions/new")).sessionId;
-  const first = await bookStub(env, bookId).callJoin(bookId, email, session, origin, thread);
+  const first = await bookStub(env, bookId).callJoin(bookId, email, session, origin);
   return { session, first: first && !isRecorder(email) };
 }
 

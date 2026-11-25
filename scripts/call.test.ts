@@ -1,4 +1,5 @@
-import { expect, test } from "bun:test";
+import { Database } from "bun:sqlite";
+import { expect, mock, test } from "bun:test";
 import { planTracks, withDtx } from "../web/features/call/session";
 import { meetLink, meetMessage } from "../web/features/call/meet";
 import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "../src/callBudget";
@@ -159,4 +160,120 @@ test("each person in a call has a color of their own while there are colors left
   expect(new Set(Object.values(callColors(emails))).size).toBe(6);
   // The same person, the same color, as long as nobody before them has it.
   expect(callColors(["a@x.test"])["a@x.test"]).toBe(callColors(["a@x.test", "zz@x.test"])["a@x.test"]);
+});
+
+// ---- the call's own thread: the real Book over an in-memory SQLite (as scripts/thread-origin.test.ts) ----
+mock.module("cloudflare:workers", () => ({
+  DurableObject: class {
+    ctx: unknown;
+    env: unknown;
+    constructor(ctx: unknown, env: unknown) {
+      this.ctx = ctx;
+      this.env = env;
+    }
+  },
+  WorkerEntrypoint: class {},
+  env: {},
+}));
+const { Book } = await import("../src/book");
+
+function callRoom(bookId = "abcdef") {
+  const db = new Database(":memory:");
+  const cursor = (rows: Record<string, unknown>[], written: number) => ({
+    toArray: () => rows,
+    one: () => rows[0],
+    rowsWritten: written,
+    [Symbol.iterator]: () => rows[Symbol.iterator](),
+  });
+  const sql = {
+    exec(query: string, ...params: (string | number | null)[]) {
+      const text = query.trim();
+      if (!params.length && /;\s*\S/.test(text)) {
+        db.exec(text);
+        return cursor([], 0);
+      }
+      const statement = db.query(text);
+      if (statement.columnNames.length) return cursor(statement.all(...params) as Record<string, unknown>[], 0);
+      return cursor([], statement.run(...params).changes);
+    },
+  };
+  // Each push is a JSON-RPC notification (shared/jsonRpc.ts): its method is the event's `t`.
+  const frames: { t: string; call?: unknown; thread?: string }[] = [];
+  const ws = {
+    readyState: 1,
+    send: (frame: string) => {
+      const { method, params } = JSON.parse(frame) as { method: string; params: object };
+      frames.push({ t: method, ...params });
+    },
+  };
+  const statement = () => {
+    const bound = () => ({ run: async () => ({ meta: { changes: 0 } }), first: async () => null, all: async () => ({ results: [] }) });
+    return { bind: bound, ...bound() };
+  };
+  const ctx = {
+    storage: { sql, getAlarm: async () => null, setAlarm: async () => {} },
+    waitUntil: (p: unknown) => void Promise.resolve(p).catch(() => {}),
+    getWebSockets: () => [ws],
+    getTags: () => ["ana@x.test"],
+    blockConcurrencyWhile: (fn: () => unknown) => fn(),
+  };
+  const book = new Book(
+    ctx as unknown as ConstructorParameters<typeof Book>[0],
+    { DB: { prepare: statement, batch: async () => [] }, DOC_ROOMS: { idFromName: () => "doc", get: () => ({ setText: async () => {} }) } } as unknown as ConstructorParameters<typeof Book>[1],
+  );
+  book.set("book_id", bookId);
+  book.wakeAt = async () => {};
+  const epics = () => db.query(`SELECT id, title, owner, from_msg FROM epics`).all() as { id: string; title: string; owner: string; from_msg: number }[];
+  const main = () => db.query(`SELECT id, author, text FROM messages WHERE thread = 'main' ORDER BY id`).all() as { id: number; author: string; text: string }[];
+  return { book, frames, epics, main };
+}
+
+test("a new call gets its own thread, started from a line in main, and the room says which", () => {
+  const r = callRoom();
+  // 25/11/2026 14:30 in São Paulo.
+  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test", Date.UTC(2026, 10, 25, 17, 30));
+  const [epic] = r.epics();
+  expect(epic).toMatchObject({ title: "Call · 25/11 14:30", owner: "ana@x.test" });
+  expect(r.main()).toEqual([{ id: epic!.from_msg, author: "ana@x.test", text: "Call · 25/11 14:30" }]);
+  expect(r.book.liveCallThread()).toBe(epic!.id);
+  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: epic!.id });
+  // The second person joins the same call: no second thread.
+  r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
+  expect(r.epics()).toHaveLength(1);
+  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: epic!.id });
+});
+
+test("the call's thread stays a normal thread after the call; the next call gets a new one", () => {
+  const r = callRoom();
+  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  const first = r.book.liveCallThread();
+  r.book.callLeave("ana@x.test");
+  expect(r.book.liveCallThread()).toBeUndefined();
+  expect(r.frames.filter((f) => f.t === "call").at(-1)?.thread).toBeUndefined();
+  expect(r.epics().map((e) => e.id)).toEqual([first!]);
+  r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
+  expect(r.epics()).toHaveLength(2);
+  expect(r.book.liveCallThread()).not.toBe(first);
+});
+
+test("the recorder alone starts no thread", () => {
+  const r = callRoom();
+  r.book.callJoin("abcdef", recorderEmail("abcdef"), "s-rec", "https://x.test");
+  expect(r.epics()).toHaveLength(0);
+  expect(r.book.liveCallThread()).toBeUndefined();
+});
+
+test("rooms get a call thread; a DM's call keeps the DM's own chat beside the stage", () => {
+  const room = callRoom();
+  room.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  expect(room.epics()).toHaveLength(1);
+  expect(room.book.liveCallThread()).toBe(room.epics()[0]!.id);
+  const dm = callRoom("dm0123456789abcdef0123");
+  dm.book.callJoin("dm0123456789abcdef0123", "ana@x.test", "s-ana", "https://x.test");
+  dm.book.callJoin("dm0123456789abcdef0123", "bia@x.test", "s-bia", "https://x.test");
+  // No thread and no line in the conversation: the call's chat is the DM itself ("main").
+  expect(dm.epics()).toHaveLength(0);
+  expect(dm.main()).toHaveLength(0);
+  expect(dm.book.liveCallThread()).toBe("main");
+  expect(dm.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: "main" });
 });

@@ -731,22 +731,35 @@ export class Book extends DurableObject<Env> {
   }
   private setCall(peers: CallPeer[]) {
     this.set("call", JSON.stringify(peers));
-    this.broadcast({ t: "call", call: peers });
+    this.broadcast({ t: "call", call: peers, thread: this.liveCallThread() });
   }
   /** One session per person: joining again (another tab or device) replaces the earlier one.
    *  Answers true when no person was in the call before (the recorder is not a person). */
-  callJoin(bookId: string, email: string, session: string, origin: string, thread = "main"): boolean {
+  callJoin(bookId: string, email: string, session: string, origin: string, now = Date.now()): boolean {
     this.bind(bookId);
     const before = this.callPeers(), first = !before.some((p) => !isRecorder(p.email));
     if (first && !isRecorder(email)) {
-      // A new call: where the recorder's link points, no restart of the recorder yet, and the thread that the
-      // person who starts it has open (the call is that thread's: its name is in the recording, its summary goes there).
+      // A new call: where the recorder's link points, no restart of the recorder yet, and its own thread (like a
+      // meeting's chat): the chat beside the stage, then a normal thread where the recording's summary lands. A DM
+      // has no threads: its call is the conversation's.
       this.set("call_origin", origin);
       this.set("call_rec_n", "0");
-      this.set("call_thread", this.epics().some((e) => e.id === thread) ? thread : "main");
+      this.set("call_thread", this.isDm ? "main" : this.newCallThread(email, now));
     }
     this.setCall([...before.filter((p) => p.email !== email), { email, session, tracks: [] }]);
     return first;
+  }
+  /** The thread a new call gets: "Call · 25/11 14:30", started by a line in main from who started the call. */
+  private newCallThread(email: string, now: number): string {
+    const title = `Call · ${new Intl.DateTimeFormat(this.en ? "en-US" : "pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now).replace(",", "")}`;
+    const id = this.createEpic(title);
+    this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, this.threadOrigin({ author: email }, undefined, title), id);
+    this.epicsChanged();
+    return id;
+  }
+  /** The thread of the call that is on; none while nobody is in a call. */
+  liveCallThread(): string | undefined {
+    return this.callPeers().some((p) => !isRecorder(p.email)) ? this.callThread() : undefined;
   }
   /** The thread of the call that is on (or of the last one), if it still exists. */
   private callThread(): string {
@@ -2598,7 +2611,7 @@ export class Book extends DurableObject<Env> {
         avatars,
         online: this.online(),
         // Present only where calls are set up: the app draws the call button from it.
-        ...(callsOn(this.env) ? { call: this.callPeers(), callRecorded: recorderOn(this.env, bookId) } : {}),
+        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId) } : {}),
         receipts: this.receiptsList(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };

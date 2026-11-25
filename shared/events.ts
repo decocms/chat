@@ -144,7 +144,10 @@ export const RoomEventSchemas = {
   poll: event("poll", { poll: PollSchema }),
   online: event("online", { online: strings }),
   // Who is in the room's call and what each one publishes (src/calls.ts).
-  call: event("call", { call: z.array(CallPeerSchema) }),
+  call: event("call", {
+    call: z.array(CallPeerSchema),
+    thread: z.optional(str),
+  }),
   conns: event("conns", {}),
   error: event("error", { error: z.optional(str) }),
   blocked: event("blocked", { text: str, reason: str }),

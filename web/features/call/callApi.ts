@@ -14,7 +14,7 @@ export function createCallApi(fetcher?: FetchLike) {
   const fail = (step: string, status: number) =>
     new Error(`call ${step} ${status}`);
   return {
-    /** `thread`: the thread that the person has open. The call that this join starts is that thread's. */
+    /** `thread`: the thread that the person has open (the server no longer uses it: a new call gets its own thread). */
     async join(roomId: string, thread: string) {
       const response = await api.join.$post({
         param: param(roomId),
