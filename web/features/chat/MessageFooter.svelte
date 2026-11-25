@@ -4,6 +4,7 @@
   import type { MessageFooter } from "./model";
   import { prettyModel } from "./model";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import AvatarStack from "../../lib/components/AvatarStack.svelte";
   import Button from "../../lib/studio/Button.svelte";
   let { footer, vb }: { footer: MessageFooter; vb: ChatBridge } = $props();
   let opened = $state(false),
@@ -35,8 +36,6 @@
       })),
   ]);
   const STACK = 3;
-  // The first face on top, so each face's agent badge sits over the next one.
-  const LAYERS = ["z-[4]", "z-[3]", "z-[2]"] as const;
   const stack = $derived(faces.slice(0, STACK));
   const more = $derived(Math.max(0, faces.length - STACK));
   const label = $derived(
@@ -49,6 +48,13 @@
   const who = (model: string, email: string) =>
     vb.t("{via} de {who}", { via: prettyModel(model), who: vb.name(email) });
 </script>
+
+{#snippet check()}<span
+    aria-hidden="true"
+    data-readers-check
+    class="inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full bg-muted pr-[3px] pl-[4px] text-[8px] font-bold leading-none tracking-[-0.25em] text-muted-foreground ring-2 ring-background"
+    >{read ? "✓✓" : "✓"}</span
+  >{/snippet}
 
 <div
   data-message-footer
@@ -127,41 +133,33 @@
           }
         }}
       >
-        <!-- At most three faces, each tucked under the one before it with a ring
-             in the page's color, then +X in a circle of the same size, then the
-             ✓✓ in a small circle tucked in at the bottom, like each face's
-             agent badge. -->
-        <span class="flex items-end">
-          {#each stack as face, i (`${face.who}|${face.email}`)}<span
+        <!-- The same stack as the phone's room bar: at most three faces, each on
+             top of the one to its left, then +X, then the ✓✓ on top, tucked into
+             the last one's bottom-right. Each face's agent badge sits at its
+             bottom-left, so the face to its right never covers it. -->
+        <AvatarStack
+          size="sm"
+          items={stack}
+          key={(face) => `${face.who}|${face.email}`}
+          {more}
+          after={footer.readers.length ? check : undefined}
+          >{#snippet face(face)}<span
               data-reader-read={face.read}
-              class={["relative inline-flex not-first:-ml-1", LAYERS[i]]}
-            >
-              <PersonAvatar
+              class="relative inline-flex"
+              ><PersonAvatar
                 data-avatar="person"
                 size="xs"
-                class="size-5 shadow-[0_0_0_2px_var(--vb-background)]"
+                class="size-5 ring-2 ring-background"
                 email={face.email}
                 version={vb.avatarVersion(face.email)}
               /><AgentMark
                 size="3xs"
                 tint
                 via={face.who}
-                class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full text-[6px] shadow-[0_0_0_1.5px_var(--vb-background)]"
-              />
-            </span>{/each}{#if more}<span
-              data-readers-more
-              class="relative z-[1] -ml-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-input text-[9px] font-semibold tabular-nums leading-none text-foreground shadow-[0_0_0_2px_var(--vb-background)]"
-              >+{more}</span
-            >{/if}{#if footer.readers.length}<span
-              aria-hidden="true"
-              data-readers-check
-              class={[
-                "relative z-0 -mb-1 inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full bg-muted pr-[3px] pl-[5px] text-[8px] font-bold leading-none tracking-[-0.25em] text-muted-foreground shadow-[0_0_0_1.5px_var(--vb-background)]",
-                // Under the +X circle's corner, or just under the last face's agent badge.
-                more ? "-ml-2.5" : "-ml-[3px]",
-              ]}>{read ? "✓✓" : "✓"}</span
-            >{/if}
-        </span>
+                class="absolute -bottom-0.5 -left-0.5 size-2.5 rounded-full text-[6px] ring-[1.5px] ring-background"
+              /></span
+            >{/snippet}</AvatarStack
+        >
       </Button>
       {#if shown}<div
           id={`${ids}-readers`}
