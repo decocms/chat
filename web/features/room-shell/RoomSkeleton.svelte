@@ -18,6 +18,7 @@
   import { homeText } from "../home/copy";
   import { roomDocumentOpen, roomDocumentWidth } from "../room-layout/preview";
   import { EPIC_PROGRESS, MESSAGE_AVATAR, MESSAGE_ROW } from "./shape";
+  import { storedThreadView } from "../navigation/session";
   import type { BrowserApplicationServices } from "../application/browser";
   /** A room that is still connecting, drawn in the room's own frame (the cells of
    * RoomLayoutFrame: sidebar, chat with its header and composer, the doc on the
@@ -64,6 +65,13 @@
   const documentOpen = roomDocumentOpen(
     typeof window === "undefined" ? undefined : window,
   );
+  // The threads tabs (EpicTree) on the tab this device kept for the room.
+  const threadView = $derived(roomId ? storedThreadView(roomId) : "open");
+  const threadTabs = $derived([
+    { value: "mine", label: t("Mine") },
+    { value: "open", label: t("Open") },
+    { value: "done", label: t("Done") },
+  ]);
   // The main thread's top bar holds the room's search where the thread's name was (RoomHeader, #318).
   const searchLabel = $derived(
     title ? t("Buscar em {room}", { room: title }) : t("Buscar nesta sala"),
@@ -115,11 +123,13 @@
               >{:else}{@render line("w-32")}{/if}
           </div>
           <div
-            class="grid grid-cols-2 rounded-lg bg-sidebar-accent/60 p-0.5 text-center text-xs text-muted-foreground"
+            class="grid grid-cols-3 rounded-lg bg-sidebar-accent/60 p-0.5 text-center text-xs text-muted-foreground"
           >
-            <span class="rounded-md bg-background py-1 text-foreground"
-              >{t("Threads abertas")}</span
-            ><span class="py-1">{t("Feitas")}</span>
+            {#each threadTabs as tab (tab.value)}<span
+                class={tab.value === threadView
+                  ? "rounded-md bg-background py-1 text-foreground"
+                  : "py-1"}>{tab.label}</span
+              >{/each}
           </div>
           <!-- Epic rows (EpicTree): avatar, title, the status at the end, the task bar under. -->
           <div class="-mt-1 flex flex-col gap-1">
