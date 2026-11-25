@@ -14,8 +14,27 @@ export PATH="$HOME/.vibebook/bin:$LOCAL:$PATH"
 step() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 fail() { printf '\n\033[31m%s\033[0m\n' "$1" >&2; exit 1; }
 
+# Before 1.7.0 the CLI talks to vibebook.dev, which is gone: every call gives "unreachable (410)", and its own
+# `vibebook update` can't reach a server to update from (Pedro, tray beta). An older one is replaced, not kept.
+MIN_CLI=1.7.0
+# True when version $1 is older than $2 (x.y.z).
+older() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)" = "$1" ]; }
+cli_version() { vibebook --version 2>/dev/null | head -1 | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || echo 0.0.0; }
+
 step "1/6 vibebook CLI"
-if command -v vibebook >/dev/null 2>&1; then echo "ok: $(command -v vibebook)"
+if command -v vibebook >/dev/null 2>&1; then
+  V=$(cli_version)
+  if older "$V" "$MIN_CLI"; then
+    echo "vibebook $V at $(command -v vibebook) is too old (it talks to vibebook.dev, which is gone): updating"
+    # Installed with npm: update it there, so the old one doesn't stay first in PATH. Else the standalone install.
+    if command -v npm >/dev/null 2>&1 && npm ls -g vibebook.dev >/dev/null 2>&1; then
+      npm i -g vibebook.dev@latest >/dev/null 2>&1 || fail "Couldn't update vibebook. Run: npm i -g vibebook.dev@latest"
+    else curl -fsSL "$ORIGIN/install.sh" | sh; fi
+    hash -r 2>/dev/null || true
+    V=$(cli_version)
+    older "$V" "$MIN_CLI" && fail "vibebook at $(command -v vibebook) is still $V. Remove it, then run this line again."
+  fi
+  echo "ok: $(command -v vibebook) $V"
 else curl -fsSL "$ORIGIN/install.sh" | sh; fi
 
 step "2/6 vibebook in Claude Code"
@@ -32,8 +51,16 @@ step "4/6 vibebook in herdr"
 herdr plugin install --yes decocms/chat/herdr-plugin </dev/null || fail "Couldn't add the vibebook plugin to herdr. Run: herdr plugin install decocms/chat/herdr-plugin"
 
 step "5/6 Connect this computer"
-if [ -f "${VIBEBOOK_HOME:-$HOME/.vibebook}/session.json" ]; then echo "ok: already connected"
-else vibebook login </dev/null || fail "Login didn't finish. Run: vibebook login"; fi
+SESSION="${VIBEBOOK_HOME:-$HOME/.vibebook}/session.json"
+# A session made for another server (vibebook.dev, before CLI 1.7.0) is no connection here: set aside, log in again.
+if [ -f "$SESSION" ] && grep -q "\"origin\": *\"$ORIGIN\"" "$SESSION"; then echo "ok: already connected"
+else
+  if [ -f "$SESSION" ]; then
+    mv "$SESSION" "$SESSION.old"
+    echo "The saved login is for another server (kept as $SESSION.old): logging in to $ORIGIN"
+  fi
+  vibebook login </dev/null || fail "Login didn't finish. Run: vibebook login"
+fi
 
 # The app from the newest tray-v* release of the repo (.github/workflows/release-tray.yml names the files).
 TRAY=""
