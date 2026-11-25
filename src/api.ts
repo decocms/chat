@@ -405,6 +405,8 @@ export const api = roomPosts
       c.get("email"),
       id,
     );
+    // Like Discord's: marking the room read also clears what waited on you there (asks, reviews), so its number goes.
+    await svc.sql(`DELETE FROM waits WHERE book_id = ? AND email = ?`, id, c.get("email"));
     svc.pokeMe(); // your other tabs and devices
     svc.track("book_marked_read", { book: id });
     return c.json(ok, 200);
