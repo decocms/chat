@@ -377,14 +377,27 @@ export const SandboxCard = z.object({
   rate: z.number(),
   cost: z.number(),
   cost_unknown: z.optional(z.boolean()),
+  /** "studio" = a deco Studio agent (src/studioSandbox.ts): no VM to pause, price or open a terminal on. */
+  provider: z.optional(z.literal("studio")),
 });
 export const SandboxesResult = z.object({
   connected: z.boolean(),
   claude: z.boolean(),
+  /** The person connected their deco Studio account, and the organizations they can make a Studio agent from. */
+  studio: z.optional(z.boolean()),
+  studio_orgs: z.optional(
+    z.array(z.object({ slug: z.string(), name: z.string() })),
+  ),
   sandboxes: z.array(SandboxCard),
 });
 export type SandboxesResult = z.infer<typeof SandboxesResult>;
-export const CreateSandboxBody = z.object({ name: z.optional(z.string()) });
+export const CreateSandboxBody = z.object({
+  name: z.optional(z.string()),
+  /** A Studio agent instead of a freestyle sandbox: the organization, and a project's agent id (none = the organization's agent). */
+  studio: z.optional(
+    z.object({ org: z.string(), project: z.optional(z.string()) }),
+  ),
+});
 export const CreateSandboxResult = z.object({
   ok: z.literal(true),
   id: z.string(),

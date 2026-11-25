@@ -75,6 +75,21 @@ const pt = {
   copy: "Copiar",
   copyFailed: "Não deu para copiar. Selecione e copie o texto.",
   copied: "Copiado",
+  studio: "deco Studio",
+  studioConnect: "Conectar",
+  studioHelp:
+    "Um agent de projeto ou da organização no deco Studio, plugado nesta sala. Ele roda no Studio quando você o chama com @nome.",
+  studioOrg: "Organização do Studio",
+  studioProject: "ID do agent do projeto (opcional)",
+  studioCreate: "Criar agent do Studio",
+  studioAgent: "agent do Studio",
+  studioReady: "pronto: chame com @",
+  studioPreparing: "preparando",
+  studioNoOrgs: "Não deu para listar suas organizações do Studio.",
+  removeStudioBody:
+    "Seus agents do Studio nesta e em outras salas param de receber mensagens até você conectar de novo.",
+  removeStudioAgentBody:
+    "O agent sai desta sala. A conversa dele continua no Studio.",
 } as const;
 export type SandboxCopyKey = keyof typeof pt;
 const en: Record<SandboxCopyKey, string> = {
@@ -155,6 +170,21 @@ const en: Record<SandboxCopyKey, string> = {
   copy: "Copy",
   copyFailed: "Could not copy. Select and copy the text.",
   copied: "Copied",
+  studio: "deco Studio",
+  studioConnect: "Connect",
+  studioHelp:
+    "A project's or an organization's agent in deco Studio, plugged into this room. It runs in Studio when you call it with @name.",
+  studioOrg: "Studio organization",
+  studioProject: "Project agent ID (optional)",
+  studioCreate: "Create Studio agent",
+  studioAgent: "Studio agent",
+  studioReady: "ready: call it with @",
+  studioPreparing: "preparing",
+  studioNoOrgs: "Could not list your Studio organizations.",
+  removeStudioBody:
+    "Your Studio agents in this and other rooms stop receiving messages until you connect again.",
+  removeStudioAgentBody:
+    "The agent leaves this room. Its conversation stays in Studio.",
 };
 export const sandboxText = (lang: SandboxLocale, key: SandboxCopyKey): string =>
   (lang === "en" ? en : pt)[key];

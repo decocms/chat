@@ -104,10 +104,15 @@ export function createAgentsApi(fetcher?: FetchLike) {
       room.sandboxes
         .$get({ param: roomParam(id) }, { init: { signal, cache: "no-store" } })
         .then((response) => read(response, SandboxesResult)),
-    create: (id: string, name: string, signal?: AbortSignal) =>
+    create: (
+      id: string,
+      name: string,
+      signal?: AbortSignal,
+      studio?: { org: string; project?: string },
+    ) =>
       room.sandboxes
         .$post(
-          { param: roomParam(id), json: { name } },
+          { param: roomParam(id), json: studio ? { name, studio } : { name } },
           { init: { signal, cache: "no-store" } },
         )
         .then((response) => read(response, CreateSandboxResult)),
@@ -153,6 +158,10 @@ export function createAgentsApi(fetcher?: FetchLike) {
         .then((response) => read(response, OkResult)),
     removeKey: (signal?: AbortSignal) =>
       api.freestyle
+        .$delete({}, { init: { signal, cache: "no-store" } })
+        .then((response) => read(response, OkResult)),
+    removeStudio: (signal?: AbortSignal) =>
+      api.studio
         .$delete({}, { init: { signal, cache: "no-store" } })
         .then((response) => read(response, OkResult)),
     saveToken: (token: string, signal?: AbortSignal) =>

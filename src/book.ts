@@ -50,6 +50,8 @@ import { track } from "./track";
 import { addCallUsage, callsOn, recorderOn, startRecorder } from "./calls";
 import { CALL_THREAD, RING_MS, callLineText, callMinutes, isRecorder } from "../shared/call";
 import { mailFrom, publicOrigin } from "./host";
+import { studioAgentsIn } from "./sandbox";
+import { studioAuth, studioSend, studioWakeText } from "./studioSandbox";
 import { pushTo } from "./webpush";
 import { bumpStat, ensureHandle } from "./profile";
 import { AGENT_RULES } from "../shared/agentRules";
@@ -1221,7 +1223,26 @@ export class Book extends DurableObject<Env> {
     }
     // In a DM every message from a person is for the other one, @ or not (push now, catch-up mail later).
     if ((text.includes("@") || (byPerson && this.isDm)) && !extra.quiet) this.ctx.waitUntil(this.queueMentions(m));
+    // A person named one of their own Studio agents: nothing listens there, so the message is sent to its Studio chat.
+    if (byPerson && text.includes("@") && !extra.quiet && !extra.forWho) this.ctx.waitUntil(this.wakeStudioAgents(m).catch((e) => console.error("studio agent wake", String(e))));
     return m;
+  }
+  /** Sends a person's message to each Studio agent of theirs that it names (src/studioSandbox.ts). Only the author's
+   *  own agents: another member's `@name` never starts a run with someone else's Studio access. */
+  private async wakeStudioAgents(m: Msg) {
+    const bookId = this.get("book_id") ?? "";
+    if (!bookId) return;
+    const agents = await studioAgentsIn(this.env, bookId, m.author);
+    if (!agents.length) return;
+    const named = new Set([...m.text.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].map((x) => foldHandle(x[1])));
+    const origin = publicOrigin(this.env);
+    const book = await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>();
+    for (const a of agents.filter((x) => named.has(x.name))) {
+      const auth = await studioAuth(this.env, origin, m.author, a.target.org);
+      let ok = false;
+      if (auth) ok = await studioSend(this.env, auth, a.threadId, a.target, studioWakeText({ room: bookId, title: String(book?.title ?? ""), name: a.name, thread: m.thread, msgId: m.id, text: m.text })).then(() => true, (e) => { console.error("studio agent send", String(e)); return false; });
+      this.ctx.waitUntil(track(this.env, "studio_agent_wake", { user: m.author, dims: { book: bookId, ok } }));
+    }
   }
 
   /** The author's message with this client_id: this send is a retry of it (docs/architecture.md, "One send, one

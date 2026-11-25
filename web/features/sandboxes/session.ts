@@ -215,7 +215,7 @@ export function createSandboxSession(
             readError: "",
           }));
           credentials.authorize();
-          credentials.sync(data.connected, data.claude);
+          credentials.sync(data.connected, data.claude, data.studio ?? false);
           settle();
           schedule();
         },
@@ -245,7 +245,12 @@ export function createSandboxSession(
     readPromise = job;
     return job;
   }
-  async function run(kind: Operation["kind"], id: string, input: string) {
+  async function run(
+    kind: Operation["kind"],
+    id: string,
+    input: string,
+    studio?: { org: string; project?: string },
+  ) {
     const data = get(state).data;
     if (
       !active ||
@@ -283,7 +288,7 @@ export function createSandboxSession(
       const result = await writer.run<SandboxWriteResult>(
         (signal) =>
           kind === "create"
-            ? api.create(roomId, input, signal)
+            ? api.create(roomId, input, signal, studio)
             : kind === "setup"
               ? api.setup(id, signal)
               : kind === "remove"
@@ -408,8 +413,9 @@ export function createSandboxSession(
         }
       }
     },
-    create(name = "") {
-      return run("create", "", name);
+    /** `studio` = a deco Studio agent of that organization instead of a freestyle sandbox. */
+    create(name = "", studio?: { org: string; project?: string }) {
+      return run("create", "", name, studio);
     },
     power(id: string, action: "start" | "pause", expected: string) {
       const card = get(state).data?.sandboxes.find((item) => item.id === id);

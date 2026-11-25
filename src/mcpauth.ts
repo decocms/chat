@@ -91,8 +91,9 @@ async function clientFor(env: Env, issuer: string, as: AuthorizationServerMetada
   return { id: String(j.client_id), secret: j.client_secret ? String(j.client_secret) : null };
 }
 /** The authorize URL that signs this person into the connection's server; the browser goes there and comes back to callback. */
-export async function startAuth(env: Env, origin: string, o: { email: string; book: string; cid: string; resource: string; back: string; wwwAuth?: string | null }) {
-  const { issuer, as, scope } = await discover(env, o.resource, o.wwwAuth);
+export async function startAuth(env: Env, origin: string, o: { email: string; book: string; cid: string; resource: string; back: string; wwwAuth?: string | null; scope?: string }) {
+  const { issuer, as, scope: found } = await discover(env, o.resource, o.wwwAuth);
+  const scope = o.scope ?? found; // a caller that needs a refresh token names its scope (Studio agents: offline_access)
   const redirect = `${origin}/api/mcp-oauth/callback`;
   const client = await clientFor(env, issuer, as, redirect);
   const state = rand(), verifier = rand(48);

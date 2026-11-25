@@ -65,6 +65,7 @@ export function shellFixture(
     removeKey: async () => ({ ok: true }),
     saveToken: async () => ({ ok: true }),
     removeToken: async () => ({ ok: true }),
+    removeStudio: async () => ({ ok: true }),
   };
   const core = createApplicationServices({
     browser: {
