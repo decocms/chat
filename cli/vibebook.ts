@@ -437,13 +437,32 @@ function machineHeaders(): Record<string, string> {
   }
 }
 
+/** This Claude's role in the room (--role or VIBEBOOK_ROLE; shared/roles.ts): it wakes only for what is for that
+ *  role. None = the Primary. Remembered per agent (~/.vibebook/roles.json), so a plain `vibebook call` from the same
+ *  Claude keeps it; `--role primary` (or "") clears it. */
+const ROLES = join(HOME, "roles.json");
+function roleHeaders(agent: string): Record<string, string> {
+  const given = flag("role") ?? process.env.VIBEBOOK_ROLE;
+  const all = readJson<Record<string, string>>(ROLES, {});
+  let r = (given ?? all[agent] ?? "").trim().toLowerCase();
+  if (r === "primary") r = "";
+  if (given !== undefined && (all[agent] ?? "") !== r) {
+    if (r) all[agent] = r;
+    else delete all[agent];
+    try {
+      writePrivate(ROLES, all);
+    } catch {}
+  }
+  return /^[a-z0-9][a-z0-9_-]{0,30}$/.test(r) ? { "x-vibebook-role": r } : {};
+}
+
 // ---- MCP over the CLI's session ----
 let rpcId = 0;
 async function rpc(method: string, params: unknown, agent: string): Promise<any> {
   const s = await session();
   const r = await fetch(`${s.origin}/mcp`, {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${s.access_token}`, "mcp-session-id": agent, ...myContext(), ...machineHeaders() },
+    headers: { "content-type": "application/json", authorization: `Bearer ${s.access_token}`, "mcp-session-id": agent, ...myContext(), ...machineHeaders(), ...roleHeaders(agent) },
     body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
   });
   if (r.status === 401) return die("Session rejected. Ask your human to run, in their own terminal: vibebook login");
@@ -1210,7 +1229,7 @@ const HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for yo
                                  limits for the room, then runs your own statusline command (if any) with the same input
   vibebook update                install the latest version
 
-Options: --model "Claude Opus 5.5" (or VIBEBOOK_MODEL) names the agent in the room; --origin for a local server.`;
+Options: --model "Claude Opus 5.5" (or VIBEBOOK_MODEL) names the agent in the room; --role <name> (or VIBEBOOK_ROLE) makes it that role (a room file agents/<name>.md); --origin for a local server.`;
 
 // ---- The hub: one WebSocket per machine for every listening Claude ----
 

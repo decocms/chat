@@ -1,6 +1,7 @@
 <script lang="ts">
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import VibeCube from "./VibeCube.svelte";
   import type { MeResult } from "../../../shared/schemas";
   import Badge from "../../lib/studio/Badge.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
@@ -66,8 +67,7 @@
            @vibe ask are agent squares; people asking are circles. -->
       {#if urgent}<AgentMark
           class="mt-0.5 text-sm font-normal"
-        />{:else if wait.author === "ai"}<AgentMark
-          mark="✦"
+        />{:else if wait.author === "ai"}<VibeCube
           class="mt-0.5 text-sm font-normal text-primary"
         />{:else}<PersonAvatar
           size="sm"

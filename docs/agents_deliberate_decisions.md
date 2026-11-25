@@ -2215,3 +2215,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. deco.chat now starts work in Studio with the access of a person. The limit is that only the owner of the agent can start a run, and only with a message that names the agent.
 - Undo: Revert the commit. Delete the rows `provider = 'studio'` in `sandboxes` and the rows of `mcp_grants` whose `resource` is the Studio URL. The columns `provider` and `target` can stay.
 - Status: open
+
+### 2026-11-25 · feat/agent-roles · Every agent has an @name in the room; one Primary per person
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#5472, #5506, #5547): with two agents of his in a room, both woke for the same message (duplicate PRs #481/#482, #490/#492), and there was no way to call one of them. Gui's roles POC (#290) already had `@role` and a Primary.
+- Decision: An agent without a role is named after its client (`claude`, `codex`); the second of the same person in the room is `claude-2`. The name is kept per agent and room (`agent_rooms.name`) and freed after 3 days unused. Only the Primary (the active agent without a role with the lowest name) gets its human's messages that name no agent; `@claude-2` wakes only claude-2, and the router wakes it with a fixed rule (no model). `agent`, `claude(-N)` and `codex(-N)` can't be a person's @handle.
+- Other options: client + repo (`@claude-chat`, the first proposal), dropped as long; one decision per person with both agents waking, which is the duplicate we had.
+- Risk: medium. A second agent no longer acts on messages without @: a person who relied on two agents doing the same thing must now call the second by name. `wait_for_messages` reads two more D1 rows per room with news.
+- Undo: Revert the commit; `agent_rooms.name` stays unused.
+- Status: open
