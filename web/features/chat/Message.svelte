@@ -41,6 +41,9 @@
   import { startedThread } from "./threadUndo";
   import { swipeMessage } from "./swipe";
   import PersonCard from "../profile/PersonCard.svelte";
+  import Checkbox from "../../lib/studio/Checkbox.svelte";
+  import { forwardSelection, startForward } from "../forward/selection";
+  import { forwardable } from "../forward/model";
   let {
     message: m,
     previous,
@@ -50,6 +53,7 @@
     room,
     actions,
     footer,
+    onpick,
   }: {
     message: ChatMessage;
     previous?: ChatMessage;
@@ -59,7 +63,24 @@
     room: Room;
     actions: ChatActions;
     footer?: Footer;
+    /** Selection mode of "Encaminhar": a click (Shift for a range) or a tap on this message. */
+    onpick?: (id: number, shift: boolean) => void;
   } = $props();
+  // Selection mode (forward, like WhatsApp): a column of checkboxes at the left, the message moves to the right, and a
+  // click anywhere on the message picks it. Links, files and buttons in it do nothing meanwhile.
+  const selecting = $derived(
+    !origin &&
+      $forwardSelection?.room === room.id &&
+      $forwardSelection.thread === m.thread,
+  );
+  const pickable = $derived(selecting && forwardable(m));
+  const picked = $derived(pickable && !!$forwardSelection?.ids.includes(m.id));
+  function pickClick(event: MouseEvent) {
+    if (!selecting) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (pickable) onpick?.(m.id, event.shiftKey);
+  }
   let actionController = $state<
     { copy: (link?: boolean) => Promise<void> } | undefined
   >();
@@ -260,7 +281,7 @@
   data-editing={editing || undefined}
   use:highlight
   use:swipeMessage={{
-    enabled: !origin && !editing,
+    enabled: !origin && !editing && !selecting,
     reply: () => {
       if (active) actions.reply(m.id);
     },
@@ -273,19 +294,24 @@
     },
   }}
   bind:this={article}
-  onpointerenter={showToolbar}
-  onfocusin={showToolbar}
+  data-forward-pick={pickable ? (picked ? "on" : "off") : undefined}
+  onpointerenter={selecting ? undefined : showToolbar}
+  onfocusin={selecting ? undefined : showToolbar}
+  onclickcapture={pickClick}
   class={[
     continuous
-      ? "group relative rounded-control px-3 pt-0.5 pb-0 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
-      : "group relative mt-1 rounded-control px-3 pt-1 pb-0 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
+      ? "group relative rounded-control pt-0.5 pr-3 pb-0 font-sans text-[0.875rem] text-foreground transition-[color,background-color,padding-left] duration-150 motion-reduce:transition-none pointer-fine:hover:bg-accent/55"
+      : "group relative mt-1 rounded-control pt-1 pr-3 pb-0 font-sans text-[0.875rem] text-foreground transition-[color,background-color,padding-left] duration-150 motion-reduce:transition-none pointer-fine:hover:bg-accent/55",
+    // The checkbox column: 32px more at the left while selection mode is on.
+    selecting ? "pl-11 select-none" : "pl-3",
+    pickable ? "cursor-pointer" : "",
     // A long press opens the actions sheet, so on a touch screen it does not also select text (the sheet copies).
     origin || editing
       ? ""
       : "pointer-coarse:select-none [-webkit-touch-callout:none]",
     waiting ? "border-l-2 border-warning bg-warning/10" : "",
     attention ? "animate-pulse motion-reduce:animate-none" : "",
-    flash || sheet ? "bg-accent" : "",
+    flash || sheet || picked ? "bg-accent" : "",
     // While its text is a box, the message looks selected exactly like on hover, even with the mouse elsewhere.
     editing ? "bg-accent/55" : "",
     fireHot
@@ -339,7 +365,17 @@
         >{/if}
     </button>{/if}
   <!-- The row's shape is shared with the room's loading state (room-shell/shape.ts). -->
-  <div class={MESSAGE_ROW}>
+  <div class={[MESSAGE_ROW, selecting && "relative"]}>
+    {#if pickable}<!-- The click is the message's (pickClick, in the capture phase): the box only shows the state. -->
+      <Checkbox
+        checked={picked}
+        aria-label={vb.t("Selecionar mensagem")}
+        data-forward-check={m.id}
+        class={[
+          "absolute -left-8 animate-in [--tw-enter-opacity:0] duration-150 motion-reduce:animate-none",
+          continuous ? "top-1" : "top-3",
+        ].join(" ")}
+      />{/if}
     <div data-message-avatar class={MESSAGE_AVATAR}>
       {#if !continuous}{#if m.author === "ai"}<AgentMark
             mark="✦"
@@ -536,7 +572,7 @@
         </div>{/if}
     </div>
   </div>
-  {#if editing}<!-- No toolbar while the text is a box. -->{:else if toolbar}<MessageActions
+  {#if editing || selecting}<!-- No toolbar while the text is a box, or while messages are picked. -->{:else if toolbar}<MessageActions
       bind:this={actionController}
       bind:sheet
       floating
@@ -560,6 +596,9 @@
           room.book.owner === room.me)}
       history={room.book.owner === room.me && (m.edited || m.deleted)
         ? (room.history?.[m.id] ?? null)
+        : undefined}
+      onforward={!origin && actions.forward && forwardable(m)
+        ? () => startForward(m, room.id)
         : undefined}
       {actions}
       {vb}

@@ -23,7 +23,11 @@ import { createFilesSession } from "../files/session";
 import { createFileChipIndex } from "../rich-text/fileIndex";
 import { createSideFileSession, type SideFileInput } from "../file-viewer/side";
 import { createFileViewer } from "../file-viewer/session";
-import { createFileReadApi, FileReadFailure } from "../file-viewer/api";
+import {
+  createFileReadApi,
+  FileReadFailure,
+  readFileBlob,
+} from "../file-viewer/api";
 import { knownViewerFiles, sameFile, fileVersions } from "../file-viewer/model";
 import { consumeFileViewerPop } from "../file-viewer/navigation";
 import {
@@ -64,7 +68,14 @@ import {
   permissionAsk,
 } from "../chat/privacy";
 import { canAnswer, choicesOf } from "../chat-interactive/eligibility";
-import { threadWorkers } from "../chat/model";
+import { messageAuthor, threadWorkers } from "../chat/model";
+import { forwardDestinations, searchThreads } from "../forward/destinations";
+import { forwardText, withDraft } from "../forward/model";
+import { holdForward, takeForward } from "../forward/pending";
+import { reportForward } from "../forward/api";
+import type { ForwardOutcome, ForwardPort } from "../forward/types";
+import { roomLabel } from "../home/model";
+import { homeText } from "../home/copy";
 import {
   agentMark,
   agentPresence,
@@ -611,6 +622,118 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     if (layout.read().sheet) layout.closeSheet();
     entry.focus();
   }
+  /** A forward that waits for this thread (forward/pending.ts): its text after the draft, its files in the composer,
+   *  then the focus, once the composer is on screen. */
+  function fillForward(thread: string) {
+    const value = takeForward(scope.account, scope.roomId, thread);
+    if (!value) return;
+    const entry = resources.composer.entry({
+      account: scope.account,
+      roomId: scope.roomId,
+      thread,
+    });
+    entry.edit(withDraft(get(entry.state).text, value.text));
+    if (value.files.length) entry.addFiles(value.files);
+    const focus = () => {
+      if (forThread(thread)) composeIn(thread, () => {});
+    };
+    if (clock) clock.schedule(focus, 80);
+    else setTimeout(focus, 80);
+  }
+  /** "Encaminhar": the messages as one quote (forwardText) and a copy of each file go to the composer of the
+   *  destination, and the app goes there. Nothing is sent: the person presses Enter. */
+  async function forwardTo(
+    target: Parameters<ForwardPort["send"]>[0],
+    messages: Parameters<ForwardPort["send"]>[1],
+    ranged: boolean,
+  ): Promise<ForwardOutcome> {
+    const value = room();
+    if (!current() || !value || !messages.length)
+      return { ok: false, error: "gone" };
+    const thread = selected(),
+      list = [...messages].sort((a, b) => a.id - b.id),
+      files: File[] = [],
+      controller = new AbortController();
+    for (const message of list)
+      for (const file of message.files ?? []) {
+        try {
+          const blob = await guardRead(
+            readFileBlob(
+              { roomId: scope.roomId, id: file.id },
+              controller.signal,
+              browser.fetcher,
+            ),
+          );
+          files.push(
+            new File([blob], file.name, { type: file.type || blob.type }),
+          );
+        } catch {
+          return { ok: false, error: "file", name: file.name };
+        }
+        if (!current()) return { ok: false, error: "gone" };
+      }
+    const epic = value.epics.find((item) => item.id === thread);
+    const from = [
+      roomLabel(me(), value.id, value.book.title, lang === "en" ? "en" : "pt"),
+      epic?.title,
+    ]
+      .filter(Boolean)
+      .join(" › ");
+    const text = forwardText(
+      list.map((message) => ({
+        who: messageAuthor(message, { t, name }),
+        when: `${chatTime(locale, message.ts)}, ${new Date(message.ts).toLocaleDateString(locale)}`,
+        text: message.text ?? "",
+        files: (message.files ?? []).map((file) => file.name),
+      })),
+      from,
+      t,
+    );
+    holdForward({
+      account: scope.account,
+      roomId: target.roomId,
+      thread: target.thread,
+      text,
+      files,
+      at: Date.now(),
+    });
+    reportForward(
+      scope.roomId,
+      {
+        n: list.length,
+        files: files.length,
+        to: target.roomId === scope.roomId ? "same" : target.dm ? "dm" : "room",
+        thread: target.thread !== "main",
+        range: ranged,
+      },
+      browser.fetcher,
+    );
+    if (target.roomId !== scope.roomId)
+      services.actions.navigate(
+        { roomId: target.roomId, thread: target.thread },
+        layout.takeSheetEntry(),
+      );
+    else if (target.thread !== thread) pickThread(target.thread);
+    else fillForward(thread);
+    return { ok: true };
+  }
+  const forwardPort: ForwardPort = {
+    destinations: (query) => {
+      const value = room();
+      return value
+        ? forwardDestinations(me(), value, query, {
+            main: t("Sala principal"),
+            you: homeText(lang === "en" ? "en" : "pt", "you"),
+          })
+        : [];
+    },
+    search: async (query, signal) =>
+      searchThreads(
+        await services.personal.api.search(query, signal),
+        scope.roomId,
+      ),
+    send: (target, messages, ranged) => forwardTo(target, messages, ranged),
+  };
   function reply(id: number, draft?: { thread: string; text: string }) {
     if (!current() || defer(() => reply(id, draft))) return;
     const value = room()!,
@@ -714,6 +837,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           thread: snapshot.thread,
         })
         .sync(value, composerRequestFor(snapshot.thread), upload);
+      fillForward(snapshot.thread);
       lastThread = snapshot.thread;
       lastGeneration = snapshot.snapshotGeneration;
       lastSnapshot = snapshot;
@@ -936,6 +1060,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           draftReply: (draft) => {
             if (owned()) reply(draft.messageId, draft);
           },
+          forward: thread.startsWith("pre:") ? undefined : forwardPort,
           navigate: (id, target) => {
             if (owned()) navigateMessage(id, target);
           },

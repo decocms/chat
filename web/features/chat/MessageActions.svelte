@@ -38,6 +38,7 @@
     canEdit = false,
     canDelete = false,
     history,
+    onforward,
     sheet = $bindable(false),
   }: {
     message: ChatMessage;
@@ -63,6 +64,9 @@
     canDelete?: boolean;
     /** Room owner on an edited/deleted message: its earlier versions (null until asked for). */
     history?: MessageVersion[] | null;
+    /** "Encaminhar" (forward, like WhatsApp): selection mode starts with this message picked. None: it cannot be
+     *  forwarded. */
+    onforward?: () => void;
     /** The phone's actions sheet (Gimenes #4402): holding a message opens it, from the bottom, with every action the
      *  hover toolbar has. */
     sheet?: boolean;
@@ -190,6 +194,16 @@
           onclick={() => {
             if (active) onthread?.();
           }}><Icon icon="git-branch-01" size={16} /></IconButton
+        >{/if}
+      {#if onforward}<IconButton
+          label={vb.t("Encaminhar")}
+          data-forward={message.id}
+          class={floating
+            ? "rounded-full text-muted-foreground hover:text-foreground"
+            : ""}
+          onclick={() => {
+            if (active) onforward?.();
+          }}><Icon icon="share-06" size={16} /></IconButton
         >{/if}
       <IconButton
         label={copied === "text"
@@ -346,6 +360,12 @@
           threadOpen ? vb.t("Abrir thread") : vb.t("Criar thread"),
           () => onthread?.(),
           { "data-sheet-thread": message.id },
+        )}{/if}
+      {#if onforward}{@render sheetRow(
+          "share-06",
+          vb.t("Encaminhar"),
+          () => onforward?.(),
+          { "data-sheet-forward": message.id },
         )}{/if}
       {@render sheetRow("copy-01", vb.t("Copiar texto"), () => void copy(), {
         "data-sheet-copy": message.id,
