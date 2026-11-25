@@ -54,7 +54,8 @@
   },
   "scripts": {
     "verify:app-navigation": "bun scripts/app-navigation-browser.ts",
-    "dev": "bun run build:mcp && wrangler dev",
+    "dev": "bun run build:mcp && wrangler dev --local --ip 127.0.0.1",
+    "screens": "bun scripts/screens.ts",
     "build:mcp": "bun scripts/build-mcp.ts",
     "deploy": "bun run build:app-document && bun run build:mcp && wrangler deploy",
     "check": "bun run build:api-types && bun run check:backend && bun run check:ui && bun run check:router && bun run check:agent-prompts && bun run check:protocol && bun run check:client-boundary && bun run check:bundle && bun run check:styles && bun run check:icons && bun run test:store && bun run test:rpc && bun run test:auth && bun run test:home && bun run test:viewer && bun run test:ui && bun run test:build && bun run test:connection && bun run check:worker-tests && bun run check:pwa && bun run test:pwa && bun run check:tooling && bun run check:guidelines && bun run format:check",
