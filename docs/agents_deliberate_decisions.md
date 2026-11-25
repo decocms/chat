@@ -1885,3 +1885,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A chip can show an old title until a reload.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · feat/one-room-memory · Memory keeps the open room and the DMs
+
+- Agent: Claude Opus 5.5
+- Context: The cache plan's PR 4 ("Só a sala aberta em memória: sai o cache de 12 salas"), approved by Gimenes (#4653, #4670). PR 3 (#420) saves rooms in IndexedDB, except DMs.
+- Decision:
+  - With IndexedDB, memory keeps the open room and no other saved room. A room that you open again draws from IndexedDB (at most 300 ms), then resumes.
+  - DMs stay in memory (at most 12 rooms in all), because they are not saved. Without them, each switch to a DM would get the whole state again.
+  - Without IndexedDB (a private window), memory keeps the 12 newest rooms, as before.
+- Other options: Only the open room, DMs too (a DM switch loads in full). Save DMs in IndexedDB (the plan said no DMs at first).
+- Risk: low. A switch back to a room waits for IndexedDB (usually a few milliseconds) instead of memory.
+- Undo: Revert this commit.
+- Status: open
+
