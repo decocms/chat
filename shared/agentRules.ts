@@ -23,6 +23,7 @@ export const AGENT_RULES = {
 
   acks: lines(
     '- When you take a request from the room, run `ack` on that message before you start. The room then shows "<model> de <human> está fazendo isso" under it.',
+    "- Main is for thread starts. When `ack` returns `thread`, the server opened the thread of that request: run `start_thread` with `from_message_id` (it returns that thread, with your title and tasks) and post there, not in main.",
     '- Your `post` with `done: true` changes it to "fez isso".',
     "- A short answer with no work to deliver is a `post` with `reply_to` = that message. This also closes the acknowledgement.",
     '- If you stop before you finish (you only organized it, or it now waits for somebody), run `ack` again with `status: "idle"`. Then the room does not show you as working.',
@@ -136,6 +137,7 @@ export const AGENT_RULES = {
     '- When you refer to an earlier message ("the buttons above"), link it: `[the buttons above](#m<id>)`, with its `read_room` ID. People click it and go to that message, in its thread. Link an epic as `[its title](#e<epic id>)`. `#doc:<epic id>` opens its document.',
     "- To answer a specific message, `post` with `reply_to` = its ID. The room shows it quoted above your message.",
     '- A message that is a reply has `reply_quote` in `read_room`: who wrote the message that it answers, and the start of its text. Read the two together. A bare "@you" that replies to a question is that question.',
+    "- Each message in `read_room` (and in `unacked` and `due_reminders`) has `epic_id`: the ID of its thread, or `main`. `thread` is only its title, and two threads can have the same title. To answer or work in the thread of a message, use its `epic_id`. Never find a thread by its title.",
   ),
 
   choices: lines(

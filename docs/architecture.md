@@ -60,6 +60,25 @@ Rules:
   - The receiving `Person` keeps each contact's state (`p:<email>`). It sends `{ t: "presence", people }` to its open app sockets. A new socket first gets the full list (`all: 1`).
   - Only people who share a DM with you get your presence.
 
+### Read a page of messages
+
+- `GET /api/books/:id/messages?thread=&before=&after=&limit=` gives one page of a thread (`Book.messagesPage`), with the acks of that page. Only members get it. It has no state: the answer is the truth at that time.
+- The cursor is the message ID, because IDs only increase. `before` scrolls back. `after` gets the messages that came after that ID. With neither, you get the newest. `limit` is 1 to 100 (default 50).
+- The app gets scroll-back through this route (`web/features/root-room/api.ts`). If the request fails, the app sends the WebSocket `older` command, which gives the same page.
+
+### A reconnect resumes
+
+- A socket that already has the room (a reconnect, or a cached room that opens again) sends `since` (its newest message id), `at` (the time of its last `state`) and `eh` (the hash of the threads that it got). The Book keeps nothing for each client (`Book.resumeOf`).
+- The Book then sends a `state` with `resume: true`. It has the open thread's window and each message that is newer than `since`, or edited or deleted since `at`. When the threads have the same hash, it leaves them out (`epicsSame`). The app merges the messages and acks into the room that it has (`web/app/roomStore.ts`).
+- The Book sends the whole state when there are no params, the state is older than 6 hours, or more than 200 rows changed.
+
+### Rooms saved in the browser
+
+- The app saves each room that you open in IndexedDB (`web/features/room-cache/store.ts`): the newest 400 messages and the rest of the room, without typing and edit history. It writes one time for each quiet second, and only on durable events.
+- A room that is not in memory (after a reload, or a 13th room) draws from IndexedDB first. Then its socket resumes from it (see "A reconnect resumes"). The read waits at most 300 ms. Then the socket starts anyway.
+- A saved room draws only for the account that saved it, when that account is known (`/api/me`, or a `state`). DMs are not saved. A saved room is deleted after 7 days, when you leave or are removed from the room, and when `/api/me` does not list it. A sign-out, a refused session or another account deletes all saved rooms.
+- If the browser blocks IndexedDB (a private window), rooms stay in memory only.
+
 ### One send, one message
 
 A send can become "not confirmed" (a timeout, a dropped socket, a server error) after the `Book` stored it. A second send of it must not make a second message.
@@ -111,7 +130,7 @@ A send can become "not confirmed" (a timeout, a dropped socket, a server error) 
 |---|---|---|
 | Native card | `src/card.ts` | A JSON spec. The app draws it. No HTML. |
 | HTML embed and room app | `src/embed.ts`, `apps/<name>.html` files | Runs in a sandboxed iframe with an opaque origin and `connect-src 'none'`. A Jev check runs before it is stored. |
-| MCP connection and MCP app | `src/mcpconn.ts`, `src/mcpauth.ts` | The browser calls the MCP server. Each person signs in with their own account. |
+| MCP connection and MCP app | `src/mcpconn.ts`, `src/mcpauth.ts`, `web/features/apps/bridge.ts` | The browser calls the MCP server. Each person signs in with their own account. A `ui/message` is a post, and the person confirms it first. If each text block has `_meta["vibebook/compose"]`, the text goes in the composer of the thread and the person sends it. A block with `_meta["vibebook/reference"]` (`{ label }`) is a chip above the field; its text goes before the typed text. |
 | Files | `src/rooms.ts` (`storeFile`), `src/fileHeaders.ts` | Members only. HTML is sandboxed. SVG is not permitted. |
 
 ## Calls (voice, camera and screen)
@@ -144,13 +163,13 @@ The limit uses the larger of two counts. The first is the account's real traffic
 
 The recorder is a Worker of its own, `chat-recorder` (`recorder/`), with one container for each start. It is apart from the chat so that a problem in it never stops a deploy of the chat.
 
-1. The first person joins a call. The call is of the thread that this person has open (`call_thread`). If the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
-2. The request has the recording's title (the room and the thread, `Book.callTitle`) and a link that the chat signed for that room, good for 5 minutes (`recorderLink`). The link gives a session for the room's recorder identity (`shared/call.ts`, `recorderEmail`). That identity is not a person. It is a member of its one room, with no row in `members` (`isMember`).
+1. The first person joins a call. The call is of the thread that this person has open (`call_thread`). A person alone in a call is not recorded. When a second person joins, if the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
+2. The request has the recording's title: the room and the thread, "Sala principal" for the main one (`Book.callTitle`). The title has no date: Grain shows it. The request also has a link that the chat signed for that room, good for 5 minutes (`recorderLink`). The link gives a session for the room's recorder identity (`shared/call.ts`, `recorderEmail`). That identity is not a person. It is a member of its one room, with no row in `members` (`isMember`).
 3. In the container, a Chromium opens the link, and the room's page joins the call as it does for a person, with the microphone off (`recorder/container/main.ts`).
 4. The recorder is in the call's list, so each person sees "Gravando". It does not show as a person, and nobody receives its tracks.
 5. The page records what a person sees and hears: the shared screen, or who speaks, and all the voices. It also keeps who speaks at each moment.
 6. When no person is in the call for 15 seconds, ffmpeg makes the mp4 that Grain takes.
-7. The container sends the audio in parts of 5 minutes to the recorder Worker's speech-to-text (`POST /transcribe`, Workers AI, Whisper). Each piece of text gets the name of the person who spoke the most while it lasted (`recorder/container/attribute.ts`).
+7. The container sends the audio in parts of 5 minutes to the recorder Worker's speech-to-text (`POST /transcribe`, Workers AI, Whisper). Each piece of text gets the name of the person who spoke the most while it lasted (`recorder/container/attribute.ts`). The model's own filter for parts with no voice is on (`vad_filter`): without it, the model writes words for silence.
 8. The container sends the video and that transcript to Grain (`GRAIN_API_TOKEN`). With our transcript, Grain shows each person's name. Without it (the speech-to-text failed), Grain transcribes by itself and names nobody.
 9. The container tells the chat (`POST /api/calls/recorded`). The call's thread gets a message with a summary (`MODEL_FAST`), the Grain link and the transcript as a Markdown file. The agents read that file as each other file. A transcript with a secret in it does not enter the room.
 

@@ -10,7 +10,6 @@ import { transcriptMarkdown, transcriptName } from "./callText";
 import { CallSfuResult, type CallDescription, type CallTracksBody, type RecordedBody } from "../shared/schemas";
 import { CALL_SCREEN_LIMIT_GB, EGRESS_QUERY, GB, egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "./callBudget";
 import { hmac, safeEqual } from "./auth";
-import { isRecorder } from "../shared/call";
 
 /** Calls are off until the SFU app (var) and its secret exist. */
 export const callsOn = (env: Env) => !!(env.REALTIME_SFU_APP_ID && env.REALTIME_SFU_APP_SECRET);
@@ -69,11 +68,11 @@ async function screenAllowed(env: Env) {
 export const SCREEN_TRACK = "screen";
 
 /** A new SFU session (one RTCPeerConnection) for this person, entered in the room's call.
- *  `first`: no person was in the call before, so this join starts it (and its recorder: startRecorder). */
+ *  `record`: with this join the call has two people and no recorder, so the recorder is asked to come (startRecorder). */
 export async function callJoin(env: Env, bookId: string, email: string, origin: string) {
   const session = z.object({ sessionId: z.string() }).parse(await sfu(env, "POST", "/sessions/new")).sessionId;
-  const first = await bookStub(env, bookId).callJoin(bookId, email, session, origin);
-  return { session, first: first && !isRecorder(email) };
+  const record = await bookStub(env, bookId).callJoin(bookId, email, session, origin);
+  return { session, record };
 }
 
 // ---- the recorder (recorder/): a Worker with a container that joins the call and sends it to Grain ----
@@ -95,7 +94,7 @@ export async function startRecorder(env: Env, origin: string, bookId: string, at
   const res = await fetch(`${(env.RECORDER_URL ?? "").replace(/\/+$/, "")}/start`, {
     method: "POST",
     headers: { authorization: `Bearer ${env.RECORDER_SECRET}`, "content-type": "application/json" },
-    // The title says where the call was: the room and the thread (Book.callTitle).
+    // The title says where the call was: the room (Book.callTitle; the call is the room's, not a thread's).
     body: JSON.stringify({ room: bookId, attempt, title: await bookStub(env, bookId).callTitle(bookId), joinUrl: await recorderLink(env, origin, bookId) }),
   }).catch(() => null);
   if (res?.ok) return;

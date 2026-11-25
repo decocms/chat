@@ -1778,6 +1778,8 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - A call is of the thread that the first person had open. The recording's title has the room and the thread, and the summary goes to that thread.
   - Our own transcript: Whisper (Workers AI, in the recorder Worker) on parts of 5 minutes, with each piece given to the person whose "speaking" mark covered it the most. The marks come from the recorder's page, each 200 ms. Two people who speak at one time get one name.
   - The summary uses `MODEL_FAST`, the model that the mention e-mails use. This is a new cost for each recorded call.
+  - A person alone in a call is not recorded: the recorder comes when a second person joins. The first production recording was one person for 159 seconds.
+  - A piece of the transcript with nobody's mark near it and a high "no speech" score is dropped. In that first recording such pieces had the name "Desconhecido".
   - A recorder that leaves a call that goes on is started again, 5 times at most.
   - Quality: camera 360p at 24 frames and 500 kbps (it was 200 kbps, which gave 180p), screen 1080p and 2.5 Mbps, voice 32 kbps. Cameras are received while a screen is on show. Both cost more traffic.
   - `CALL_RECORD_ROOMS` is `*` in production (Jonas: "gravar qualquer call"). Every room's calls go to the operator's Grain.
@@ -1787,3 +1789,96 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit and deploy the recorder again. To stop recording at once, remove `CALL_RECORD_ROOMS` from the chat's secrets.
 - Status: open
 
+
+### 2026-11-24 · danielfurt/app-composer-draft · An MCP app can put a draft in the composer
+
+- Agent: Claude Opus 5.5
+- Context: Daniel reviews blog posts in the content-os MCP app, in the Apps tab of a room. He selects a passage to comment on it. Each `ui/message` from the app asked "Allow" before the post. Daniel wants the passage to go in the composer of the thread, so that he can type or dictate the comment and send it himself.
+- Decision:
+  - A `ui/message` where each text block has `_meta: {"vibebook/compose": true}` does not post. The text goes in the composer of the thread, after the text that is already there, and the composer gets the focus. There is no question, because nothing goes to the room until the person sends it.
+  - The host context has `"vibebook/compose": true` only where the chat can do this (the Apps tab and app lines in documents). An app that does not see it keeps its own path.
+  - A `ui/message` without the mark on each text block is a post, as before.
+  - There is no `track()` event: no new control shows, and the browser has no event path. The message that the person sends is a normal message.
+- Other options: A new request method (`vibebook/compose`). The SDK on the side of the app sends only the methods that it knows, so an app would need its own code for the request. `ui/update-model-context` (silent, but in a room it has no target). An "always allow" in the confirmation of a post (a post without a question is a larger change in the security model).
+- Risk: low. An app can put text in the composer when the person does not expect it, but it cannot send it. It cannot remove the text of the person.
+- Undo: Revert this commit. Apps then get the question before each post again.
+- Status: open
+
+### 2026-11-25 · feat/ack-opens-thread · A request taken in main opens its thread on the ack
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#4562, #4565): main should be almost only thread starts. Agents answered requests in main instead of opening a thread.
+- Decision:
+  - When an agent acks (`doing`) a message of its own human in main that has no thread, the server opens a thread from it (title = the request, owner = that person, status doing). `start_thread` for that message returns this thread once and sets the agent's title, goal and tasks.
+  - A post in main with `reply_to` a request that has an open thread goes into that thread.
+- Other options: open a thread for every message of a person in main (also small talk and yes/no answers would become threads); only a stronger rule for agents (agents already had the rule and skipped it).
+- Risk: low. A short request that an agent acks with `doing` gets a thread with no tasks. Another person's message, an `idle` or `done` ack and DMs open nothing.
+- Undo: Revert this commit. Agents then open threads only with `start_thread`.
+
+### 2026-11-25 · danielfurt/composer-reference · An app's quote is a chip in the composer, and the mic stays on a computer
+
+- Agent: Claude Opus 5.5
+- Context: After the composer draft (#404), Daniel said that the quoted passage in the field looked bad. He asked for a reference like Notion's: a chip with the passage above the field, and an empty field for the comment. He also said that the mic goes away when the field has text, so he cannot dictate after the quote.
+- Decision:
+  - A draft block with `_meta["vibebook/reference"] = { label }` is a quote. The composer shows the label in a chip (the `Chip` atom, with an `x` to remove it). When the person sends, the text of each quote goes before the typed text, with a blank line between them. The message is the same text that the field had before, so agents and the thread read it as before.
+  - A quote alone can be sent. The quotes are part of the draft: they are kept in storage with the text and the reply, they come back when a send fails, and they clear when it is sent. At most 8 quotes; the same text once.
+  - A block without a usable label is text for the field. A host before this change does the same, so an app can send the reference mark at all times.
+  - On a computer (from `md`), the mic and send are two buttons, side by side. Send is off until there is something to send. On a phone they still share one cell (#3821), because the field is narrow. This changes #3821 on a computer.
+- Other options: Keep one cell and let a person hold Space to dictate (it works with text, but nobody finds it). A rich quote block inside the field (a larger change to the field). A structured quote in the message (a change to the room's message format and to every reader of it).
+- Risk: low. The composer looks different on a computer: an extra button. The send path changes only by the text that it joins.
+- Undo: Revert this commit. An app's reference then goes in the field as text, and the mic and send share one cell again.
+- Status: open
+
+### 2026-11-25 · feat/reconnect-resume · A reconnect resumes on the socket, before GET /room
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes approved the 5-PR cache plan (#4638, #4653, "vai, seu objetivo e ter tudo em main"). The plan's PR 2 was `GET /room` plus a light socket (`?lite=1`). The measurement (PR 0, #4649) showed that 51% of room opens are reconnects (code 1006) that get the whole `state` again (390 KB in the product room), and that the threads (192 KB) and the 5 messages of each other thread (144 KB) are most of it. Moving the same state to `GET /room` sends the same bytes.
+- Decision:
+  - A reconnect resumes on the socket. The app sends what it has: `since` (its newest message id), `at` (the time of its last state) and `eh` (the hash of the threads that it got). The Book keeps nothing for each client.
+  - The answer is a `state` with `resume: true`: the open thread's window and every message newer than `since`, or edited or deleted since `at`. The threads are left out (`epicsSame`) when their hash is the same. All other fields are sent whole, as before. The app merges messages and acks into the room it has.
+  - The whole state comes when there are no params, the state is older than 6 hours, or more than 200 rows changed. A cached room that opens again (the 12-room cache) also resumes.
+  - `ws_state` records `resume` (`same`, `epics` or `full`), so the next measure shows the effect.
+- Other options: `GET /room` with `?lite=1` first, as in the plan (the same bytes until IndexedDB and ETag come). A change log in the Book (rejected before, #4553).
+- Risk: medium. A reaction or a card that changed on an older message during the gap shows only after the next full state or live event. Any bug in the merge shows old or missing messages until a reload.
+- Undo: Revert this commit. The app then does not send `since`, and the Book sends the whole state.
+
+### 2026-11-25 · danielfurt/human-quotes · Lines that start with "> " are a quote in a person's message
+
+- Agent: Claude Opus 5.5
+- Context: The content-os reader puts a passage in the composer as a reference (#409). After the send, the message showed the raw `>` and the reference and the comment looked the same. Daniel asked for a different look for the reference, so that a thread with many comments stays easy to read.
+- Decision:
+  - In a person's message (the `human` mode, plain text), a run of lines that start with `> ` (or a lone `>`) is a quote block. It uses the same style as a quote in an agent's markdown (`border-l-2`, muted text). Mentions and links inside it still work.
+  - Only this one markdown rule applies. The rest of a person's message stays literal: `**`, `#`, backticks and HTML show as typed.
+  - The empty lines just before and after the block are removed, because the block has its own margins.
+- Other options: A structured quote in the message (a change to the message format, the server and every reader). Full markdown for people's messages (a large change to what people see when they type symbols).
+- Risk: low. A person who types `> ` at the start of a line now sees a quote, as in Slack and Discord.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · feat/room-cache · Rooms are saved in IndexedDB, without DMs, for 7 days
+
+- Agent: Claude Opus 5.5
+- Context: The cache plan's PR 3 (Gimenes #4653: "o indexeddb é pra evitar pegar um range grande de mensagens", "o room deveria ser stale-while-revalidate, entao deveria ser instantaneo mudar de sala"). PR 2 (#418) made a socket resume from a room that the app has. Before this change, the app had rooms only in memory (12 rooms), so a reload got each whole state again.
+- Decision:
+  - The app saves each room that you open in IndexedDB, with the newest 400 messages, and draws it before the socket answers. The socket then resumes from it.
+  - It does not save DMs (the plan said "no DMs at first"). A saved room expires after 7 days. A sign-out, a refused session or another account deletes all saved rooms. A room that `/api/me` does not list is deleted.
+  - After a reload, the app waits for `/api/me` (at most 300 ms) to know whose rooms to read. It never draws a saved room for an account that it does not know.
+  - The open waits at most 300 ms for IndexedDB, then the socket starts.
+- Other options: localStorage (5 MB, synchronous). A Service Worker cache of `GET /room` (no `GET /room` yet). Save DMs too.
+- Risk: medium. Room content stays on the device until a sign-out or 7 days, so a person who uses your browser profile while you are signed in can read it in the browser's storage. A bug in the merge shows old messages until the server answers.
+- Undo: Revert this commit. The app then keeps rooms in memory only, and old saved rooms stay unused in IndexedDB.
+- Status: open
+
+### 2026-11-25 · feat/review-followup · A task of yours in review asks in the composer
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked what the "1" on a room waits for (#4650). It was a task of his in review, and nothing in the thread said so. He liked a card with Approve and Ask for changes, and asked to put it above the composer: "qualquer followup, deveria ser pelo composer tambem", as in Claude Code (#4707).
+- Decision:
+  - A new component `web/features/composer/ReviewFollowUp.svelte`, in the composer's `above` slot (where the reply bar is). No existing component shows a question with answers in the composer.
+  - It shows the first task in review that you own in the open thread: "Aprovar" sets the task to done (`task.status` with `from: "composer"`, tracked as `review_answer`). "Pedir ajuste" puts "Ajuste em “<task>”: " in the field. "Escrever livre" hides it for that task, and the normal composer stays.
+  - It reads the room's tasks (`reviewWaiting`), not `/api/me` waits, so it needs no new data. Only the task kind of wait shows for now. Asks to you and your Claude's questions can follow.
+  - It has no 1-2-3 keys yet: a digit in an empty field is also text.
+- Other options: a card at the top of the thread (the first mockup). Buttons on the task in the board only.
+- Risk: low. It shows only for the task's owner, and only in that task's thread.
+- Undo: Revert this commit.
+- Status: open

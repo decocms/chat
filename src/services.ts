@@ -148,17 +148,18 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     transcribe:(audio,query)=>transcribeSpeech(audio,query,input=>env.AI.run(WHISPER_MODEL,input)),
     callsOn: callsOn(env),
     allowCall: async () => (await env.AGENT_LIMIT.limit({ key: `call:${email}` })).success,
-    // The thread the person has open is no longer the call's: a new call gets its own thread (Book.callJoin).
+    // The thread the person has open is not the call's: the call is the room's, its chat the room's call chat.
     callJoin: async (roomId) => {
-      const { session, first } = await callJoin(env, roomId, email, new URL(req0.url).origin);
-      // The first person in starts the call: the recorder joins it, after the response.
-      if (first) ctx.waitUntil(startRecorder(env, new URL(req0.url).origin, roomId));
+      const { session, record } = await callJoin(env, roomId, email, new URL(req0.url).origin);
+      // The second person makes it a call to record: the recorder joins it, after the response.
+      if (record) ctx.waitUntil(startRecorder(env, new URL(req0.url).origin, roomId));
       return { session };
     },
     callTracks: (roomId, body) => callTracks(env, roomId, email, body),
     callAnswer: (roomId, session, answer) => callAnswer(env, roomId, email, session, answer),
     callClose: (roomId, session, mids, names) => callClose(env, roomId, email, session, mids, names),
     humanPost: (roomId, text, thread, clientId) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId }),
+    roomMessages: (roomId, query) => bookStub(env, roomId).roomMessages(roomId, query),
     storeFile: (roomId, type, body, name) => storeFile(env, roomId, email, type, body, name, { requireMember: true }, en),
     fileTypes: FILE_TYPES,
     maxBytes,

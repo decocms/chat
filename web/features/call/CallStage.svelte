@@ -121,7 +121,10 @@
     const timer = setTimeout(() => (waited = true), RECORDER_GRACE_MS);
     return () => clearTimeout(timer);
   });
-  const unrecorded = $derived(!!room.callRecorded && !recording && waited);
+  // A person alone in a call is not recorded, and gets no warning.
+  const unrecorded = $derived(
+    !!room.callRecorded && !recording && waited && peers.length > 1,
+  );
   // The person I put on the stage (a click on a tile). Gone from the call: the grid again.
   let pinned = $state("");
   const pinnedPeer = $derived(peers.find((peer) => peer.email === pinned));

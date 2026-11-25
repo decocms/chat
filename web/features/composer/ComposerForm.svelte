@@ -29,9 +29,11 @@
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
+  import Chip from "../../lib/studio/Chip.svelte";
   import OrphanDrafts from "./OrphanDrafts.svelte";
   import ChatField from "./ChatField.svelte";
   import PollCreateDialog from "./PollCreateDialog.svelte";
+  import ReviewFollowUp from "./ReviewFollowUp.svelte";
   let {
     room,
     thread,
@@ -500,7 +502,12 @@
     }}
     onsubmit={() => {
       if (!canInteract()) return;
-      if (/\S/.test($draft.text) || $draft.attachments.length) onsend?.();
+      if (
+        /\S/.test($draft.text) ||
+        $draft.quotes.length ||
+        $draft.attachments.length
+      )
+        onsend?.();
       void entry.submit();
     }}
     onkeydown={keydown}
@@ -516,8 +523,12 @@
     enabled={() => canInteract()}
     {busy}
     pending={$draft.phase === "pending"}
-    ready={/\S/.test($draft.text) || $draft.attachments.length > 0}
-    sendDisabled={(!/\S/.test($draft.text) && !$draft.attachments.length) ||
+    ready={/\S/.test($draft.text) ||
+      $draft.quotes.length > 0 ||
+      $draft.attachments.length > 0}
+    sendDisabled={(!/\S/.test($draft.text) &&
+      !$draft.quotes.length &&
+      !$draft.attachments.length) ||
       $draft.attachments.some(
         (item) => item.phase === "queued" || item.phase === "uploading",
       )}
@@ -534,6 +545,7 @@
     }}
   >
     {#snippet above()}
+      <ReviewFollowUp {room} {thread} {entry} {request} t={vb.t} />
       {#if $draft.replyId}<div
           data-composer-reply
           class="flex items-center gap-2 border-b border-border py-1 pr-1.5 pl-3.5 text-xs text-muted-foreground transition-[opacity,translate] duration-150 ease-[var(--vb-ease-out-cubic)] starting:translate-y-1 starting:opacity-0"
@@ -569,6 +581,28 @@
               if (canInteract(event)) entry.clearReply();
             }}><Icon icon="x" size={14} /></IconButton
           >
+        </div>{/if}
+      <!-- Passages an app quoted (the content-os reader): chips, like a reference in Notion. Each goes before the
+           typed text when the message is sent. -->
+      {#if $draft.quotes.length}<div
+          data-composer-quotes
+          class="flex flex-wrap gap-1.5 px-2 pt-2"
+        >
+          {#each $draft.quotes as quote, index (quote.text)}<Chip
+              data-composer-quote
+              title={quote.text}
+              class="max-w-full pr-0.5 transition-[opacity,scale] duration-150 ease-[var(--vb-ease-out-cubic)] starting:scale-95 starting:opacity-0"
+              ><Icon icon="align-left" size={12} /><span
+                class="min-w-0 truncate text-foreground">{quote.label}</span
+              ><IconButton
+                label={vb.t("Remover trecho")}
+                size="icon-xs"
+                class="size-5 shrink-0 rounded-full text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
+                onclick={(event) => {
+                  if (canInteract(event)) entry.removeQuote(index);
+                }}><Icon icon="x" size={12} /></IconButton
+              ></Chip
+            >{/each}
         </div>{/if}
       {#if $draft.attachments.length}<div
           class="flex flex-wrap gap-2 px-2 pt-2"

@@ -49,12 +49,17 @@ function fixture() {
   };
   const frames: string[] = [];
   const ws = { readyState: 1, send: (frame: string) => frames.push(frame) };
-  const statement = () => {
-    const bound = () => ({
-      run: async () => ({ meta: { changes: 0 } }),
-      first: async () => null,
-      all: async () => ({ results: [] }),
-    });
+  // D1 is a fake; the values bound to each statement are kept, so a test can see what was written.
+  const d1: { query: string; values: unknown[] }[] = [];
+  const statement = (query: string) => {
+    const bound = (...values: unknown[]) => {
+      d1.push({ query, values });
+      return {
+        run: async () => ({ meta: { changes: 0 } }),
+        first: async () => null,
+        all: async () => ({ results: [] }),
+      };
+    };
     return { bind: bound, ...bound() };
   };
   const ctx = {
@@ -96,7 +101,7 @@ function fixture() {
       ? { ok: false as const, error: reply.error.message }
       : { ok: true as const };
   };
-  return { book, run, db, frames };
+  return { book, run, db, frames, d1 };
 }
 const row = (db: Database, id: number) =>
   db
@@ -191,6 +196,28 @@ test("the author or the room owner deletes; the content goes to the owner only",
   expect(read).toContain("[message deleted]");
 });
 
+test("a message that a thread started from is not deleted, by its author, the owner or an agent (Gimenes #4621)", async () => {
+  const { book, run, db } = fixture();
+  const id = book.addMessage("main", email, "vamos fazer X").id;
+  const own = book.addMessage("main", email, "done", { kind: "agent" }).id;
+  db.query(
+    `INSERT INTO epics (id, title, ts, from_msg) VALUES ('t1', 'X', 1, ?), ('t2', 'Y', 1, ?)`,
+  ).run(id, own);
+  expect(await run({ t: "msg.delete", id })).toMatchObject({ ok: false });
+  expect(
+    await book.changeMessage(id, { email: owner, agent: false }, null),
+  ).toMatchObject({ ok: false });
+  expect(
+    await book.agentChangeMessage("abcdef", email, own, null),
+  ).toMatchObject({ ok: false });
+  expect(row(db, id).deleted).toBeNull();
+  expect(row(db, own).deleted).toBeNull();
+  // Editing it still works.
+  expect(await run({ t: "msg.edit", id, text: "vamos fazer X e Y" })).toEqual({
+    ok: true,
+  });
+});
+
 test("a deleted message's files leave the room for everyone but the owner (#4383)", async () => {
   const { book, db } = fixture();
   const fid = "0abc1234";
@@ -210,4 +237,123 @@ test("a deleted message's files leave the room for everyone but the owner (#4383
   expect(await book.fileHidden("abcdef", fid, email)).toBe(true);
   expect(await book.fileHidden("abcdef", fid, owner)).toBe(false);
   expect(book.files().map((f) => f.id)).not.toContain(fid);
+});
+
+test("an ask you reacted to before the router read it does not wait on you (Gimenes #4604)", async () => {
+  const { book, run, d1 } = fixture();
+  const ask = book.addMessage("main", owner, "posso subir hoje?").id;
+  // You react while the router (an LLM call) is still reading the message.
+  expect(await run({ t: "react", id: ask, emoji: "👍" })).toEqual({ ok: true });
+  d1.length = 0;
+  // Then the router says the ask waits on you and on someone who did nothing.
+  await book.saveWaits(ask, [email, other]);
+  const waits = d1.filter(
+    (x) => x.values.length && x.query.includes("INSERT OR IGNORE INTO waits"),
+  );
+  expect(waits.map((x) => x.values[2])).toEqual([other]);
+});
+
+test("a page of a thread: newest, before an id, after an id, with more and in time order (cache plan, PR 1)", async () => {
+  const { book, run, frames } = fixture();
+  const ids = Array.from(
+    { length: 7 },
+    (_, i) => book.addMessage("e1", email, `m${i}`).id,
+  );
+  book.addMessage("main", email, "elsewhere");
+  const page = (q: { before?: number; after?: number; limit: number }) =>
+    book.roomMessages("abcdef", { thread: "e1", ...q });
+  const texts = (p: { messages: { text: string }[] }) =>
+    p.messages.map((m) => m.text);
+  expect(texts(page({ limit: 3 }))).toEqual(["m4", "m5", "m6"]);
+  expect(page({ limit: 3 }).more).toBe(true);
+  expect(texts(page({ before: ids[4], limit: 3 }))).toEqual(["m1", "m2", "m3"]);
+  expect(texts(page({ before: ids[2], limit: 3 }))).toEqual(["m0", "m1"]);
+  expect(page({ before: ids[2], limit: 3 }).more).toBe(false);
+  // after: the oldest ones since that id, for catching up.
+  expect(texts(page({ after: ids[1], limit: 3 }))).toEqual(["m2", "m3", "m4"]);
+  expect(page({ after: ids[1], limit: 3 }).more).toBe(true);
+  expect(page({ after: ids[6], limit: 3 })).toMatchObject({
+    messages: [],
+    more: false,
+  });
+  // The socket's "older" is the same page (100), for apps from before the GET.
+  frames.length = 0;
+  await run({ t: "older", thread: "e1", before: ids[3] });
+  const older = frames
+    .map(
+      (f) =>
+        JSON.parse(f) as {
+          method?: string;
+          params?: { messages: { text: string }[] };
+        },
+    )
+    .find((f) => f.method === "older");
+  expect(older?.params?.messages.map((m) => m.text)).toEqual([
+    "m0",
+    "m1",
+    "m2",
+  ]);
+});
+
+test("a reconnect resumes: newer, edited and deleted messages plus the open thread; whole state when too old (cache plan PR 2)", async () => {
+  const { book, run, db } = fixture();
+  const ids = Array.from(
+    { length: 4 },
+    (_, i) => book.addMessage("main", email, `m${i}`).id,
+  );
+  const at = Date.now();
+  db.query(`UPDATE messages SET ts = ts - 1000`).run();
+  const fresh = book.addMessage("e1", email, "new").id;
+  expect(await run({ t: "msg.edit", id: ids[1]!, text: "m1 edited" })).toEqual({
+    ok: true,
+  });
+  expect(
+    await book.changeMessage(ids[0]!, { email, agent: false }, null),
+  ).toEqual({ ok: true });
+  const url = (q: string) => new URL(`https://x.test/ws/abcdef?t=main&${q}`);
+  const window = book.roomWindow("main", email).messages;
+  const resumed = book.resumeOf(
+    url(`since=${ids[3]}&at=${at}&eh=h1`),
+    "main",
+    window,
+    "h1",
+  );
+  expect(resumed?.epicsSame).toBe(true);
+  const texts = Object.fromEntries(
+    resumed!.messages.map((m) => [m.id, m.text]),
+  );
+  expect(texts[fresh]).toBe("new");
+  expect(texts[ids[1]!]).toBe("m1 edited");
+  expect(
+    resumed!.messages.find((m) => m.id === ids[0])?.deleted,
+  ).toBeGreaterThan(0);
+  // The open thread's window comes too (a reconnect can open another thread).
+  expect(texts[ids[3]!]).toBe("m3");
+  expect(
+    book.resumeOf(url(`since=${ids[3]}&at=${at}&eh=old`), "main", window, "h1")
+      ?.epicsSame,
+  ).toBe(false);
+  // No params, a state older than 6 h, or a time from the future: the whole state.
+  expect(book.resumeOf(url(""), "main", window, "h1")).toBeNull();
+  expect(
+    book.resumeOf(
+      url(`since=${ids[3]}&at=${at - 7 * 3600_000}`),
+      "main",
+      window,
+      "h1",
+    ),
+  ).toBeNull();
+  expect(
+    book.resumeOf(
+      url(`since=${ids[3]}&at=${Date.now() + 60_000}`),
+      "main",
+      window,
+      "h1",
+    ),
+  ).toBeNull();
+  // More than 200 changed rows: the whole state.
+  for (let i = 0; i < 201; i++) book.addMessage("main", email, `bulk ${i}`);
+  expect(
+    book.resumeOf(url(`since=${ids[3]}&at=${at}`), "main", window, "h1"),
+  ).toBeNull();
 });

@@ -12,3 +12,4 @@ cli/cli.mjs
 migration-dump/
 dist
 dist-gallery
+.screens/

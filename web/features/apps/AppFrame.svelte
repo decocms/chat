@@ -233,6 +233,11 @@
           : (name, args) => callRemote(selected.connection, name, args),
         message: (text) =>
           tools("vibebook_post", { text, thread: props.thread }),
+        compose: props.compose
+          ? (draft) => {
+              if (current()) props.compose?.(draft);
+            }
+          : undefined,
         ask,
         open: (url) => {
           if (current()) props.openLink(url);

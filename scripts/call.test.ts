@@ -137,6 +137,20 @@ test("each piece of the transcript goes to the person who spoke the most while i
   ]);
 });
 
+test("noise that the model wrote as words is dropped, and a call of one person has one name", () => {
+  const turns: Turn[] = [{ name: "rafa", start: 1000, end: 3000 }];
+  const pieces = [
+    { start: 1200, end: 2800, text: "Bom dia.", quiet: 0.1 },
+    { start: 40_000, end: 41_000, text: "Obrigado.", quiet: 0.9 },
+    { start: 80_000, end: 82_000, text: "Vamos ver isso amanhã.", quiet: 0.2 },
+  ];
+  expect(attribute(turns, pieces, ["rafa"]).map((line) => [line.name, line.text])).toEqual([
+    ["rafa", "Bom dia."],
+    ["rafa", "Vamos ver isso amanhã."],
+  ]);
+  expect(attribute(turns, pieces, ["rafa", "bia"]).map((line) => line.name)).toEqual(["rafa", "?"]);
+});
+
 test("the room's transcript file keeps one paragraph for each turn, with the time", () => {
   expect(
     transcriptMarkdown("Call · 2026-11-24", [
@@ -290,4 +304,41 @@ test("a DM's call keeps the DM's own chat beside the stage; the call chat is ref
   expect(dm.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: "main" });
   expect(await dm.send({ t: "msg", thread: CALL_THREAD, text: "oi" })).toMatchObject({ ok: false });
   expect(dm.thread(CALL_THREAD)).toHaveLength(0);
+});
+
+test("the call chat comes back on a reconnect that resumes, pages like any thread, and takes a post", async () => {
+  const r = callRoom();
+  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  await r.send({ t: "msg", thread: CALL_THREAD, text: "antes" });
+  const at = Date.now() - 1000;
+  const since = r.book.roomWindow("main").countsAt;
+  for (const text of ["um", "dois", "três"]) await r.send({ t: "msg", thread: CALL_THREAD, text });
+  const posted = await r.book.humanPost("abcdef", "ana@x.test", "quatro", CALL_THREAD);
+  expect(posted).toMatchObject({ ok: true, thread: CALL_THREAD });
+  // A reconnect from before these messages: the resume carries them, and the threads are not sent again.
+  const resumed = r.book.resumeOf(new URL(`https://x.test/ws?since=${since}&at=${at}&eh=h1`), "main", r.book.roomWindow("main").messages, "h1");
+  expect(resumed?.messages.filter((m) => m.thread === CALL_THREAD).map((m) => m.text)).toEqual(["um", "dois", "três", "quatro"]);
+  expect(resumed?.epicsSame).toBe(true);
+  // Scroll-back pages the call chat by id, like any thread.
+  const newest = r.book.messagesPage({ thread: CALL_THREAD, limit: 2 });
+  expect(newest.messages.map((m) => m.text)).toEqual(["três", "quatro"]);
+  expect(newest.more).toBe(true);
+  const older = r.book.messagesPage({ thread: CALL_THREAD, before: newest.messages[0]!.id, limit: 2 });
+  expect(older.messages.map((m) => m.text)).toEqual(["um", "dois"]);
+  expect(r.book.messagesPage({ thread: CALL_THREAD, before: older.messages[0]!.id, limit: 2 }).messages.map((m) => m.text)).toEqual(["antes"]);
+  expect(r.book.epics()).toHaveLength(0);
+});
+
+test("the recording's title is the room's: the call is the room's, not a thread's", async () => {
+  const r = callRoom();
+  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  // The fake D1 has no room row: the fallback name, with no thread after it.
+  expect(await r.book.callTitle("abcdef")).toBe("deco.chat");
+});
+
+test("a person alone is not recorded; the second person makes it a call to record", () => {
+  const r = callRoom();
+  expect(r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test")).toBe(false);
+  expect(r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test")).toBe(true);
+  expect(r.book.liveCallThread()).toBe(CALL_THREAD);
 });

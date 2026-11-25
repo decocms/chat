@@ -58,6 +58,8 @@ import {
   TextBody,
   type AccessRequestResult,
   type AccessResult,
+  MessagesQuery,
+  type MessagesPage,
   ClaudeToggleBody,
   DeliveryBody,
   type DeliveryResult,
@@ -120,6 +122,8 @@ export interface ApiServices {
   callAnswer(roomId: string, session: string, answer: CallDescription): Promise<boolean>;
   callClose(roomId: string, session: string, mids: string[], names: string[]): Promise<boolean>;
   humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
+  /** One page of a thread (GET /api/books/:id/messages). The route checks membership first. */
+  roomMessages(roomId: string, query: MessagesQuery): Promise<MessagesPage>;
   /** Validates type/size/secrets and stores the file; throws an Error whose message is user-facing. */
   storeFile(roomId: string, type: string, body: ArrayBuffer, name: string): Promise<UploadFileResult>;
   fileTypes: readonly string[];
@@ -592,6 +596,19 @@ export const roomApi = accountApi
     svc.track(approve ? "access_approved" : "access_denied", { book: id });
     return c.json(ok, 200);
   })
+  .get(
+    "/api/books/:id/messages",
+    validator("query", (value, c) => {
+      const r = MessagesQuery.safeParse(value);
+      return r.success ? r.data : c.json({ error: "invalid query" } satisfies ErrorBody, 400);
+    }),
+    async (c) => {
+      const svc = c.get("svc"), id = c.req.param("id");
+      if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+      c.header("Cache-Control", "private, no-store");
+      return c.json((await svc.roomMessages(id, c.req.valid("query"))) satisfies MessagesPage, 200);
+    },
+  )
   .get("/api/books/:id/access", async (c) => c.json({ member: await c.get("svc").isMember(c.req.param("id")) } satisfies AccessResult, 200));
 
 const tooManyAsks = (en: boolean) => ({ error: en ? "Too many requests in a row. Wait a minute." : "Muitos pedidos seguidos. Espera um minuto." }) satisfies ErrorBody;

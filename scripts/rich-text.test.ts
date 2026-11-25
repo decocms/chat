@@ -189,6 +189,25 @@ test("human mode stays literal; mentions, diacritic aliases, unknown shortcodes 
   );
   expect(text(richText("`:fire:`", "markdown", context))).toBe("🔥");
 });
+test("human mode shows lines that start with > as a quote block, and keeps the rest literal", () => {
+  const ast = richText(
+    "> «Isso importa porque a lacuna é real.»\n> §1 · Post @José\n\nAchei meio AI slop.\n>not a quote\na > b",
+    "human",
+    context,
+  );
+  expect(tags(ast)).toEqual(["blockquote"]);
+  expect(ast[0]).toMatchObject({ kind: "element", tag: "blockquote" });
+  const quote = ast[0]!.kind === "element" ? ast[0]!.children : [];
+  expect(text(quote)).toBe(
+    "«Isso importa porque a lacuna é real.»\n§1 · Post @José",
+  );
+  expect(walk(quote).some((n) => n.kind === "mention")).toBe(true);
+  // No empty lines around the block: it has its own margins.
+  expect(text(ast.slice(1))).toBe("Achei meio AI slop.\n>not a quote\na > b");
+  const middle = richText("antes\n\n> citação\n\ndepois", "human", context);
+  expect(middle.map((n) => n.kind)).toEqual(["text", "element", "text"]);
+  expect(text(middle)).toBe("antescitaçãodepois");
+});
 test("GitHub chip classification preserves custom labels and reserved paths", () => {
   const ast = richText(
     "[https://github.com/org/repo/pull/42](https://github.com/org/repo/pull/42?x=1#top) [**Custom**](https://github.com/org/repo/commit/123456789) [reserved](https://github.com/settings/profile)",

@@ -21,6 +21,18 @@ Rules:
 - To change the local identity, open `/api/dev/as?email=<email>`.
 - Local emails go to `.wrangler/tmp/email/`.
 - Use test data only. Do not use real rooms, names or emails in tests or screenshots.
+- `bun run dev` runs with `--local`: the `AI` binding (Workers AI) is always remote, and a remote binding needs a valid `wrangler login` or `CLOUDFLARE_API_TOKEN`. Without them the dev server did not start, so nobody could test a change locally. Locally, dictation (Whisper) does not work. Everything else does.
+
+## Screens
+
+Each change that a person can see gets screens from local development before its pull request merges (Gui, #4723).
+
+1. Set `DEV_EMAIL` to a test email (for example `ana@example.test`) in `.dev.vars`, and `SESSION_SECRET` to any random string.
+2. Run `bun run dev`. Wait until http://127.0.0.1:8797/api/me answers with the test email.
+3. Run `bun run screens -- --hover`. It makes a new room "Sala de teste" with three test messages and saves the room at 1440 px (still and with the mouse over a message), the room at 390 px and the home at 390 px in `.screens/<branch>/`.
+   - If your change needs another state (a thread, a reaction, a dialog), add the steps to `scripts/screens.ts` in the same pull request.
+4. Look at each screen. If it does not show the change working, fix the change. Do not continue.
+5. Run `bun run screens -- --hover --publish`. It pushes the screens to the branch `pr-screens` (no workflow runs there; the repository is public, so test data only) and prints the Markdown. Put it in the "Screens" section of the pull request.
 
 ## Check
 
@@ -81,9 +93,9 @@ Each merge into `main` is a release. Workers Builds deploys the `chat` Worker (b
 
 **Warning: Never leave `main` red. A red `main` is a failed check on the newest commit of `main`.**
 
-1. Open a pull request. Fill in each section of `.github/pull_request_template.md`.
+1. Open a pull request. Fill in each section of `.github/pull_request_template.md`. A change that a person can see needs its screens in the pull request first (see "Screens").
 2. Rebase the branch on the newest `main` (`git fetch origin && git rebase origin/main`). Push it.
-3. Enable automerge: `gh pr merge <number> --auto --squash`.
+3. Enable automerge: `gh pr merge <number> --auto --squash`. Do not enable it on a visible change without screens in the pull request.
 4. Wait for the merge. If `verify` fails, fix the branch and push again.
 5. After the merge, watch the checks of the merged commit on `main` (`gh run list --branch main --commit <sha>`, `gh run watch <id>`). This includes the browser jobs.
    - A newer push to `main` cancels the older run. If your run is cancelled, watch the run of the newest commit on `main`. It contains your change.

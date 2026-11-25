@@ -70,6 +70,10 @@ export const epicDocSeed = (title: string, why = "") =>
 const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[\s\d.)\-–—:#]+/, "").replace(/\s+/g, " ").trim();
 
 const DEFAULT_TITLE = "Nova sala";
+/** A short hash of a wire value (djb2 + length): the epics' change detection and a reconnect's `eh`. */
+const wireHash = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
+/** A reconnect resumes (cache plan PR 2) only from a state at most this old, with at most this many changed rows. */
+const RESUME_MAX_AGE_MS = 6 * 3600_000, RESUME_MAX_ROWS = 200;
 
 const CLASSIFY_DELAY_MS = 30_000;
 // An answer epic still empty this long after its question gets one reminder for the person who asked (Gui #4210).
@@ -197,8 +201,7 @@ export class Book extends DurableObject<Env> {
    * don't). No record yet = the whole list. */
   pushEpics(all: ReturnType<Book["epics"]>, roomTasks: ReturnType<Book["roomTasks"]>) {
     const epics = this.wireEpics(all);
-    const h = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
-    const now: Record<string, string> = Object.fromEntries(epics.map((e) => [e.id, h(JSON.stringify(e))]));
+    const now: Record<string, string> = Object.fromEntries(epics.map((e) => [e.id, wireHash(JSON.stringify(e))]));
     const raw = this.get("epics_sent");
     this.set("epics_sent", JSON.stringify(now));
     if (!raw) return this.broadcast({ t: "epics", epics, roomTasks });
@@ -330,6 +333,21 @@ export class Book extends DurableObject<Env> {
       ? this.sql.exec(`SELECT * FROM messages WHERE thread = ? ORDER BY id DESC LIMIT ?`, thread, limit)
       : this.sql.exec(`SELECT * FROM messages ORDER BY id DESC LIMIT ?`, limit);
     return this.messageRows(rows.toArray()).reverse();
+  }
+  /** A reconnect resumes (cache plan PR 2, Gimenes #4638): 51% of room opens were reconnects (code 1006) that got the
+   * whole state again (390 KB in the product room). A socket that already has the room sends `since` (its newest
+   * message id), `at` (its last state's time) and `eh` (the hash of the threads it got). Nothing is kept per client.
+   * The answer: the open thread's window, every message newer than since or edited or deleted since at, and the
+   * threads only when their hash differs. null = send the whole state (no params, too old, or too much changed).
+   * Not caught up: a reaction or a card changed on an older message during the gap (live events carry those after). */
+  resumeOf(url: URL, open: string, window: Msg[], eh: string) {
+    const since = Number(url.searchParams.get("since")), at = Number(url.searchParams.get("at")), now = Date.now();
+    if (!(Number.isSafeInteger(since) && since > 0 && at > now - RESUME_MAX_AGE_MS && at <= now)) return null;
+    const rows = this.sql.exec(`SELECT * FROM messages WHERE id > ? OR edited >= ? OR deleted >= ? ORDER BY id LIMIT ?`, since, at, at, RESUME_MAX_ROWS + 1).toArray();
+    if (rows.length > RESUME_MAX_ROWS) return null;
+    const messages = new Map(window.filter((m) => m.thread === open).map((m) => [m.id, m]));
+    for (const m of this.messageRows(rows)) messages.set(m.id, m);
+    return { messages: [...messages.values()].sort((a, b) => a.id - b.id), epicsSame: url.searchParams.get("eh") === eh };
   }
   /** What a room open sends: the newest 60 messages of the open thread and the newest 5 of every other one (enough for
    * the sidebar, thread cards and the ✻); the app pages the rest with "older" when a thread opens. Apart, in origins
@@ -734,7 +752,8 @@ export class Book extends DurableObject<Env> {
     this.broadcast({ t: "call", call: peers, thread: this.liveCallThread() });
   }
   /** One session per person: joining again (another tab or device) replaces the earlier one.
-   *  Answers true when no person was in the call before (the recorder is not a person). */
+   *  Answers true when this join makes the call one to record: a second person is in it now and no recorder is
+   *  (a person alone in a call is not recorded: the first production recording was one person, 2026-11-24). */
   callJoin(bookId: string, email: string, session: string, origin: string): boolean {
     this.bind(bookId);
     const before = this.callPeers(), first = !before.some((p) => !isRecorder(p.email));
@@ -743,8 +762,9 @@ export class Book extends DurableObject<Env> {
       this.set("call_origin", origin);
       this.set("call_rec_n", "0");
     }
-    this.setCall([...before.filter((p) => p.email !== email), { email, session, tracks: [] }]);
-    return first;
+    const after = [...before.filter((p) => p.email !== email), { email, session, tracks: [] }];
+    this.setCall(after);
+    return !isRecorder(email) && after.filter((p) => !isRecorder(p.email)).length >= 2 && !after.some((p) => isRecorder(p.email));
   }
   /** The chat of the call that is on (beside the stage); none while nobody is in a call. */
   liveCallThread(): string | undefined {
@@ -759,7 +779,8 @@ export class Book extends DurableObject<Env> {
   knownThread(thread: string): boolean {
     return thread === "main" || (thread === CALL_THREAD && !this.isDm) || this.epics().some((e) => e.id === thread);
   }
-  /** Where the call was, for the recording's title: the room. */
+  /** Where the call was, for the recording's title: the room. The call is the room's (its chat is the room's one
+   *  call chat, not a thread), so no thread goes in the title. */
   async callTitle(bookId: string): Promise<string> {
     this.bind(bookId);
     return (await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title || "deco.chat";
@@ -815,7 +836,8 @@ export class Book extends DurableObject<Env> {
     const left = peers.filter((p) => p.email !== email);
     this.setCall(left);
     const bookId = this.get("book_id") ?? "";
-    if (!isRecorder(email) || !left.some((p) => !isRecorder(p.email)) || !recorderOn(this.env, bookId)) return;
+    // Two people or more are still there: with one person left, the recorder is not called back.
+    if (!isRecorder(email) || left.filter((p) => !isRecorder(p.email)).length < 2 || !recorderOn(this.env, bookId)) return;
     const attempt = Number(this.get("call_rec_n") ?? 0) + 1;
     this.set("call_rec_n", String(attempt));
     // ponytail: 6 recorders for one call at most. A recorder that stops each time would start one more for ever.
@@ -1355,12 +1377,16 @@ export class Book extends DurableObject<Env> {
     return { members, names, handles, nm, roster, before };
   }
   /** The people a message waits on become D1 `waits` rows (home, rail, MCP `pending`) and get a push. Whoever already
-   *  wrote in the thread after it is left out (answeredHere already ran for them). */
+   *  wrote in the thread after it, or reacted to it, is left out: answeredHere and reactedHere already ran for them,
+   *  before this pass (an LLM call) was done, so the message would stay orange (Gimenes #4604). */
   async saveWaits(id: number, emails: string[]) {
     const bookId = this.get("book_id");
-    const m = this.sql.exec<{ thread: string; author: string; text: string; ts: number }>(`SELECT thread, author, text, ts FROM messages WHERE id = ?`, id).toArray()[0];
+    const m = this.sql
+      .exec<{ thread: string; author: string; text: string; ts: number; reactions: string | null }>(`SELECT thread, author, text, ts, reactions FROM messages WHERE id = ?`, id)
+      .toArray()[0];
     if (!bookId || !m) return;
     const later = new Set(this.sql.exec<{ author: string }>(`SELECT DISTINCT author FROM messages WHERE thread = ? AND id > ? AND kind IS NULL`, m.thread, id).toArray().map((x) => x.author));
+    for (const who of Object.values(storedReactions(m.reactions) ?? {}).flat()) later.add(who);
     const asked = emails.filter((e) => !later.has(e));
     const topic = m.thread === "main" ? "" : (this.epics().find((e) => e.id === m.thread)?.title ?? "");
     if (asked.length) {
@@ -1531,6 +1557,8 @@ export class Book extends DurableObject<Env> {
     const now = Date.now();
     if (text === null) {
       if (!author && (by.agent || !(await this.isOwner(by.email)))) return { ok: false, error: "only its author or the room owner can delete a message" };
+      // A thread started from this message keeps its origin (Gimenes #4621): delete the thread first.
+      if (this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, id).toArray().length) return { ok: false, error: "a thread started from this message; it cannot be deleted" };
       this.sql.exec(`INSERT INTO message_edits (msg_id, kind, text, files, card, by, ts) VALUES (?, 'delete', ?, ?, ?, ?, ?)`, id, row.text, row.files, row.card, by.agent ? `${by.email}#agent` : by.email, now);
       this.sql.exec(`UPDATE messages SET text = '', files = NULL, card = NULL, choices = NULL, poll = NULL, deleted = ? WHERE id = ?`, now, id);
       // Its files leave the room too (Files tab, links, get_file): only the owner still opens them, from the history.
@@ -1570,6 +1598,21 @@ export class Book extends DurableObject<Env> {
   agentChangeMessage(bookId: string, email: string, id: number, text: string | null) {
     this.bind(bookId);
     return this.changeMessage(id, { email, agent: true }, text);
+  }
+  /** One page of a thread for GET /api/books/:id/messages and the socket's "older" (cache plan, PR 1). The route checks
+   *  membership. after = the oldest `limit` after that id (catch up); else the newest `limit` before `before`. */
+  messagesPage(q: { thread: string; before?: number; after?: number; limit: number }) {
+    const limit = Math.min(Math.max(1, Math.trunc(q.limit)), 100);
+    const rows = q.after !== undefined
+      ? this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND id > ? ORDER BY id LIMIT ?`, q.thread, Math.trunc(q.after), limit + 1).toArray()
+      : this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT ?`, q.thread, Math.trunc(q.before ?? 0) || Number.MAX_SAFE_INTEGER, limit + 1).toArray();
+    const page = this.messageRows(rows.slice(0, limit));
+    const messages = q.after !== undefined ? page : page.reverse();
+    return { thread: q.thread, messages, acks: this.acksList(messages.map((r) => r.id)), more: rows.length > limit };
+  }
+  roomMessages(bookId: string, q: { thread: string; before?: number; after?: number; limit: number }) {
+    this.bind(bookId);
+    return this.messagesPage(q);
   }
   /** The answer_thread router action (Gui #2767): a question or analysis asked in main becomes an answer epic right
    *  away (title = the question), linked under the message, with its doc open in the author's tabs, where "Claude está
@@ -1779,6 +1822,9 @@ export class Book extends DurableObject<Env> {
         id: m.id,
         at: new Date(m.ts).toISOString(),
         thread: threadName(m.thread),
+        // The thread's id: two threads can have the same title, so an agent finds the thread by this, never by the
+        // title (@vibe #4571, Gimenes #4582).
+        epic_id: m.thread,
         from: who(m.author),
         by_agent: m.kind === "agent",
         mentions_you: !!email && m.author !== email && mentionsMe(m.text, !m.kind && m.author !== "ai"),
@@ -1847,7 +1893,7 @@ export class Book extends DurableObject<Env> {
         ? this.sql
             .exec(`SELECT m.id, m.thread, m.text, m.ts FROM messages m WHERE m.tag = 'reminder' AND (m.author = ? OR m.for_who = ?) AND m.ts > ? AND NOT EXISTS (SELECT 1 FROM acks a WHERE a.msg_id = m.id AND a.status = 'done') ORDER BY m.id`, email, email, Date.now() - 7 * 864e5)
             .toArray()
-            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), text: m.text as string, at: new Date(m.ts as number).toISOString() }))
+            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), epic_id: m.thread as string, text: m.text as string, at: new Date(m.ts as number).toISOString() }))
         : undefined,
       // Your human's messages from the last 48h that none of their agents acked (doing/idle/done): what got skipped.
       unacked: email
@@ -1861,7 +1907,7 @@ export class Book extends DurableObject<Env> {
             .toArray()
             .reverse()
             .filter((m) => !forOther(String(m.text ?? "")))
-            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), text: String(m.text ?? "").slice(0, 300), at: new Date(m.ts as number).toISOString() }))
+            .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), epic_id: m.thread as string, text: String(m.text ?? "").slice(0, 300), at: new Date(m.ts as number).toISOString() }))
         : undefined,
       ...(briefs.length
         ? {
@@ -1923,6 +1969,9 @@ export class Book extends DurableObject<Env> {
     // answered with reply_to in main left the epic on "Claude está escrevendo" forever.
     const answerOf = replyTo ? this.answerEpicOf(replyTo) : undefined;
     if (answerOf && (!thread || thread === "main")) thread = answerOf;
+    // A reply in main to a request that became a thread goes into that thread (Gui #4562: main is thread starts).
+    const threadOf = replyTo && !answerOf && (!thread || thread === "main") ? this.epicsFrom(replyTo, true)[0]?.id : undefined;
+    if (threadOf) thread = threadOf;
     // No thread given: a reply goes where the message it answers is (an epic's thread), anything else to main.
     if (!thread) thread = (replyTo && (this.sql.exec(`SELECT thread FROM messages WHERE id = ?`, replyTo).toArray()[0]?.thread as string)) || "main";
     if (!this.knownThread(thread)) return { ok: false, error: `unknown thread ${thread}; use "main" or an epic id from read_room` };
@@ -2012,13 +2061,31 @@ export class Book extends DurableObject<Env> {
       if (thread && thread !== "main" && this.sql.exec(`UPDATE epics SET status = 'doing' WHERE id = ? AND status = 'todo' AND COALESCE(done, 0) != 1`, thread).rowsWritten)
         this.epicsChanged();
     }
+    // A request of the agent's own human in main, taken with no thread yet: the server opens its thread now
+    // (Gui #4562: main is almost only thread starts). start_thread for this message returns it, with the tasks.
+    const work = status === "doing" ? this.workThread(id as number, email) : undefined;
     this.ctx.waitUntil(this.markBusy(false));
     this.ctx.waitUntil(this.blockedWait(email, id as number, status === "blocked" ? note ?? "" : null));
     // A question that became an answer epic: say where the answer goes, so it isn't written in main (Gui #4210).
     const answer = this.answerEpicOf(id as number);
     if (answer && this.answerPending(answer))
       return { ok: true, message_id: id, answer_thread: answer, how: `This question has an answer thread (${answer}). Write the answer with update_doc epic_id=${answer}, then post 1-2 lines with thread=${answer}. Never answer it in main.` };
+    if (work) return { ok: true, message_id: id, thread: work, how: `This request now has its thread (${work}). Work there: start_thread with from_message_id=${id} returns it (pass the title and tasks), and post with thread=${work}. Never in main.` };
     return { ok: true, message_id: id };
+  }
+  /** The thread for a request in main of `email` (not a DM, not an agent's or a reminder's line) that has none yet,
+   *  made when their agent acks it (Gui #4562). Title = the request; no tasks until start_thread gives them. */
+  workThread(msgId: number, email: string) {
+    if (this.isDm) return;
+    const m = this.sql.exec<{ thread: string; author: string; kind: string | null; text: string }>(`SELECT thread, author, kind, text FROM messages WHERE id = ?`, msgId).toArray()[0];
+    if (!m || m.thread !== "main" || m.kind || m.author.toLowerCase() !== email.toLowerCase() || this.epicsFrom(msgId).length) return;
+    const line = m.text.replace(/\s+/g, " ").trim(), cut = line.length > 70 ? `${line.slice(0, 70).replace(/\s+\S*$/, "")}…` : line;
+    if (!cut) return;
+    const id = this.createEpic(cut, [], [email.toLowerCase()], line.slice(0, 300));
+    this.set(`auto:${id}`, "1");
+    this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ?, status = 'doing' WHERE id = ?`, email.toLowerCase(), msgId, id);
+    this.epicsChanged();
+    return id;
   }
   /** The "esperando você" row for a blocked agent (ref b<msg>), or its removal (text null; "" = no note). */
   async blockedWait(email: string, msgId: number, text: string | null) {
@@ -2221,7 +2288,7 @@ export class Book extends DurableObject<Env> {
       this.broadcast({ t: "msgCard", id: msgId, card: json });
       return { ok: true as const, id: msgId };
     }
-    if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
+    if (!this.knownThread(thread)) thread = "main";
     const m = this.addMessage(thread, email, text.slice(0, 500), { card, quiet: true });
     return { ok: true as const, id: m.id };
   }
@@ -2233,7 +2300,7 @@ export class Book extends DurableObject<Env> {
     const clientId = send?.clientId;
     const text = raw.trim().slice(0, MESSAGE_TEXT_LIMIT);
     if (!text) return { ok: false, error: en ? "Empty message." : "Mensagem vazia." };
-    if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
+    if (!this.knownThread(thread)) thread = "main";
     const secret = findSecret(text);
     if (secret) return { ok: false, error: en ? `Not sent: it looks like a secret (${secretName(secret)}). Secrets don't go in the room.` : `Não enviei: parece ${secret}. Segredo não entra na sala.` };
     if (send && !clientId) this.noClientId(email, "http");
@@ -2312,7 +2379,21 @@ export class Book extends DurableObject<Env> {
       (fromMsg && this.sql.exec(`SELECT id FROM messages WHERE id = ?`, fromMsg).toArray()[0]?.id) ??
       (backlog ? undefined : this.sql.exec(`SELECT id FROM messages WHERE author = ? AND kind IS NULL ORDER BY id DESC LIMIT 1`, email).toArray()[0]?.id);
     // The server already turned this question into an answer epic (the answer_thread router action, Gui #2767): the agent takes that one.
-    const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(done, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1") : undefined;
+    const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(done, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1" || this.get(`auto:${e.id}`) === "1") : undefined;
+    if (made && this.get(`auto:${made.id}`) === "1") {
+      // The thread its ack opened (workThread): it takes the agent's title, goal and tasks, once.
+      this.set(`auto:${made.id}`, "");
+      for (const title of tasks.slice(0, 12)) {
+        const task = this.addTask(made.id, title);
+        if (task) this.sql.exec(`UPDATE tasks SET owner = ? WHERE id = ?`, email.toLowerCase(), task);
+      }
+      this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, t, made.id);
+      if (why.trim()) this.set(`doc:${made.id}`, epicDocSeed(t, why));
+      this.epicsChanged();
+      if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
+      const e = this.epics().find((x) => x.id === made.id);
+      return { ok: true, epic_id: made.id, thread: made.id, tasks: e?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [] };
+    }
     if (made) {
       if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
       if (t && t !== this.epics().find((e) => e.id === made.id)?.title) this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, t, made.id), this.epicsChanged();
@@ -2571,6 +2652,8 @@ export class Book extends DurableObject<Env> {
     ]);
     const { dm, ...meta } = book ?? { title: DEFAULT_TITLE, owner: email, dm: null };
     const win = this.roomWindow(url.searchParams.get("t") || "main", email);
+    const epics = this.wireEpics(this.epics(), url.searchParams.get("t") || ""), eh = wireHash(JSON.stringify(epics));
+    const resume = this.resumeOf(url, url.searchParams.get("t") || "main", win.messages, eh);
     const state: Extract<RoomEvent, {t:"state"}> = {
         t: "state",
         me: email,
@@ -2580,10 +2663,14 @@ export class Book extends DurableObject<Env> {
         docNotes: this.docNotes(),
         // Only the open epic's doc; the app asks for another with "doc.get" when that epic opens (all of them were 70 KB).
         docs: this.epicDocs(url.searchParams.get("t") || ""),
-        epics: this.wireEpics(this.epics(), url.searchParams.get("t") || ""),
+        epics: resume?.epicsSame ? [] : epics,
         roomTasks: this.roomTasks(),
         // The newest of each thread; full = threads sent whole, counts = real totals (the sidebar's numbers).
         ...win,
+        // A reconnect that resumes gets only what changed; the app merges it into the room it has.
+        ...(resume ? { messages: resume.messages, resume: true, ...(resume.epicsSame ? { epicsSame: true } : {}) } : {}),
+        at: Date.now(),
+        eh,
         complete: false,
         // The newest 12 and the pinned ones; the whole list (~100 KB in the product room) when Arquivos opens ("files.get").
         files: storedFileRows(this.sql.exec(`SELECT * FROM files WHERE deleted IS NULL AND (id IN (SELECT id FROM files WHERE deleted IS NULL ORDER BY ts DESC LIMIT 12) OR id IN (SELECT ref FROM pins WHERE kind = 'file')) ORDER BY ts DESC`).toArray(), (kind) => console.warn("book stored projection", kind)),
@@ -2615,7 +2702,7 @@ export class Book extends DurableObject<Env> {
     // messages split (18/11, to decide what to cut next): the open thread's window, the other threads' 5 each, and cards.
     const open = url.searchParams.get("t") || "main", kb = (xs: unknown[]) => Math.round(JSON.stringify(xs).length / 1000);
     const msgs = `open ${kb(win.messages.filter((m) => m.thread === open))}k, other ${kb(win.messages.filter((m) => m.thread !== open))}k, cards ${kb(win.messages.map((m) => m.card).filter(Boolean))}k`;
-    this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined } })); // rc: close code of the socket this one replaces (a reconnect)
+    this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : "epics") : url.searchParams.has("since") ? "full" : undefined } })); // rc: close code of the socket this one replaces (a reconnect)
     this.broadcast({ t: "online", online: this.online() });
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -2721,15 +2808,20 @@ export class Book extends DurableObject<Env> {
         if (this.isDm) return new Refused("a DM has no epics");
         const title = String(m.title ?? "").trim();
         if (!title) return;
+        const from = m.from === undefined ? undefined : Number(m.from);
+        const origin =
+          from === undefined ? undefined : this.sql.exec<{ author: string }>(`SELECT author FROM messages WHERE id = ?`, from).toArray()[0];
+        if (from !== undefined && !origin) return new Refused("unknown message");
+        // A thread made from a person's message is that person's, not whoever clicked (Gimenes #4594). @vibe's messages
+        // have no person: the one who made the thread owns it.
+        const owner = origin && origin.author !== "ai" && origin.author.includes("@") ? origin.author : email;
         // The same id again is a retry of the same create: done already, nothing twice.
         if (m.id && this.sql.exec(`SELECT 1 FROM epics WHERE id = ?`, m.id).toArray().length) {
-          const mine = this.sql.exec<{ owner: string | null }>(`SELECT owner FROM epics WHERE id = ?`, m.id).toArray()[0]?.owner === email;
-          return mine ? undefined : new Refused("epic id in use");
+          const same = this.sql.exec<{ owner: string | null }>(`SELECT owner FROM epics WHERE id = ?`, m.id).toArray()[0]?.owner === owner;
+          return same ? undefined : new Refused("epic id in use");
         }
-        const from = m.from === undefined ? undefined : Number(m.from);
-        if (from !== undefined && !this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, from).toArray().length) return new Refused("unknown message");
         const id = this.createEpic(title, [], [], "", m.id);
-        this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, this.threadOrigin({ author: email }, from, title), id);
+        this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, owner, this.threadOrigin({ author: email }, from, title), id);
         this.epicsChanged();
         this.ctx.waitUntil(track(this.env, "thread_create", { user: email, dims: { book: this.get("book_id") ?? "", from: from === undefined ? "sidebar" : "message" } }));
         return;
@@ -2740,17 +2832,10 @@ export class Book extends DurableObject<Env> {
         if (String(m.title ?? "").trim()) this.addTask(String(m.epic), String(m.title).trim());
         return;
       case "older": {
-        // Scroll-back: 100 messages of a thread before an id.
-        // No id = the newest (a thread opened with nothing of it in the state yet).
-        const before = Number(m.before) || Number.MAX_SAFE_INTEGER;
-        const rows = this.sql
-          .exec(`SELECT * FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT 101`, String(m.thread ?? "main"), before)
-          .toArray();
-        const page = this.messageRows(rows.slice(0, 100)).reverse();
-        // The page's acks (the room's state carries only the loaded messages' ones).
-        const acks = this.acksList(page.map((r) => r.id));
-        if (acks.length) this.sendTo([ws], { t: "ackRows", acks });
-        return this.sendTo([ws], { t: "older", thread: String(m.thread ?? "main"), messages: page, more: rows.length > 100 });
+        // Scroll-back over the socket, for apps from before GET /messages (the same page).
+        const page = this.messagesPage({ thread: String(m.thread ?? "main"), before: Number(m.before) || undefined, limit: 100 });
+        if (page.acks.length) this.sendTo([ws], { t: "ackRows", acks: page.acks });
+        return this.sendTo([ws], { t: "older", thread: page.thread, messages: page.messages, more: page.more });
       }
       case "pin.add": {
         const r = await this.pinAdd(email, String(m.kind ?? ""), String(m.ref ?? ""), String(m.title ?? ""));
@@ -2798,6 +2883,7 @@ export class Book extends DurableObject<Env> {
       case "task.toggle":
         return this.setTask(String(m.id));
       case "task.status":
+        if (m.from === "composer") this.ctx.waitUntil(track(this.env, "review_answer", { user: email, dims: { book: this.get("book_id") ?? "", status: String(m.status) } }));
         return void this.setStatus(String(m.id), String(m.status));
       case "task.rename":
         return this.updateTask(String(m.id), String(m.title ?? ""));

@@ -157,7 +157,7 @@
     class={cn(
       "flex items-center gap-0.5",
       floating &&
-        "pointer-events-none absolute -top-2.5 right-3 z-10 in-data-continuous:-top-7.5 origin-top-right translate-y-0.5 scale-[.98] rounded-full bg-card p-0.5 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,translate,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:translate-y-0 group-has-focus-visible:scale-100 group-has-focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:hidden",
+        "pointer-events-none absolute top-full left-17 z-10 -mt-1.5 origin-top-left translate-y-0.5 scale-[.98] rounded-full bg-card p-0.5 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,translate,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:translate-y-0 group-has-focus-visible:scale-100 group-has-focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:hidden",
     )}
   >
     <TooltipProvider>
@@ -231,17 +231,6 @@
             editing = true;
           }}><Icon icon="pencil-01" size={16} /></IconButton
         >{/if}
-      {#if canDelete}<IconButton
-          label={vb.t("Apagar mensagem")}
-          data-delete-message={message.id}
-          class={floating
-            ? "rounded-full text-muted-foreground hover:text-foreground"
-            : ""}
-          onclick={() => {
-            error = "";
-            deleting = true;
-          }}><Icon icon="trash-01" size={16} /></IconButton
-        >{/if}
       {#if history !== undefined}<IconButton
           label={vb.t("Ver histórico da mensagem")}
           data-message-history={message.id}
@@ -265,6 +254,22 @@
             icon={copied === "link" ? "check" : "link-01"}
             size={16}
           /></IconButton
+        >{/if}
+      <!-- Delete is last, red, after a divider: far from the actions people click often (Gimenes #4591). -->
+      {#if canDelete}<div
+          aria-hidden="true"
+          class="mx-0.5 h-4 w-px shrink-0 bg-border"
+        ></div>
+        <IconButton
+          label={vb.t("Apagar mensagem")}
+          data-delete-message={message.id}
+          class={floating
+            ? "rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+            : "text-destructive hover:text-destructive"}
+          onclick={() => {
+            error = "";
+            deleting = true;
+          }}><Icon icon="trash-01" size={16} /></IconButton
         >{/if}
     </TooltipProvider>
   </div>

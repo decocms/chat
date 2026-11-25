@@ -56,7 +56,41 @@ function mentions(text: string, context: RichContext): RichNode[] {
   if (at < text.length) out.push({ kind: "text", text: text.slice(at) });
   return out;
 }
+/** Lines that start with `> ` (or a lone `>`) in a person's message: a quote, as in Slack. An app's reference
+ *  (the content-os reader) arrives like this, so the quote and what the person said look different. */
+const quoteLine = /^>(?: |$)/;
 function human(text: string, context: RichContext): RichNode[] {
+  const out: RichNode[] = [],
+    lines = text.split("\n");
+  let plain: string[] = [];
+  const flush = () => {
+    if (plain.length) out.push(...humanText(plain.join("\n"), context));
+    plain = [];
+  };
+  for (let at = 0; at < lines.length;) {
+    if (!quoteLine.test(lines[at]!)) {
+      plain.push(lines[at++]!);
+      continue;
+    }
+    const quoted: string[] = [];
+    while (at < lines.length && quoteLine.test(lines[at]!))
+      quoted.push(lines[at++]!.replace(quoteLine, ""));
+    // The quote is a block with its own margins: the line breaks around it would add empty lines.
+    while (plain.length && !plain.at(-1)!.trim()) plain.pop();
+    flush();
+    out.push({
+      kind: "element",
+      tag: "blockquote" as SafeTag,
+      namespace: HTML_NS,
+      attrs: {},
+      children: humanText(quoted.join("\n"), context),
+    });
+    while (at < lines.length && !lines[at]!.trim()) at++;
+  }
+  flush();
+  return out;
+}
+function humanText(text: string, context: RichContext): RichNode[] {
   const out: RichNode[] = [];
   let at = 0;
   for (const match of text.matchAll(sourceLink)) {

@@ -1,12 +1,26 @@
+import { MAX_COMPOSER_QUOTES } from "./model";
+import type { ComposerQuote } from "./types";
 /**
- * The text of each composer draft (and the message it replies to) kept in the browser, so leaving a room or a
- * thread, reloading, or closing the app brings it back (Gimenes #4172). Only text and reply: files and polls stay
- * in memory. Keyed by account, room and thread; at most MAX_STORED drafts, the oldest go first.
+ * The text of each composer draft (with its app quotes and the message it replies to) kept in the browser, so
+ * leaving a room or a thread, reloading, or closing the app brings it back (Gimenes #4172). Only text, quotes and
+ * reply: files and polls stay in memory. Keyed by account, room and thread; at most MAX_STORED drafts, the oldest go first.
  */
-export type StoredDraft = { text: string; replyId?: number; at: number };
+export type StoredDraft = {
+  text: string;
+  quotes: ComposerQuote[];
+  replyId?: number;
+  at: number;
+};
 export type DraftStore = {
   read(key: string): StoredDraft | undefined;
-  write(key: string, draft: { text: string; replyId?: number }): void;
+  write(
+    key: string,
+    draft: {
+      text: string;
+      quotes?: readonly ComposerQuote[];
+      replyId?: number;
+    },
+  ): void;
   remove(key: string): void;
   /** Removes every stored draft (sign-out). */
   clear(): void;
@@ -36,6 +50,17 @@ export function storageDrafts(
       if (typeof value.text !== "string") return;
       return {
         text: value.text,
+        quotes: Array.isArray(value.quotes)
+          ? value.quotes
+              .filter(
+                (quote): quote is ComposerQuote =>
+                  !!quote &&
+                  typeof quote.label === "string" &&
+                  typeof quote.text === "string",
+              )
+              .slice(0, MAX_COMPOSER_QUOTES)
+              .map(({ label, text }) => ({ label, text }))
+          : [],
         replyId:
           typeof value.replyId === "number" && Number.isInteger(value.replyId)
             ? value.replyId
@@ -61,6 +86,7 @@ export function storageDrafts(
           PREFIX + key,
           JSON.stringify({
             text: draft.text,
+            quotes: draft.quotes?.length ? draft.quotes : undefined,
             replyId: draft.replyId,
             at: now(),
           }),

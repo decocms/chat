@@ -54,6 +54,7 @@ const conn = {
 function fixture(overrides: Partial<ApiServices> = {}) {
   const writes: { query: string; values: (string | number | null)[] }[] = [];
   const posted: { room: string; text: string; thread: string }[] = [];
+  const pages: Record<string, unknown>[] = [];
   const uploaded: { room: string; type: string; size: number; name: string }[] =
     [];
   const saved: { table: string; value: string }[] = [];
@@ -69,6 +70,10 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     allowStt: async () => true,
     transcribe: async () => ({ ok: true, text: "spoken" }),
     pokeFocus: () => {},
+    roomMessages: async (room, query) => {
+      pages.push({ room, ...query });
+      return { thread: query.thread, messages: [], acks: [], more: false };
+    },
     humanPost: async (room, text, thread) => {
       posted.push({ room, text, thread });
       return text.trim()
@@ -324,7 +329,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(value),
     });
-  return { app, json, writes, posted, uploaded, saved, svc };
+  return { app, json, writes, posted, pages, uploaded, saved, svc };
 }
 
 test("post validates HTTP input and preserves success and business-error responses", async () => {
@@ -357,6 +362,45 @@ test("post validates HTTP input and preserves success and business-error respons
     { room: "room", text: "hello", thread: "epic" },
     { room: "room", text: " ", thread: "main" },
   ]);
+});
+
+test("GET messages: a page by id cursor, members only, the query validated (cache plan, PR 1)", async () => {
+  const f = fixture();
+  const ok = await f.app.request(
+    "/api/books/room/messages?thread=e1&before=90&limit=20",
+  );
+  expect(ok.status).toBe(200);
+  expect(ok.headers.get("cache-control")).toBe("private, no-store");
+  expect(await ok.json()).toEqual({
+    thread: "e1",
+    messages: [],
+    acks: [],
+    more: false,
+  });
+  expect((await f.app.request("/api/books/room/messages")).status).toBe(200);
+  expect((await f.app.request("/api/books/room/messages?after=7")).status).toBe(
+    200,
+  );
+  expect(f.pages).toEqual([
+    { room: "room", thread: "e1", before: 90, limit: 20 },
+    { room: "room", thread: "main", limit: 50 },
+    { room: "room", thread: "main", after: 7, limit: 50 },
+  ]);
+  for (const query of [
+    "limit=0",
+    "limit=101",
+    "before=-1",
+    "before=x",
+    "thread=",
+  ])
+    expect(
+      (await f.app.request(`/api/books/room/messages?${query}`)).status,
+    ).toBe(400);
+  const outsider = fixture({ isMember: async () => false });
+  expect((await outsider.app.request("/api/books/room/messages")).status).toBe(
+    403,
+  );
+  expect(outsider.pages).toHaveLength(0);
 });
 
 test("room operations reject nonmembers before any write", async () => {
