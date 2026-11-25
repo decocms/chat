@@ -67,6 +67,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     callTracks: async () => ({}),
     callAnswer: async () => true,
     callClose: async () => true,
+    callLeave: async () => {},
     allowStt: async () => true,
     transcribe: async () => ({ ok: true, text: "spoken" }),
     pokeFocus: () => {},
