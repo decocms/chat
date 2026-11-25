@@ -623,7 +623,12 @@ function pluginVersion() {
 var herdr = (...args) => JSON.parse(execFileSync("herdr", args, { stdio: ["ignore", "pipe", "pipe"] }).toString()).result;
 var PROJECTS = join2(homedir(), "Projects");
 var LISTEN_PROMPT = 'Ouça a sala do vibebook desta pasta: rode `vibebook listen --model "<seu modelo>"` em background (Bash run_in_background); quando ele sair, `vibebook call read_room`, aja nas mensagens from_your_human e volte a ouvir. (Com o plugin, é o /vibebook:listen.)';
-var listenTask = (room) => pluginVersion() ? `/vibebook:listen ${room}` : `${LISTEN_PROMPT} Sala: room_id=${room}.`;
+var CODEX_LISTEN_PROMPT = 'Ouça a sala do vibebook desta pasta: rode `vibebook listen --model "<seu modelo>"` uma vez (no Codex ele fica em segundo plano e manda uma mensagem nesta conversa quando a sala tiver novidade); depois `vibebook call read_room` e aja nas mensagens from_your_human. Não rode listen de novo a cada turno.';
+var RUN_AGENT = (flag("agent") ?? process.env.VIBEBOOK_AGENT) === "codex" ? "codex" : "claude";
+var RUN_NAME = RUN_AGENT === "codex" ? "Codex" : "Claude";
+var listenWords = () => RUN_AGENT === "codex" ? CODEX_LISTEN_PROMPT : LISTEN_PROMPT;
+var resumeArgs = (session2) => !session2 ? [] : RUN_AGENT === "codex" ? ["resume", session2] : ["--resume", session2];
+var listenTask = (room) => RUN_AGENT === "codex" ? `${CODEX_LISTEN_PROMPT} Sala: room_id=${room}.` : pluginVersion() ? `/vibebook:listen ${room}` : `${LISTEN_PROMPT} Sala: room_id=${room}.`;
 var STOP = new Set("a o as os e de da do das dos para pra pro com em no na nos nas um uma por que the of for with and to in on at my our".split(" "));
 var slug = (t) => {
   const words = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -752,7 +757,7 @@ function herdrServer(appMode = false) {
       herdr("workspace", "focus", ws);
       const panes = herdr("pane", "list").panes.filter((p) => p.workspace_id === ws);
       const sess = map[u.searchParams.get("room") ?? ""]?.session;
-      const pane = panes.find((p) => sess && p.agent_session?.value === sess) ?? panes.find((p) => p.agent === "claude");
+      const pane = panes.find((p) => sess && p.agent_session?.value === sess) ?? panes.find((p) => p.agent === RUN_AGENT);
       if (pane?.tab_id)
         herdr("tab", "focus", pane.tab_id);
       const app = terminalApp();
@@ -857,7 +862,7 @@ function machineId() {
   writePrivate(MACHINE, { id });
   return id;
 }
-var sessionAgent = (session2) => `s_${createHash("sha256").update(`claude-code:${session2}`).digest("hex").slice(0, 32)}`;
+var sessionAgent = (session2) => `s_${createHash("sha256").update(`${RUN_AGENT === "codex" ? "codex" : "claude-code"}:${session2}`).digest("hex").slice(0, 32)}`;
 var roomsCache = null;
 async function claudeRooms(agent, tools, kind = "herdr", managed = []) {
   const port = await ensureHub().catch(() => null);
@@ -962,7 +967,7 @@ async function herdrSync(agent, tools) {
   const live = new Set(wsList.map((w) => w.workspace_id));
   const panes = herdr("pane", "list").panes;
   const mapped = new Set(Object.values(map).map((e) => e.workspace).filter(Boolean));
-  const managed = panes.filter((p) => p.agent === "claude" && mapped.has(p.workspace_id) && p.agent_session?.value).map((p) => sessionAgent(p.agent_session.value));
+  const managed = panes.filter((p) => p.agent === RUN_AGENT && mapped.has(p.workspace_id) && p.agent_session?.value).map((p) => sessionAgent(p.agent_session.value));
   const res = await claudeRooms(agent, tools, "herdr", managed);
   const rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
   const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
@@ -983,7 +988,7 @@ async function herdrSync(agent, tools) {
       if (e.listening && e.deaf_since && Date.now() - e.deaf_since > 3 * 60000 && Date.now() - (e.prompted_at ?? 0) > 5 * 60000)
         e.listening = false;
       const inWs = panes.filter((x) => x.workspace_id === e.workspace);
-      if (inWs.length && !inWs.some((x) => x.agent === "claude") && Date.now() - (e.prompted_at ?? 0) > 2 * 60000) {
+      if (inWs.length && !inWs.some((x) => x.agent === RUN_AGENT) && Date.now() - (e.prompted_at ?? 0) > 2 * 60000) {
         e.prompted_at = Date.now();
         e.listening = true;
         e.plugin_v = pluginVersion();
@@ -994,19 +999,19 @@ async function herdrSync(agent, tools) {
         if (updating)
           log("info", "plugin", `${title}: reopening its Claude on plugin ${e.plugin_v} (same conversation)`, { room });
         try {
-          herdr("agent", "start", `vb-${room}`, "--kind", "claude", "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...e.session ? ["--resume", e.session] : [], listenTask(room));
-          log("info", "claude", `${title}: its Claude had exited, started a new one`, { room, folder: tilde(e.folder), resume: short(e.session) });
+          herdr("agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...resumeArgs(e.session), listenTask(room));
+          log("info", "claude", `${title}: its ${RUN_NAME} had exited, started a new one`, { room, folder: tilde(e.folder), resume: short(e.session) });
         } catch (err) {
           const m = err.message;
           if (/timed out waiting for agent startup/.test(m))
-            log("warn", "claude", `${title}: its Claude had exited, the new one is slow to start`, { room });
+            log("warn", "claude", `${title}: its ${RUN_NAME} had exited, the new one is slow to start`, { room });
           else
-            log("error", "claude", `${title}: its Claude had exited and a new one did not start: ${m.slice(0, 120)}`, { room });
+            log("error", "claude", `${title}: its ${RUN_NAME} had exited and a new one did not start: ${m.slice(0, 120)}`, { room });
         }
         continue;
       }
-      const pv = pluginVersion();
-      const live0 = inWs.find((x) => x.agent === "claude");
+      const pv = RUN_AGENT === "claude" ? pluginVersion() : "";
+      const live0 = inWs.find((x) => x.agent === RUN_AGENT);
       if (e.restarting_at && live0 && live0.agent_status === "blocked") {
         try {
           const shown = execFileSync("herdr", ["pane", "read", live0.pane_id, "--source", "visible", "--lines", "15"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
@@ -1030,7 +1035,7 @@ async function herdrSync(agent, tools) {
         } catch {}
         continue;
       }
-      const cp = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
+      const cp = panes.find((x) => x.workspace_id === e.workspace && x.agent === RUN_AGENT);
       const cs = cp?.agent_session?.value;
       const cx0 = cs ? sessionContext(cs) : undefined;
       const cx = cx0 && cs ? { ...cx0, window: sessionStatus(cs)?.window ?? cx0.window } : undefined;
@@ -1043,14 +1048,14 @@ async function herdrSync(agent, tools) {
         continue;
       }
       if (!e.listening) {
-        const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
+        const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === RUN_AGENT);
         if (p && (p.agent_status === "idle" || p.agent_status === "done"))
           try {
-            herdr("agent", "prompt", p.pane_id, LISTEN_PROMPT);
+            herdr("agent", "prompt", p.pane_id, listenWords());
             e.listening = true;
             e.prompted_at = Date.now();
             delete e.deaf_since;
-            log("info", "claude", `${title}: its Claude is idle, asked it to listen to the room`, { room });
+            log("info", "claude", `${title}: its ${RUN_NAME} is idle, asked it to listen to the room`, { room });
           } catch {}
       }
       continue;
@@ -1058,16 +1063,16 @@ async function herdrSync(agent, tools) {
     e.listening = false;
     e.folder ??= roomFolder(room, title);
     linkFolder(e.folder, room);
-    const there = panes.find((p) => p.agent === "claude" && (p.cwd === e.folder || p.foreground_cwd === e.folder));
+    const there = panes.find((p) => p.agent === RUN_AGENT && (p.cwd === e.folder || p.foreground_cwd === e.folder));
     if (there) {
       e.workspace = there.workspace_id;
       try {
         herdr("workspace", "rename", there.workspace_id, title.slice(0, 40));
       } catch {}
-      log("info", "claude", `${title}: adopted the Claude already open in its folder`, { room, folder: tilde(e.folder) });
+      log("info", "claude", `${title}: adopted the ${RUN_NAME} already open in its folder`, { room, folder: tilde(e.folder) });
       if (there.agent_status === "idle" || there.agent_status === "done")
         try {
-          herdr("agent", "prompt", there.pane_id, LISTEN_PROMPT);
+          herdr("agent", "prompt", there.pane_id, listenWords());
           e.listening = true;
           e.prompted_at = Date.now();
         } catch {}
@@ -1075,7 +1080,7 @@ async function herdrSync(agent, tools) {
     }
     const w = herdr("workspace", "create", "--cwd", e.folder, "--label", title.slice(0, 40), "--no-focus", "--env", "DISABLE_AUTO_UPDATE=true");
     e.workspace = w.workspace.workspace_id;
-    const args = ["agent", "start", `vb-${room}`, "--kind", "claude", "--pane", w.root_pane.pane_id, "--timeout", "60000", "--"];
+    const args = ["agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--"];
     if (e.session)
       args.push("--resume", e.session);
     e.listening = true;
@@ -1084,16 +1089,16 @@ async function herdrSync(agent, tools) {
     writePrivate(HERDR, map);
     try {
       herdr(...args, listenTask(room));
-      log("info", "claude", `${title}: opened a Claude${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder) });
+      log("info", "claude", `${title}: opened a ${RUN_NAME}${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder) });
     } catch (err) {
-      log("warn", "claude", `${title}: Claude opened, waiting for you to confirm in herdr (${String(err.stderr ?? err).match(/"message":"([^"]+)"/)?.[1] ?? "not ready"})`, { room, folder: tilde(e.folder) });
+      log("warn", "claude", `${title}: ${RUN_NAME} opened, waiting for you to confirm in herdr (${String(err.stderr ?? err).match(/"message":"([^"]+)"/)?.[1] ?? "not ready"})`, { room, folder: tilde(e.folder) });
     }
   }
   const listed = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.workspace)
       continue;
-    const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
+    const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === RUN_AGENT);
     if (p?.agent_session?.value)
       e.session = p.agent_session.value;
     if (!listed.has(room) || !live.has(e.workspace))
@@ -1155,9 +1160,9 @@ async function herdrAppSync(agent, tools) {
       const c = appClaude(spaces.find((x) => x.id === e.space));
       if (c && e.deaf_since && Date.now() - e.deaf_since > 3 * 60000 && Date.now() - (e.prompted_at ?? 0) > 5 * 60000 && (c.status === "idle" || c.status === "done"))
         try {
-          execFileSync("hc", ["send", c.terminal, LISTEN_PROMPT], { stdio: "ignore" });
+          execFileSync("hc", ["send", c.terminal, listenWords()], { stdio: "ignore" });
           e.prompted_at = Date.now();
-          log("info", "claude", `${title}: nobody listening for 3 min, asked its Claude to listen again`, { room });
+          log("info", "claude", `${title}: nobody listening for 3 min, asked its ${RUN_NAME} to listen again`, { room });
         } catch {}
       continue;
     }
@@ -1172,16 +1177,16 @@ async function herdrAppSync(agent, tools) {
       const c = appClaude(there);
       if (c && (c.status === "idle" || c.status === "done"))
         try {
-          execFileSync("hc", ["send", c.terminal, LISTEN_PROMPT], { stdio: "ignore" });
+          execFileSync("hc", ["send", c.terminal, listenWords()], { stdio: "ignore" });
           e.prompted_at = Date.now();
         } catch {}
-      log("info", "claude", `${title}: adopted the Claude already open in its folder`, { room, folder: tilde(e.folder), space: there.id });
+      log("info", "claude", `${title}: adopted the ${RUN_NAME} already open in its folder`, { room, folder: tilde(e.folder), space: there.id });
       continue;
     }
-    const r = happ("do", "space.new", "--name", title.slice(0, 40), "--folder", e.folder, "--argv", JSON.stringify(["claude", ...e.session ? ["--resume", e.session] : []]), "--task", listenTask(room));
+    const r = happ("do", "space.new", "--name", title.slice(0, 40), "--folder", e.folder, "--argv", JSON.stringify([RUN_AGENT, ...resumeArgs(e.session)]), "--task", listenTask(room));
     e.space = r.space;
     e.prompted_at = Date.now();
-    log("info", "claude", `${title}: opened a Claude${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder), space: e.space });
+    log("info", "claude", `${title}: opened a ${RUN_NAME}${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder), space: e.space });
   }
   const listedApp = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
@@ -1264,6 +1269,7 @@ var HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for you 
   vibebook herdr [--once]        keep one Claude Code per room in herdr: opens it when you switch
                                  "Meu Claude" on in the app, closes it when you switch it off
   vibebook herdr --app           the same in the Herdr desktop app: one space per room (not with the terminal one)
+  vibebook herdr --agent codex   open Codex instead of Claude Code in each room (or VIBEBOOK_AGENT=codex); works with --app
                                  --verbose also logs each pass, the room-list cache and what the hub hears
                                  (activity per room, reconnects); --json prints the log lines as NDJSON
   vibebook statusline [command]  as Claude Code's statusLine: keeps the session's context window and plan
@@ -1763,7 +1769,7 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
       log("info", "start", `vibebook herdr ${VERSION}, ${appMode ? "Herdr app" : "herdr terminal"} mode${flags.once ? ", one pass" : ""}`, { pid: process.pid, verbose: !!flags.verbose || undefined });
       log("info", "start", `logged in as ${loggedInAs(s) ?? "?"}`, { origin: s?.origin.replace(/^https?:\/\//, "") });
       log("info", "start", `machine ${hostname().replace(/\.local$/, "")}`, { id: short(machineId(), 10), node: process.versions.node });
-      if (!pluginVersion() && !process.env.VIBEBOOK_NO_PLUGIN_UPDATE) {
+      if (RUN_AGENT === "claude" && !pluginVersion() && !process.env.VIBEBOOK_NO_PLUGIN_UPDATE) {
         try {
           execFileSync("claude", ["plugin", "marketplace", "add", "decocms/chat"], { stdio: "ignore", timeout: 120000 });
         } catch {}
@@ -1774,7 +1780,10 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
 `)[0].slice(0, 100)}`);
         }
       }
-      log("info", "start", pluginVersion() ? `vibebook plugin ${pluginVersion()}` : "vibebook plugin is not installed in Claude Code: Claudes get the listen prompt in words. To install it: claude plugin marketplace add decocms/chat && claude plugin install vibebook@vibebook");
+      if (RUN_AGENT === "codex")
+        log("info", "start", "opens Codex in each room (--agent codex); the vibebook plugin for Codex: codex plugin marketplace add decocms/chat && codex plugin add vibebook@vibebook");
+      else
+        log("info", "start", pluginVersion() ? `vibebook plugin ${pluginVersion()}` : "vibebook plugin is not installed in Claude Code: Claudes get the listen prompt in words. To install it: claude plugin marketplace add decocms/chat && claude plugin install vibebook@vibebook");
       const tools = await listTools(agent);
       log("debug", "start", `${tools.length} room tools`, { claude_rooms: !!tools.find((t) => t.name === "claude_rooms") });
       const port = await ensureHub().catch(() => null);
@@ -1789,7 +1798,7 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
         herdrServer(appMode);
       let pluginAt = 0;
       for (;; ) {
-        if (!flags.once && Date.now() - pluginAt > 3600000 && !process.env.VIBEBOOK_NO_PLUGIN_UPDATE) {
+        if (RUN_AGENT === "claude" && !flags.once && Date.now() - pluginAt > 3600000 && !process.env.VIBEBOOK_NO_PLUGIN_UPDATE) {
           pluginAt = Date.now();
           try {
             const before = pluginVersion();
