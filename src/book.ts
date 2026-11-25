@@ -2574,6 +2574,22 @@ export class Book extends DurableObject<Env> {
       const e = this.epics().find((x) => x.id === made.id);
       return { ok: true, epic_id: made.id, thread: made.id, tasks: e?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [], note: "this question was already an answer epic, opened in your human's tabs: write the answer into its doc (update_doc with this epic_id)" };
     }
+    // One thread per message (Gimenes #5068): a message that already has a thread gets that one back, with the new
+    // tasks (a done one opens again), and the agent writes there instead of starting a second.
+    const had = src && !backlog ? this.epicsFrom(Number(src))[0] : undefined;
+    if (had) {
+      this.reopenIfDone(had.id);
+      const have = new Set(this.sql.exec<{ title: string }>(`SELECT title FROM tasks WHERE epic_id = ?`, had.id).toArray().map((x) => x.title));
+      for (const title of tasks.slice(0, 12)) {
+        if (have.has(title.trim())) continue;
+        const task = this.addTask(had.id, title);
+        if (task && !answer) this.sql.exec(`UPDATE tasks SET owner = ? WHERE id = ?`, email.toLowerCase(), task);
+      }
+      this.epicsChanged();
+      if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
+      const e = this.epics().find((x) => x.id === had.id);
+      return { ok: true, epic_id: had.id, thread: had.id, tasks: e?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [], note: `message ${src} already has this thread ("${e?.title ?? ""}"): write there (thread = ${had.id}); a message never gets a second thread.` };
+    }
     // The agent took the work, so its human owns the tasks (self-assign).
     const id = this.createEpic(t, (tasks.length ? tasks : [t]).slice(0, 12).map((title) => ({ title, owner: backlog || answer ? undefined : email })), [email.toLowerCase()], why); // an answer's task is unowned: nothing waits on the person who asked
     // An answer (Gui #2735): its doc's task list goes last, and the doc opens in its human's tabs right now (below).
@@ -3005,6 +3021,8 @@ export class Book extends DurableObject<Env> {
           const same = this.sql.exec<{ owner: string | null }>(`SELECT owner FROM epics WHERE id = ?`, m.id).toArray()[0]?.owner === owner;
           return same ? undefined : new Refused("epic id in use");
         }
+        // One thread per message (Gimenes #5068): the app offers "Abrir thread" then; this is a race with someone else.
+        if (from !== undefined && this.epicsFrom(from).length) return new Refused("this message already has a thread");
         const id = this.createEpic(title, [], [], "", m.id);
         this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, owner, this.threadOrigin({ author: email }, from, title), id);
         this.epicsChanged();

@@ -88,6 +88,7 @@ import {
   roomName,
   roomAvatarVersion,
   roomMention,
+  mentionRooms,
 } from "./model";
 import type {
   RoomScopeOptions,
@@ -1182,6 +1183,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                   },
                 },
                 agents: data?.sandboxes ?? [],
+                rooms: mentionRooms(me()?.books ?? []),
                 navigate: (id) => {
                   if (owned()) navigateMessage(id, thread);
                 },

@@ -26,7 +26,7 @@
   import AgentTrigger from "../agents/AgentTrigger.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import AgentFoot from "../agents/AgentFoot.svelte";
-  import UpdateRow from "../app-navigation/UpdateRow.svelte";
+  import UpdateRow from "../user-center/UpdateRow.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
   import { roomAvatarVersion } from "../room-scope/model";

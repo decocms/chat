@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   /**
-   * The foot of a sidebar on desktop (a room's, the home's DM list): your
-   * Claude and you, in one soft box pushed to the bottom. Sticky: when the
-   * sidebar is too short and scrolls whole, you stay in view (the sections
-   * scroll behind). Phones keep these in their own bars, so it's desktop only.
+   * The user center: the box at the foot of a sidebar (a room's, the home's DM
+   * list) with what is about you, not about a room: a new version, your Claude
+   * and you (Gimenes #5064). Pushed to the bottom and sticky: when the sidebar
+   * is too short and scrolls whole, you stay in view (the sections scroll
+   * behind). Desktop only for now; a phone keeps these in its own bars.
    */
   let {
     children,
@@ -21,7 +22,7 @@
 >
   {#if above}<div class="pb-2">{@render above()}</div>{/if}
   <div
-    data-sidebar-self
+    data-user-center
     class="flex flex-col gap-0.5 rounded-xl bg-sidebar-accent/50 p-1"
   >
     {@render children()}

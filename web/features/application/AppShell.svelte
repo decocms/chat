@@ -13,9 +13,9 @@
   import AppNavigation from "../app-navigation/AppNavigation.svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
   import SettingsNav from "../app-navigation/SettingsNav.svelte";
-  import UpdateRow from "../app-navigation/UpdateRow.svelte";
+  import UpdateRow from "../user-center/UpdateRow.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
-  import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
+  import UserCenter from "../user-center/UserCenter.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Dialog from "../../lib/studio/Dialog.svelte";
@@ -343,13 +343,13 @@
               }}
               t={services.t}
             />{/if}{/snippet}
-        <SidebarFoot above={$liveCall ? liveCallPanel : undefined}
+        <UserCenter above={$liveCall ? liveCallPanel : undefined}
           >{#if $personal.updateAvailable}<UpdateRow
               lang={services.language === "en" ? "en" : "pt"}
             />{/if}<AccountRow
             me={$personal.me}
             current={settings}
-          /></SidebarFoot
+          /></UserCenter
         >
       </aside>{/if}
     <div
