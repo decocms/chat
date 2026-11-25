@@ -4,9 +4,7 @@
   import DialogContent from "../../lib/studio/DialogContent.svelte";
   import DialogHeader from "../../lib/studio/DialogHeader.svelte";
   import DialogTitle from "../../lib/studio/DialogTitle.svelte";
-  import Input from "../../lib/studio/Input.svelte";
-  import Button from "../../lib/studio/Button.svelte";
-  import { emojiPicks } from "./model";
+  import EmojiGrid from "./EmojiGrid.svelte";
   let {
     t,
     open = $bindable(false),
@@ -16,13 +14,8 @@
     open?: boolean;
     onpick: (value: string) => void;
   } = $props();
-  let query = $state(""),
-    search = $state<HTMLInputElement | null>(null),
+  let search = $state<HTMLInputElement | null>(null),
     grid = $state<HTMLDivElement | null>(null);
-  const picks = $derived(emojiPicks(query));
-  $effect(() => {
-    if (open) query = "";
-  });
   let active = true;
   onDestroy(() => {
     active = false;
@@ -54,32 +47,6 @@
     <DialogHeader>
       <DialogTitle class="pr-8 font-sans">{t("Emoji")}</DialogTitle>
     </DialogHeader>
-    <Input
-      type="text"
-      inputmode="search"
-      bind:ref={search}
-      aria-label={t("Buscar emoji…")}
-      placeholder={t("Buscar emoji…")}
-      value={query}
-      oninput={(event) => (query = event.currentTarget.value)}
-      onkeydown={(event) => {
-        if (event.key === "Enter" && picks.length) {
-          event.preventDefault();
-          choose(picks[0].emoji);
-        }
-      }}
-    />
-    <div
-      bind:this={grid}
-      class="grid max-h-60 grid-cols-[repeat(auto-fill,minmax(38px,1fr))] gap-1 overflow-y-auto"
-    >
-      {#each picks as pick (pick.emoji)}<Button
-          variant="ghost"
-          class="text-xl"
-          title={`:${pick.name}:`}
-          aria-label={`:${pick.name}:`}
-          onclick={() => choose(pick.emoji)}>{pick.emoji}</Button
-        >{/each}
-    </div>
+    <EmojiGrid {t} bind:search bind:grid onpick={choose} />
   </DialogContent>
 </Dialog>

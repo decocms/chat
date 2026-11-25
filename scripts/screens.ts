@@ -86,6 +86,13 @@ try {
     await desk.waitForTimeout(400);
     await desk.screenshot({ path: join(out, "react-1440.png") });
     shots.push("react-1440.png");
+    // 🙂 opens every emoji in a popover next to the message's reactions.
+    await target.locator("[data-add-reaction]").click();
+    await desk.locator("[data-emoji-popover]").waitFor();
+    await desk.waitForTimeout(300);
+    await desk.screenshot({ path: join(out, "picker-1440.png") });
+    shots.push("picker-1440.png");
+    await desk.keyboard.press("Escape");
   }
   if (flag("link")) {
     // A copied link to an old message (Gimenes #4843): more than one window of messages after it, then the link opens

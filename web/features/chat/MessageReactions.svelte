@@ -1,13 +1,17 @@
 <script lang="ts">
   // Emoji reactions (Gui #2724): chips under the message (yours highlighted, who reacted in a hover card), a click toggles yours;
-  // 🙂+ opens the quick ones in a bar floating above it. The Book keeps them (messages.reactions) and pushes a "reactions" event.
+  // on hover the common ones not given yet, then 🙂 opens every emoji in a popover next to it. The Book keeps them
+  // (messages.reactions) and pushes a "reactions" event.
   import type {
     ChatActions,
     ChatBridge,
     ChatMessage,
   } from "../../app/chatTypes";
   import Icon from "../../lib/studio/Icon.svelte";
-  import EmojiPicker from "../composer/EmojiPicker.svelte";
+  import EmojiGrid from "../composer/EmojiGrid.svelte";
+  import Popover from "../../lib/studio/Popover.svelte";
+  import PopoverContent from "../../lib/studio/PopoverContent.svelte";
+  import PopoverTrigger from "../../lib/studio/PopoverTrigger.svelte";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
@@ -23,12 +27,17 @@
     actions: ChatActions;
     vb: ChatBridge;
   } = $props();
-  let open = $state(false);
+  // The emoji popover. While it is open the row stays as it was (the quick ones too): the pointer is in the popover,
+  // not on the message, and nothing under it moves or disappears.
+  let open = $state(false),
+    search = $state<HTMLInputElement | null>(null),
+    grid = $state<HTMLDivElement | null>(null);
   const all = $derived(
     Object.entries(message.reactions ?? {}).filter(([, who]) => who.length),
   );
   // On hover, the common reactions not given yet wait in the row, where the chips show up (Gui #4726): a click
-  // turns one into a chip right there, so you see that it registered.
+  // turns one into a chip right there, so you see that it registered. One already given is only its chip, never
+  // also a suggestion.
   const offered = $derived(
     TOOLBAR_REACTIONS.filter((emoji) => !all.some(([e]) => e === emoji)),
   );
@@ -56,6 +65,9 @@
       ? vb.t("{people} reagiram", { people })
       : vb.t("{people} reagiu", { people });
   };
+  /** Shown while the mouse is on the message (or focus is in it), or while the emoji popover is open. */
+  const HOVER_ONLY =
+    "invisible opacity-0 transition-[opacity,visibility] duration-150 pointer-fine:group-hover:visible pointer-fine:group-hover:opacity-100 pointer-fine:group-has-focus-visible:visible pointer-fine:group-has-focus-visible:opacity-100 in-data-[picking]:visible in-data-[picking]:opacity-100 motion-reduce:transition-none";
   function react(emoji: string) {
     open = false;
     void actions.request({ t: "react", id: message.id, emoji });
@@ -63,12 +75,12 @@
 </script>
 
 <!-- The chips (yours highlighted, who reacted on hover), the common ones on hover, then a button that opens the emoji
-     picker. With no reaction yet, the row shows only while the mouse is on the message. -->
+     popover. The hover-only buttons always take their place, hidden: showing them moves nothing (no layout shift
+     on hover). -->
 <div
   data-message-reactions
-  class="flex flex-wrap items-center gap-1 {all.length || open
-    ? ''
-    : 'hidden pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex'}"
+  data-picking={open || undefined}
+  class="flex flex-wrap items-center gap-1"
 >
   {#each all as [emoji, list] (emoji)}<Tooltip>
       <TooltipTrigger>
@@ -106,17 +118,41 @@
       type="button"
       aria-label={vb.t("Reagir com {emoji}", { emoji })}
       data-offer-react={emoji}
-      class="hidden h-7 cursor-pointer items-center rounded-full border border-dashed border-border bg-transparent px-2 text-base leading-none opacity-70 transition-[opacity,border-color] hover:border-solid hover:opacity-100 pointer-fine:group-hover:inline-flex pointer-fine:group-has-focus-visible:inline-flex"
+      class="{HOVER_ONLY} inline-flex h-6 min-w-7 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent px-1 text-base leading-none hover:bg-muted pointer-coarse:hidden"
       onclick={() => react(emoji)}>{emoji}</button
     >{/each}
-  <!-- Add another reaction, right next to the ones there (like Discord): the full emoji picker. -->
-  <button
-    type="button"
-    aria-label={vb.t("Reagir a esta mensagem")}
-    title={vb.t("Reagir a esta mensagem")}
-    data-add-reaction
-    class="inline-flex h-7 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-muted px-2 text-muted-foreground transition-colors hover:border-border hover:text-foreground"
-    onclick={() => (open = true)}><Icon icon="face-smile" size={16} /></button
-  >
+  <!-- Every other emoji, in a popover next to this button (like Discord's and Slack's "add reaction"). -->
+  <Popover bind:open>
+    <PopoverTrigger>
+      {#snippet child({ props })}<button
+          {...props}
+          type="button"
+          aria-label={vb.t("Reagir a esta mensagem")}
+          title={vb.t("Reagir a esta mensagem")}
+          data-add-reaction
+          class="{all.length
+            ? ''
+            : HOVER_ONLY} inline-flex h-6 min-w-7 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent px-1 text-muted-foreground hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground"
+          ><Icon icon="face-smile" size={16} /></button
+        >{/snippet}
+    </PopoverTrigger>
+    <PopoverContent
+      side="top"
+      align="start"
+      sideOffset={6}
+      data-emoji-popover={message.id}
+      class="flex w-80 flex-col gap-2 p-3 font-sans text-sm text-foreground"
+      onOpenAutoFocus={(event) => {
+        const target = window.matchMedia("(pointer: coarse)").matches
+          ? grid?.querySelector("button") || null
+          : search;
+        if (target) {
+          event.preventDefault();
+          target.focus();
+        }
+      }}
+    >
+      <EmojiGrid t={vb.t} bind:search bind:grid onpick={react} />
+    </PopoverContent>
+  </Popover>
 </div>
-<EmojiPicker t={vb.t} bind:open onpick={react} />
