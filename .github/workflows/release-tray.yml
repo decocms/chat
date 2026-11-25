@@ -1,0 +1,124 @@
+# Builds the deco.chat menu bar app (tray/) for macOS (arm64, x64), Windows (x64) and Linux (x64), and attaches it to a
+# GitHub Release named after the tag. Run it with a tag tray-v<version> (the version in tray/tauri.conf.json), or by
+# hand (workflow_dispatch): by hand it only builds, and the files are in the run's artifacts.
+# No paid signing: macOS gets an ad-hoc signature (Apple Silicon does not run unsigned code); Windows is not signed.
+# No updater: Tauri's updater needs a signing key secret. public/setup.sh installs the newest release instead.
+# herdr comes from its own GitHub release; scripts/tray-bins.ts pins the version and checks the SHA-256 of each file.
+name: Release tray
+on:
+  push:
+    tags: ["tray-v*"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-tray-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: aarch64-apple-darwin
+            name: macos-aarch64
+            bundles: app,dmg
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            name: macos-x86_64
+            bundles: app,dmg
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: windows-x86_64
+            bundles: msi
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            name: linux-x86_64
+            bundles: appimage,deb
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: The tag and tray/tauri.conf.json agree
+        if: startsWith(github.ref, 'refs/tags/tray-v')
+        run: |
+          v=$(bun -e "console.log(require('./tray/tauri.conf.json').version)")
+          test "tray-v$v" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != tray/tauri.conf.json $v"; exit 1; }
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: tray
+          key: ${{ matrix.target }}
+      - name: Linux libraries for Tauri (WebKitGTK, the tray indicator)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: The CLI and herdr for this target (tray/binaries)
+        run: bun scripts/tray-bins.ts ${{ matrix.target }}
+      - name: Tauri build
+        working-directory: tray
+        env:
+          # The compiled CLI keeps its program in the binary: strip must not touch it (AppImage).
+          NO_STRIP: "true"
+        run: bunx @tauri-apps/cli@2.12.6 build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Collect the files with fixed names (public/setup.sh downloads them by name)
+        run: |
+          b=tray/target/${{ matrix.target }}/release/bundle
+          mkdir -p out
+          case "${{ runner.os }}" in
+            macOS)
+              # Ad-hoc signature for the app and the programs in it (no Apple developer account).
+              codesign --force --deep -s - "$b/macos/deco.chat.app"
+              codesign --verify --deep --strict --verbose=2 "$b/macos/deco.chat.app"
+              tar -czf "out/deco.chat-${{ matrix.name }}.app.tar.gz" -C "$b/macos" deco.chat.app
+              cp "$b"/dmg/*.dmg "out/deco.chat-${{ matrix.name }}.dmg"
+              ;;
+            Windows)
+              cp "$b"/msi/*.msi "out/deco.chat-${{ matrix.name }}.msi"
+              ;;
+            Linux)
+              cp "$b"/appimage/*.AppImage "out/deco.chat-${{ matrix.name }}.AppImage"
+              cp "$b"/deb/*.deb "out/deco.chat-${{ matrix.name }}.deb"
+              ;;
+          esac
+          ls -la out
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tray-${{ matrix.name }}
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/tray-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: tray-*
+          path: out
+          merge-multiple: true
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          (cd out && sha256sum -- * > SHA256SUMS.txt)
+          printf '%s\n' \
+            "O app de barra de menu do deco.chat. Instale com: curl -fsSL https://chat.decocms.com/setup.sh | sh" \
+            "No Windows, baixe o .msi. O app não tem assinatura paga: no macOS ele tem uma assinatura ad hoc." \
+            "" \
+            "The deco.chat menu bar app. Install it with: curl -fsSL https://chat.decocms.com/setup.sh | sh" \
+            "On Windows, download the .msi. The app has no paid signature: on macOS it has an ad-hoc signature." \
+            > notes.md
+          gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag

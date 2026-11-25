@@ -163,14 +163,35 @@
   {#each items as node, index (key(node, index))}
     {@const documentCard = cardSource?.(node) ?? null}
     {#if node.kind === "text"}{node.text}
-    {:else if node.kind === "mention"}<span
-        data-rich-mention={node.who}
-        title={node.who === "ai" ? "@vibe" : node.who}
-        class={node.mine
-          ? "rounded-sm bg-brand-purple/25 px-1 font-semibold text-brand-purple-text"
-          : "rounded-sm bg-brand-purple/12 px-1 font-medium text-brand-purple-text"}
-        >{node.text}</span
-      >
+    {:else if node.kind === "mention"}
+      {@const tone = node.mine
+        ? "rounded-sm bg-brand-purple/25 px-1 font-semibold text-brand-purple-text"
+        : "rounded-sm bg-brand-purple/12 px-1 font-medium text-brand-purple-text"}
+      {#if node.who !== "ai" && actions.openPerson}
+        {@const person = node.who}
+        <!-- A person's mention opens your DM with them (Gimenes #5298). -->
+        <span
+          data-rich-mention={person}
+          title={person}
+          role="link"
+          tabindex="0"
+          onclick={(event: MouseEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            actions.openPerson?.(person);
+          }}
+          onkeydown={(event: KeyboardEvent) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            actions.openPerson?.(person);
+          }}
+          class={[tone, "cursor-pointer hover:underline"]}>{node.text}</span
+        >
+      {:else}<span
+          data-rich-mention={node.who}
+          title={node.who === "ai" ? "@vibe" : node.who}
+          class={tone}>{node.text}</span
+        >{/if}
     {:else if node.kind === "link"}
       {#if node.namespace !== HTML_NS}<svelte:element
           this={"a"}

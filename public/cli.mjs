@@ -6,7 +6,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, existsSync as existsSync2, fstatSync, mkdirSync, openSync, readdirSync as readdirSync2, readFileSync, readSync, renameSync, rmSync, statSync as statSync2, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
-import { basename, dirname, join as join2 } from "node:path";
+import { basename, delimiter, dirname, join as join2 } from "node:path";
 
 // cli/backfill.ts
 import { createReadStream, existsSync, readdirSync, statSync } from "node:fs";
@@ -70,7 +70,7 @@ async function scanTranscripts(root, skip) {
 }
 
 // cli/vibebook.ts
-var VERSION = "1.7.9";
+var VERSION = "1.7.10";
 var HOME = process.env.VIBEBOOK_HOME || join2(homedir(), ".vibebook");
 var SESSION = join2(HOME, "session.json");
 var AGENTS = join2(HOME, "agents.json");
@@ -628,7 +628,7 @@ var RUN_NAME = RUN_AGENT === "codex" ? "Codex" : "Claude";
 var HERDR_FILE = join2(HOME, RUN_AGENT === "codex" ? "herdr-codex.json" : "herdr.json");
 var roomLabel = (title) => RUN_AGENT === "codex" ? `${title.slice(0, 32)} · Codex` : title.slice(0, 40);
 var listenWords = () => RUN_AGENT === "codex" ? CODEX_LISTEN_PROMPT : LISTEN_PROMPT;
-var resumeArgs = (session2) => !session2 ? [] : RUN_AGENT === "codex" ? ["resume", session2] : ["--resume", session2];
+var resumeArgs = (session) => !session ? [] : RUN_AGENT === "codex" ? ["resume", session] : ["--resume", session];
 var listenTask = (room) => RUN_AGENT === "codex" ? `${CODEX_LISTEN_PROMPT} Sala: room_id=${room}.` : pluginVersion() ? `/vibebook:listen ${room}` : `${LISTEN_PROMPT} Sala: room_id=${room}.`;
 var STOP = new Set("a o as os e de da do das dos para pra pro com em no na nos nas um uma por que the of for with and to in on at my our".split(" "));
 var slug = (t) => {
@@ -863,7 +863,7 @@ function machineId() {
   writePrivate(MACHINE, { id });
   return id;
 }
-var sessionAgent = (session2) => `s_${createHash("sha256").update(`${RUN_AGENT === "codex" ? "codex" : "claude-code"}:${session2}`).digest("hex").slice(0, 32)}`;
+var sessionAgent = (session) => `s_${createHash("sha256").update(`${RUN_AGENT === "codex" ? "codex" : "claude-code"}:${session}`).digest("hex").slice(0, 32)}`;
 var roomsCache = null;
 async function claudeRooms(agent, tools, kind = "herdr", managed = []) {
   const port = await ensureHub().catch(() => null);
@@ -976,7 +976,7 @@ async function herdrSync(agent, tools) {
   for (const [room, title] of on) {
     const e = map[room] ??= {};
     if (e.workspace && live.has(e.workspace)) {
-      const label = wsList.find((w2) => w2.workspace_id === e.workspace)?.label;
+      const label = wsList.find((w) => w.workspace_id === e.workspace)?.label;
       if (label !== undefined && label !== roomLabel(title))
         try {
           herdr("workspace", "rename", e.workspace, roomLabel(title));
@@ -1255,6 +1255,17 @@ function herdrOrder(order, map) {
     } catch {}
   log("info", "herdr", `reordered ${desired.length - i} workspace(s): rooms in your vibebook order, then the rest`);
 }
+function trayWords() {
+  let lang = process.env.VIBEBOOK_LANG || process.env.LC_ALL || process.env.LC_MESSAGES || process.env.LANG || "";
+  if (!lang && process.platform === "darwin") {
+    try {
+      lang = execFileSync("defaults", ["read", "-g", "AppleLocale"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    } catch {}
+  }
+  if (!lang)
+    lang = Intl.DateTimeFormat().resolvedOptions().locale;
+  return /^pt/i.test(lang.trim()) ? { login: "Entrar no deco.chat…", quit: "Sair", none: "Nenhuma sala", open: "Abrir o deco.chat", offline: "Sem conexão" } : { login: "Sign in to deco.chat…", quit: "Quit", none: "No rooms", open: "Open deco.chat", offline: "Offline" };
+}
 var HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for you and your Claude).
 
   vibebook login                 connect this machine (opens the browser; once per machine)
@@ -1275,6 +1286,10 @@ var HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for you 
   vibebook herdr --agent codex   open Codex instead of Claude Code in each room (or VIBEBOOK_AGENT=codex); works with --app
                                  --verbose also logs each pass, the room-list cache and what the hub hears
                                  (activity per room, reconnects); --json prints the log lines as NDJSON
+  vibebook watch [--menu]        everything this computer needs in one process: starts herdr with no window (herdr
+                                 server) when it isn't running, and runs vibebook herdr; with --menu it is also the
+                                 core of the deco.chat menu bar app (tray/), which runs it
+  vibebook tray                  only the menu bar app's core: JSON lines on stdin and stdout
   vibebook statusline [command]  as Claude Code's statusLine: keeps the session's context window and plan
                                  limits for the room, then runs your own statusline command (if any) with the same input
   vibebook update                install the latest version
@@ -1573,11 +1588,11 @@ async function main() {
         } catch {}
         if (queue) {
           mkdirSync(HOME, { recursive: true });
-          let log2 = "ignore";
+          let log = "ignore";
           try {
-            log2 = openSync(join2(HOME, "codex-wake.log"), "a");
+            log = openSync(join2(HOME, "codex-wake.log"), "a");
           } catch {}
-          spawn(process.execPath, [process.argv[1], ...argv, "--codex-wake", tid], { detached: true, stdio: ["ignore", log2, log2], env: process.env, cwd: process.cwd() }).unref();
+          spawn(process.execPath, [process.argv[1], ...argv, "--codex-wake", tid], { detached: true, stdio: ["ignore", log, log], env: process.env, cwd: process.cwd() }).unref();
           process.stdout.write(`vibebook listen: ouvindo em segundo plano. Quando a sala tiver novidade, esta conversa do Codex recebe uma mensagem (codex queue) e você começa um turno. Não rode listen de novo depois de cada turno.
 `);
           return;
@@ -1716,7 +1731,7 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
                 if (await check(0) && await woken())
                   return;
               } catch {
-                await new Promise((r2) => setTimeout(r2, 15000));
+                await new Promise((r) => setTimeout(r, 15000));
               }
               last = Date.now();
             }
@@ -1735,6 +1750,127 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
         }
       }
     }
+    case "watch": {
+      if (process.env.VIBEBOOK_HERDR_DIR)
+        process.env.PATH = `${process.env.VIBEBOOK_HERDR_DIR}${delimiter}${process.env.PATH ?? ""}`;
+      const up = () => {
+        try {
+          return /^status: running$/m.test(execFileSync("herdr", ["status", "server"], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).toString());
+        } catch {
+          return false;
+        }
+      };
+      if (!up()) {
+        try {
+          spawn("herdr", ["server"], { detached: true, stdio: "ignore", env: process.env, windowsHide: true }).unref();
+        } catch (e) {
+          return die(`could not start herdr: ${String(e.message ?? e)}`);
+        }
+        for (let i = 0;i < 50 && !up(); i++)
+          await new Promise((r) => setTimeout(r, 200));
+        if (!up())
+          return die("herdr server did not start. Is herdr installed? https://herdr.dev");
+        log("info", "watch", "started herdr server (no window)");
+      }
+      const self = /^(\/\$bunfs\/|[A-Za-z]:[\\/]~BUN[\\/])/.test(process.argv[1] ?? "") ? [] : process.argv.slice(1, 2);
+      const args = [...self, "herdr", ...flag("agent") ? ["--agent", String(flag("agent"))] : []];
+      const start = () => spawn(process.execPath, args, { stdio: ["ignore", "ignore", "inherit"], env: process.env, windowsHide: true });
+      let runner = start();
+      process.on("exit", () => {
+        try {
+          runner.kill();
+        } catch {}
+      });
+      process.on("SIGTERM", () => process.exit(0));
+      process.on("SIGINT", () => process.exit(0));
+      if (!flags.menu) {
+        await new Promise((r) => runner.on("exit", () => r()));
+        return;
+      }
+      const again = () => runner.on("exit", () => setTimeout(() => {
+        runner = start();
+        again();
+      }, 15000).unref());
+      again();
+    }
+    case "tray": {
+      const out = (m) => process.stdout.write(`${JSON.stringify(m)}
+`);
+      const tr = trayWords();
+      let rooms = [];
+      const draw = (note) => {
+        const who = loggedInAs(readJson(SESSION, null));
+        if (!who)
+          return out({ icon: "off", menu: [{ id: "login", label: tr.login }, { sep: true }, { id: "quit", label: tr.quit }] });
+        out({
+          icon: rooms.some((r) => r.on) ? "on" : "off",
+          menu: [
+            { id: "who", label: who, enabled: false },
+            ...note ? [{ id: "note", label: note, enabled: false }] : [],
+            { sep: true },
+            ...rooms.length ? rooms.map((r) => ({ id: `sala:${r.room_id}`, label: r.title.slice(0, 40), checked: r.on })) : [{ id: "none", label: tr.none, enabled: false }],
+            { sep: true },
+            { id: "open", label: tr.open },
+            { id: "quit", label: tr.quit }
+          ]
+        });
+      };
+      const refresh = async () => {
+        if (!loggedInAs(readJson(SESSION, null)))
+          return draw();
+        try {
+          const res = await callTool("claude_rooms", {}, agent);
+          rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
+          draw();
+        } catch (e) {
+          draw(`${tr.offline}: ${String(e.message ?? e).split(`
+`)[0].slice(0, 40)}`);
+        }
+      };
+      await refresh();
+      const timer = setInterval(() => void refresh(), 15000);
+      let buf = "";
+      process.stdin.setEncoding("utf8");
+      process.stdin.on("data", async (chunk) => {
+        buf += chunk;
+        for (let i = buf.indexOf(`
+`);i >= 0; i = buf.indexOf(`
+`)) {
+          const line = buf.slice(0, i).trim();
+          buf = buf.slice(i + 1);
+          let click = "";
+          try {
+            click = String(JSON.parse(line).click ?? "");
+          } catch {
+            continue;
+          }
+          if (click === "quit") {
+            clearInterval(timer);
+            process.exit(0);
+          }
+          if (click === "open") {
+            openBrowser(readJson(SESSION, null)?.origin ?? DEFAULT_ORIGIN);
+            continue;
+          }
+          if (click === "login") {
+            await login(DEFAULT_ORIGIN).catch(() => {});
+            await refresh();
+            continue;
+          }
+          if (click.startsWith("sala:")) {
+            const r = rooms.find((x) => `sala:${x.room_id}` === click);
+            if (!r)
+              continue;
+            r.on = !r.on;
+            draw();
+            await callTool("switch_claude", { room_id: r.room_id, on: r.on }, agent).catch(() => {});
+            await refresh();
+          }
+        }
+      });
+      process.stdin.on("end", () => process.exit(0));
+      return new Promise(() => {});
+    }
     case "herdr": {
       const appMode = !!flags.app;
       try {
@@ -1751,13 +1887,13 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
       const lock = join2(HOME, "herdr.pid");
       const other = Number(existsSync2(lock) ? readFileSync(lock, "utf8") : 0);
       if (other && other !== process.pid) {
-        let alive2 = true;
+        let alive = true;
         try {
           process.kill(other, 0);
         } catch {
-          alive2 = false;
+          alive = false;
         }
-        if (alive2)
+        if (alive)
           return die(`vibebook herdr is already running (pid ${other}); one per machine is enough`);
       }
       writeFileSync(lock, String(process.pid));
