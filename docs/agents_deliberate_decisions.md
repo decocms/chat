@@ -1868,3 +1868,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Room content stays on the device until a sign-out or 7 days, so a person who uses your browser profile while you are signed in can read it in the browser's storage. A bug in the merge shows old messages until the server answers.
 - Undo: Revert this commit. The app then keeps rooms in memory only, and old saved rooms stay unused in IndexedDB.
 - Status: open
+
+### 2026-11-25 · feat/review-followup · A task of yours in review asks in the composer
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked what the "1" on a room waits for (#4650). It was a task of his in review, and nothing in the thread said so. He liked a card with Approve and Ask for changes, and asked to put it above the composer: "qualquer followup, deveria ser pelo composer tambem", as in Claude Code (#4707).
+- Decision:
+  - A new component `web/features/composer/ReviewFollowUp.svelte`, in the composer's `above` slot (where the reply bar is). No existing component shows a question with answers in the composer.
+  - It shows the first task in review that you own in the open thread: "Aprovar" sets the task to done (`task.status` with `from: "composer"`, tracked as `review_answer`). "Pedir ajuste" puts "Ajuste em “<task>”: " in the field. "Escrever livre" hides it for that task, and the normal composer stays.
+  - It reads the room's tasks (`reviewWaiting`), not `/api/me` waits, so it needs no new data. Only the task kind of wait shows for now. Asks to you and your Claude's questions can follow.
+  - It has no 1-2-3 keys yet: a digit in an empty field is also text.
+- Other options: a card at the top of the thread (the first mockup). Buttons on the task in the board only.
+- Risk: low. It shows only for the task's owner, and only in that task's thread.
+- Undo: Revert this commit.
+- Status: open

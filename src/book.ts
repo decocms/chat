@@ -2877,6 +2877,7 @@ export class Book extends DurableObject<Env> {
       case "task.toggle":
         return this.setTask(String(m.id));
       case "task.status":
+        if (m.from === "composer") this.ctx.waitUntil(track(this.env, "review_answer", { user: email, dims: { book: this.get("book_id") ?? "", status: String(m.status) } }));
         return void this.setStatus(String(m.id), String(m.status));
       case "task.rename":
         return this.updateTask(String(m.id), String(m.title ?? ""));
