@@ -17,7 +17,6 @@ const AGENTS = join(HOME, "agents.json");
 const DEFAULT_ORIGIN = "https://chat.decocms.com";
 // vibebook moved to chat.decocms.com (Nov 2026). A login made on the old host would keep talking to it: ask for a new one.
 const MOVED: Record<string, string> = { "https://vibebook.dev": DEFAULT_ORIGIN };
-const HERDR = join(HOME, "herdr.json");
 
 type Session = { origin: string; client_id: string; access_token: string; refresh_token?: string; expires_at: number };
 type Tool = { name: string; description: string; inputSchema: { properties?: Record<string, { description?: string }>; required?: string[] } };
@@ -535,6 +534,10 @@ const CODEX_LISTEN_PROMPT = "Ouça a sala do vibebook desta pasta: rode `vibeboo
 /** The agent the runner opens in each room: Claude Code, or Codex with `vibebook herdr --agent codex` (herdr has a codex kind). */
 const RUN_AGENT: "claude" | "codex" = (flag("agent") ?? process.env.VIBEBOOK_AGENT) === "codex" ? "codex" : "claude";
 const RUN_NAME = RUN_AGENT === "codex" ? "Codex" : "Claude";
+// A Codex runner keeps its own map: the Claude runner's map points each room at its Claude, so a Codex runner that read
+// it saw every room as served and opened nothing (Viktor, 25/11). Its spaces are named "<room> · Codex".
+const HERDR_FILE = join(HOME, RUN_AGENT === "codex" ? "herdr-codex.json" : "herdr.json");
+const roomLabel = (title: string) => (RUN_AGENT === "codex" ? `${title.slice(0, 32)} · Codex` : title.slice(0, 40));
 /** What a running agent gets typed in to listen again. */
 const listenWords = () => (RUN_AGENT === "codex" ? CODEX_LISTEN_PROMPT : LISTEN_PROMPT);
 /** Arguments that resume a conversation: `claude --resume <id>`, `codex resume <id>`. */
@@ -628,7 +631,7 @@ function herdrServer(appMode = false) {
     if (!allowed.has(origin) || req.headers.host !== `127.0.0.1:${port}`) return send(403, { error: "origin" });
     if (req.method === "OPTIONS") return send(204, null);
     const u = new URL(req.url ?? "/", "http://127.0.0.1");
-    const map = readJson<Record<string, HerdrRoom & { space?: string }>>(appMode ? HERDR_APP : HERDR, {});
+    const map = readJson<Record<string, HerdrRoom & { space?: string }>>(appMode ? HERDR_APP : HERDR_FILE, {});
     const target = (r: string) => (appMode ? map[r]?.space : map[r]?.workspace);
     if (u.pathname === "/ping") return send(200, { ok: true, rooms: Object.keys(map).filter((r) => target(r)) });
     // Where "Ligar Claude" will open this room: the folder it used before, the one linked by .vibebook, else
@@ -835,7 +838,7 @@ async function tailHub() {
 /** The person this machine is logged in as: the access token is `<email>:<grant>:<secret>`. Read locally, no request. */
 const loggedInAs = (s: Session | null) => s?.access_token.split(":")[0].match(/^[^@\s]+@[^@\s]+$/)?.[0];
 async function herdrSync(agent: string, tools: Tool[]) {
-  const map = readJson<Record<string, HerdrRoom>>(HERDR, {});
+  const map = readJson<Record<string, HerdrRoom>>(HERDR_FILE, {});
   const wsList = herdr("workspace", "list").workspaces as { workspace_id: string; label?: string }[];
   const live = new Set(wsList.map((w) => w.workspace_id));
   const panes = herdr("pane", "list").panes as Pane[];
@@ -850,9 +853,9 @@ async function herdrSync(agent: string, tools: Tool[]) {
     if (e.workspace && live.has(e.workspace)) {
       // Renamed in the app: the tab follows.
       const label = wsList.find((w) => w.workspace_id === e.workspace)?.label;
-      if (label !== undefined && label !== title.slice(0, 40))
+      if (label !== undefined && label !== roomLabel(title))
         try {
-          herdr("workspace", "rename", e.workspace, title.slice(0, 40));
+          herdr("workspace", "rename", e.workspace, roomLabel(title));
           log("info", "herdr", `${title}: renamed the workspace (was "${label}")`, { room });
         } catch {}
       // Its listener died (the session expired, the loop crashed…): the server sees nobody listening. Once it's free,
@@ -872,7 +875,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
         const updating = !!e.restarting_at;
         delete e.deaf_since;
         delete e.restarting_at;
-        writePrivate(HERDR, map);
+        writePrivate(HERDR_FILE, map);
         if (updating) log("info", "plugin", `${title}: reopening its Claude on plugin ${e.plugin_v} (same conversation)`, { room });
         try {
           herdr("agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...resumeArgs(e.session), listenTask(room));
@@ -906,7 +909,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
         e.session = live0.agent_session.value;
         e.restarting_at = Date.now();
         e.prompted_at = 0; // reopen on the next pass, no grace
-        writePrivate(HERDR, map);
+        writePrivate(HERDR_FILE, map);
         try {
           herdr("agent", "prompt", live0.pane_id, "/exit");
           log("info", "plugin", `${title}: plugin ${e.plugin_v ?? "?"} → ${pv}, closed the idle Claude to reopen it (same conversation)`, { room, session: short(e.session) });
@@ -949,7 +952,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
     if (there) {
       e.workspace = there.workspace_id;
       try {
-        herdr("workspace", "rename", there.workspace_id, title.slice(0, 40)); // the tab says which room it is
+        herdr("workspace", "rename", there.workspace_id, roomLabel(title)); // the tab says which room it is
       } catch {}
       log("info", "claude", `${title}: adopted the ${RUN_NAME} already open in its folder`, { room, folder: tilde(e.folder) });
       if (there.agent_status === "idle" || there.agent_status === "done")
@@ -962,14 +965,14 @@ async function herdrSync(agent: string, tools: Tool[]) {
     }
     // A new zsh can stop at oh-my-zsh's "Would you like to update? [Y/n]": the claude command typed by agent start
     // answered it and the room stayed "abrindo" (#4259). No auto-update prompt in the shells we open.
-    const w = herdr("workspace", "create", "--cwd", e.folder, "--label", title.slice(0, 40), "--no-focus", "--env", "DISABLE_AUTO_UPDATE=true");
+    const w = herdr("workspace", "create", "--cwd", e.folder, "--label", roomLabel(title), "--no-focus", "--env", "DISABLE_AUTO_UPDATE=true");
     e.workspace = w.workspace.workspace_id as string;
     const args = ["agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--"];
     if (e.session) args.push("--resume", e.session);
     e.listening = true; // started with /vibebook:listen as its first prompt
     e.plugin_v = pluginVersion();
     e.prompted_at = Date.now();
-    writePrivate(HERDR, map); // the workspace exists now: never open a second one if the start below fails
+    writePrivate(HERDR_FILE, map); // the workspace exists now: never open a second one if the start below fails
     try {
       herdr(...args, listenTask(room)); // the room id: never "which room?" when its room has no news
       log("info", "claude", `${title}: opened a ${RUN_NAME}${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder) });
@@ -988,24 +991,26 @@ async function herdrSync(agent: string, tools: Tool[]) {
     if (p?.agent_session?.value) e.session = p.agent_session.value;
     if (!listed.has(room) || !live.has(e.workspace)) delete e.workspace;
   }
-  writePrivate(HERDR, map);
+  writePrivate(HERDR_FILE, map);
   herdrOrder([...on.keys()], map);
 }
 // ---- herdr app (desktop) mode: `vibebook herdr --app` ----
 // Same rooms, as spaces in the Herdr window (herdr-app + herdr-core): one space per room whose Claude is on, in the
 // room's folder, started with `claude "/vibebook:listen"`; a space already open in that folder with a Claude in it is
 // adopted. Off only mutes: no space closes. Spaces follow the rail's order. ~/.vibebook/herdr-app.json maps them.
-const HERDR_APP = join(HOME, "herdr-app.json");
+const HERDR_APP = join(HOME, RUN_AGENT === "codex" ? "herdr-app-codex.json" : "herdr-app.json");
 type AppSpace = { id: string; name: string; folder: string; tabs: { terminals: { terminal: string; app: string | null; status: string | null }[] }[] };
 const happ = (...args: string[]) => {
   const r = JSON.parse(execFileSync("herdr-app", args, { stdio: ["ignore", "pipe", "pipe"] }).toString());
   if (r?.error) throw new Error(r.error);
   return r;
 };
-const appClaude = (sp: AppSpace) => sp.tabs.flatMap((t) => t.terminals).find((t) => /claude/i.test(t.app ?? ""));
+/** The runner's agent (Claude Code or Codex) in a herdr-app space. */
+const appClaude = (sp: AppSpace) => sp.tabs.flatMap((t) => t.terminals).find((t) => (RUN_AGENT === "codex" ? /codex/i : /claude/i).test(t.app ?? ""));
 /** The Claude Code session running in a herdr-app terminal: its process (hc get) and Claude Code's own
  *  ~/.claude/sessions/<pid>.json. */
 function appSession(terminal: string): string | undefined {
+  if (RUN_AGENT === "codex") return undefined; // no pid → session file in Codex; it reopens without resuming
   try {
     const pid = (JSON.parse(execFileSync("hc", ["get", terminal], { stdio: ["ignore", "pipe", "pipe"] }).toString()) as { foreground?: { pid?: number } }).foreground?.pid;
     if (!pid) return undefined;
@@ -1038,9 +1043,9 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
     const e = (map[room] ??= {});
     if (e.space && live.has(e.space)) {
       const name = spaces.find((x) => x.id === e.space)?.name;
-      if (name !== undefined && name !== title.slice(0, 40))
+      if (name !== undefined && name !== roomLabel(title))
         try {
-          happ("do", "space.rename", "--id", e.space, "--name", title.slice(0, 40));
+          happ("do", "space.rename", "--id", e.space, "--name", roomLabel(title));
           log("info", "herdr", `${title}: renamed the space (was "${name}")`, { room });
         } catch {}
       // Same as the terminal mode: nobody listening for 3 minutes and its Claude is free: ask it again (≤ every 5 min).
@@ -1061,7 +1066,7 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
     if (there) {
       e.space = there.id;
       try {
-        happ("do", "space.rename", "--id", there.id, "--name", title.slice(0, 40));
+        happ("do", "space.rename", "--id", there.id, "--name", roomLabel(title));
       } catch {}
       const c = appClaude(there);
       if (c && (c.status === "idle" || c.status === "done"))
@@ -1073,7 +1078,7 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
       continue;
     }
     // Back on after an off: the same conversation (--resume), so closing it lost nothing.
-    const r = happ("do", "space.new", "--name", title.slice(0, 40), "--folder", e.folder, "--argv", JSON.stringify([RUN_AGENT, ...resumeArgs(e.session)]), "--task", listenTask(room));
+    const r = happ("do", "space.new", "--name", roomLabel(title), "--folder", e.folder, "--argv", JSON.stringify([RUN_AGENT, ...resumeArgs(e.session)]), "--task", listenTask(room));
     e.space = r.space as string;
     e.prompted_at = Date.now();
     log("info", "claude", `${title}: opened a ${RUN_NAME}${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder), space: e.space });
@@ -1132,7 +1137,7 @@ function herdrOrder(order: string[], map: Record<string, HerdrRoom>) {
       if (ws === focused) refocus = newWs;
     }
   }
-  writePrivate(HERDR, map);
+  writePrivate(HERDR_FILE, map);
   // Moving into a new workspace focuses it; give the person back the one they were in.
   const back = refocus ?? focused;
   if (back)
