@@ -2250,3 +2250,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. A second agent no longer acts on messages without @: a person who relied on two agents doing the same thing must now call the second by name. `wait_for_messages` reads two more D1 rows per room with news.
 - Undo: Revert the commit; `agent_rooms.name` stays unused.
 - Status: open
+
+### 2026-11-25 · feat/user-center-mobile · The phone's user center and its count
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked for step 4 of the user center: on a phone, the desktop's rows at the top of the Chats list, a count on your avatar, and no other place for these rows. He did not say where the count goes in a room, where your face is not in the bar.
+- Decision:
+  - The Chats list draws `UserCenter phone` under the search: `UpdateRow`, `InstallCard row`, `NotifyOffer row`, `Requests center`. The box is drawn only when `userCenterCount` (`web/features/user-center/count.ts`) is more than 0.
+  - The count is on your face in the Chats bar (`AccountRow badge`). The face still opens Settings, because the rows are on the same screen.
+  - In a room and in a DM, the count is on ←, not on a face: ← goes to the Chats list, and a room's bar shows the other people, not you. A tap on ← opens the rows. A DM's face still opens Settings.
+  - The number is the app's one notification count (`Count`), as on the rail's cube. `count.ts` is new so that the bar and the list count the same rows. `InstallCard` gets a `row` variant, as `NotifyOffer` has. No new component.
+  - The room's notifications strip and the `NotifyOffer` strip variant are removed. The Chats list no longer draws `Requests variant="list"`. A phone with no conversation yet (the desk home) keeps the install card and the notifications card: it has no Chats list.
+  - On a touch screen (`hover:none`), the × of the notifications, install and request rows is always visible. This also changes a desktop with a touch screen and no mouse.
+  - The count includes the install offer.
+  - There is no `track()` event: the browser app has no event path (see the entries above). The actions in the rows are the existing ones.
+- Other options: the count on your face in the drawer and in a DM's bar, with a tap that opens Chats in place of Settings (two meanings for one face). Your face added to a room's bar (no space next to the people). A new card component for the phone (the desktop box can do it).
+- Risk: low.
+- Undo: Revert this commit.
+- Status: open

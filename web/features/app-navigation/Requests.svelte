@@ -16,8 +16,9 @@
    * Aceitar (opens the DM with it). × declines either; nothing from them
    * reaches you before a yes. `variant` follows the rows around it: the
    * sidebar's small rows or the phone list's bigger ones. `center`: rows of
-   * the user center on desktop, like "Your agent", with no section title and
-   * the × on hover (docs/design.md, "The user center"; Gimenes #5064).
+   * the user center (the sidebar's on desktop, the Chats list's on a phone),
+   * like "Your agent", with no section title and the × on hover or always on
+   * a touch screen (docs/design.md, "The user center"; Gimenes #5064).
    */
   let {
     invites,
@@ -126,7 +127,7 @@
           size="icon-xs"
           label={homeText(lang, "decline")}
           class={center
-            ? "hidden text-muted-foreground group-focus-within:inline-flex group-hover:inline-flex hover:text-foreground"
+            ? "hidden text-muted-foreground group-focus-within:inline-flex group-hover:inline-flex hover:text-foreground [@media(hover:none)]:inline-flex"
             : "text-muted-foreground hover:text-foreground"}
           disabled={!!busy || !answer}
           onclick={() => run(key, answer && (() => answer(false)))}

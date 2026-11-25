@@ -32,6 +32,9 @@
   import ChatList from "./ChatList.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import UpdateRow from "../user-center/UpdateRow.svelte";
+  import UserCenter from "../user-center/UserCenter.svelte";
+  import Requests from "../app-navigation/Requests.svelte";
+  import { userCenterCount } from "../user-center/count";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import HomeSkeleton from "./HomeSkeleton.svelte";
@@ -63,6 +66,15 @@
     ondismiss,
   }: HomeBridge = $props();
   const account = $derived(personal.state);
+  const pwaView = $derived(pwa.state);
+  // The phone's user center: how many rows it has (the bar's avatar shows the number).
+  const centerCount = $derived(
+    userCenterCount({
+      update: $account.updateAvailable,
+      pwa: $pwaView,
+      me: $account.me,
+    }),
+  );
   const mobile = new MediaQuery(MOBILE_QUERY);
   const onboarding = untrack(() => {
       let storage: Storage | null = null;
@@ -330,13 +342,18 @@
       <h1 class="m-0 min-w-0 flex-1 truncate text-2xl font-bold tracking-tight">
         {text("chatsTitle")}
       </h1>
-      <AccountRow me={$account.me} row={false} />
+      <AccountRow
+        me={$account.me}
+        row={false}
+        badge={{
+          count: centerCount,
+          label:
+            centerCount === 1
+              ? text("centerOne")
+              : text("centerMany", { n: centerCount }),
+        }}
+      />
     </header>
-    <!-- A new version: the desktop sidebar's green row (Valls, #334), first in the phone's list, never in a room
-      (Gimenes #4613, #4630). The user center is desktop only, so a phone had no way to update. -->
-    {#if $account.updateAvailable}<div class="px-2 pt-1 md:hidden">
-        <UpdateRow {lang} />
-      </div>{/if}
     <div class="px-2 pt-1 pb-3">
       <button
         type="button"
@@ -348,10 +365,24 @@
         ></button
       >
     </div>
-    <div class="mb-2 px-2">
-      <div class="md:hidden"><NotifyOffer owner={pwa} {lang} card /></div>
-      <InstallCard owner={pwa} {lang} compact />
-    </div>
+    <!-- The phone's user center (Gimenes, step 4): the desktop sidebar's rows, in its order, under the search. Each row
+      goes when it is done; inside a room only their count shows, on ← (RoomHeader). This list draws only on a phone. -->
+    {#if centerCount}<div class="mb-3 px-2">
+        <UserCenter phone
+          >{#if $account.updateAvailable}<UpdateRow {lang} />{/if}<InstallCard
+            owner={pwa}
+            {lang}
+            row
+          /><NotifyOffer owner={pwa} {lang} row /><Requests
+            center
+            invites={$account.me.invites ?? []}
+            requests={$account.me.requests}
+            {lang}
+            {onjoin}
+            {onanswer}
+          /></UserCenter
+        >
+      </div>{/if}
     <ChatList
       me={$account.me}
       seen={$account.seen}
@@ -360,8 +391,6 @@
       {ago}
       {onnavigate}
       onmenu={onroommenu}
-      {onjoin}
-      {onanswer}
     />
     <!-- The + makes a DM (people from your rooms, or an email) or a room (Gui #4572: it only made rooms). -->
     {#if $account.me}<NewMessage
@@ -404,7 +433,7 @@
       ]}
     >
       <div class="w-full max-w-xl">
-        <div class="md:hidden"><NotifyOffer owner={pwa} {lang} card /></div>
+        <div class="md:hidden"><NotifyOffer owner={pwa} {lang} /></div>
         <InstallCard owner={pwa} {lang} compact />
       </div>
       <section class="mt-[10vh] flex flex-col items-center max-md:mt-4">

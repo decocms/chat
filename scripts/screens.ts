@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -863,6 +863,90 @@ try {
     await phone.waitForTimeout(400);
     await phone.screenshot({ path: join(out, file) });
     shots.push(file);
+  }
+  if (flag("center")) {
+    // The user center with rows (Gimenes, step 4): a new version, an invite and a message request, faked in the
+    // page's answers (test data only), and notifications that this device never turned on.
+    const fake = async (page: Page) => {
+      // Headless Chromium answers "denied"; a device that never chose answers "default".
+      await page.addInitScript(() =>
+        Object.defineProperty(Notification, "permission", {
+          get: () => "default",
+        }),
+      );
+      // A version that is not the page's own: the app offers the new version.
+      await page.route(/\/api\/me(\?|$)/, async (route) => {
+        const response = await route.fetch();
+        const me = (await response.json()) as Record<string, unknown>;
+        await route.fulfill({
+          response,
+          json: {
+            ...me,
+            v: "screens-new",
+            invites: [
+              {
+                book_id: "zzzzzz",
+                title: "Viagem de teste",
+                icon: null,
+                inviter: "bia@example.test",
+                inviter_name: "Bia Teste",
+                inviter_avatar: null,
+                people: 3,
+                created_at: Date.now(),
+              },
+            ],
+            requests: [
+              {
+                email: "caio@example.test",
+                name: "Caio Teste",
+                avatar: null,
+                msg: "Oi! Posso falar com você?",
+              },
+            ],
+          },
+        });
+      });
+    };
+    for (const scheme of ["light", "dark"] as const) {
+      const context = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+        colorScheme: scheme,
+      });
+      const phone = await context.newPage();
+      await fake(phone);
+      await phone.goto(`${base}/`, { waitUntil: "networkidle" });
+      await phone.locator('[data-user-center="phone"]').waitFor();
+      await phone
+        .locator('[data-user-center="phone"] [data-view="update"]')
+        .waitFor();
+      await phone.waitForTimeout(400);
+      await phone.screenshot({
+        path: join(out, `center-chats-${scheme}-390.png`),
+      });
+      shots.push(`center-chats-${scheme}-390.png`);
+      await phone.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+      await phone.locator("[data-phone-back] [data-count]").waitFor();
+      await phone.waitForTimeout(400);
+      await phone.screenshot({
+        path: join(out, `center-room-${scheme}-390.png`),
+      });
+      shots.push(`center-room-${scheme}-390.png`);
+      await context.close();
+    }
+    // Desktop with the same rows: the sidebar's user center, as before.
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+    });
+    const wide = await context.newPage();
+    await fake(wide);
+    await wide.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+    await wide.locator("[data-user-center] [data-view='update']").waitFor();
+    await wide.waitForTimeout(400);
+    await wide.screenshot({ path: join(out, "center-room-1440.png") });
+    shots.push("center-room-1440.png");
+    await context.close();
   }
 } finally {
   await browser.close();

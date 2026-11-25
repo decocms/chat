@@ -2097,21 +2097,100 @@ test("a phone's list of conversations puts a new version first, as the desktop s
   );
   await flush();
   const list = () => target.querySelector('[data-home-layout="chats"]');
-  const update = () => list()?.querySelector('[data-view="update"]');
+  const center = () => list()?.querySelector('[data-user-center="phone"]');
+  const update = () => center()?.querySelector('[data-view="update"]');
+  const badge = () => list()?.querySelector("[data-home-bar] [data-count]");
   expect(list()).not.toBeNull();
-  expect(update()).toBeNull();
+  // Nothing open: no box and no number on your face.
+  expect(center()).toBeNull();
+  expect(badge()).toBeNull();
   personal.updateAvailable(true);
   await flush();
   expect(update()?.textContent).toContain("New version");
-  // First in the list: before the search field.
+  expect(badge()?.textContent).toBe("1");
+  expect(
+    list()!
+      .querySelector("[data-home-bar] [data-account-row]")!
+      .getAttribute("aria-label"),
+  ).toContain("1 notice for you");
+  // The phone's user center: under the search field.
   const search = list()!.querySelector("[data-home-search]")!;
   expect(
-    update()!.compareDocumentPosition(search) &
+    search.compareDocumentPosition(center()!) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   personal.updateAvailable(false);
   await flush();
-  expect(update()).toBeNull();
+  expect(center()).toBeNull();
+  expect(badge()).toBeNull();
+});
+
+test("a phone's invites and message requests are rows of its user center, once, with their count on your face (Gimenes, step 4)", async () => {
+  environment.happyDOM.setViewport({ width: 400, height: 800 });
+  cleanups.push(() =>
+    environment.happyDOM.setViewport({ width: 1024, height: 768 }),
+  );
+  const { personal, rooms, pwa, profile, creator } = await setup({
+    me: async () =>
+      me({
+        books: [room("aaaaaa")],
+        invites: [
+          {
+            book_id: "bbbbbb",
+            title: "Trip",
+            icon: null,
+            inviter: "ana@test.com",
+            inviter_name: "Ana",
+            inviter_avatar: null,
+            people: 3,
+            created_at: 1,
+          },
+        ],
+        requests: [
+          { email: "bia@test.com", name: "Bia", avatar: null, msg: "hi" },
+        ],
+      }),
+  });
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(Home, {
+      target,
+      props: {
+        pwa,
+        personal,
+        rooms,
+        profile,
+        creator,
+        lang: "en",
+        ago: () => "now",
+        onnavigate: () => {},
+        onhome: () => {},
+        onarchived: () => {},
+        onnew: () => {},
+        onsettings: () => {},
+        onroommenu: () => {},
+        onsearch: () => {},
+      },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(component);
+    }),
+  );
+  await flush();
+  const list = target.querySelector('[data-home-layout="chats"]')!;
+  const center = list.querySelector('[data-user-center="phone"]')!;
+  expect(center.querySelector('[data-request="room:bbbbbb"]')).not.toBeNull();
+  expect(
+    center.querySelector('[data-request="dm:bia@test.com"]'),
+  ).not.toBeNull();
+  // Not a second time over the list.
+  expect(list.querySelectorAll("[data-request]").length).toBe(2);
+  expect(list.querySelector("[data-home-bar] [data-count]")?.textContent).toBe(
+    "2",
+  );
 });
 
 test("the call's panel in another room goes back to the call's room with the stage open (Jonas, 2026-11-25)", async () => {
