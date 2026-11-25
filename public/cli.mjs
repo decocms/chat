@@ -1573,7 +1573,10 @@ async function main() {
         } catch {}
         if (queue) {
           mkdirSync(HOME, { recursive: true });
-          const log2 = openSync(join2(HOME, "codex-wake.log"), "a");
+          let log2 = "ignore";
+          try {
+            log2 = openSync(join2(HOME, "codex-wake.log"), "a");
+          } catch {}
           spawn(process.execPath, [process.argv[1], ...argv, "--codex-wake", tid], { detached: true, stdio: ["ignore", log2, log2], env: process.env, cwd: process.cwd() }).unref();
           process.stdout.write(`vibebook listen: ouvindo em segundo plano. Quando a sala tiver novidade, esta conversa do Codex recebe uma mensagem (codex queue) e você começa um turno. Não rode listen de novo depois de cada turno.
 `);

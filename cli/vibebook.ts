@@ -1368,7 +1368,8 @@ async function main() {
         try { execFileSync("codex", ["queue", "--help"], { stdio: "ignore", timeout: 15_000 }); queue = true; } catch {}
         if (queue) {
           mkdirSync(HOME, { recursive: true });
-          const log = openSync(join(HOME, "codex-wake.log"), "a");
+          let log: number | "ignore" = "ignore";
+          try { log = openSync(join(HOME, "codex-wake.log"), "a"); } catch {} // Codex's sandbox can't write ~/.vibebook: run without a log
           spawn(process.execPath, [process.argv[1], ...argv, "--codex-wake", tid], { detached: true, stdio: ["ignore", log, log], env: process.env, cwd: process.cwd() }).unref();
           process.stdout.write("vibebook listen: ouvindo em segundo plano. Quando a sala tiver novidade, esta conversa do Codex recebe uma mensagem (codex queue) e você começa um turno. Não rode listen de novo depois de cada turno.\n");
           return;
