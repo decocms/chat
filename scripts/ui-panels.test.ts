@@ -2836,7 +2836,9 @@ describe("chat", () => {
     fileCard.querySelector<HTMLButtonElement>("[data-file-open]")!.click();
     expect(opened).toEqual(["old-version"]);
     attachments
-      .querySelector<HTMLAnchorElement>('a[href$="old-version"]')!
+      .querySelector<HTMLAnchorElement>(
+        'a[data-file-expand][href$="old-version"]',
+      )!
       .click();
     expect(opened).toEqual(["old-version", "old-version"]);
     expect(attachments.querySelector("audio")?.getAttribute("src")).toContain(

@@ -67,7 +67,15 @@
   }
 </script>
 
+<!-- Expand is always the rightmost action, on files and on apps. -->
 {#snippet fileActions(file: Attachment)}<IconButton
+    label={vb.t("Baixar")}
+    data-file-download
+    href={url(file)}
+    download={file.name}
+    size="icon"
+    class={cardIconClass}><Icon icon="download-01" size={18} /></IconButton
+  ><IconButton
     label={vb.t("Abrir em tela cheia")}
     data-file-expand
     href={url(file)}
@@ -75,13 +83,6 @@
     class={cardIconClass}
     onclick={(event) => open(event, file)}
     ><Icon icon="expand-01" size={18} /></IconButton
-  ><IconButton
-    label={vb.t("Baixar")}
-    data-file-download
-    href={url(file)}
-    download={file.name}
-    size="icon"
-    class={cardIconClass}><Icon icon="download-01" size={18} /></IconButton
   >{/snippet}
 
 {#if files.length}<div
