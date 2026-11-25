@@ -19,6 +19,7 @@ import { track } from "./track";
 import { callAnswer, callClose, callJoin, callsOn, callTracks, startRecorder } from "./calls";
 import { pushTo } from "./webpush";
 import { checkFreestyleKey, sandboxOps, saveKey } from "./sandbox";
+import { studioSignOut } from "./studioSandbox";
 import { connOps } from "./mcpconn";
 import { consentContext, grantOps } from "./connect";
 import { routerStats } from "./router";
@@ -172,7 +173,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     callClose: (roomId, session, mids, names) => callClose(env, roomId, email, session, mids, names),
     callLeave: (roomId, session) => bookStub(env, roomId).callLeave(email, session),
     callDecline: (roomId) => bookStub(env, roomId).callDecline(roomId, email),
-    humanPost: (roomId, text, thread, clientId) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId }),
+    humanPost: (roomId, text, thread, clientId, extra) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId, ...extra }),
     roomMessages: (roomId, query) => bookStub(env, roomId).roomMessages(roomId, query, email),
     roomState: (roomId, query) => bookStub(env, roomId).roomState(roomId, email, query),
     linkTarget: (roomId, query) =>
@@ -328,6 +329,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     allowSecretTry: async (key) => (await env.LOGIN_LIMIT.limit({ key })).success,
     saveSecret: (table, value) => saveKey(env, email, value, table),
     checkFreestyleKey: (key) => checkFreestyleKey(env, key),
+    studio: { disconnect: () => studioSignOut(env, email) },
     listenFresh: LISTEN_FRESH,
     sandboxes: sandboxOps(env, ctx, email, new URL(req0.url).origin, en),
     me: () => meFor(env, ctx, email, req0),

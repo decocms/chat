@@ -101,6 +101,7 @@ function fixture(
     removeKey: async () => ({ ok: true }),
     saveToken: async () => ({ ok: true }),
     removeToken: async () => ({ ok: true }),
+    removeStudio: async () => ({ ok: true }),
   };
   const visits = createRoomVisits(null);
   const services = createApplicationServices({

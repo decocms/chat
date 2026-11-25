@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -250,6 +250,100 @@ try {
     await desk.waitForTimeout(400);
     await desk.screenshot({ path: join(out, "marks-1440.png") });
     shots.push("marks-1440.png");
+  }
+  if (flag("studio")) {
+    // Studio agents (Settings › Cloud): the deco Studio card before and after connecting, and an agent in the room.
+    // Needs `bun scripts/studio-mock.ts` and STUDIO_ORIGIN=http://127.0.0.1:8798 in .dev.vars.
+    const cloud = await browser.newPage({
+      viewport: { width: 1440, height: 900 },
+    });
+    const card = cloud.locator("[data-studio-connection]");
+    const shot = async (file: string) => {
+      await card.scrollIntoViewIfNeeded();
+      await cloud.mouse.move(0, 0);
+      await cloud.waitForTimeout(400);
+      await cloud.screenshot({ path: join(out, file) });
+      shots.push(file);
+    };
+    // A second run starts from "not connected" again.
+    await fetch(`${base}/api/studio`, {
+      method: "DELETE",
+      headers: { origin: base },
+    });
+    await cloud.goto(`${base}/settings?room=${room}#cloud`, {
+      waitUntil: "networkidle",
+    });
+    await card.waitFor();
+    await shot("studio-disconnected-1440.png");
+    await card.locator('a[href^="/api/studio/signin"]').click();
+    await cloud.locator("[data-studio-create]").waitFor();
+    await shot("studio-connected-1440.png");
+    await cloud.locator("[data-studio-create]").click();
+    await cloud
+      .locator("[data-sandbox-id]", { hasText: "org-example-agent" })
+      .waitFor();
+    await cloud.waitForTimeout(1500);
+    await shot("studio-agent-1440.png");
+    // The owner names the agent in the room: the mock must receive that one message.
+    await send(desk, "@org-example-agent liste as tarefas abertas.");
+    await desk.waitForTimeout(1500);
+    const sent = (
+      (await (
+        await fetch(
+          `${process.env.STUDIO_ORIGIN ?? "http://127.0.0.1:8798"}/_log`,
+        )
+      ).json()) as { path: string; body: unknown }[]
+    ).filter(
+      (call) =>
+        call.path.endsWith("/messages") &&
+        JSON.stringify(call.body).includes(`room_id ${room}`),
+    ).length;
+    if (sent !== 1)
+      throw new Error(`the Studio mock received ${sent} messages, not 1`);
+    // A project's agent: it takes the project's title in Studio as its name and @handle.
+    await card.locator("input").fill("mock-project");
+    await cloud.locator("[data-studio-create]").click();
+    const project = cloud.locator("[data-sandbox-id]", {
+      hasText: "example-store",
+    });
+    await project.waitFor();
+    await cloud.waitForTimeout(1500);
+    await project.scrollIntoViewIfNeeded();
+    await cloud.screenshot({
+      path: join(out, "studio-project-agent-1440.png"),
+    });
+    shots.push("studio-project-agent-1440.png");
+    // The two confirmations: remove one agent from the room, remove the Studio connection.
+    const remove = /^(Remove|Remover)$/;
+    const dialog = cloud.getByRole("alertdialog").or(cloud.getByRole("dialog"));
+    await project.getByRole("button", { name: remove }).click();
+    await dialog.first().waitFor();
+    await cloud.waitForTimeout(400);
+    await cloud.screenshot({ path: join(out, "studio-remove-agent-1440.png") });
+    shots.push("studio-remove-agent-1440.png");
+    await cloud.keyboard.press("Escape");
+    await dialog.first().waitFor({ state: "hidden" });
+    await card.getByRole("button", { name: remove }).click();
+    await dialog.first().waitFor();
+    await cloud.waitForTimeout(400);
+    await cloud.screenshot({
+      path: join(out, "studio-remove-connection-1440.png"),
+    });
+    shots.push("studio-remove-connection-1440.png");
+    await cloud.keyboard.press("Escape");
+    await cloud.close();
+    const phone = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+    });
+    await phone.goto(`${base}/settings?room=${room}#cloud`, {
+      waitUntil: "networkidle",
+    });
+    await phone.locator("[data-studio-create]").waitFor();
+    await phone.locator("[data-studio-connection]").scrollIntoViewIfNeeded();
+    await phone.waitForTimeout(600);
+    await phone.screenshot({ path: join(out, "studio-390.png") });
+    shots.push("studio-390.png");
+    await phone.close();
   }
   if (flag("link")) {
     // A copied link to an old message (Gimenes #4843): more than one window of messages after it, then the link opens

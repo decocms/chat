@@ -235,6 +235,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       },
       signout: async () => ({ ok: true }),
     },
+    studio: { disconnect: async () => {} },
     checkFreestyleKey: async (key) =>
       key.startsWith("good") ? null : "401 unauthorized",
     grants: {
@@ -624,8 +625,9 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
     ["/api/books/room/archive", { archived: "no" }],
     ["/api/books/room/tint", { tint: 1 }],
     ["/api/rooms/order", { ids: [] }],
-    ["/api/waits/resolve", { book_id: "room", ref: "t1" }],
-    ["/api/waits/resolve-many", { items: [{ book_id: "room", ref: "t1" }] }],
+    ["/api/waits/resolve", { book_id: "room", ref: "x1" }],
+    ["/api/waits/resolve", { book_id: "room", ref: "d" }],
+    ["/api/waits/resolve-many", { items: [{ book_id: "room", ref: "x1" }] }],
     ["/api/waits/resolve-many", { items: [] }],
   ] as const)
     expect((await f.json(path, value)).status).toBe(400);
@@ -656,6 +658,27 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
     f.writes.find((write) => write.query.startsWith("DELETE FROM waits"))
       ?.values,
   ).toEqual(["room", "test@example.com"]);
+  // Anything in the Inbox can be acknowledged: a task in review (t) is a wait; a held @mention (d) leaves the digest.
+  const earlier = f.writes.length;
+  expect(
+    (await f.json("/api/waits/resolve", { book_id: "room", ref: "t9" })).status,
+  ).toBe(200);
+  expect(
+    (await f.json("/api/waits/resolve", { book_id: "room", ref: "d42" }))
+      .status,
+  ).toBe(200);
+  expect(
+    f.writes.slice(earlier).map((write) => [write.query, write.values]),
+  ).toEqual([
+    [
+      "DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?",
+      ["room", "t9", "test@example.com"],
+    ],
+    [
+      "DELETE FROM digest_items WHERE book_id = ? AND msg_id = ? AND email = ?",
+      ["room", 42, "test@example.com"],
+    ],
+  ]);
 });
 
 test("freestyle key and Claude token: validated, checked, sealed, never echoed back", async () => {

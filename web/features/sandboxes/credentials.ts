@@ -6,10 +6,13 @@ import {
 } from "../agents/api";
 import { createAgentLease, agentClock, type AgentClock } from "../agents/lease";
 import { AGENT_REQUEST_TIMEOUT, type AgentPhase } from "../agents/model";
-export type CredentialAction = "key" | "token" | "remove-key" | "remove-token";
+export type CredentialAction =
+  "key" | "token" | "remove-key" | "remove-token" | "remove-studio";
 export type CredentialState = {
   connected: boolean | null;
   claude: boolean | null;
+  /** deco Studio is connected by a browser sign-in (GET /api/studio/signin); only removing it is a write here. */
+  studio: boolean | null;
   phase: AgentPhase;
   action: CredentialAction | null;
   error: string;
@@ -18,6 +21,7 @@ export type CredentialState = {
 const blank = (): CredentialState => ({
   connected: null,
   claude: null,
+  studio: null,
   phase: "idle",
   action: null,
   error: "",
@@ -50,7 +54,12 @@ export function createSandboxCredentials(
     if (!pending) return;
     const value = get(state),
       removing = pending.kind.startsWith("remove-"),
-      present = pending.kind.endsWith("key") ? value.connected : value.claude;
+      present =
+        pending.kind === "remove-studio"
+          ? value.studio
+          : pending.kind.endsWith("key")
+            ? value.connected
+            : value.claude;
     if (
       !pending.ack ||
       present === null ||
@@ -85,12 +94,14 @@ export function createSandboxCredentials(
       if (active) denied = false;
     },
     current: () => active && !denied,
-    sync(connected: boolean, claude: boolean) {
+    sync(connected: boolean, claude: boolean, studio = false) {
       if (!active) return;
       state.update((value) =>
-        value.connected === connected && value.claude === claude
+        value.connected === connected &&
+        value.claude === claude &&
+        value.studio === studio
           ? value
-          : { ...value, connected, claude },
+          : { ...value, connected, claude, studio },
       );
       settle();
     },
@@ -114,7 +125,9 @@ export function createSandboxCredentials(
                 ? api.saveToken(input, signal)
                 : kind === "remove-key"
                   ? api.removeKey(signal)
-                  : api.removeToken(signal),
+                  : kind === "remove-studio"
+                    ? api.removeStudio(signal)
+                    : api.removeToken(signal),
           AGENT_REQUEST_TIMEOUT,
         );
         if (!active || pending !== op || sequence !== op.ticket) return;

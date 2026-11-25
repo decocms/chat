@@ -9,6 +9,9 @@ import { AUTH_REQUEST_TIMEOUT, type AuthClock } from "../auth/owner";
 import { createAgentLease } from "../agents/lease";
 import { clientClock } from "../../lib/client/clock";
 import { createSendIds } from "../../lib/client/sendIds";
+import { sendRoomCommandOnce } from "../../app/roomReact";
+import { choicesOf } from "../chat-interactive/eligibility";
+import type { RoomCommand } from "../../../shared/commands";
 export type InboxBinding = {
   account: string;
   revision: number;
@@ -59,7 +62,9 @@ export function createApplicationInbox(
   };
   // A reply that failed keeps its client_id: replying again with the same text is the same send.
   const sends = createSendIds();
-  const waitsKey = (wait: Wait) => `${wait.book_id}/${wait.ref}`;
+  /** What a ✓ clears: a wait, or a held @mention as d<message id> (the server's /api/waits/resolve). */
+  type Cleared = Pick<Wait, "book_id" | "ref">;
+  const waitsKey = (wait: Cleared) => `${wait.book_id}/${wait.ref}`;
   const empty = (): InboxResult => ({
     waits: [],
     mentions: [],
@@ -78,8 +83,8 @@ export function createApplicationInbox(
   });
   const timers = clock ?? clientClock;
   // The Undo window: asks the person resolved, sent when it closes (or at once when the Inbox closes).
-  let later: { waits: Wait[]; timer: unknown } | null = null;
-  async function send(waits: Wait[]) {
+  let later: { waits: Cleared[]; timer: unknown } | null = null;
+  async function send(waits: Cleared[]) {
     try {
       await (waits.length === 1
         ? services.personal.api.resolve(waits[0]!.book_id, waits[0]!.ref)
@@ -204,6 +209,26 @@ export function createApplicationInbox(
           value.thread === wait.thread &&
           value.author === wait.author,
       );
+  /** One command to the wait's room over a short-lived socket; on success the wait leaves the list at once. */
+  async function command(
+    binding: InboxBinding,
+    wait: Pick<Wait, "book_id" | "ref" | "thread">,
+    message: RoomCommand,
+  ) {
+    const path = `/ws/${encodeURIComponent(wait.book_id)}?t=${encodeURIComponent(wait.thread)}&peek=1`;
+    const url = new URL(path, globalThis.location?.href ?? "http://localhost/");
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    const ok = await sendRoomCommandOnce(url.href, message);
+    if (!ok || !owns(binding)) return ok;
+    state.update((value) => ({
+      ...value,
+      hidden: [...value.hidden, waitsKey(wait)],
+    }));
+    services.personal.invalidate();
+    void services.personal.refresh();
+    void refresh(binding);
+    return true;
+  }
   const listedThread = (wait: Wait) => {
     const data = get(state).data;
     return (
@@ -362,6 +387,14 @@ export function createApplicationInbox(
       if (owns(binding) && get(state).data.mentions.includes(mention))
         navigate(binding, mention.book_id, mention.thread, mention.msg_id);
     },
+    /** The desktop Home's "Nas suas salas": a room with unread messages opens on its main thread. */
+    openRoom(binding: InboxBinding, roomId: string) {
+      if (
+        owns(binding) &&
+        services.personal.peek()?.books.some((room) => room.id === roomId)
+      )
+        navigate(binding, roomId, "main");
+    },
     openTask(binding: InboxBinding, task: InboxTask) {
       if (owns(binding) && get(state).data.tasks.includes(task))
         navigate(binding, task.book_id, task.epic_id);
@@ -380,7 +413,7 @@ export function createApplicationInbox(
         binding,
         wait.book_id,
         wait.thread,
-        /^[mab]/.test(wait.ref)
+        /^[mabr]/.test(wait.ref)
           ? messageIdentity(wait.ref.slice(1))
           : undefined,
       );
@@ -429,17 +462,28 @@ export function createApplicationInbox(
       return true;
     },
     /** "Resolve" with Undo: the asks leave the list now and go to the server after INBOX_UNDO_MS. */
-    resolveLater(binding: InboxBinding, waits: readonly Wait[]) {
+    resolveLater(
+      binding: InboxBinding,
+      waits: readonly Wait[],
+      mentions: readonly InboxMention[] = [],
+    ) {
       if (!owns(binding)) return;
-      const data = get(state).data.waits,
+      const data = get(state).data,
         hidden = new Set(get(state).hidden);
-      const picked = waits.filter(
-        (wait) =>
-          wait.ref.startsWith("m") &&
-          data.includes(wait) &&
-          canonical(wait) &&
-          !hidden.has(waitsKey(wait)),
-      );
+      const picked: Cleared[] = [
+        ...waits.filter(
+          (wait) =>
+            /^(?:[mabr]\d|t)/.test(wait.ref) &&
+            data.waits.includes(wait) &&
+            canonical(wait),
+        ),
+        ...mentions
+          .filter((mention) => data.mentions.includes(mention))
+          .map((mention) => ({
+            book_id: mention.book_id,
+            ref: `d${mention.msg_id}`,
+          })),
+      ].filter((item) => !hidden.has(waitsKey(item)));
       if (!picked.length) return;
       flush();
       later = {
@@ -492,13 +536,112 @@ export function createApplicationInbox(
       void refresh(binding);
       return true;
     },
+    /** The Home's task workspace changed something in a room: the server may have cleared items. */
+    changed(binding: InboxBinding) {
+      if (!owns(binding)) return;
+      services.personal.invalidate();
+      void services.personal.refresh();
+      void refresh(binding);
+    },
+    /** 👍 on an ask, from the Home: the room takes the reaction and clears the ask (src/book.ts reactedHere). */
+    async react(binding: InboxBinding, wait: Wait, emoji = "👍") {
+      const id = /^m\d+$/.test(wait.ref) ? Number(wait.ref.slice(1)) : NaN;
+      if (
+        !owns(binding) ||
+        !Number.isSafeInteger(id) ||
+        !get(state).data.waits.includes(wait) ||
+        !canonical(wait)
+      )
+        return false;
+      return command(binding, wait, { t: "react", id, emoji });
+    },
+    /** A choice of your Claude's question (a<msg>), from the Home: your answer in its thread, as the room's buttons
+     *  send it (reply_to the question); the room clears the wait (src/book.ts addMessage). */
+    async answer(binding: InboxBinding, wait: Wait, value: string) {
+      const id = /^a\d+$/.test(wait.ref) ? Number(wait.ref.slice(1)) : NaN;
+      if (
+        !owns(binding) ||
+        !Number.isSafeInteger(id) ||
+        !choicesOf(wait.about)?.options.includes(value) ||
+        !get(state).data.waits.includes(wait) ||
+        !canonical(wait)
+      )
+        return false;
+      return command(binding, wait, {
+        t: "msg",
+        thread: wait.thread,
+        text: value,
+        files: [],
+        reply_to: id,
+        client_id: crypto.randomUUID(),
+      });
+    },
+    /** "Aprovar" on your task in review (t<task>): the task is done, as the board's status menu sets it; the room
+     *  drops the wait (src/book.ts epicsChanged). */
+    async approve(binding: InboxBinding, wait: Wait) {
+      if (
+        !owns(binding) ||
+        !/^t./.test(wait.ref) ||
+        !get(state).data.waits.includes(wait) ||
+        !canonical(wait)
+      )
+        return false;
+      return command(binding, wait, {
+        t: "task.status",
+        id: wait.ref.slice(1),
+        status: "done",
+      });
+    },
+    /** ✓ on one of your open tasks (Tarefas): it is done, as the board's status menu sets it. */
+    async completeTask(binding: InboxBinding, task: InboxTask) {
+      if (!owns(binding) || !get(state).data.tasks.includes(task)) return false;
+      return command(
+        binding,
+        {
+          book_id: task.book_id,
+          ref: `t${task.task_id}`,
+          thread: task.epic_id,
+        },
+        { t: "task.status", id: task.task_id, status: "done" },
+      );
+    },
+    /** ✓ on an open thread of yours (e<epic>): it is done, as the thread's status menu sets it. */
+    async completeThread(binding: InboxBinding, wait: Wait) {
+      const data = get(state).data;
+      if (
+        !owns(binding) ||
+        !wait.ref.startsWith("e") ||
+        !(data.waits.includes(wait) || (data.threads ?? []).includes(wait))
+      )
+        return false;
+      return command(binding, wait, {
+        t: "epic.done",
+        id: wait.ref.slice(1),
+        done: true,
+      });
+    },
+    /** "Reprovar" on your task in review: back to doing, as the board's status menu sets it; the wait goes too. */
+    async reject(binding: InboxBinding, wait: Wait) {
+      if (
+        !owns(binding) ||
+        !/^t./.test(wait.ref) ||
+        !get(state).data.waits.includes(wait) ||
+        !canonical(wait)
+      )
+        return false;
+      return command(binding, wait, {
+        t: "task.status",
+        id: wait.ref.slice(1),
+        status: "doing",
+      });
+    },
     async resolve(binding: InboxBinding, wait: Wait) {
       if (
         !owns(binding) ||
         pending ||
         !get(state).data.waits.includes(wait) ||
         !canonical(wait) ||
-        !wait.ref.startsWith("m")
+        !/^[mr]/.test(wait.ref)
       )
         return;
       pending = true;

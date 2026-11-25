@@ -58,3 +58,12 @@ test("the call's own socket (call=1) reaches the Book as such; any other value i
     "https://book/ws?book=abcdef&t=main",
   );
 });
+
+test("the Home Inbox's look (peek=1) reaches the Book as such; any other value is a plain open", () => {
+  expect(bookSocketUrl("abcdef", query("peek=1&t=e1"))).toBe(
+    "https://book/ws?book=abcdef&t=e1&peek=1",
+  );
+  expect(bookSocketUrl("abcdef", query("peek=yes"))).toBe(
+    "https://book/ws?book=abcdef&t=main",
+  );
+});

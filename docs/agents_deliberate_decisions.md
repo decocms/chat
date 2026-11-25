@@ -2197,6 +2197,23 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Not storing the ask as a message (a side table): the answer flow, closeAsk and the app's buttons all build on the message row, a bigger change for the same result. Reusing `for_who`: it means a reminder for one person, and other readers rely on that.
 - Risk: low. A read that forgets the filter shows the ask to others again (the client still hides it).
 - Undo: Revert this commit; the column stays and is ignored.
+||||||| parent of 538950aa (feat(agents): plug a deco Studio agent into a room)
+
+### 2026-11-25 · feat/studio-sandbox-agents · Studio agents: how a room reaches deco Studio
+
+- Agent: claude-fable-5-2
+- Context: Viktor asked that an agent of a Studio project or organization can be plugged into a room as a freestyle sandbox is. He selected the design where the server keeps a Studio credential and sends the messages (an exception to rule 1 of `AGENTS.md`), and asked to use the Studio OAuth sign-in and not a pasted API key. He did not say the details below.
+- Decision:
+  - The Studio grant is kept by the code that MCP connections already use (`src/mcpauth.ts`, table `mcp_grants`), for the resource `<studio>/mcp`. There is no new secret table. `startAuth` got an optional `scope`, because Studio gives a refresh token only for `offline_access`.
+  - A Studio agent is a row in `sandboxes` with `provider = 'studio'` (new columns `provider`, `target`). `vm_id` keeps the Studio chat ID. Thus the `@name` routing, the room login and the limit of 3 per room are the same as for a freestyle sandbox.
+  - Nothing listens in the Studio sandbox. When a person posts a message that names one of their own Studio agents, the `Book` sends that message to the Studio chat (`wakeStudioAgents`). The run answers in the room with the vibebook CLI.
+  - The setup installs the vibebook CLI with `npm install --prefix ~/.npm-global` each time. The CLI is not put in the Studio sandbox image: the CLI changes often and that image is updated by hand. The sandbox user cannot write the global npm prefix.
+  - Viktor asked that the agent has its Studio name in the room. A project's agent gets the project's title as its name and `@handle` (`@example-store`). The agent of an organization has the same title in every organization in Studio, so it gets the organization's name, and the handle `@<org>-agent`.
+  - The MCP tools for agents (`sandboxes`, `sandbox_exec`, `sandbox_power`) see only freestyle sandboxes.
+  - "Remover" on a Studio agent removes it from the room and revokes its room login. The Studio chat stays in Studio.
+- Other options: A pasted Studio API key in a new table (one more secret for the person to manage). A `vibebook listen` that stays on in the Studio sandbox (it stops when the sandbox stops). The runner on the person's computer sends the messages (it needs that computer on). A provider interface for sandboxes (larger change; there are two providers).
+- Risk: medium. deco.chat now starts work in Studio with the access of a person. The limit is that only the owner of the agent can start a run, and only with a message that names the agent.
+- Undo: Revert the commit. Delete the rows `provider = 'studio'` in `sandboxes` and the rows of `mcp_grants` whose `resource` is the Studio URL. The columns `provider` and `target` can stay.
 - Status: open
 
 ### 2026-11-25 · feat/agent-roles · Every agent has an @name in the room; one Primary per person

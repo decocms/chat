@@ -9,14 +9,10 @@
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
-  import ChatField from "../composer/ChatField.svelte";
-  import { createApplicationCopy } from "../application/copy";
   import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
   import type { HomeBridge } from "./types";
-  import { createHomeSession } from "./session";
   import { homeText, homeIssue } from "./copy";
   import {
-    destinations,
     roomIcon,
     targetHref,
     waitTarget,
@@ -32,6 +28,7 @@
     type WaitKind,
   } from "./model";
   import RoomTile from "./RoomTile.svelte";
+  import HomeAsk from "./HomeAsk.svelte";
   import ChatList from "./ChatList.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import UpdateRow from "../user-center/UpdateRow.svelte";
@@ -64,11 +61,8 @@
     onconnect,
     ondismiss,
   }: HomeBridge = $props();
-  const account = $derived(personal.state),
-    draft = $derived(personal.draft);
+  const account = $derived(personal.state);
   const mobile = new MediaQuery(MOBILE_QUERY);
-  const session = untrack(() => createHomeSession(personal, onnavigate)),
-    view = session.state;
   const onboarding = untrack(() => {
       let storage: Storage | null = null;
       try {
@@ -83,9 +77,6 @@
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
   ) => homeText(lang, key, vars);
-  const t = $derived(createApplicationCopy(lang));
-  let sendButton = $state<HTMLElement | null>(null);
-  const suggestion = $derived($view.result);
   // The desk home: what waits on you as a hand of cards, most important in the middle.
   const waits = $derived(byImportance($account.me?.waits ?? []));
   // The tab's icon carries a red dot while the title shows "(n)".
@@ -228,10 +219,6 @@
   $effect(() => {
     if (cube) return mountCube(cube);
   });
-  const place = (choice: ReturnType<typeof destinations>[number]) =>
-    choice.book_id
-      ? choice.book_title + (choice.epic_title ? " › " + choice.epic_title : "")
-      : text("newDestination", { title: choice.book_title });
   const who = (wait: (typeof waits)[number]) =>
     claudeWait(wait)
       ? text("yourClaude")
@@ -240,18 +227,11 @@
         : wait.author_name || wait.author.split("@")[0] || "";
   const plainClick = (event: MouseEvent) =>
     !(event.ctrlKey || event.metaKey || event.shiftKey || event.altKey);
-  $effect(() => {
-    if (suggestion)
-      void tick().then(() => {
-        if (sendButton?.isConnected) sendButton.focus();
-      });
-  });
   let mounted = false,
     agentTimer: ReturnType<typeof setTimeout> | undefined,
     copyStatus = $state("");
   onDestroy(() => {
     onboarding.dispose();
-    session.dispose();
   });
   onMount(() => {
     mounted = true;
@@ -266,7 +246,6 @@
     return () => {
       mounted = false;
       clearTimeout(agentTimer);
-      session.dispose();
     };
   });
   const setup = $derived(
@@ -325,65 +304,6 @@
         {text(copyStatus === "copyFailed" ? "copyFailed" : "deskCopied")}
       </p>{/if}
   </div>{/snippet}
-
-<!-- Where the ask goes: one line with the destination and its two buttons, the
-     reason under it, and the other places as chips. -->
-{#snippet suggestionCard()}{#if $view.result}{@const choices = destinations(
-      $view.result,
-    )}{@const selected = choices[$view.selected]!}
-    <div
-      data-home-suggestion
-      class="flex flex-col gap-2 rounded-2xl bg-card p-3 pl-4 text-left shadow-edge"
-    >
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <p aria-live="polite" class="m-0 min-w-0 flex-1 basis-48 break-words">
-          <span class="text-muted-foreground">{text("deskSendTo")}</span>
-          <b class="font-medium">{place(selected)}</b>
-        </p>
-        <div class="flex shrink-0 gap-1.5">
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={$view.busy === "send"}
-            onclick={() => session.cancel()}>{text("cancel")}</Button
-          ><Button
-            size="sm"
-            bind:ref={sendButton}
-            aria-busy={$view.busy === "send" || undefined}
-            disabled={$view.busy === "send"}
-            onclick={() => session.send()}
-            >{#if $view.busy === "send"}<Spinner size="xs" />{/if}{text(
-              "send",
-            )}</Button
-          >
-        </div>
-      </div>
-      {#if $view.selected === 0 && $view.result.pick && $view.result.reason}<p
-          class="m-0 text-xs leading-5 text-muted-foreground"
-        >
-          {$view.result.reason}
-        </p>{/if}
-      {#if choices.length > 1}<div
-          class="flex flex-wrap items-center gap-1.5 border-t border-border pt-2"
-        >
-          <span class="text-xs text-muted-foreground">{text("deskOr")}</span>
-          {#each choices as choice, index}{#if index !== $view.selected}<Button
-                size="sm"
-                variant="outline"
-                disabled={!!$view.busy}
-                class="h-7 max-w-full rounded-full px-3 text-xs"
-                onclick={() => {
-                  session.select(index);
-                  void tick().then(() => {
-                    if (sendButton?.isConnected) sendButton.focus();
-                  });
-                }}><span class="truncate">{place(choice)}</span></Button
-              >{/if}{/each}
-        </div>{/if}
-    </div>{/if}
-  {#if $view.error}<p role="alert" class="m-0 break-words text-destructive">
-      {homeIssue(lang, $view.error)}
-    </p>{/if}{/snippet}
 
 <svelte:head><title>{tabTitle("deco.chat", waits.length)}</title></svelte:head>
 <!-- The first run is a dialog over this Home, not a page of its own (Valls). -->
@@ -539,43 +459,7 @@
           data-home-ask="desk"
           class="relative z-30 mt-7 flex w-full max-w-[640px] flex-col items-center gap-3 [&>[data-chat-field]]:w-full"
         >
-          <!-- The room's chat box, as is. -->
-          <div class="w-full">
-            <ChatField
-              id="home-ask"
-              maxlength={2000}
-              label={text("ask")}
-              placeholder={mobile.current
-                ? text("deskAskShort")
-                : text("deskAsk")}
-              value={$draft.ask}
-              onedit={(value) => session.edit(value)}
-              onsubmit={() => void session.suggest()}
-              {t}
-              locale={lang === "en" ? "en-US" : "pt-BR"}
-              disabled={$view.busy === "send"}
-              busy={!!$view.busy}
-              pending={$view.busy === "route"}
-              sendDisabled={!$draft.ask.trim()}
-            >
-              {#snippet menu(close, trigger)}<Button
-                  variant="menu"
-                  role="menuitem"
-                  onclick={() => {
-                    close();
-                    onnew(trigger ?? undefined);
-                  }}>{text("new")}</Button
-                ><Button
-                  variant="menu"
-                  role="menuitem"
-                  onclick={() => {
-                    close();
-                    onsearch();
-                  }}>{text("search")} <small>⌘K</small></Button
-                >{/snippet}
-            </ChatField>
-          </div>
-          <div class="w-full">{@render suggestionCard()}</div>
+          <HomeAsk {personal} {lang} {onnavigate} {onnew} {onsearch} />
           {#if !me.books.length}<!-- No rooms yet: one clear way in. -->
             <div
               data-home-first-room

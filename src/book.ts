@@ -50,6 +50,8 @@ import { track } from "./track";
 import { addCallUsage, callsOn, recorderOn, startRecorder } from "./calls";
 import { CALL_THREAD, RING_MS, callLineText, callMinutes, isRecorder } from "../shared/call";
 import { mailFrom, publicOrigin } from "./host";
+import { studioAgentsIn } from "./sandbox";
+import { studioAuth, studioSend, studioWakeText } from "./studioSandbox";
 import { pushTo } from "./webpush";
 import { bumpStat, ensureHandle } from "./profile";
 import { AGENT_RULES } from "../shared/agentRules";
@@ -81,12 +83,16 @@ const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300
 const DEFAULT_TITLE = "Nova sala";
 /** The tag of a socket that only carries the call (Book.isCallSocket). */
 const CALL_SOCKET = "call";
+/** A socket from the Home Inbox's open item (/ws/:id?peek=1): the whole room, live, but looking is not reading. */
+const PEEK_SOCKET = "peek";
 /** A short hash of a wire value (djb2 + length): the epics' change detection and a reconnect's `eh`. */
 const wireHash = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
 /** A reconnect resumes (cache plan PR 2) only from a state at most this old, with at most this many changed rows. */
 const RESUME_MAX_AGE_MS = 6 * 3600_000, RESUME_MAX_ROWS = 200;
 
 const CLASSIFY_DELAY_MS = 30_000;
+/** A poll's options as stored: trimmed, cut to their limit, the empty ones dropped, at most POLL_MAX_OPTIONS. */
+const pollOptions = (options: string[]) => options.map((o) => o.trim().slice(0, POLL_OPTION_LIMIT)).filter(Boolean).slice(0, POLL_MAX_OPTIONS);
 // An answer epic still empty this long after its question gets one reminder for the person who asked (Gui #4210).
 const ANSWER_NUDGE_MS = 10 * 60_000;
 // nudgeStale: how many stalled threads @vibe calls about per pass, and how long until the next pass.
@@ -166,6 +172,7 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS doc_dirty (doc TEXT PRIMARY KEY, first INTEGER, last INTEGER, gap INTEGER, by TEXT);
       CREATE TABLE IF NOT EXISTS briefs (id INTEGER PRIMARY KEY AUTOINCREMENT, thread TEXT, email TEXT, ts INTEGER, text TEXT, answered_at INTEGER, model TEXT);
       CREATE TABLE IF NOT EXISTS message_edits (msg_id INTEGER, kind TEXT, text TEXT, files TEXT, card TEXT, by TEXT, ts INTEGER);
+      CREATE TABLE IF NOT EXISTS routed (msg_id INTEGER PRIMARY KEY, thread TEXT, author TEXT, text TEXT);
       CREATE INDEX IF NOT EXISTS message_edits_msg ON message_edits (msg_id, ts);
     `);
     // A thread's done state was the column `archived` (Gimenes #4466, #4505: there is no archive, only done). It is
@@ -837,7 +844,8 @@ export class Book extends DurableObject<Env> {
   }
   online() {
     // The call's recorder has the room open, and is not a person.
-    return [...new Set(this.sockets().map((ws) => this.ctx.getTags(ws)[0]))].filter((email) => !isRecorder(email));
+    // Nor is the Home Inbox's look at an item (isPeekSocket): it does not read what arrives.
+    return [...new Set(this.sockets().filter((ws) => !this.isPeekSocket(ws)).map((ws) => this.ctx.getTags(ws)[0]))].filter((email) => !isRecorder(email));
   }
   // ---- calls (src/calls.ts): who is in the room's call, and the tracks each one publishes ----
   callPeers(): CallPeer[] {
@@ -1117,6 +1125,12 @@ export class Book extends DurableObject<Env> {
   isCallSocket(ws: WebSocket) {
     return this.ctx.getTags(ws)[1] === CALL_SOCKET;
   }
+  /** The Home Inbox's look at one item (/ws/:id?peek=1): it gets the room and sends commands like a room's tab, but
+   *  opening it is not reading the room (markRead, readWaits) and it does not make the person online: what waits on
+   *  you there stays until you answer it or clear it (Ciente). */
+  isPeekSocket(ws: WebSocket) {
+    return this.ctx.getTags(ws)[1] === PEEK_SOCKET;
+  }
   /** Every send to the room's sockets goes through here, so the bytes are counted by event kind per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
    *  report. 15/11: /ws/:id carried 3.1 MB per connection and nothing said what it was (ws_push saw only ≥20 KB broadcasts). */
   sendTo<T extends { t: string }>(to: WebSocket[], data: T) {
@@ -1204,6 +1218,7 @@ export class Book extends DurableObject<Env> {
     }
     if (privateTo) return m;
     if (byPerson && !extra.quiet) this.ctx.waitUntil(this.answeredHere(author, thread, id));
+    if (!extra.quiet && !extra.forWho) this.ctx.waitUntil(this.routedReply(m).catch((e) => console.error("routed reply", String(e))));
     // A thread @vibe called its owner about moved again: the call is over, and the owner's wait leaves "Para você".
     if (author !== "ai" && thread !== "main" && this.get(`stale_nudge:${thread}`)) {
       this.sql.exec(`DELETE FROM meta WHERE k = ?`, `stale_nudge:${thread}`);
@@ -1211,7 +1226,26 @@ export class Book extends DurableObject<Env> {
     }
     // In a DM every message from a person is for the other one, @ or not (push now, catch-up mail later).
     if ((text.includes("@") || (byPerson && this.isDm)) && !extra.quiet) this.ctx.waitUntil(this.queueMentions(m));
+    // A person named one of their own Studio agents: nothing listens there, so the message is sent to its Studio chat.
+    if (byPerson && text.includes("@") && !extra.quiet && !extra.forWho) this.ctx.waitUntil(this.wakeStudioAgents(m).catch((e) => console.error("studio agent wake", String(e))));
     return m;
+  }
+  /** Sends a person's message to each Studio agent of theirs that it names (src/studioSandbox.ts). Only the author's
+   *  own agents: another member's `@name` never starts a run with someone else's Studio access. */
+  private async wakeStudioAgents(m: Msg) {
+    const bookId = this.get("book_id") ?? "";
+    if (!bookId) return;
+    const agents = await studioAgentsIn(this.env, bookId, m.author);
+    if (!agents.length) return;
+    const named = new Set([...m.text.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].map((x) => foldHandle(x[1])));
+    const origin = publicOrigin(this.env);
+    const book = await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>();
+    for (const a of agents.filter((x) => named.has(x.name))) {
+      const auth = await studioAuth(this.env, origin, m.author, a.target.org);
+      let ok = false;
+      if (auth) ok = await studioSend(this.env, auth, a.threadId, a.target, studioWakeText({ room: bookId, title: String(book?.title ?? ""), name: a.name, thread: m.thread, msgId: m.id, text: m.text })).then(() => true, (e) => { console.error("studio agent send", String(e)); return false; });
+      this.ctx.waitUntil(track(this.env, "studio_agent_wake", { user: m.author, dims: { book: bookId, ok } }));
+    }
   }
 
   /** The author's message with this client_id: this send is a retry of it (docs/architecture.md, "One send, one
@@ -1255,15 +1289,41 @@ export class Book extends DurableObject<Env> {
   /** A person wrote in this thread: what was asked of them earlier in it counts as answered (Gui, 13/11: the count
    * should go when you reply, not when Jev agrees you did). Only asks (m<id>); their tasks (t<id>) stay. */
   /** A person reacted to a message: if it was an ask to them (m<id>), it counts as answered. */
+  /** It also answers the answers to that person's Home requests in the same thread (r<msg>). */
   async reactedHere(email: string, id: number) {
     const bookId = this.get("book_id"); if (!bookId) return;
-    const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND ref = ?`).bind(bookId, email, `m${id}`).run();
+    const thread = this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, id).toArray()[0]?.thread ?? null;
+    const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND (ref = ? OR (ref LIKE 'r%' AND thread = ?))`).bind(bookId, email, `m${id}`, thread).run();
     if (r.meta.changes) await poke(this.env, [email], { t: "me" });
   }
   async answeredHere(email: string, thread: string, id: number) {
     const bookId = this.get("book_id"); if (!bookId) return;
-    const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND thread = ? AND ref LIKE 'm%' AND CAST(substr(ref, 2) AS INTEGER) < ?`).bind(bookId, email, thread, id).run();
+    const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND thread = ? AND (ref LIKE 'm%' OR ref LIKE 'r%') AND CAST(substr(ref, 2) AS INTEGER) < ?`).bind(bookId, email, thread, id).run();
     if (r.meta.changes) await poke(this.env, [email], { t: "me" });
+  }
+  /** Someone (a person, an agent, @vibe) wrote in a thread where a person's Home request (routed) is still their last
+   *  word: the answer goes to that person's Home as a wait r<request> (the newest answer wins). Their own reply,
+   *  reaction or ✓ clears it (answeredHere, reactedHere, /api/waits/resolve). Their own agent's answer counts. */
+  async routedReply(m: Msg) {
+    const bookId = this.get("book_id"); if (!bookId) return;
+    const asks = this.sql
+      .exec<{ msg_id: number; author: string; text: string }>(
+        `SELECT r.msg_id, r.author, r.text FROM routed r WHERE r.thread = ? AND r.msg_id < ?
+           AND r.msg_id = (SELECT max(id) FROM messages WHERE thread = r.thread AND author = r.author AND kind IS NULL AND id < ?)
+           AND (r.author != ? OR ? = 'agent')`,
+        m.thread, m.id, m.id, m.author, m.kind ?? "",
+      )
+      .toArray();
+    if (!asks.length) return;
+    const topic = m.thread !== "main" ? this.epics().find((e) => e.id === m.thread)?.title ?? "" : "";
+    const DB = this.env.DB;
+    await DB.batch(
+      asks.map((a) =>
+        DB.prepare(`INSERT OR REPLACE INTO waits (book_id, ref, email, thread, topic, author, text, ts, about) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .bind(bookId, `r${a.msg_id}`, a.author, m.thread, topic, m.author, m.text.slice(0, 280), m.ts, a.text),
+      ),
+    );
+    await poke(this.env, [...new Set(asks.map((a) => a.author))], { t: "me" });
   }
 
   // ---- mention emails (src/mentionmail.ts) ----
@@ -1486,8 +1546,9 @@ export class Book extends DurableObject<Env> {
     this.epicsChanged();
     return { ok: true };
   }
-  createPoll(thread: string, author: string, question: string, options: string[], multi: boolean) {
-    const opts = options.map((o) => o.trim().slice(0, POLL_OPTION_LIMIT)).filter(Boolean).slice(0, POLL_MAX_OPTIONS);
+  /** The poll's message, or null when the question or the options don't make a poll. */
+  createPoll(thread: string, author: string, question: string, options: string[], multi: boolean, clientId?: string) {
+    const opts = pollOptions(options);
     if (!question.trim() || opts.length < POLL_MIN_OPTIONS) return null;
     const id = rid();
     this.sql.exec(
@@ -1500,8 +1561,7 @@ export class Book extends DurableObject<Env> {
       Date.now(),
     );
     this.broadcast({ t: "poll", poll: this.polls([id])[id] });
-    this.addMessage(thread, author, "", { poll: id });
-    return id;
+    return this.addMessage(thread, author, "", { poll: id, clientId });
   }
   vote(pollId: string, email: string, opt: number) {
     const p = this.polls([pollId])[pollId];
@@ -2374,7 +2434,7 @@ export class Book extends DurableObject<Env> {
     }
     // A hook's question with buttons is the person's Claude waiting on them: an "a<id>" wait (orange in the app, not
     // the yellow of people waiting), gone once they answer in the room or it goes to the terminal (closeAsk).
-    if (choices && ASK_OPENER.test(text)) this.ctx.waitUntil(this.askWait(email, m.id, thread, text));
+    if (choices && ASK_OPENER.test(text)) this.ctx.waitUntil(this.askWait(email, m.id, thread, text, m.choices));
     // Anything else it says is for its human, like a mention (Gimenes #5427): a number on the room until they read it.
     else this.ctx.waitUntil(this.ownAgentWait(email, m));
     // The delivery puts the thread in review: it waits on a person, who marks it done (Gimenes #4249).
@@ -2509,8 +2569,9 @@ export class Book extends DurableObject<Env> {
       .run();
     if (r.meta.changes) await poke(this.env, [email], { t: "me" });
   }
-  /** The wait row for an open hook question (ref a<msg>), or its removal (text null). */
-  async askWait(email: string, msgId: number, thread: string, text: string | null) {
+  /** The wait row for an open hook question (ref a<msg>), or its removal (text null). `about` keeps its choices (the
+   *  message's JSON), so the Home answers it with a click. */
+  async askWait(email: string, msgId: number, thread: string, text: string | null, choices: string | null = null) {
     const bookId = this.get("book_id"); if (!bookId) return;
     if (text === null) {
       const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`).bind(bookId, `a${msgId}`, email).run();
@@ -2520,8 +2581,8 @@ export class Book extends DurableObject<Env> {
     const q = text.startsWith("❓");
     this.ctx.waitUntil(this.notify([email], (en) => (q ? (en ? "❓ Your agent asks" : "❓ Seu agent pergunta") : en ? "⏸ Your agent asks for permission" : "⏸ Seu agent pede permissão"), text.replace(/^\S+ Seu Claude [^:]*:\s*/, "").replace(/\s+/g, " "), msgId, thread));
     const topic = thread !== "main" ? this.epics().find((e) => e.id === thread)?.title ?? "" : "";
-    await this.env.DB.prepare(`INSERT OR REPLACE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, '', ?, ?)`)
-      .bind(bookId, `a${msgId}`, email, thread, topic, text.split("\n").slice(0, 2).join(" ").slice(0, 300), Date.now())
+    await this.env.DB.prepare(`INSERT OR REPLACE INTO waits (book_id, ref, email, thread, topic, author, text, ts, about) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?)`)
+      .bind(bookId, `a${msgId}`, email, thread, topic, text.split("\n").slice(0, 2).join(" ").slice(0, 300), Date.now(), choices)
       .run();
     await poke(this.env, [email], { t: "me" });
   }
@@ -2702,20 +2763,40 @@ export class Book extends DurableObject<Env> {
   /** `en`: the poster reads English (the Worker's reqLang), for the refusals they see as a toast.
    *  `send`: a person's own send over HTTP (POST /api/books/:id/post), which a retry can repeat; the server's own
    *  posts in their name (a DM's first message, a started room) leave it out and are never matched. */
-  async humanPost(bookId: string, email: string, raw: string, thread = "main", en = false, send?: { clientId?: string }): Promise<PostMessageResponse> {
+  async humanPost(
+    bookId: string,
+    email: string,
+    raw: string,
+    thread = "main",
+    en = false,
+    send?: { clientId?: string; routed?: boolean; files?: string[]; poll?: { question: string; options: string[]; multi?: boolean } },
+  ): Promise<PostMessageResponse> {
     this.bind(bookId);
     const clientId = send?.clientId;
     const text = raw.trim().slice(0, MESSAGE_TEXT_LIMIT);
-    if (!text) return { ok: false, error: en ? "Empty message." : "Mensagem vazia." };
+    // Files must already be this room's (uploaded here by a member); a poll needs a question and two options.
+    const ids = (send?.files ?? []).slice(0, MESSAGE_FILE_LIMIT);
+    const files = ids.length ? this.files().filter((f) => ids.includes(f.id)) : [];
+    if (files.length < new Set(ids).size) return { ok: false, error: en ? "A file is no longer available." : "Um arquivo não está mais disponível." };
+    const poll = send?.poll;
+    if (poll && (!poll.question.trim() || pollOptions(poll.options).length < POLL_MIN_OPTIONS)) return { ok: false, error: en ? "A poll needs a question and at least 2 options." : "A votação precisa de uma pergunta e pelo menos 2 opções." };
+    if (!text && !files.length && !poll) return { ok: false, error: en ? "Empty message." : "Mensagem vazia." };
     if (!this.knownThread(thread)) thread = "main";
     const secret = findSecret(text);
     if (secret) return { ok: false, error: en ? `Not sent: it looks like a secret (${secretName(secret)}). Secrets don't go in the room.` : `Não enviei: parece ${secret}. Segredo não entra na sala.` };
     if (send && !clientId) this.noClientId(email, "http");
-    const repeat = !send ? null : clientId ? this.byClientId(email, null, clientId, text) : this.recentRepeat(email, null, { thread, text });
+    const repeat = !send ? null : clientId ? this.byClientId(email, null, clientId, text) : files.length || poll ? null : this.recentRepeat(email, null, { thread, text });
     if (repeat instanceof Refused) return { ok: false, error: repeat.error };
     if (repeat) return { ok: true, id: repeat.id, thread: repeat.thread };
-    const m = this.addMessage(thread, email, text, { clientId });
-    this.personWrote(thread, text, { id: m.id, author: email });
+    // The text and files are one message; a poll goes after it as its own (as the composer posts them). With no text
+    // nor files, the poll's message carries the send's client_id, so a retry finds it.
+    const said = text || files.length ? this.addMessage(thread, email, text, { files, clientId }) : null;
+    const polled = poll ? this.createPoll(thread, email, poll.question, poll.options, !!poll.multi, said ? undefined : clientId) : null;
+    const m = said ?? polled;
+    if (!m) return { ok: false, error: en ? "Empty message." : "Mensagem vazia." };
+    // Sent from the Home's ask box: an answer here by someone else comes back to the sender's Home (routedReply).
+    if (send?.routed) this.sql.exec(`INSERT OR REPLACE INTO routed (msg_id, thread, author, text) VALUES (?, ?, ?, ?)`, m.id, m.thread, email, (text || poll?.question.trim() || files.map((f) => f.name).join(", ")).slice(0, 280));
+    if (text) this.personWrote(thread, text, { id: m.id, author: email });
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", via: "home" } }));
     this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
     await this.wakeAt(Date.now() + CLASSIFY_DELAY_MS);
@@ -3081,7 +3162,8 @@ export class Book extends DurableObject<Env> {
       await this.ctx.storage.setAlarm(Date.now() + 5_000);
 
     const { 0: client, 1: server } = new WebSocketPair();
-    this.ctx.acceptWebSocket(server, [email]);
+    const peek = url.searchParams.get("peek") === "1";
+    this.ctx.acceptWebSocket(server, peek ? [email, PEEK_SOCKET] : [email]);
     // A light socket (lite=1) gets only hello, before anything else, and reads the room over HTTP (roomState): every
     // event after hello is newer than that read, so the app can apply it after the snapshot.
     const lite = url.searchParams.get("lite") === "1";
@@ -3090,7 +3172,7 @@ export class Book extends DurableObject<Env> {
       this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, lite: true, rc: url.searchParams.get("rc") ?? undefined } }));
     }
     if (this.autoReview()) this.epicsChanged();
-    this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
+    if (!peek) this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
     if (!lite) {
       const { state, resume, win } = await this.roomSnapshot(email, bookId, url.searchParams);
       const body = this.sendTo([server], state);

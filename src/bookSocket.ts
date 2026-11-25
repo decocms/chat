@@ -1,6 +1,6 @@
 // The room socket URL inside the Book, built by the worker's /ws/:id route (src/index.ts). Pure, for its test.
 /** The room socket's URL inside the Book. t = the thread the app opens on; rc = a reconnect's previous close code
- *  (ws_state); lite=1 = send hello, not state (the app reads the room over HTTP); since, at, eh = the room the app
+ *  (ws_state); peek=1 = a look from the Home Inbox (not a read); lite=1 = send hello, not state (the app reads the room over HTTP); since, at, eh = the room the app
  *  already has (Book.resumeOf). The worker used to drop since/at/eh, so
  *  no open ever resumed and every one sent the whole room (Nov 2026). Numbers only, and eh is a short hash. */
 export function bookSocketUrl(
@@ -19,5 +19,7 @@ export function bookSocketUrl(
   if (since && at) url += `&since=${since}&at=${at}${eh ? `&eh=${eh}` : ""}`;
   // The call's own socket (Book.isCallSocket): it opens no room, only the call.
   if (query("call") === "1") url += "&call=1";
+  // The Home Inbox's look at one item (Book.isPeekSocket): the room, live, but opening it is not reading it.
+  if (query("peek") === "1") url += "&peek=1";
   return url;
 }

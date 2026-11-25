@@ -188,6 +188,13 @@
   );
   // Desktop: your Inbox for all rooms sits under the logo while something waits on you (Gimenes #3837).
   const waiting = $derived($personal.me?.waits.length ?? 0);
+  // An agent works in any of your rooms (the rooms' busy_until, the same signal as each room tile's turning ✻):
+  // the logo's label says so.
+  const working = $derived(
+    ($personal.me?.books ?? []).some(
+      (room) => (room.busy_until ?? 0) > $personal.now,
+    ),
+  );
   // Phones: the bar is avatar · "Home ▾" · search · +; the ▾ opens every room.
   let switcher = $state(false);
 </script>
@@ -209,7 +216,9 @@
     class="relative max-md:hidden md:flex md:h-[51px] md:shrink-0 md:items-center"
     ><RailButton
       bind:ref={homeButton}
-      label={text("inbox")}
+      label={working
+        ? `${text("inbox")} · ${text("agentsWorking")}`
+        : text("inbox")}
       current={atHome}
       onclick={(event) => {
         if (event.currentTarget.isConnected) controller.callbacks.home();

@@ -479,10 +479,13 @@ async function keyboardOverlays(
       exact: true,
     }),
   ).toHaveCount(0);
-  // "Resolve all": in the home Inbox's bar (desktop) or atop the list (phones).
-  await expect(
-    page.locator("[data-inbox-controls]:visible").first(),
-  ).toBeVisible();
+  // Phones: "Resolve all" atop the list. Desktop: the Home's hero (cube, line, ask box) is always on top;
+  // "Resolve all" lives in the Responder label's menu when something asks for you.
+  if (phone)
+    await expect(
+      page.locator("[data-inbox-controls]:visible").first(),
+    ).toBeVisible();
+  else await expect(homeInbox.locator("[data-home-hero]")).toBeVisible();
   await axe(page, "global Inbox open", evidence);
   await page.goBack();
   await page.waitForURL(roomUrl);

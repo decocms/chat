@@ -23,6 +23,7 @@ This file contains only the global rules. Read the specific document before you 
    - deco.chat signs only the identity and the room (`X-Vibebook-Identity`).
    - Do not add token storage. Do not add server-side calls into the tools of a person.
    - Exception (approved for now): the freestyle.sh API key and the Claude token for cloud sandboxes. Do not add more exceptions.
+   - Exception (approved by Viktor, 2026-11-25): Studio agents (`src/studioSandbox.ts`). deco.chat keeps the OAuth grant of a person for deco Studio, in the same sealed store as the grants for MCP connections (`mcp_grants`). With it, deco.chat starts a Studio chat for that person and sends it the messages of that person that name the agent. It makes no other call to Studio.
 2. Use Cloudflare features when they help: Durable Objects, D1, R2, KV, Workers AI, Email, Rate Limits.
 3. Keep one room in one `Book` Durable Object.
 4. Use Bun (`bun`, `bunx`) to install packages and run code. Do not use npm, pnpm or yarn for these tasks.

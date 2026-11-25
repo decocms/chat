@@ -1,5 +1,6 @@
 const pt = {
   inbox: "Caixa de entrada",
+  agentsWorking: "um agente está trabalhando",
   chatsTitle: "Conversas",
   home: "Suas salas",
   greeting: "Oi, {name}",
@@ -184,6 +185,7 @@ const pt = {
 } as const;
 const en: Record<keyof typeof pt, string> = {
   inbox: "Inbox",
+  agentsWorking: "an agent is working",
   chatsTitle: "Chats",
   home: "Your rooms",
   greeting: "Hi, {name}",
