@@ -74,9 +74,9 @@
   }
 </script>
 
-<!-- The chips (yours highlighted, who reacted on hover), the common ones on hover, then a button that opens the emoji
-     popover. The hover-only buttons always take their place, hidden: showing them moves nothing (no layout shift
-     on hover). -->
+<!-- The chips (yours highlighted, who reacted on hover), the common ones on hover (dashed, like Gui's #426), then a
+     button that opens the emoji popover. The hover-only buttons always take their place, hidden: showing them moves
+     nothing (no layout shift on hover). All 24px, the height the row keeps. -->
 <div
   data-message-reactions
   data-picking={open || undefined}
@@ -89,7 +89,7 @@
             type="button"
             aria-label={`${emoji} ${who(list)}`}
             aria-pressed={list.includes(me)}
-            class="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full border border-solid px-2 text-base leading-none transition-colors {list.includes(
+            class="inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full border border-solid px-2 text-base leading-none transition-colors {list.includes(
               me,
             )
               ? 'border-brand-purple/60 bg-brand-purple/15 hover:bg-brand-purple/25'
@@ -118,8 +118,13 @@
       type="button"
       aria-label={vb.t("Reagir com {emoji}", { emoji })}
       data-offer-react={emoji}
-      class="{HOVER_ONLY} inline-flex h-6 min-w-7 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent px-1 text-base leading-none hover:bg-muted pointer-coarse:hidden"
-      onclick={() => react(emoji)}>{emoji}</button
+      class="{HOVER_ONLY} group/offer inline-flex h-6 cursor-pointer items-center border-0 bg-transparent p-0 text-base leading-none pointer-coarse:hidden"
+      onclick={() => react(emoji)}
+      ><!-- Gui's look (#426): dashed, a little faded, solid and full on hover. The fade sits on the inside so it does
+           not fight the hover-only fade of the button. --><span
+        class="inline-flex h-full items-center rounded-full border border-dashed border-border px-2 opacity-70 transition-[opacity,border-color] group-hover/offer:border-solid group-hover/offer:opacity-100"
+        >{emoji}</span
+      ></button
     >{/each}
   <!-- Every other emoji, in a popover next to this button (like Discord's and Slack's "add reaction"). -->
   <Popover bind:open>
@@ -132,7 +137,7 @@
           data-add-reaction
           class="{all.length
             ? ''
-            : HOVER_ONLY} inline-flex h-6 min-w-7 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent px-1 text-muted-foreground hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground"
+            : HOVER_ONLY} inline-flex h-6 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-muted px-2 text-muted-foreground transition-colors hover:border-border hover:text-foreground data-[state=open]:border-border data-[state=open]:text-foreground"
           ><Icon icon="face-smile" size={16} /></button
         >{/snippet}
     </PopoverTrigger>
