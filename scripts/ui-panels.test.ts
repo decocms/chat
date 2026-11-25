@@ -343,7 +343,7 @@ function hoverMessages(target: HTMLElement) {
 }
 
 test("a copy across messages reads as WhatsApp's; inside one message's text the browser copies (Gimenes #3955)", async () => {
-  const { selectedMessageIds, transcriptText } =
+  const { selectedMessages, transcriptText } =
     await import("../web/features/chat/clipboard");
   const root = window.document.createElement("section");
   root.innerHTML =
@@ -358,17 +358,15 @@ test("a copy across messages reads as WhatsApp's; inside one message's text the 
   };
   const a = root.querySelector("#a")!.firstChild!;
   const b = root.querySelector("#b")!.firstChild!;
-  expect(selectedMessageIds(range(a, a), root as unknown as Element)).toBe(
-    null,
-  );
-  expect(selectedMessageIds(range(a, b), root as unknown as Element)).toEqual([
-    "1",
-    "2",
-  ]);
+  const ids = (r: Range) =>
+    selectedMessages(r, root as unknown as Element)?.map((m) => m.id) ?? null;
+  expect(ids(range(a, a))).toBe(null);
+  expect(ids(range(a, b))).toEqual(["1", "2"]);
   const head = root.querySelector("[data-message-head]")!.firstChild!;
-  expect(
-    selectedMessageIds(range(head, a), root as unknown as Element),
-  ).toEqual(["1"]);
+  expect(ids(range(head, a))).toEqual(["1"]);
+  expect(selectedMessages(range(head, a), root as unknown as Element)).toEqual([
+    { id: "1", text: "f", whole: false, head: true },
+  ]);
   expect(
     transcriptText([
       { when: "14:02, 23/11/2026", who: "Ana", text: "first line\nmore " },
@@ -1565,6 +1563,117 @@ describe("chat", () => {
       },
     };
   }
+  describe("copy in the timeline", () => {
+    const people = (): Room => ({
+      ...fixture(),
+      messages: [
+        { ...message(1, "hello world"), author: "ana@test", kind: null },
+        { ...message(2, "second message"), author: "bia@test", kind: null },
+      ],
+    });
+    const textOf = (target: HTMLElement, id: number) =>
+      target.querySelector(`[data-chat-message="${id}"] [data-rich-content]`)!;
+    // The text node that holds a message's words.
+    const wordsOf = (node: Node): Node =>
+      node.nodeType === Node.TEXT_NODE && node.textContent?.trim()
+        ? node
+        : [...node.childNodes].map(wordsOf).find(Boolean)!;
+    const select = (from: [Node, number], to: [Node, number]) => {
+      const range = window.document.createRange();
+      range.setStart(...from);
+      range.setEnd(...to);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    };
+    const copy = (on: Element) => {
+      const event = new (
+        window as unknown as { ClipboardEvent: typeof ClipboardEvent }
+      ).ClipboardEvent("copy", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: new (
+          window as unknown as { DataTransfer: typeof DataTransfer }
+        ).DataTransfer(),
+      });
+      on.dispatchEvent(event);
+      return {
+        text: event.clipboardData!.getData("text/plain"),
+        native: !event.defaultPrevented,
+      };
+    };
+    const line = (
+      m: import("../web/app/chatTypes").ChatMessage,
+      text: string,
+    ) =>
+      `[09:00, ${new Date(m.ts).toLocaleDateString(undefined)}] ${vb.name(m.author)}: ${text}`;
+    afterEach(() => window.getSelection()?.removeAllRanges());
+
+    test("a part of one message's text copies as the browser copies it", () => {
+      const h = renderChat(people());
+      flushSync();
+      const text = textOf(h.target, 1);
+      const words = wordsOf(text);
+      select([words, 2], [words, 7]);
+      expect(window.getSelection()!.toString()).toBe("llo w");
+      expect(copy(text)).toEqual({ text: "", native: true });
+    });
+
+    test("a part of one message's text that ends past the text copies only that part, not the full message", () => {
+      const h = renderChat(people());
+      flushSync();
+      const text = textOf(h.target, 1);
+      const words = wordsOf(text);
+      const body = h.target.querySelector(
+        '[data-chat-message="1"] [data-message-body]',
+      )!;
+      select([words, 6], [body, body.childNodes.length]);
+      expect(copy(text)).toEqual({ text: "world", native: false });
+    });
+
+    test("a selection across messages copies the selected part of each message, one line each", () => {
+      const room = people();
+      const h = renderChat(room);
+      flushSync();
+      const first = textOf(h.target, 1);
+      const a = wordsOf(first);
+      const b = wordsOf(textOf(h.target, 2));
+      select([a, 6], [b, 6]);
+      expect(copy(first)).toEqual({
+        text: `${line(room.messages[0]!, "world")}\n${line(room.messages[1]!, "second")}`,
+        native: false,
+      });
+      select([a, 0], [b, "second message".length]);
+      expect(copy(first).text).toBe(
+        `${line(room.messages[0]!, "hello world")}\n${line(room.messages[1]!, "second message")}`,
+      );
+    });
+
+    test("a selection in a field (the edit box) copies as the browser copies it", () => {
+      const h = renderChat(people());
+      flushSync();
+      const body = h.target.querySelector(
+        '[data-chat-message="1"] [data-message-body]',
+      )!;
+      const field = window.document.createElement("textarea");
+      field.value = "hello world";
+      body.append(field);
+      select(
+        [body, body.childNodes.length - 1],
+        [body, body.childNodes.length],
+      );
+      expect(copy(field)).toEqual({ text: "", native: true });
+    });
+
+    test("with no selection the copy is the browser's", () => {
+      const h = renderChat(people());
+      flushSync();
+      const text = textOf(h.target, 1);
+      const words = wordsOf(text);
+      select([words, 3], [words, 3]);
+      expect(copy(text)).toEqual({ text: "", native: true });
+    });
+  });
   test("production endcard shows requested corrections without rewriting verified or done state", async () => {
     const room = fixture();
     room.epics = [

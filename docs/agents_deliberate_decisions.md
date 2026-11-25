@@ -2048,3 +2048,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. One more socket per person in a call. A stale view of the room no longer feeds the live call: only the call's socket does.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · viktor/copy-selection · A copy takes only the selected text
+- Agent: claude-opus-5-5
+- Context: The human said that when they select a part of a message and copy it, the full message is copied. The cause: a selection that ends past a message's text (in its footer or body, which is easy with the mouse) went to the transcript copy of 2026-11-23, which writes each full message.
+- Decision:
+  - Each message in a copy gives only the part of its text that is selected. The full text (the Markdown source) is used only when the selection takes in all of the message's text.
+  - A selection in one message's text, also one that ends past the text, copies only the selected text, without the name and the time. The `[time, date] name:` line stays when the selection takes in two or more messages, or the name line or avatar of one message.
+  - A message that the selection touches only outside its text is left out.
+  - A copy in a field (the edit box) is the browser's copy.
+  - This changes the line "A message that the selection only touches gives its full text" of the 2026-11-23 entry.
+- Other options: Let the browser copy each selection (the names, marks and reaction chips come back, Gimenes #3955). Keep the full text for each message that the selection takes in (the bug).
+- Risk: low. A partly selected Markdown message gives its shown text, not its Markdown source.
+- Undo: Revert this commit.
+- Status: open
