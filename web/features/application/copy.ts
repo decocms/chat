@@ -20,6 +20,7 @@ export const applicationLocale = (
 const EN: Readonly<Record<string, string>> = {
   direto: "direct",
   "via deco.chat": "via deco.chat",
+  "via agent": "via agent",
   "As chamadas vão do seu navegador direto pro servidor; o deco.chat só assina quem é você.":
     "Calls go from your browser straight to the server; deco.chat only signs who you are.",
   "As chamadas passam pelo deco.chat (o servidor não libera chamada direta ou pede login).":

@@ -1158,6 +1158,11 @@ const TOOLS = [
           enum: ["approval", "decision"],
           description: "default approval",
         },
+        message_id: {
+          type: "number",
+          description:
+            "optional: the id of the message where it was decided or approved; the room's Decisions pane links to it",
+        },
       },
       required: ["room_id", "text"],
     },
@@ -1382,6 +1387,7 @@ const WRITES_AS_MODEL = new Set([
   "upload_file",
   "upload_link",
   "save_reminder",
+  "log_decision",
 ]);
 async function call(
   name: string,
@@ -1409,7 +1415,7 @@ async function call(
   };
   const unread = (only = "") =>
     unreadRooms(db, me.email, me.agent, me.room || only);
-  // Anything that writes a message carries the agent's model; a call without one (a plain `vibebook upload`) uses the
+  // Anything that writes a message (or logs a decision) carries the agent's model; a call without one (a plain `vibebook upload`) uses the
   // model this agent last reported, so one agent isn't "agent de X" on one message and "Claude Opus 5.5 de X" on the next.
   if (!str(a.model) && WRITES_AS_MODEL.has(name)) {
     const m = (
@@ -2853,6 +2859,8 @@ async function call(
         me.email,
         str(a.text),
         a.kind === "decision" ? "decision" : "approval",
+        a.message_id === undefined ? undefined : Number(a.message_id),
+        str(a.model) || undefined,
       );
     }
     case "notify_url": {
