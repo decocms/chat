@@ -50,6 +50,7 @@
     phoneAccount,
     footer,
     call,
+    callPanel,
   }: SidebarProps = $props();
   const external = untrack(() => !!mutations);
   // A DM (src/dm.ts): its sidebar is your DM list; the DM is only a conversation (no threads, views or epics).
@@ -161,8 +162,11 @@
         /></span
       >{/each}
     <MutationStatus {owner} t={vb.t} />
-    {#if footer}<div class="mt-auto shrink-0 pt-2 max-md:hidden">
-        {@render footer(true)}
+    {#if footer || callPanel}<div class="mt-auto shrink-0 pt-2 max-md:hidden">
+        {#if callPanel}<div class="flex justify-center pb-2 empty:hidden">
+            {@render callPanel(true)}
+          </div>{/if}
+        {@render footer?.(true)}
       </div>{/if}
   {:else}
     {#if !hideSheetHandle}<button
@@ -312,7 +316,8 @@
           {locale}
         />
       </div>{/snippet}
-    <SidebarFoot>
+    {#snippet panelAbove()}{@render callPanel?.(false)}{/snippet}
+    <SidebarFoot above={callPanel ? panelAbove : undefined}>
       {#if footer}{@render footer(
           false,
           selfRows,

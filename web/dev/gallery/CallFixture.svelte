@@ -4,11 +4,13 @@
   import CallStage from "../../features/call/CallStage.svelte";
   import CallControls from "../../features/call/CallControls.svelte";
   import CallSidebarRow from "../../features/call/CallSidebarRow.svelte";
+  import CallPanel from "../../features/call/CallPanel.svelte";
   import type { CallSession, CallView } from "../../features/call/session";
   import type { CallPeer, Room } from "../../../shared/room";
   import { recorderEmail } from "../../../shared/call";
   // The call's stage with no SFU: a fake session whose state comes from the URL, for screenshots and design
-  // review (`dev/gallery.html?probe=call&n=4&speaking=1&muted=2&share=1&cam=1&recording=1&chat=1`).
+  // review (`dev/gallery.html?probe=call&n=4&speaking=1&muted=2&share=1&cam=1&recording=1&chat=1`). `stage=0`:
+  // in the call with the stage closed (the sidebar's call panel opens it).
   const params = new URL(location.href).searchParams;
   const number = (key: string, fallback = 0) =>
     Number(params.get(key) ?? fallback) || fallback;
@@ -131,6 +133,10 @@
     dismissLimit: () => patch({ limit: false }),
   };
   let chatHidden = $state(params.get("chat") !== "1");
+  let stageOpen = $state(params.get("stage") !== "0");
+  let cameraOpen = $state(false);
+  const t = (text: string, vars?: Record<string, string | number>) =>
+    text.replace(/\{(\w+)\}/g, (_, key) => String(vars?.[key] ?? ""));
   const name = (email: string) =>
     (room.names?.[email] ?? email).split(" ")[0] ?? email;
   const phone = params.get("phone") === "1";
@@ -169,9 +175,34 @@
           {call}
           peers={room.call}
           {name}
-          t={(text, vars) =>
-            text.replace(/\{(\w+)\}/g, (_, key) => String(vars?.[key] ?? ""))}
-        /><CallControls {call} peers={[]} {name} t={(text) => text} />
+          onopen={() => (stageOpen = true)}
+          {t}
+        /><CallControls
+          {call}
+          peers={[]}
+          {name}
+          onopen={() => (stageOpen = true)}
+          t={(text) => text}
+        />
+      </div>
+      <div data-fixture-panel-rail class="flex w-12 justify-center">
+        <CallPanel
+          {call}
+          title="Call · 25/11 14:30"
+          collapsed
+          onopen={() => (stageOpen = true)}
+          oncamera={() => (cameraOpen = true)}
+          {t}
+        />
+      </div>
+      <div data-fixture-panel class="mt-auto">
+        <CallPanel
+          {call}
+          title="Call · 25/11 14:30"
+          onopen={() => (stageOpen = true)}
+          oncamera={() => (cameraOpen = true)}
+          {t}
+        />
       </div>
     </aside>{/if}
   <div class="flex min-w-0 flex-1 flex-col">
@@ -185,8 +216,9 @@
       chatHidden={phone ? undefined : chatHidden}
       onchat={() => (chatHidden = !chatHidden)}
       onfull={phone ? undefined : () => {}}
-      t={(text, vars) =>
-        text.replace(/\{(\w+)\}/g, (_, key) => String(vars?.[key] ?? ""))}
+      staged={stageOpen}
+      bind:cameraOpen
+      {t}
     />
     {#if phone}<div class="flex-1 p-4 text-sm text-muted-foreground">
         Chat…

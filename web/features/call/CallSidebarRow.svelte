@@ -6,8 +6,9 @@
   import type { CallPeer } from "../../../shared/room";
   import { isRecorder } from "../../../shared/call";
   import type { CallSession } from "./session";
-  /** The room's call in the sidebar, while a call is on: one row "Na call · n" with the faces and the way in or
-   * out. The narrow rail: one green phone with the count, gone while I am in the call (the stage hangs up). */
+  /** The room's call in the sidebar, while a call is on and I am not in it: one row "Na call · n" with the faces
+   * and the way in. The narrow rail: one green phone with the count. In the call, the panel at the sidebar's foot
+   * (CallPanel) has the call. */
   let {
     call,
     peers = [],
@@ -29,18 +30,18 @@
   const who = $derived(people.map((peer) => name(peer.email)).join(", "));
 </script>
 
-{#if people.length}{#if collapsed}{#if !inCall}<IconButton
-        data-call-row
-        label={t("Entrar na call: {people}", { people: who })}
-        tooltipSide="right"
-        variant="success"
-        class="relative size-8 rounded-full"
-        onclick={() => call.join()}
-        ><Icon icon="phone" size={16} /><span
-          class="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full bg-foreground text-2xs font-semibold text-background tabular-nums"
-          >{people.length}</span
-        ></IconButton
-      >{/if}{:else}<div
+{#if people.length && !inCall}{#if collapsed}<IconButton
+      data-call-row
+      label={t("Entrar na call: {people}", { people: who })}
+      tooltipSide="right"
+      variant="success"
+      class="relative size-8 rounded-full"
+      onclick={() => call.join()}
+      ><Icon icon="phone" size={16} /><span
+        class="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full bg-foreground text-2xs font-semibold text-background tabular-nums"
+        >{people.length}</span
+      ></IconButton
+    >{:else}<div
       data-call-row
       class="flex h-9 shrink-0 items-center gap-2 rounded-lg bg-sidebar-accent px-2 text-sidebar-foreground"
       title={who}
@@ -60,18 +61,10 @@
             class="size-5 ring-2 ring-sidebar-accent"
           />{/each}</span
       >
-      {#if inCall}<IconButton
-          label={t("Sair da call")}
-          tooltipSide="right"
-          variant="destructive"
-          size="icon-xs"
-          class="rounded-full"
-          onclick={() => call.leave()}
-          ><Icon icon="phone-hang-up" size={12} /></IconButton
-        >{:else}<Button
-          size="xs"
-          variant="success"
-          class="rounded-full"
-          onclick={() => call.join()}>{t("Entrar na call")}</Button
-        >{/if}
+      <Button
+        size="xs"
+        variant="success"
+        class="rounded-full"
+        onclick={() => call.join()}>{t("Entrar na call")}</Button
+      >
     </div>{/if}{/if}

@@ -36,6 +36,8 @@
     onchat,
     full = false,
     onfull,
+    staged = true,
+    cameraOpen = $bindable(false),
     t,
   }: {
     room: Room;
@@ -54,6 +56,10 @@
     /** Desktop: the call (stage and chat) is in full screen, and the way to turn that on and off. */
     full?: boolean;
     onfull?(): void;
+    /** In the call with the stage closed (the person reads the room): only the toasts and the camera's dialog. */
+    staged?: boolean;
+    /** The camera's dialog is open (the sidebar's call panel opens it too). */
+    cameraOpen?: boolean;
     t(text: string, vars?: Record<string, string | number>): string;
   } = $props();
   const view = $derived(call.state);
@@ -123,7 +129,6 @@
   const unrecorded = $derived(!!room.callRecorded && !recording && waited);
   // The person I put on the stage (a click on a tile). Gone from the call: the grid again.
   let pinned = $state("");
-  let cameraOpen = $state(false);
   const pinnedPeer = $derived(peers.find((peer) => peer.email === pinned));
   const camOf = (email: string) =>
     email === room.me ? $view.ownCam : ($view.cams[email] ?? null);
@@ -237,7 +242,7 @@
         />{/if}</span
     ></button
   >{/snippet}
-{#if $view.phase !== "idle"}<!-- Desktop: the stage sits a little inside its column, apart from the chat. -->
+{#if $view.phase !== "idle" && staged}<!-- Desktop: the stage sits a little inside its column, apart from the chat. -->
   <div class={fill ? "h-full min-h-0 md:p-2" : ""}>
     <section
       data-call-stage
@@ -505,7 +510,7 @@
         >
       </div>
     </section>
-  </div>{:else if peers.length}<div
+  </div>{:else if peers.length && $view.phase === "idle"}<div
     data-call-bar
     class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2 font-sans text-xs text-muted-foreground md:hidden"
   >
