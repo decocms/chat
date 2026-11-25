@@ -372,3 +372,33 @@ test("start_epic right after acking a request takes that request's thread; an ol
   });
   expect(g.epic(later.epic_id)?.from_msg).toBe(line.id);
 });
+
+test("one thread per message (Gimenes #5068): a second create is refused, and start_epic returns the thread it has", async () => {
+  const f = fixture();
+  const gui = "gui@example.test";
+  const ask = f.book.addMessage("main", gui, "dá pra limpar as threads?");
+  expect(
+    await f.run({ t: "epic", title: "Limpar", from: ask.id, id: "aaaa0030" }),
+  ).toEqual({ ok: true });
+  // Someone else clicks "Criar thread" on the same message with a new id.
+  expect(
+    await f.run({ t: "epic", title: "Limpar 2", from: ask.id, id: "aaaa0031" }),
+  ).toEqual({ ok: false, error: "this message already has a thread" });
+  // An agent asked to start a thread from it gets the same one back, with its new task.
+  const out = (await f.book.agentEpic(
+    "abcdef",
+    email,
+    "Outra thread",
+    "",
+    ["Apagar as duplicadas"],
+    "Claude Opus 5.5",
+    ask.id,
+  )) as { ok: boolean; epic_id: string; note?: string };
+  expect(out.ok).toBe(true);
+  expect(out.epic_id).toBe("aaaa0030");
+  expect(out.note).toContain("aaaa0030");
+  expect(
+    f.book.epics().find((e) => e.id === "aaaa0030")?.tasks.map((t) => t.title),
+  ).toContain("Apagar as duplicadas");
+  expect(f.book.epics().filter((e) => e.from_msg === ask.id)).toHaveLength(1);
+});
