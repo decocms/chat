@@ -18,12 +18,12 @@
   import DialogContent from "../../lib/studio/DialogContent.svelte";
   import DialogHeader from "../../lib/studio/DialogHeader.svelte";
   import DialogTitle from "../../lib/studio/DialogTitle.svelte";
-  import Textarea from "../../lib/studio/Textarea.svelte";
   import Sheet from "../../lib/studio/Sheet.svelte";
   import SheetContent from "../../lib/studio/SheetContent.svelte";
   import SheetTitle from "../../lib/studio/SheetTitle.svelte";
   import type { MessageVersion } from "../../../shared/room";
   import { QUICK_REACTIONS } from "./reactions";
+  import { startEditing } from "./editing";
   let {
     message,
     roomId,
@@ -54,7 +54,7 @@
     /** "Criar thread" (Gimenes #4310): makes the thread from this message and opens it. None: the message cannot
      *  start one. */
     onthread?: () => void;
-    /** Your own message (Gui #4276): you can change its text. */
+    /** Your own message (Gui #4276): you can change its text, in place (MessageEditor). */
     canEdit?: boolean;
     /** Yours, or any message when you own the room. */
     canDelete?: boolean;
@@ -70,28 +70,22 @@
     sheet = false;
     act();
   }
-  let editing = $state(false),
-    deleting = $state(false),
+  let deleting = $state(false),
     showingHistory = $state(false),
-    draft = $state(""),
     busy = $state(false),
     error = $state("");
-  async function change(command: "msg.edit" | "msg.delete") {
+  async function remove() {
     if (!active || busy) return;
     busy = true;
     error = "";
-    const r = await actions.request(
-      command === "msg.edit"
-        ? { t: "msg.edit", id: message.id, text: draft }
-        : { t: "msg.delete", id: message.id },
-    );
+    const r = await actions.request({ t: "msg.delete", id: message.id });
     if (!active) return;
     busy = false;
     if (!r.ok) error = r.error;
-    else {
-      editing = false;
-      deleting = false;
-    }
+    else deleting = false;
+  }
+  function edit() {
+    if (active) startEditing(roomId, message.id);
   }
   function openHistory() {
     if (!active) return;
@@ -215,11 +209,7 @@
           class={floating
             ? "rounded-full text-muted-foreground hover:text-foreground"
             : ""}
-          onclick={() => {
-            draft = message.text;
-            error = "";
-            editing = true;
-          }}><Icon icon="pencil-01" size={16} /></IconButton
+          onclick={edit}><Icon icon="pencil-01" size={16} /></IconButton
         >{/if}
       {#if history !== undefined}<IconButton
           label={vb.t("Ver histórico da mensagem")}
@@ -365,11 +355,7 @@
       {#if canEdit}{@render sheetRow(
           "pencil-01",
           vb.t("Editar mensagem"),
-          () => {
-            draft = message.text;
-            error = "";
-            editing = true;
-          },
+          edit,
           { "data-sheet-edit": message.id },
         )}{/if}
       {#if history !== undefined}{@render sheetRow(
@@ -396,38 +382,6 @@
     bind:open={picking}
     onpick={(emoji) => react(emoji)}
   />{/if}
-{#if canEdit}<Dialog bind:open={editing}>
-    <DialogContent
-      class="font-sans text-sm text-foreground"
-      closeLabel={vb.t("Fechar")}
-      preventScroll={false}
-      preventBodyPointerEvents={false}
-      preventOverflowTextSelection={false}
-    >
-      <DialogHeader>
-        <DialogTitle class="pr-8 font-sans"
-          >{vb.t("Editar mensagem")}</DialogTitle
-        >
-      </DialogHeader>
-      <Textarea
-        bind:value={draft}
-        aria-label={vb.t("Texto da mensagem")}
-        rows={6}
-      />
-      {#if error}<p role="alert" class="m-0 text-sm text-destructive">
-          {error}
-        </p>{/if}
-      <div class="flex justify-end gap-2">
-        <Button variant="outline" onclick={() => (editing = false)}
-          >{vb.t("Cancelar")}</Button
-        >
-        <Button
-          disabled={busy || !draft.trim()}
-          onclick={() => void change("msg.edit")}>{vb.t("Salvar")}</Button
-        >
-      </div>
-    </DialogContent>
-  </Dialog>{/if}
 {#if canDelete}<ConfirmDialog
     bind:open={deleting}
     title={vb.t("Apagar mensagem?")}
@@ -438,7 +392,7 @@
     cancelLabel={vb.t("Cancelar")}
     {busy}
     {error}
-    onconfirm={() => void change("msg.delete")}
+    onconfirm={() => void remove()}
   />{/if}
 {#if history !== undefined}<Dialog bind:open={showingHistory}>
     <DialogContent

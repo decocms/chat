@@ -13,6 +13,7 @@
     ChatMessage,
   } from "../../app/chatTypes";
   import {
+    canEditMessage,
     canStartThread,
     startsThread,
     continues,
@@ -30,6 +31,8 @@
   import Badge from "../../lib/studio/Badge.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import MessageActions from "./MessageActions.svelte";
+  import MessageEditor from "./MessageEditor.svelte";
+  import { editingMessage } from "./editing";
   import MessageFooter from "./MessageFooter.svelte";
   import MessageReactions from "./MessageReactions.svelte";
   import Attachments from "./Attachments.svelte";
@@ -70,6 +73,13 @@
   let threadBusy = false,
     threadError = $state("");
   const threadable = $derived(!origin && canStartThread(room, m));
+  const editable = $derived(!origin && canEditMessage(room, m));
+  // Edited in place (like Discord): the text is a box until Enter or Esc; no toolbar meanwhile.
+  const editing = $derived(
+    editable &&
+      $editingMessage?.room === room.id &&
+      $editingMessage.id === m.id,
+  );
   async function startThread() {
     if (threadBusy) return;
     threadBusy = true;
@@ -245,7 +255,7 @@
   data-waiting={waiting}
   use:highlight
   use:swipeMessage={{
-    enabled: !origin,
+    enabled: !origin && !editing,
     reply: () => {
       if (active) actions.reply(m.id);
     },
@@ -265,7 +275,9 @@
       ? "group relative rounded-control px-3 pt-0.5 pb-3 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
       : "group relative mt-0.5 rounded-control px-3 pt-1 pb-3 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
     // A long press opens the actions sheet, so on a touch screen it does not also select text (the sheet copies).
-    origin ? "" : "pointer-coarse:select-none [-webkit-touch-callout:none]",
+    origin || editing
+      ? ""
+      : "pointer-coarse:select-none [-webkit-touch-callout:none]",
     waiting ? "border-l-2 border-warning bg-warning/10" : "",
     attention ? "animate-pulse motion-reduce:animate-none" : "",
     flash || sheet ? "bg-accent" : "",
@@ -403,10 +415,11 @@
                 })
               : vb.t("pensando…")}{typing ? "…" : ""}
           </p>
+        {:else if editing}<MessageEditor message={m} {actions} {vb} />
         {:else if m.text && !echoesCard}{@render rich(
             m.text,
             m.author === "ai" || m.kind === "agent" ? "markdown" : "human",
-          )}{/if}{#if m.edited && !m.deleted}<span
+          )}{/if}{#if m.edited && !m.deleted && !editing}<span
             data-message-edited
             class="text-xs text-muted-foreground select-none"
             >{vb.t("(editada)")}</span
@@ -518,7 +531,7 @@
     >
       <MessageReactions message={m} me={room.me} {actions} {vb} />
     </div>{/if}
-  {#if toolbar}<MessageActions
+  {#if editing}<!-- No toolbar while the text is a box. -->{:else if toolbar}<MessageActions
       bind:this={actionController}
       bind:sheet
       floating
@@ -530,10 +543,7 @@
       message={m}
       roomId={room.id}
       onthread={threadable ? () => void startThread() : undefined}
-      canEdit={m.author === room.me &&
-        m.kind !== "agent" &&
-        !m.deleted &&
-        !!m.text}
+      canEdit={editable}
       canDelete={!m.deleted &&
         !startsThread(room, m) &&
         ((m.author === room.me && m.kind !== "agent") ||

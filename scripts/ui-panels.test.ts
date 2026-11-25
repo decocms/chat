@@ -27,6 +27,7 @@ import { createFilesSession } from "../web/features/files/session";
 import type { FilesProps } from "../web/features/files/types";
 import type { PeopleAction } from "../web/features/people/model";
 import { createComposerDrafts } from "../web/features/composer/drafts";
+import { editingMessage, startEditing } from "../web/features/chat/editing";
 
 // Compile the real components, then run their DOM events with the browser Svelte
 // runtime. Run with: bun test --conditions=browser scripts/ui-panels.test.ts
@@ -3227,6 +3228,140 @@ describe("chat", () => {
     touch("touchend", []);
     expect(replied).toEqual([1]);
   });
+  describe("inline message edit (like Discord)", () => {
+    const own = (
+      id: number,
+      text: string,
+    ): import("../web/app/chatTypes").ChatMessage => ({
+      id,
+      text,
+      thread: "e",
+      author: "me@test",
+      kind: "user",
+      ts: id * 1000,
+    });
+    function editable(requests: RoomCommand[] = []) {
+      const room = {
+        ...fixture(),
+        messages: [own(1, "first"), message(2, "theirs"), own(3, "hello")],
+      };
+      const rendered = renderChat(room, {
+        actions: {
+          request: async (command): Promise<CommandOutcome> => {
+            requests.push(command);
+            return { ok: true };
+          },
+          draftReply: () => {},
+          reply: () => {},
+          navigate: () => {},
+          openFile: () => {},
+        },
+      });
+      return { ...rendered, room, requests };
+    }
+    const box = (target: HTMLElement, id = 3) =>
+      target.querySelector<HTMLTextAreaElement>(
+        `[data-message-editor="${id}"] textarea`,
+      );
+    function key(input: HTMLElement, key: string, shiftKey = false) {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        shiftKey,
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      flushSync();
+      return event;
+    }
+    function type(input: HTMLTextAreaElement, value: string) {
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      flushSync();
+    }
+    afterEach(() => editingMessage.set(null));
+    test("the pencil turns the text into a box in place: focused, caret at the end, no toolbar; Esc cancels", async () => {
+      const { target, requests } = editable();
+      hoverMessages(target);
+      expect(target.querySelector('[data-edit-message="2"]')).toBeNull();
+      target
+        .querySelector<HTMLButtonElement>('[data-edit-message="3"]')!
+        .click();
+      flushSync();
+      await tick();
+      const input = box(target)!;
+      expect(input.value).toBe("hello");
+      expect(document.activeElement).toBe(input);
+      expect(input.selectionStart).toBe(5);
+      expect(target.querySelector("#m3 [data-message-toolbar]")).toBeNull();
+      expect(target.querySelector("#m3 [data-message-head]")).not.toBeNull();
+      expect(
+        target.querySelector("[data-message-editor-hint]")?.textContent,
+      ).toMatch(/esc para\s+cancelar\s+•\s+enter para\s+salvar/);
+      // No dialog any more.
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      type(input, "changed");
+      expect(key(input, "Escape").defaultPrevented).toBe(true);
+      expect(box(target)).toBeNull();
+      expect(target.querySelector("#m3")?.textContent).toContain("hello");
+      expect(requests).toEqual([]);
+    });
+    test("Enter saves with msg.edit; Shift+Enter is a new line; unchanged or empty text sends nothing", async () => {
+      const { target, requests } = editable();
+      startEditing("r", 3);
+      flushSync();
+      let input = box(target)!;
+      // Shift+Enter is left to the browser: a new line, no save.
+      expect(key(input, "Enter", true).defaultPrevented).toBe(false);
+      expect(box(target)).not.toBeNull();
+      // Empty: nothing happens (no delete, no request), the box stays.
+      type(input, "   ");
+      key(input, "Enter");
+      expect(box(target)).not.toBeNull();
+      // Unchanged: just closes.
+      type(input, "hello");
+      key(input, "Enter");
+      expect(box(target)).toBeNull();
+      expect(requests).toEqual([]);
+      startEditing("r", 3);
+      flushSync();
+      input = box(target)!;
+      type(input, "hello\nworld");
+      key(input, "Enter");
+      await tick();
+      flushSync();
+      expect(requests).toEqual([
+        { t: "msg.edit", id: 3, text: "hello\nworld" } satisfies RoomCommand,
+      ]);
+      expect(box(target)).toBeNull();
+    });
+    test("the links under the box save and cancel; only one message edits at a time", async () => {
+      const { target, requests } = editable();
+      startEditing("r", 1);
+      flushSync();
+      expect(box(target, 1)).not.toBeNull();
+      startEditing("r", 3);
+      flushSync();
+      expect(box(target, 1)).toBeNull();
+      expect(target.querySelectorAll("[data-message-editor]")).toHaveLength(1);
+      type(box(target)!, "saved by click");
+      target
+        .querySelector<HTMLButtonElement>("[data-message-editor-save]")!
+        .click();
+      await tick();
+      flushSync();
+      expect(requests).toEqual([
+        { t: "msg.edit", id: 3, text: "saved by click" } satisfies RoomCommand,
+      ]);
+      startEditing("r", 3);
+      flushSync();
+      target
+        .querySelector<HTMLButtonElement>("[data-message-editor-cancel]")!
+        .click();
+      flushSync();
+      expect(box(target)).toBeNull();
+    });
+  });
 });
 
 test("phone edge observes installed Back without consuming browser gestures or replying", async () => {
@@ -5526,6 +5661,83 @@ describe("composer ownership and interactions", () => {
     flushSync();
     expect(document.querySelector('[role="dialog"]') === null).toBe(true);
   }
+  test("ArrowUp in an empty composer edits your last message in this thread, in place; Esc gives focus back", async () => {
+    const mine = (
+      id: number,
+      thread = "main",
+    ): import("../web/app/chatTypes").ChatMessage => ({
+      id,
+      text: `mine ${id}`,
+      thread,
+      author: "me@test",
+      kind: "user",
+      ts: id * 1000,
+    });
+    const room: Room = {
+      ...fixture(),
+      messages: [
+        mine(1),
+        mine(2),
+        { ...mine(3), author: "you@test" },
+        mine(4, "e"),
+      ],
+    };
+    const chatTarget = document.createElement("div");
+    document.body.append(chatTarget);
+    active.push(
+      mountView("chat", chatTarget, {
+        room,
+        thread: "main",
+        list: room.messages.filter((m) => m.thread === "main"),
+        vb: chatBridge,
+        actions: {
+          request: async (): Promise<CommandOutcome> => ({ ok: true }),
+          draftReply: () => {},
+          reply: () => {},
+          navigate: () => {},
+          openFile: () => {},
+        },
+        onloadolder: () => {},
+      }),
+    );
+    const { target } = renderComposer(room);
+    const input = edit(target, "draft");
+    input.focus();
+    const arrow = () => {
+      const event = new KeyboardEvent("keydown", {
+        key: "ArrowUp",
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      flushSync();
+      return event;
+    };
+    // Something typed: ArrowUp moves the caret as usual.
+    expect(arrow().defaultPrevented).toBe(false);
+    expect(get(editingMessage)).toBeNull();
+    edit(target, "");
+    input.focus();
+    expect(arrow().defaultPrevented).toBe(true);
+    expect(get(editingMessage)?.id).toBe(2);
+    await tick();
+    const box = chatTarget.querySelector<HTMLTextAreaElement>(
+      '[data-message-editor="2"] textarea',
+    )!;
+    expect(box.value).toBe("mine 2");
+    expect(document.activeElement).toBe(box);
+    box.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    flushSync();
+    expect(get(editingMessage)).toBeNull();
+    expect(chatTarget.querySelector("[data-message-editor]")).toBeNull();
+    expect(document.activeElement).toBe(input);
+  });
   test("composer Enter empties the box as it sends; Shift/IME never submit", async () => {
     const room = fixture(),
       sent: RoomCommand[] = [];
