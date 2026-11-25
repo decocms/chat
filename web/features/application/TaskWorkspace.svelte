@@ -284,6 +284,8 @@
     },
     openThread: (id) => leave(undefined, id),
     openFile,
+    // A link to a room file (in a message, a thread card or the doc) opens in the same dialog (Gimenes #5689).
+    openFileReference: (file) => void openFile(file.id, undefined, file.name),
   };
 
   const list = $derived(room ? visibleChatMessages(room, selected) : []);
@@ -360,7 +362,11 @@
       if (side.target()?.id !== target.file.id) side.open(target.file);
     });
   });
-  const richActions = { navigate: actions.navigate, openFile };
+  const richActions = {
+    navigate: actions.navigate,
+    openFile,
+    openFileReference: actions.openFileReference,
+  };
   // The thread's own "Abrir" on a room app or a file opens it full screen here too.
   actions.openApp = (target) => {
     const item = artifacts.all.find(
