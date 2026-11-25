@@ -18,6 +18,7 @@
   import { insertAt, mentionKey, mentionSegments } from "./model";
   import EmojiPicker from "./EmojiPicker.svelte";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import {
     fieldView,
     fromView,
@@ -147,6 +148,36 @@
   // What the textarea holds: the text with each room/thread link as a token the mirror draws as its chip.
   const viewOf = (text: string) => fieldView(text, links ? links(text) : []);
   const view = $derived(viewOf(value));
+  // Every chip the field has shown, by its text: undo puts a deleted chip's text back, and it is that link again.
+  const known = new Map<string, string>();
+  $effect(() => {
+    for (const token of view.tokens)
+      if (!known.has(token.text)) known.set(token.text, token.url);
+  });
+  // A link's answer can come while you type elsewhere in the field: the text under the caret changes (the link turns
+  // into its chip), so the caret goes back where it was in the stored text instead of jumping to the end.
+  let shownValue = untrack(() => value),
+    shownView = untrack(() => view.text);
+  $effect(() => {
+    const next = view;
+    untrack(() => {
+      const swapped = value === shownValue && next.text !== shownView;
+      shownValue = value;
+      shownView = next.text;
+      if (
+        !swapped ||
+        !textarea ||
+        textarea.value !== next.text ||
+        document.activeElement !== textarea
+      )
+        return;
+      textarea.setSelectionRange(
+        toView(next, caret),
+        toView(next, selectionEnd),
+        textarea.selectionDirection,
+      );
+    });
+  });
   type Part =
     | { kind: "text"; text: string }
     | { kind: "mention"; text: string }
@@ -596,15 +627,27 @@
                 >{:else if part.kind === "chip"}<span
                   data-field-chip={part.token.kind}
                   data-field-link={part.token.url}
-                  class="relative rounded-md bg-brand-purple/15 text-brand-purple-text ring-3 ring-brand-purple/15"
+                  class={cn(
+                    "relative rounded-md ring-3",
+                    part.token.kind === "private"
+                      ? "bg-secondary text-muted-foreground ring-secondary"
+                      : "bg-brand-purple/15 text-brand-purple-text ring-brand-purple/15",
+                  )}
                   ><span
                     class="absolute top-1/2 left-0.5 flex size-4 -translate-y-1/2 items-center justify-center"
-                    >{#if part.token.kind === "room"}<RoomMark
-                        title={part.token.title}
-                        src={part.token.icon
-                          ? `/api/books/${encodeURIComponent(part.token.id)}/icon?v=${part.token.icon}`
+                    >{#if part.token.mark.kind === "room"}<RoomMark
+                        title={part.token.mark.title}
+                        src={part.token.mark.icon
+                          ? `/api/books/${encodeURIComponent(part.token.mark.id)}/icon?v=${part.token.mark.icon}`
                           : undefined}
                         size="2xs"
+                      />{:else if part.token.mark.kind === "person"}<PersonAvatar
+                        email={part.token.mark.email}
+                        version={part.token.mark.avatar}
+                        size="2xs"
+                      />{:else if part.token.mark.kind === "lock"}<Icon
+                        icon="lock-01"
+                        size={14}
                       />{:else}<Icon
                         icon="message-circle-01"
                         size={16}
@@ -634,7 +677,7 @@
           if (!ok()) return;
           speech.cancel();
           const node = event.currentTarget,
-            back = fromView(view, node.value),
+            back = fromView(view, node.value, known),
             at = back.at(node.selectionStart);
           typedAt =
             "inputType" in event && event.inputType === "insertText"

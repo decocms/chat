@@ -6286,6 +6286,97 @@ describe("composer ownership and interactions", () => {
     ).toContain("Room\u00a0›\u00a0Epic");
     expect(input.selectionStart).toBe(input.value.length);
   }, 30_000);
+  test("a pasted link to anywhere in the app turns into the chat's chip in the field: another room's thread, a message, a room you can't see", async () => {
+    const room: Room = { ...fixture(), id: "abcdef12" };
+    const rooms = [{ id: "abcdef12", title: "Room", icon: 0 }];
+    const asked: string[] = [];
+    globalThis.fetch = (async (request: RequestInfo | URL) => {
+      const url = String(request instanceof Request ? request.url : request);
+      asked.push(url);
+      if (url.includes("tttttt22"))
+        return Response.json({
+          kind: "thread",
+          room: "tttttt22",
+          thread: "x1",
+          title: "Lançamento",
+          owner: null,
+          ownerName: null,
+        });
+      if (url.includes("mmmmmm11"))
+        return Response.json({
+          kind: "message",
+          room: "mmmmmm11",
+          id: 7,
+          thread: "main",
+          author: "ana@test",
+          name: "Ana",
+          avatar: null,
+          threadTitle: null,
+          roomTitle: "Vendas",
+        });
+      return Response.json({ kind: "private" });
+    }) as typeof fetch;
+    const { target, entry } = renderComposer(room, { rooms });
+    const thread = `${location.origin}/b/tttttt22?t=x1`,
+      message = `https://chat.decocms.com/b/mmmmmm11#m7`,
+      locked = `${location.origin}/b/pppppp33`,
+      other = "https://example.com/b/qqqqqq44";
+    const text = `veja ${thread} e ${message} e ${locked} e ${other}`;
+    const input = target.querySelector<HTMLTextAreaElement>("textarea")!;
+    input.focus();
+    edit(target, text);
+    // Until the answers come, the field shows the plain links.
+    expect(input.value).toContain(thread);
+    for (
+      let frame = 0;
+      frame < 40 && target.querySelectorAll("[data-field-chip]").length < 3;
+      frame++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      flushSync();
+    }
+    // The draft keeps every link; the field draws the three app links as the chat's chips, the other link as text.
+    expect(get(entry.state).text).toBe(text);
+    const chip = (kind: string) =>
+      target.querySelector<HTMLElement>(`[data-field-chip="${kind}"]`);
+    expect(chip("thread")?.getAttribute("data-field-link")).toBe(thread);
+    expect(chip("thread")?.textContent).toContain("Lançamento");
+    expect(chip("message")?.getAttribute("data-field-link")).toBe(message);
+    expect(chip("message")?.textContent).toContain("Ana\u00a0em\u00a0Vendas");
+    expect(chip("private")?.getAttribute("data-field-link")).toBe(locked);
+    expect(chip("private")?.textContent).toContain("Sala\u00a0privada");
+    expect(chip("private")?.className).toContain("bg-secondary");
+    expect(input.value).not.toContain("tttttt22");
+    expect(input.value).not.toContain("mmmmmm11");
+    expect(input.value).not.toContain("pppppp33");
+    expect(input.value).toContain(other);
+    expect(asked.some((url) => url.includes("qqqqqq44"))).toBe(false);
+    // The swap keeps the caret where it was: after the last link, at the end.
+    expect(input.selectionStart).toBe(input.value.length);
+    // Editing around the chips keeps each one its own link, even two with the same words.
+    const second = `${location.origin}/b/pppppp34`;
+    input.value = input.value + " " + second + " ";
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    for (
+      let frame = 0;
+      frame < 40 &&
+      target.querySelectorAll('[data-field-chip="private"]').length < 2;
+      frame++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      flushSync();
+    }
+    expect(target.querySelectorAll('[data-field-chip="private"]').length).toBe(
+      2,
+    );
+    input.value = "oi " + input.value;
+    input.setSelectionRange(3, 3);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    expect(get(entry.state).text).toBe(`oi ${text} ${second} `);
+  }, 30_000);
   test("an @mention in the field is drawn in the chat's mention purple", () => {
     const room = fixture();
     const { target } = renderComposer(room);
