@@ -107,7 +107,7 @@
     {decision.text}
   </span>
   <span
-    class="mt-1 flex flex-wrap items-center gap-x-1 text-xs leading-4 text-muted-foreground"
+    class="mt-1.5 flex flex-wrap items-center gap-x-1 text-xs leading-4 text-muted-foreground"
   >
     <span>{vb.t(kindLook(decisionKind(decision.kind)).label)} ·</span>
     {#if decision.email}<span
@@ -164,15 +164,17 @@
         <li data-decision-day={day.when}>
           <div
             class={[
-              "relative grid grid-cols-[24px_1fr] gap-3 px-3 pb-2",
+              "relative grid grid-cols-[24px_1fr] gap-3 px-3.5 pb-3",
               dayIndex === 0 ? "pt-2" : "pt-6",
             ]}
           >
             <span
               aria-hidden="true"
               class={[
-                "absolute left-6 z-[1] w-px -translate-x-1/2 bg-border",
-                dayIndex === 0 ? "top-[18px] -bottom-1" : "inset-y-0 -bottom-1",
+                "absolute left-[26px] z-[1] w-px -translate-x-1/2 bg-border",
+                dayIndex === 0
+                  ? "top-[18px] -bottom-1.5"
+                  : "inset-y-0 -bottom-1.5",
               ]}
             ></span>
             <span
@@ -183,7 +185,7 @@
               {dayLabel(day)}
             </h3>
           </div>
-          <ol class="m-0 flex list-none flex-col gap-1 p-0">
+          <ol class="m-0 flex list-none flex-col gap-3 p-0">
             {#each day.items as decision, index (decision.id)}
               {@const look = kindLook(decisionKind(decision.kind))}
               {@const last =
@@ -192,13 +194,13 @@
                 <article
                   data-decision-id={decision.id}
                   data-decision-kind={decisionKind(decision.kind)}
-                  class="group relative grid grid-cols-[24px_1fr_auto] items-start gap-3 rounded-lg px-3 py-2.5 transition-colors duration-150 hover:bg-muted"
+                  class="group relative grid grid-cols-[24px_1fr_auto] items-start gap-3 rounded-lg px-3.5 py-3 transition-colors duration-150 hover:bg-muted"
                 >
                   <span
                     aria-hidden="true"
                     class={[
-                      "absolute left-6 z-[1] w-px -translate-x-1/2 bg-border",
-                      last ? "-top-1 h-[26px]" : "-inset-y-1",
+                      "absolute left-[26px] z-[1] w-px -translate-x-1/2 bg-border",
+                      last ? "-top-1.5 h-[30px]" : "-inset-y-1.5",
                     ]}
                   ></span>
                   <span
