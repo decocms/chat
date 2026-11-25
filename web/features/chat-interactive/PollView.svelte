@@ -85,17 +85,17 @@
   data-poll={poll.id}
   class="grid max-w-md gap-3 rounded-surface bg-card p-4 font-sans text-sm text-card-foreground shadow-edge"
 >
-  <header class="grid gap-0.5">
+  <header class="flex items-baseline justify-between gap-3">
     <h4
-      class="m-0 break-words font-sans text-sm font-medium tracking-normal [font-variation-settings:normal]"
+      class="m-0 min-w-0 break-words font-sans text-sm font-medium tracking-normal [font-variation-settings:normal]"
     >
       {poll.question}
     </h4>
-    <p class="m-0 text-xs text-muted-foreground">
-      {poll.multi ? vb.t("Escolha várias") : vb.t("Escolha uma")} · {votes === 1
-        ? vb.t("1 voto")
-        : vb.t("{n} votos", { n: votes })}
-    </p>
+    <span
+      data-poll-votes
+      class="shrink-0 text-xs tabular-nums text-muted-foreground"
+      >{votes === 1 ? vb.t("1 voto") : vb.t("{n} votos", { n: votes })}</span
+    >
   </header>
   <div class="grid gap-1.5">
     {#each view.rows as row}<button

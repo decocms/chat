@@ -888,8 +888,6 @@ const EN: Readonly<Record<string, string>> = {
   "O vibebook herdr abre o Claude Code na pasta da sala; leva uns segundos.":
     "vibebook herdr opens Claude Code in the room's folder; it takes a few seconds.",
   "Seu agent não está nesta sala.": "Your agent isn't in this room.",
-  "Escolha uma": "Pick one",
-  "Escolha várias": "Pick several",
   "1 voto": "1 vote",
   "{n} votos": "{n} votes",
   "Encerrar votação": "Close poll",

@@ -2130,7 +2130,10 @@ describe("chat", () => {
     });
     await expectInteractiveReady(target);
     const card = target.querySelector<HTMLElement>('[data-poll="p"]')!;
-    expect(card.textContent).toContain("Escolha uma · 4 votos");
+    expect(card.querySelector("[data-poll-votes]")?.textContent).toBe(
+      "4 votos",
+    );
+    expect(card.textContent).not.toContain("Escolha uma");
     const rows = Array.from(
       card.querySelectorAll<HTMLButtonElement>("[data-vote]"),
     );
