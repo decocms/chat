@@ -29,6 +29,7 @@
   import UpdateRow from "../user-center/UpdateRow.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
+  import Requests from "../app-navigation/Requests.svelte";
   import { roomAvatarVersion } from "../room-scope/model";
   import CallControls from "../call/CallControls.svelte";
   import CallStage from "../call/CallStage.svelte";
@@ -478,7 +479,14 @@
               owner={services.pwa}
               lang={services.language}
               row
-            />{/if}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
+            />{#if $personal.me}<Requests
+                center
+                invites={$personal.me.invites ?? []}
+                requests={$personal.me.requests}
+                lang={services.language === "en" ? "en" : "pt"}
+                onjoin={services.navigation.callbacks.answerInvite}
+                onanswer={services.navigation.callbacks.answerRequest}
+              />{/if}{/if}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
             <div
               data-document-pane="agents"
               data-agent-footer
