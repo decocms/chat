@@ -196,6 +196,28 @@ test("the author or the room owner deletes; the content goes to the owner only",
   expect(read).toContain("[message deleted]");
 });
 
+test("a message that a thread started from is not deleted, by its author, the owner or an agent (Gimenes #4621)", async () => {
+  const { book, run, db } = fixture();
+  const id = book.addMessage("main", email, "vamos fazer X").id;
+  const own = book.addMessage("main", email, "done", { kind: "agent" }).id;
+  db.query(
+    `INSERT INTO epics (id, title, ts, from_msg) VALUES ('t1', 'X', 1, ?), ('t2', 'Y', 1, ?)`,
+  ).run(id, own);
+  expect(await run({ t: "msg.delete", id })).toMatchObject({ ok: false });
+  expect(
+    await book.changeMessage(id, { email: owner, agent: false }, null),
+  ).toMatchObject({ ok: false });
+  expect(
+    await book.agentChangeMessage("abcdef", email, own, null),
+  ).toMatchObject({ ok: false });
+  expect(row(db, id).deleted).toBeNull();
+  expect(row(db, own).deleted).toBeNull();
+  // Editing it still works.
+  expect(await run({ t: "msg.edit", id, text: "vamos fazer X e Y" })).toEqual({
+    ok: true,
+  });
+});
+
 test("a deleted message's files leave the room for everyone but the owner (#4383)", async () => {
   const { book, db } = fixture();
   const fid = "0abc1234";

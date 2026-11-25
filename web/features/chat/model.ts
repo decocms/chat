@@ -88,6 +88,9 @@ export const canStartThread = (room: Room, m: ChatMessage) => {
       line.reply_to === m.id && line.thread === "main" && starts.has(line.id),
   );
 };
+/** A thread started from this message: it keeps its origin, so it has no delete (Gimenes #4621; the server refuses it too). */
+export const startsThread = (room: Room, m: ChatMessage) =>
+  room.epics.some((epic) => epic.from_msg === m.id);
 /** `poll` names a poll with no text, in the app's language. */
 export const messageSnippet = (m: ChatMessage, poll = "votação") =>
   (m.text || m.files?.map((f) => f.name).join(", ") || (m.poll ? poll : ""))

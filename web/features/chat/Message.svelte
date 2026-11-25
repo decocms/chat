@@ -14,6 +14,7 @@
   } from "../../app/chatTypes";
   import {
     canStartThread,
+    startsThread,
     continues,
     issueParts,
     messageKind,
@@ -514,6 +515,7 @@
         !m.deleted &&
         !!m.text}
       canDelete={!m.deleted &&
+        !startsThread(room, m) &&
         ((m.author === room.me && m.kind !== "agent") ||
           room.book.owner === room.me)}
       history={room.book.owner === room.me && (m.edited || m.deleted)
