@@ -1024,8 +1024,10 @@ test("navigation account reset releases private rename draft and return-focus re
     });
   const trigger = { isConnected: true } as HTMLElement;
   controller.syncPath("https://vb.test/b/aaaaaa/");
-  controller.openSettings("aaaaaa", trigger);
+  controller.openMenu("aaaaaa", trigger, { x: 10, y: 20 });
+  expect(get(controller.state).menu).toEqual({ id: "aaaaaa", x: 10, y: 20 });
   controller.askRename("aaaaaa");
+  expect(get(controller.state).menu).toBeNull();
   expect(get(controller.state).renameDraft).toBe("Private A title");
   expect(controller.returnFocus(null)).toBe(trigger);
   current = me({ email: "b@test.com" });
