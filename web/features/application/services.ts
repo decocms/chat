@@ -54,7 +54,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   homeApi?: HomeApi;
   accountApi?: AccountApi;
   agentsApi?: AgentsApi;
-  /** Scroll-back over HTTP; without it, "older" goes on the socket. */
+  /** Scroll-back and the room's snapshot over HTTP; without it, "older" and the state go on the socket. */
   messagesApi?: MessagesApi;
   /** Rooms saved in IndexedDB (cache plan PR 3); without it, rooms live in memory only. */
   roomCache?: RoomCache;
@@ -154,9 +154,9 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       })
     : () => {};
   const root = createRootRoomSession({
-    url: (id, thread, code, resume) =>
+    url: (id, thread, code, resume, lite) =>
       browser.socketUrl(
-        `/ws/${id}?t=${encodeURIComponent(thread)}${code ? `&rc=${encodeURIComponent(code)}` : ""}${
+        `/ws/${id}?t=${encodeURIComponent(thread)}${lite ? "&lite=1" : ""}${code ? `&rc=${encodeURIComponent(code)}` : ""}${
           resume
             ? `&since=${resume.since}&at=${resume.at}${resume.eh ? `&eh=${encodeURIComponent(resume.eh)}` : ""}`
             : ""
@@ -176,6 +176,12 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       ? {
           older: (roomId: string, thread: string, before?: number) =>
             options.messagesApi!.page(roomId, { thread, before, limit: 100 }),
+          // The room's snapshot over HTTP: the socket opens light (lite=1) and carries live events only.
+          room: (
+            roomId: string,
+            thread: string,
+            resume?: { since: number; at: number; eh?: string },
+          ) => options.messagesApi!.room(roomId, { thread, resume }),
         }
       : {}),
     present: (room) => titleOwnDm(room, browser.language ?? "pt"),

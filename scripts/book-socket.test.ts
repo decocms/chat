@@ -32,6 +32,15 @@ test("a first open has no resume, and a resume needs both since and at", () => {
   );
 });
 
+test("a light socket (lite=1) keeps its flag; any other value is dropped", () => {
+  expect(bookSocketUrl("abcdef", query("lite=1&t=e1"))).toBe(
+    "https://book/ws?book=abcdef&t=e1&lite=1",
+  );
+  expect(bookSocketUrl("abcdef", query("lite=true"))).toBe(
+    "https://book/ws?book=abcdef&t=main",
+  );
+});
+
 test("only numbers and a short hash pass", () => {
   const url = new URL(
     bookSocketUrl("abcdef", query("since=12x&at=34&eh=a%26b=c&rc=99999")),

@@ -2,6 +2,7 @@ import { get, writable } from "svelte/store";
 import type { Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
 import type { MessagesPage } from "../../../shared/schemas";
+import type { RoomStateEvent } from "../../../shared/events";
 import {
   createRoomConnection,
   type RoomConnectionOptions,
@@ -34,6 +35,8 @@ export function createRootRoomSession(options: {
     thread: string,
     lastCloseCode: string,
     resume?: { since: number; at: number; eh?: string },
+    /** lite=1: the socket sends hello, not state, and the room comes from `room` over HTTP. */
+    lite?: boolean,
   ): string;
   /** Temporary host thread adapter; callers can instead use selectThread. */
   thread?: () => string;
@@ -57,6 +60,13 @@ export function createRootRoomSession(options: {
     thread: string,
     before: number | undefined,
   ) => Promise<MessagesPage | null>;
+  /** The room's snapshot over HTTP (GET /room, compressed; a WebSocket frame is not). With it, the socket opens light
+   *  (lite=1) and answers hello; null = reconnect without lite, so the socket sends the state as before. */
+  room?: (
+    roomId: string,
+    thread: string,
+    resume?: { since: number; at: number; eh?: string },
+  ) => Promise<RoomStateEvent | null>;
 }) {
   const blank = (generation: number): RootRoomSnapshot => ({
     roomId: null,
@@ -209,20 +219,56 @@ export function createRootRoomSession(options: {
         !roomHasThread(room, selected)
           ? "main"
           : selected;
+      // A light socket (lite=1) sends hello; the state comes over HTTP with the params this socket was opened with.
+      // Events after hello wait in `queue` until that state is applied: each one is newer than the read (the Book
+      // sends hello first), and each kind is an upsert by id or a whole value, so applying it again is safe.
+      let lite = !!options.room,
+        asked: {
+          thread: string;
+          resume?: { since: number; at: number; eh?: string };
+        } = { thread: "main" },
+        hello = 0,
+        queue: RoomEvent[] | null = null;
+      const snapshot = (room: NonNullable<typeof options.room>) => {
+        const mine = ++hello;
+        queue = [];
+        void room(roomId, asked.thread, asked.resume).then((state) => {
+          if (!owns(ticket, connection) || mine !== hello) return;
+          const waiting = queue ?? [];
+          queue = null;
+          // No room over HTTP: the same room again without lite, whose socket sends the state.
+          if (!state) {
+            lite = false;
+            connection.resync();
+            return;
+          }
+          receive(state, roomId, ticket, connection);
+          for (const event of waiting)
+            receive(event, roomId, ticket, connection);
+        });
+      };
       const connection = (options.connection ?? createRoomConnection)({
         url: (code) => {
           const current = options.thread?.() ?? read().thread;
           // The room this socket already has (a reconnect, or a cached room opened again) resumes from it.
           const had = read().roomId === roomId ? read().room : null;
           const since = had?.messages.at(-1)?.id;
-          return options.url(
-            roomId,
-            current.startsWith("pre:") ? "main" : current,
-            code,
-            had?.at && since ? { since, at: had.at, eh: had.eh } : undefined,
-          );
+          asked = {
+            thread: current.startsWith("pre:") ? "main" : current,
+            resume:
+              had?.at && since ? { since, at: had.at, eh: had.eh } : undefined,
+          };
+          return options.url(roomId, asked.thread, code, asked.resume, lite);
         },
-        onEvent: (event) => receive(event, roomId, ticket, connection),
+        onEvent: (event) => {
+          if (event.t === "hello") {
+            if (lite && options.room && owns(ticket, connection))
+              snapshot(options.room);
+            return;
+          }
+          if (queue) queue.push(event);
+          else receive(event, roomId, ticket, connection);
+        },
         onRemoved: () => terminal(ticket, connection, "removed"),
         onUnavailable: () => terminal(ticket, connection, "unavailable"),
       });

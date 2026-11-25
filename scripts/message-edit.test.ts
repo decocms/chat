@@ -1,9 +1,10 @@
 // Edit and delete messages (Gui #4276, #4312): who may do what, and only the room owner ever gets the old text.
 // The actual Book over an in-memory SQLite (bun:sqlite) standing in for the Durable Object's storage; D1 is a fake.
 import { Database } from "bun:sqlite";
-import { expect, mock, test } from "bun:test";
+import { expect, mock, setSystemTime, test } from "bun:test";
 import { encodeCall } from "../shared/jsonRpc";
 import type { RoomCommand } from "../shared/commands";
+import { RoomEventSchemas } from "../shared/events";
 mock.module("cloudflare:workers", () => ({
   DurableObject: class {
     ctx: unknown;
@@ -66,6 +67,7 @@ function fixture() {
     storage: { sql, getAlarm: async () => null, setAlarm: async () => {} },
     waitUntil: (p: unknown) => void Promise.resolve(p).catch(() => {}),
     getWebSockets: () => [ws],
+    acceptWebSocket: () => {},
     getTags: () => [email],
     blockConcurrencyWhile: (fn: () => unknown) => fn(),
   };
@@ -356,4 +358,70 @@ test("a reconnect resumes: newer, edited and deleted messages plus the open thre
   expect(
     book.resumeOf(url(`since=${ids[3]}&at=${at}`), "main", window, "h1"),
   ).toBeNull();
+});
+
+test("a light socket gets hello, not state; GET room answers the same state a socket without lite sends", async () => {
+  const { book } = fixture();
+  const first = book.addMessage("main", email, "oi").id;
+  book.addMessage("e1", email, "num fio");
+  // The runtime's WebSocketPair: the server end keeps what the Book sends to it.
+  const sent: string[] = [];
+  Object.defineProperty(globalThis, "WebSocketPair", {
+    configurable: true,
+    writable: true,
+    value: class {
+      0 = {};
+      1 = { readyState: 1, send: (frame: string) => sent.push(frame) };
+    },
+  });
+  const open = async (query: string) => {
+    sent.length = 0;
+    const response = await book.fetch(
+      new Request(`https://book/ws?book=abcdef&t=main${query}`, {
+        headers: { "x-email": email },
+      }),
+    );
+    expect(response.status).toBe(101);
+    return sent.map((frame) => {
+      const { method, params } = JSON.parse(frame) as {
+        method: string;
+        params: Record<string, unknown>;
+      };
+      return { t: method, ...params } as Record<string, unknown>;
+    });
+  };
+  const hello = await open("&lite=1");
+  expect(hello).toHaveLength(1);
+  expect(hello[0]).toMatchObject({ t: "hello" });
+  expect(RoomEventSchemas.hello.safeParse(hello[0]).success).toBe(true);
+  setSystemTime(new Date(Date.now() + 1000));
+  try {
+    const [state] = await open("");
+    expect(state?.t).toBe("state");
+    // What the route answers, as it reaches the app (JSON).
+    const answer = JSON.parse(
+      JSON.stringify(await book.roomState("abcdef", email, { t: "main" })),
+    );
+    expect(RoomEventSchemas.state.safeParse(answer).success).toBe(true);
+    expect(answer).toEqual(state);
+    // With the resume params, the same resumed state as the socket's.
+    const at = Number(state!.at),
+      eh = String(state!.eh);
+    const [resumed] = await open(`&since=${first}&at=${at}&eh=${eh}`);
+    expect(resumed).toMatchObject({ resume: true, epicsSame: true });
+    expect(
+      JSON.parse(
+        JSON.stringify(
+          await book.roomState("abcdef", email, {
+            t: "main",
+            since: first,
+            at,
+            eh,
+          }),
+        ),
+      ),
+    ).toEqual(resumed);
+  } finally {
+    setSystemTime();
+  }
 });
