@@ -33,6 +33,7 @@
   import CallControls from "../call/CallControls.svelte";
   import CallStage from "../call/CallStage.svelte";
   import { createStageNav } from "../call/stageNav";
+  import { joinsByItself } from "../call/session";
   import CallSidebarRow from "../call/CallSidebarRow.svelte";
   import CallPanel from "../call/CallPanel.svelte";
   import { callHub } from "../call/hub";
@@ -121,6 +122,8 @@
       me = $view?.header.room.me;
     untrack(() => {
       if (!hub.isLive(call)) call.setPeers(peers, me);
+      // The room's recorder is not a person: its page joins by itself, to record (joinsByItself).
+      if (me && joinsByItself(me, peers, get(call.state))) call.join(true);
     });
   });
   const inCall = $derived($callView.phase !== "idle");

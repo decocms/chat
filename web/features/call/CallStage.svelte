@@ -8,6 +8,10 @@
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
+  import ContextMenu from "../../lib/studio/ContextMenu.svelte";
+  import ContextMenuContent from "../../lib/studio/ContextMenuContent.svelte";
+  import ContextMenuItem from "../../lib/studio/ContextMenuItem.svelte";
+  import { ContextMenu as ContextMenuPrimitive } from "bits-ui";
   import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
   import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
   import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
@@ -209,10 +213,44 @@
 <svelte:document {onfullscreenchange} />
 <!-- A person in the call: the camera, or the face on the person's color. The green ring: speaking now. A click
      puts that person on the stage (and takes them off); with a screen on the stage, it picks whose screen. -->
+<!-- A right-click on another person's tile: "Silenciar pra mim" (only this tab stops playing their voice), in the
+     stage's dark colors. -->
 {#snippet tile(
   peer: { email: string; muted?: boolean; tracks?: string[] },
   size: "grid" | "big" | "small",
+)}{#if peer.email === room.me || $view.phase !== "in"}{@render tileButton(
+      peer,
+      size,
+      {},
+    )}{:else}{@const silenced = $view.silenced.includes(peer.email)}<ContextMenu
+    >
+      <ContextMenuPrimitive.Trigger>
+        {#snippet child({ props })}{@render tileButton(
+            peer,
+            size,
+            props,
+          )}{/snippet}
+      </ContextMenuPrimitive.Trigger>
+      <ContextMenuContent
+        data-call-tile-menu
+        class="dark w-52 border-call-button bg-call-stage font-sans text-call-foreground"
+      >
+        <ContextMenuItem
+          data-call-silence
+          class="text-call-foreground focus:bg-call-button focus:text-call-foreground [&_svg:not([class*='text-'])]:text-call-muted-foreground"
+          onSelect={() => call.toggleSilence(peer.email)}
+          ><Icon icon={silenced ? "volume-max" : "volume-x"} />{silenced
+            ? t("Ouvir de novo")
+            : t("Silenciar pra mim")}</ContextMenuItem
+        >
+      </ContextMenuContent>
+    </ContextMenu>{/if}{/snippet}
+{#snippet tileButton(
+  peer: { email: string; muted?: boolean; tracks?: string[] },
+  size: "grid" | "big" | "small",
+  menu: Record<string, unknown>,
 )}{@const cam = camOf(peer.email)}<button
+    {...menu}
     type="button"
     data-call-tile
     data-speaking={speaking(peer.email) || undefined}
@@ -270,6 +308,12 @@
           class="flex shrink-0 text-destructive"
           ><Icon icon="microphone-off-01" size={12} /><span class="sr-only"
             >{t("Microfone desligado")}</span
+          ></span
+        >{/if}{#if $view.silenced.includes(peer.email)}<span
+          data-call-silenced
+          class="flex shrink-0 text-call-muted-foreground"
+          ><Icon icon="volume-x" size={12} /><span class="sr-only"
+            >{t("Silenciado pra você")}</span
           ></span
         >{/if}{#if peer.tracks?.includes("screen")}<Icon
           icon="monitor-01"

@@ -879,6 +879,9 @@ const EN: Readonly<Record<string, string>> = {
   "Mostrar o chat": "Show the chat",
   "Ocultar o chat": "Hide the chat",
   "Voltar pro chat (a call continua)": "Back to the chat (the call goes on)",
+  "Silenciar pra mim": "Mute for me",
+  "Ouvir de novo": "Hear again",
+  "Silenciado pra você": "Muted for you",
   "Sua tela, como os outros veem": "Your screen, as the others see it",
   "Não consegui usar o microfone. Libere o acesso no navegador.":
     "I could not use the microphone. Allow it in the browser.",

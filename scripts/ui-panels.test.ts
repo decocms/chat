@@ -9119,6 +9119,8 @@ const { default: CallPanel } =
   await import("../web/features/call/CallPanel.svelte");
 const { default: CallControls } =
   await import("../web/features/call/CallControls.svelte");
+const { default: CallStage } =
+  await import("../web/features/call/CallStage.svelte");
 const { createCallHub } = await import("../web/features/call/hub");
 const { incomingRing } = await import("../web/features/call/ring");
 describe("the call is the app's (web/features/call/hub.ts)", () => {
@@ -9206,6 +9208,124 @@ describe("the call is the app's (web/features/call/hub.ts)", () => {
       // In the call, the same phone opens the stage: no second join.
       target.querySelector<HTMLElement>("[data-call-start]")!.click();
       expect(stage).toBe(1);
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
+  });
+
+  test("right-click on a person's tile: Silenciar pra mim, in the stage's dark colors, marks the tile, and toggles back", async () => {
+    const view = writable({
+      phase: "in" as const,
+      muted: false,
+      sharing: false,
+      screens: {},
+      cams: {},
+      camera: false,
+      ownCam: null,
+      watching: "",
+      speaking: [] as string[],
+      own: null,
+      error: "" as const,
+      limit: false,
+      notice: "" as const,
+      silenced: [] as string[],
+    });
+    const toggled: string[] = [];
+    const call = {
+      state: { subscribe: view.subscribe },
+      toggleSilence(email: string) {
+        toggled.push(email);
+        view.update((v) => ({
+          ...v,
+          silenced: v.silenced.includes(email)
+            ? v.silenced.filter((one) => one !== email)
+            : [...v.silenced, email],
+        }));
+      },
+    } as unknown as ComponentProps<typeof CallStage>["call"];
+    const room = {
+      me: "me@x.test",
+      names: { "me@x.test": "Eu", "ana@x.test": "Ana" },
+      call: [
+        { email: "me@x.test", session: "s-me", tracks: ["mic"] },
+        inTheCall[0]!,
+      ],
+      handles: {},
+      book: { title: "Sala" },
+    } as unknown as Room;
+    let closed = 0;
+    const target = document.createElement("div");
+    document.body.append(target);
+    const instance = flushSync(() =>
+      mount(CallStage, {
+        target,
+        props: {
+          room,
+          call,
+          send: () => true,
+          open: () => {},
+          avatar: () => null,
+          fill: true,
+          staged: true,
+          chatHidden: false,
+          onchat: () => {},
+          onclose: () => closed++,
+          t: (text: string, vars?: Record<string, string | number>) =>
+            text.replace(/\{(\w+)\}/g, (_, key) => String(vars?.[key] ?? "")),
+        },
+      }),
+    );
+    const menuOf = async (label: string) => {
+      const tile = [
+        ...target.querySelectorAll<HTMLElement>("[data-call-tile]"),
+      ].find((one) => one.getAttribute("aria-label")?.includes(label))!;
+      tile.dispatchEvent(
+        new window.MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: 10,
+          clientY: 10,
+        }),
+      );
+      flushSync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      flushSync();
+      return tile;
+    };
+    try {
+      // My own tile has no menu: there is nothing to silence for me.
+      await menuOf("Eu");
+      expect(document.body.querySelector("[data-call-tile-menu]")).toBeNull();
+      const ana = await menuOf("Ana");
+      const menu = document.body.querySelector<HTMLElement>(
+        "[data-call-tile-menu]",
+      )!;
+      expect(menu).not.toBeNull();
+      // The stage's dark surface, not the app's light menu.
+      expect(menu.className).toContain("dark");
+      expect(menu.className).toContain("bg-call-stage");
+      const item = menu.querySelector<HTMLElement>("[data-call-silence]")!;
+      expect(item.textContent).toContain("Silenciar pra mim");
+      // A speaker that goes quiet, not the microphone (which would mean muting her for everyone).
+      expect(item.querySelector("use")?.getAttribute("href")).toContain(
+        "volume-x",
+      );
+      item.click();
+      flushSync();
+      expect(toggled).toEqual(["ana@x.test"]);
+      expect(ana.querySelector("[data-call-silenced]")).not.toBeNull();
+      await menuOf("Ana");
+      const again = document.body.querySelector<HTMLElement>(
+        "[data-call-silence]",
+      )!;
+      expect(again.textContent).toContain("Ouvir de novo");
+      again.click();
+      flushSync();
+      expect(ana.querySelector("[data-call-silenced]")).toBeNull();
+      // The stage's way back to the chat: the call goes on.
+      target.querySelector<HTMLElement>("[data-call-close]")!.click();
+      expect(closed).toBe(1);
     } finally {
       await unmount(instance);
       target.remove();

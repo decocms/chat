@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import { expect, mock, test } from "bun:test";
-import { planTracks, withDtx } from "../web/features/call/session";
+import { get } from "svelte/store";
+import { joinsByItself, planTracks, withDtx } from "../web/features/call/session";
 import { createStageNav } from "../web/features/call/stageNav";
 import { meetLink, meetMessage } from "../web/features/call/meet";
 import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "../src/callBudget";
@@ -429,11 +430,16 @@ test("a hang-up takes only that session out of the call; a newer session of the 
 });
 
 // ---- the tab's call session (web/features/call/session.ts) with a fake browser and a fake SFU route ----
+const pcs: { ontrack: unknown }[] = [];
+const players: { muted: boolean; srcObject: unknown }[] = [];
 function fakeBrowser() {
-  const saved = { navigator: globalThis.navigator, document: globalThis.document, RTCPeerConnection: globalThis.RTCPeerConnection, MediaStream: globalThis.MediaStream };
+  const saved = { navigator: globalThis.navigator, document: globalThis.document, RTCPeerConnection: globalThis.RTCPeerConnection, MediaStream: globalThis.MediaStream, Audio: globalThis.Audio };
   const track = { enabled: true, kind: "audio", stop() {} };
   const stream = { getTracks: () => [track], getAudioTracks: () => [track], getVideoTracks: () => [] };
   class FakePc {
+    constructor() {
+      pcs.push(this);
+    }
     closed = false;
     localDescription: { sdp: string } | null = null;
     ontrack: unknown = null;
@@ -465,6 +471,16 @@ function fakeBrowser() {
     document: { visibilityState: "visible", addEventListener() {}, removeEventListener() {} },
     RTCPeerConnection: FakePc,
     MediaStream: class {},
+    Audio: class {
+      muted = false;
+      srcObject: unknown = null;
+      constructor() {
+        players.push(this);
+      }
+      play() {
+        return Promise.resolve();
+      }
+    },
   });
   return () => Object.assign(globalThis, saved);
 }
@@ -740,4 +756,66 @@ test("the stage waits for the call's thread to be in the room, and a move before
   expect(other.see("t-9", undefined, true, has)).toEqual({ close: true });
   other.closed();
   expect(other.see("t-9", "call-1", false, has)).toBeNull();
+});
+
+test("Silenciar pra mim: only this tab stops playing that person's voice, and hears them again", async () => {
+  const restore = fakeBrowser();
+  try {
+    pcs.length = players.length = 0;
+    const sent: string[] = [];
+    let pulls = 0;
+    const api = {
+      join: async () => "s-me",
+      tracks: async (_room: string, body: { pull?: { session: string; name: string }[] }) =>
+        body.pull
+          ? { sessionDescription: { type: "offer" as const, sdp: "v=0" }, tracks: body.pull.map(() => ({ mid: String(++pulls) })) }
+          : { sessionDescription: { type: "answer" as const, sdp: "v=0" }, tracks: [] },
+      answer: async () => {},
+      close: async () => {},
+      leave: async () => {},
+    };
+    const { createCallSession } = await import("../web/features/call/session");
+    const call = createCallSession("abcdef", api as never, (c) => (sent.push(c.t), true), () => "main");
+    call.join();
+    await later();
+    call.setPeers([
+      { email: "me@x.test", session: "s-me", tracks: ["mic"] },
+      { email: "ana@x.test", session: "s-ana", tracks: ["mic"] },
+      { email: "bia@x.test", session: "s-bia", tracks: ["mic"] },
+    ], "me@x.test");
+    await later();
+    const pc = pcs.at(-1) as { ontrack: (event: unknown) => void };
+    // Ana's voice and Bia's voice come in.
+    for (const mid of ["1", "2"]) pc.ontrack({ transceiver: { mid }, track: { kind: "audio" } });
+    const [ana, bia] = players;
+    call.toggleSilence("ana@x.test");
+    expect(get(call.state).silenced).toEqual(["ana@x.test"]);
+    expect([ana?.muted, bia?.muted]).toEqual([true, false]);
+    // Nobody else is told: no command goes to the room.
+    expect(sent.filter((t) => t !== "call.mute")).toEqual([]);
+    call.toggleSilence("ana@x.test");
+    expect(get(call.state).silenced).toEqual([]);
+    expect(ana?.muted).toBe(false);
+    // Silenced, a voice that comes again (a new track) stays silent.
+    call.toggleSilence("bia@x.test");
+    call.leave();
+    expect(get(call.state).silenced).toEqual([]);
+  } finally {
+    restore();
+  }
+});
+
+test("nobody joins a call by opening its room: only the room's recorder joins by itself, to record", () => {
+  const on = [{ email: "ana@x.test", session: "s-ana", tracks: ["mic"] }];
+  const idle = { phase: "idle" as const, error: "" as const };
+  // A person (a room or a DM, any number of times): never.
+  expect(joinsByItself("bia@x.test", on, idle)).toBe(false);
+  // The recorder: while a person is in the call, and not again after a failed try.
+  const rec = recorderEmail("abcdef");
+  expect(joinsByItself(rec, on, idle)).toBe(true);
+  expect(joinsByItself(rec, [], idle)).toBe(false);
+  expect(joinsByItself(rec, [{ email: rec, session: "s-rec", tracks: [] }], idle)).toBe(false);
+  expect(joinsByItself(rec, on, { phase: "joining", error: "" })).toBe(false);
+  expect(joinsByItself(rec, on, { phase: "idle", error: "failed" })).toBe(false);
+  expect(joinsByItself(rec, on, { phase: "idle", error: "dropped" })).toBe(true);
 });
