@@ -98,7 +98,9 @@
     if (tag === "summary")
       return "cursor-pointer rounded-control font-medium focus-visible:outline-2 focus-visible:outline-ring";
     if (tag === "hr") return "my-4 border-border";
-    if (tag === "strong" || tag === "b") return "font-semibold";
+    if (tag === "strong" || tag === "b") return "font-bold";
+    // A link is blue with no underline, so an underline is the text's color.
+    if (tag === "u") return "underline decoration-1 underline-offset-2";
     if (tag === "small") return "text-xs";
     if (tag === "audio" || tag === "video") return "max-w-full";
     return "";

@@ -15,6 +15,7 @@
   } from "./speech";
   import { createDictationController } from "./dictation";
   import type { FireCaptureFactory } from "./fireAudio";
+  import { markdownPaste, markdownShortcut } from "./markdownShortcuts";
   import { insertAt, mentionKey, mentionSegments } from "./model";
   import EmojiPicker from "./EmojiPicker.svelte";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
@@ -451,6 +452,7 @@
     }
     if (speech.keydown(event)) return;
     if (onkeydown?.(event)) return;
+    if (markdownShortcut(event)) return;
     if (mentionKeydown(event)) return;
     if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
@@ -705,6 +707,9 @@
           readCaret(event.key === "ArrowLeft" || event.key === "ArrowUp");
         }}
         onkeydown={keydown}
+        onpaste={(event) => {
+          if (ok()) markdownPaste(event);
+        }}
         onblur={() => {
           if (!waiting) speech.cancel();
           onblurfield?.();
