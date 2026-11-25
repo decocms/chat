@@ -89,7 +89,10 @@
     const timer = setTimeout(() => (waited = true), RECORDER_GRACE_MS);
     return () => clearTimeout(timer);
   });
-  const unrecorded = $derived(!!room.callRecorded && !recording && waited);
+  // A person alone in a call is not recorded, and gets no warning.
+  const unrecorded = $derived(
+    !!room.callRecorded && !recording && waited && peers.length > 1,
+  );
   let pinned = $state("");
   let cameraOpen = $state(false);
   const pinnedPeer = $derived(peers.find((peer) => peer.email === pinned));

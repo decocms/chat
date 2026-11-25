@@ -1778,6 +1778,8 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - A call is of the thread that the first person had open. The recording's title has the room and the thread, and the summary goes to that thread.
   - Our own transcript: Whisper (Workers AI, in the recorder Worker) on parts of 5 minutes, with each piece given to the person whose "speaking" mark covered it the most. The marks come from the recorder's page, each 200 ms. Two people who speak at one time get one name.
   - The summary uses `MODEL_FAST`, the model that the mention e-mails use. This is a new cost for each recorded call.
+  - A person alone in a call is not recorded: the recorder comes when a second person joins. The first production recording was one person for 159 seconds.
+  - A piece of the transcript with nobody's mark near it and a high "no speech" score is dropped. In that first recording such pieces had the name "Desconhecido".
   - A recorder that leaves a call that goes on is started again, 5 times at most.
   - Quality: camera 360p at 24 frames and 500 kbps (it was 200 kbps, which gave 180p), screen 1080p and 2.5 Mbps, voice 32 kbps. Cameras are received while a screen is on show. Both cost more traffic.
   - `CALL_RECORD_ROOMS` is `*` in production (Jonas: "gravar qualquer call"). Every room's calls go to the operator's Grain.
