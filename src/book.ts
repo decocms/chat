@@ -812,6 +812,7 @@ export class Book extends DurableObject<Env> {
       this.set("call_origin", origin);
       this.set("call_rec_n", "0");
       this.callStarted(email);
+      this.set("call_people", "[]");
     } else if (!isRecorder(email) && !before.some((p) => p.email === email)) {
       // Someone besides its starter came: the call was answered.
       this.set("call_many", "1");
@@ -819,6 +820,8 @@ export class Book extends DurableObject<Env> {
     }
     const after = [...before.filter((p) => p.email !== email), { email, session, tracks: [] }];
     this.setCall(after);
+    // Everyone who was in this call, for the recording: Grain shares it with them (recorder/container/main.ts).
+    if (!isRecorder(email)) this.set("call_people", JSON.stringify([...new Set([...this.callPeople(), email])].slice(0, 200)));
     return !isRecorder(email) && after.filter((p) => !isRecorder(p.email)).length >= 2 && !after.some((p) => isRecorder(p.email)) && this.recordAllowed(after);
   }
   /** The chat of the call that is on (beside the stage); none while nobody is in a call. */
@@ -839,6 +842,11 @@ export class Book extends DurableObject<Env> {
   async callTitle(bookId: string): Promise<string> {
     this.bind(bookId);
     return (await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title || "deco.chat";
+  }
+  /** The emails of everyone who was in the call that is on (or in the last one). */
+  callPeople(): string[] {
+    const parsed = z.array(z.string()).safeParse(JSON.parse(this.get("call_people") ?? "[]"));
+    return parsed.success ? parsed.data : [];
   }
   /** The recorder says the call is in Grain: the room gets a summary, the link and the transcript as a file. */
   async callRecorded(bookId: string, call: { url: string; minutes: number; people: string[]; transcript: string; withheld: boolean; file: FileMeta | null }) {

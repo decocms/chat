@@ -9,6 +9,7 @@ import type { RoomCommand } from "../shared/commands";
 import { addMark, attribute, speakerOf, type Turn } from "../recorder/container/attribute";
 import { transcriptMarkdown, transcriptName } from "../src/callText";
 import { callColors, callGrid } from "../web/features/call/layout";
+import { shareWith } from "../recorder/container/share";
 
 const peers = [
   { email: "me@x.test", session: "s-me", tracks: ["mic", "screen"] },
@@ -596,4 +597,15 @@ test("a room's call rings nobody, and its line says the call's minutes when it e
   expect(r.lines()).toEqual([{ id: expect.any(Number), author: "ana@x.test", text: "📞 iniciou uma call." }]);
   r.book.callLeave("ana@x.test");
   expect(r.lines().map((l) => l.text)).toEqual(["📞 Call de 1 min."]);
+});
+
+test("a recording is shared with the people of the call who have a Grain account, each one time", () => {
+  const users = [
+    { id: "u1", email: "Ana@deco.cx" },
+    { id: "u2", email: "bia@deco.cx" },
+    { id: "u3", email: null },
+    { id: "u4", email: "caio@deco.cx" },
+  ];
+  expect(shareWith(users, ["ana@deco.cx", " BIA@deco.cx", "ana@deco.cx", "eve@outside.test", ""])).toEqual(["u1", "u2"]);
+  expect(shareWith(users, [])).toEqual([]);
 });

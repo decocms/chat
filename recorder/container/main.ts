@@ -8,6 +8,7 @@ import { appendFileSync, openAsBlob, readdirSync, rmSync, statSync } from "node:
 import { createServer } from "node:http";
 import { chromium, type Page } from "playwright-core";
 import { addMark, attribute, UNKNOWN, type Piece, type Turn } from "./attribute.ts";
+import { shareWith, type GrainUser } from "./share.ts";
 
 /** `recorder`: the address of the recorder's Worker, which has the speech-to-text (POST /transcribe). */
 type Job = { room: string; joinUrl: string; recorder?: string; title?: string };
@@ -188,7 +189,7 @@ async function grain(method: string, path: string, body?: unknown) {
   return (await res.json()) as Record<string, unknown>;
 }
 
-/** The mp4 goes to Grain; answers the recording's address there. */
+/** The mp4 goes to Grain; answers the recording's id and its address there. */
 async function toGrain(title: string, started: Date, names: string[], lines: Line[], language: string) {
   // With our transcript, Grain shows each person's name. Without it, Grain transcribes and names nobody.
   const key = (name: string) => `p${[...new Set([...names, UNKNOWN])].indexOf(name)}`;
@@ -209,7 +210,7 @@ async function toGrain(title: string, started: Date, names: string[], lines: Lin
     await new Promise((done) => setTimeout(done, 15_000));
     const upload = (await grain("POST", `uploads/${made.id}`, {})) as { status?: string; recording_id?: string | null };
     if (upload.status === "failure") throw new Error("grain refused the file");
-    if (upload.recording_id) return String((await grain("POST", `recordings/${upload.recording_id}`, {})).url ?? "");
+    if (upload.recording_id) return { id: upload.recording_id, url: String((await grain("POST", `recordings/${upload.recording_id}`, {})).url ?? "") };
   }
   throw new Error("grain did not finish in 20 minutes");
 }
@@ -242,11 +243,33 @@ async function transcribe(job: Job, marks: [string, number][], names: string[]):
   }
 }
 
-/** Tells the chat how the recording ended (POST /api/calls/recorded). */
-const tell = (origin: string, body: unknown) =>
+/** Tells the chat how the recording ended (POST /api/calls/recorded). Answers the emails of the people who were
+ *  in the call (none when the chat did not answer). */
+const tell = (origin: string, body: unknown): Promise<string[]> =>
   fetch(`${origin}/api/calls/recorded`, { method: "POST", headers: { authorization: `Bearer ${process.env.RECORDER_SECRET}`, "content-type": "application/json" }, body: JSON.stringify(body) })
-    .then((res) => log("the room was told:", res.status))
-    .catch((error) => log("the room was not told:", String(error)));
+    .then(async (res) => {
+      log("the room was told:", res.status);
+      const out = (await res.json().catch(() => null)) as { emails?: unknown } | null;
+      return Array.isArray(out?.emails) ? out.emails.filter((email): email is string => typeof email === "string") : [];
+    })
+    .catch((error) => {
+      log("the room was not told:", String(error));
+      return [];
+    });
+
+/** The recording goes to the people of the call who have a Grain account: they see it in their Grain. Grain keeps
+ *  it in the account of the token too. A failure here leaves the recording where it is (the room has the link). */
+async function share(recording: string, emails: string[]) {
+  if (!recording || !emails.length) return;
+  try {
+    const users = ((await grain("POST", "users", {})) as { users?: GrainUser[] }).users ?? [];
+    const ids = shareWith(users, emails);
+    for (const id of ids) await grain("PUT", `recordings/${recording}/users`, { user_id: id });
+    log("shared in Grain with", ids.length, "of", emails.length, "people");
+  } catch (error) {
+    log("not shared in Grain:", String(error));
+  }
+}
 
 async function record(job: Job) {
   const origin = new URL(job.joinUrl).origin;
@@ -323,9 +346,10 @@ async function record(job: Job) {
     const { lines, language } = await transcribe(job, marks, names);
     log("transcript lines:", lines.length);
     // The title is where the call was (the room and the thread). Grain shows the date, and that it is a call.
-    const url = await toGrain(title, started, names, lines, language);
+    const { id: recording, url } = await toGrain(title, started, names, lines, language);
     log("in Grain:", url);
-    await tell(origin, { room: job.room, url, minutes: (seconds - alone) / 60, people: names, transcript: lines.map((line) => ({ name: line.name === UNKNOWN ? "Desconhecido" : line.name, start: line.start / 1000, text: line.text.slice(0, 4000) })) });
+    const emails = await tell(origin, { room: job.room, url, minutes: (seconds - alone) / 60, people: names, transcript: lines.map((line) => ({ name: line.name === UNKNOWN ? "Desconhecido" : line.name, start: line.start / 1000, text: line.text.slice(0, 4000) })) });
+    await share(recording, emails);
   } catch (error) {
     // The room is told only when people could count on the recording: the recorder was in the call, or they are.
     log("failed:", String(error));

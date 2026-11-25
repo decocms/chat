@@ -2013,3 +2013,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A room's call does not change. A DM call where nobody answers is not recorded.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · JonasJesus42/grain-share-participants · A recording is shared with the people of the call
+
+- Agent: Claude Opus 5.5
+- Context: The recordings that the recorder sends to Grain stay in the account of the token (deco@deco.cx), with `workspace_shared` off: they are not in the teammates' meeting lists. Jonas chose to share each recording with the people who were in the call. He will look for a Grain setting that shares every recording with the workspace.
+- Decision:
+  - The chat keeps the emails of everyone who joined the call (`call_people`). `POST /api/calls/recorded` answers them.
+  - The recorder matches them with the Grain users (`POST /users`, by email) and shares the recording with each match (`PUT /recordings/:id/users`).
+  - A person without a Grain account with the same email is skipped. A failure to share leaves the recording where it was.
+- Other options: Share with the whole workspace (the Grain API has no field for `workspace_shared`). A Grain team for the recordings (the workspace has no teams).
+- Risk: low. It adds readers to a recording; it removes nothing.
+- Undo: Revert this commit and deploy the recorder again. The shares that were made stay.
+- Status: open
+
