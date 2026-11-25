@@ -249,7 +249,7 @@ test("permission closure, room switch and disposal invalidate callbacks and time
     expect(h.calls).toHaveLength(1);
   }
 });
-test("poll counts use total votes, distinct voters, top4 avatars and all positive tied winners", () => {
+test("poll counts use total votes, distinct voters, every voter per option and all positive tied winners", () => {
   const p = {
     ...poll,
     multi: true,
@@ -261,6 +261,7 @@ test("poll counts use total votes, distinct voters, top4 avatars and all positiv
   };
   const view = pollView(p, "me@test");
   expect(view.voters).toBe(3);
+  expect(view.rows.map((row) => row.voters)).toEqual(p.votes);
   expect(view.rows.map((row) => row.percent)).toEqual([50, 50]);
   expect(view.rows.every((row) => row.winner && row.mine)).toBe(true);
   expect(
