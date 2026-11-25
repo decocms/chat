@@ -30,6 +30,8 @@
     type RoomSummary,
   } from "../home/model";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
+  import TaskWorkspace from "./TaskWorkspace.svelte";
+  import type { ComposerDrafts } from "../composer/drafts";
   import type { BrowserApplicationServices } from "./browser";
   import type { ApplicationInbox, InboxBinding } from "./inbox";
   import {
@@ -51,18 +53,23 @@
    * middle, the actions at the bottom (Responder opens a reply inside the
    * card, Feito clears it; your Claude's question answers with its own
    * buttons, a task in review with "Aprovar"). A click on the card leaves
-   * the Home for the message in its room. Phones keep RoomInbox.
-   * Keys: j/k move, Enter / o open in the room, r reply, e done, x select,
-   * ? shows them.
+   * the task's workspace beside the list (TaskWorkspace: its conversation,
+   * doc, tasks and files, and the composer to dispatch from), so the Home is
+   * where you work; "Abrir na sala" in it leaves for the room. Phones keep
+   * RoomInbox.
+   * Keys: j/k move, Enter / o open the task, Esc close it, r reply, e done,
+   * x select, ? shows them.
    */
   let {
     owner,
     binding,
     services,
+    drafts,
   }: {
     owner: ApplicationInbox;
     binding: InboxBinding;
     services: BrowserApplicationServices;
+    drafts: ComposerDrafts;
   } = $props();
   const opening = untrack(() => binding),
     inbox = untrack(() => owner.state),
@@ -373,7 +380,60 @@
     cursor = null;
     replying = null;
   }
+  /** The task open beside the list: one thread of one room, and the card it came from. */
+  type Working = {
+    key: string;
+    book: string;
+    thread: string;
+    focus?: number;
+    title: string;
+    summary?: RoomSummary;
+    card: Card;
+  };
+  let working = $state.raw<Working | null>(null);
   function open(card: Card) {
+    if (!current()) return;
+    cursor = card.key;
+    working = {
+      key: card.key,
+      book: card.book,
+      thread: card.thread || "main",
+      focus: card.message?.messageId ?? card.message?.mention?.msg_id,
+      title: card.room,
+      summary: card.summary,
+      card,
+    };
+  }
+  /** What the ask box sent: its destination opens beside the list, you stay on the Home. */
+  function work(target: { roomId: string; thread?: string }) {
+    if (!current()) return;
+    const summary = summaries.get(target.roomId);
+    const thread = target.thread ?? "main";
+    const card: Card = {
+      key: `x:${target.roomId}:${thread}`,
+      kind: "room",
+      book: target.roomId,
+      room: roomName(target.roomId, summary?.title ?? ""),
+      thread,
+      where: "",
+      author: "",
+      authorName: null,
+      text: "",
+      about: "",
+      ts: 0,
+      summary,
+    };
+    working = {
+      key: card.key,
+      book: card.book,
+      thread,
+      title: card.room,
+      summary,
+      card,
+    };
+  }
+  /** "Abrir na sala": leave the Home for the item in its room. */
+  function leaveFor(card: Card) {
     if (!current()) return;
     switch (card.kind) {
       case "task":
@@ -514,6 +574,11 @@
       hints = false;
       return;
     }
+    if (event.key === "Escape" && working) {
+      event.preventDefault();
+      working = null;
+      return;
+    }
     const index = order.findIndex((card) => card.key === cursor),
       card = order[index];
     const move = (to: number) => {
@@ -555,35 +620,46 @@
   data-home-desk
   data-room-inbox
   aria-label={t("Caixa de entrada")}
-  class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background font-sans text-foreground"
+  data-working={working ? "" : undefined}
+  class="relative flex min-h-0 min-w-0 flex-1 flex-row bg-background font-sans text-foreground"
 >
-  <div class="min-h-0 flex-1 overflow-auto">
+  <div
+    class={cn(
+      "min-h-0 overflow-auto",
+      working ? "w-[440px] shrink-0 border-r border-border" : "flex-1",
+    )}
+  >
     <div
-      class="mx-auto flex w-full max-w-[720px] flex-col gap-10 px-8 pt-14 pb-24"
+      class={cn(
+        "mx-auto flex w-full flex-col",
+        working
+          ? "gap-5 px-5 pt-5 pb-16"
+          : "max-w-[720px] gap-10 px-8 pt-14 pb-24",
+      )}
     >
-      <!-- The hero: the cube, one line, the ask box. -->
+      <!-- The hero: the cube, one line, the ask box. With a task open, only the ask box stays. -->
       <header data-home-hero class="flex flex-col items-center gap-5">
-        <canvas
-          bind:this={cube}
-          width="384"
-          height="384"
-          aria-hidden="true"
-          class="size-24 shrink-0"
-        ></canvas>
-        <h1
-          data-home-hero-line
-          class="m-0 text-center text-2xl font-medium tracking-tight text-balance"
-        >
-          {greeting}{#if !waiting}
-            <span class="text-muted-foreground"
-              >{t("O que vamos fazer agora?")}</span
-            >{/if}
-        </h1>
+        {#if !working}<canvas
+            bind:this={cube}
+            width="384"
+            height="384"
+            aria-hidden="true"
+            class="size-24 shrink-0"
+          ></canvas>
+          <h1
+            data-home-hero-line
+            class="m-0 text-center text-2xl font-medium tracking-tight text-balance"
+          >
+            {greeting}{#if !waiting}
+              <span class="text-muted-foreground"
+                >{t("O que vamos fazer agora?")}</span
+              >{/if}
+          </h1>{/if}
         <div data-home-ask="inbox" class="w-full">
           <HomeAsk
             personal={services.personal}
             {lang}
-            onnavigate={(target) => services.actions.navigate(target)}
+            onnavigate={(target) => work(target)}
             onnew={(trigger) => services.navigation.openCreate(trigger)}
             onsearch={() => services.navigation.openSearch()}
           />
@@ -719,13 +795,38 @@
       </div>
     </div>
   </div>
+  {#if working}<div data-home-workspace class="min-h-0 min-w-0 flex-1">
+      {#key working.key}<TaskWorkspace
+          {services}
+          {drafts}
+          book={working.book}
+          thread={working.thread}
+          focus={working.focus}
+          title={working.title}
+          summary={working.summary}
+          onchanged={() => {
+            if (current()) owner.changed(opening);
+          }}
+          onopen={() => {
+            if (!working || !current()) return;
+            // What the ask box sent has no Inbox item: go to its room and thread.
+            if (working.key.startsWith("x:"))
+              services.actions.navigate({
+                roomId: working.book,
+                thread: working.thread,
+              });
+            else leaveFor(working.card);
+          }}
+          onclose={() => (working = null)}
+        />{/key}
+    </div>{/if}
 
   {#if hints}<p
       data-home-hints
       class="m-0 animate-in border-t border-border px-4 py-2 text-center text-xs text-muted-foreground duration-150 ease-out [--tw-enter-opacity:0] motion-reduce:animate-none"
     >
       {t(
-        "j/k mover · Enter abrir na sala · r responder · e resolver · x selecionar",
+        "j/k mover · Enter abrir a tarefa · Esc fechar · r responder · e resolver · x selecionar",
       )}
     </p>{/if}
   {#if !$inbox.undo && notice}<div
@@ -856,7 +957,8 @@
             data-kind={row.kind}
             data-fresh={fresh(row) || undefined}
             aria-current={cursor === row.key || undefined}
-            class="relative grid gap-3 rounded-xl border border-border bg-card px-5 py-4 transition-colors duration-150 hover:border-input has-[[data-inbox-open]:focus-visible]:border-ring has-[[data-inbox-open]:focus-visible]:ring-1 has-[[data-inbox-open]:focus-visible]:ring-ring"
+            data-working={working?.key === row.key || undefined}
+            class="relative grid gap-3 rounded-xl border border-border bg-card px-5 py-4 data-[working]:border-foreground transition-colors duration-150 hover:border-input has-[[data-inbox-open]:focus-visible]:border-ring has-[[data-inbox-open]:focus-visible]:ring-1 has-[[data-inbox-open]:focus-visible]:ring-ring"
             onfocusin={() => {
               if (current()) cursor = row.key;
             }}
@@ -1018,7 +1120,8 @@
           data-inbox-open
           data-kind="task"
           aria-current={cursor === row.key || undefined}
-          class="grid w-full min-w-0 cursor-pointer gap-3 rounded-xl border border-border bg-card px-5 py-4 text-left font-sans text-foreground outline-none transition-colors duration-150 hover:border-input focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+          data-working={working?.key === row.key || undefined}
+          class="grid w-full data-[working]:border-foreground min-w-0 cursor-pointer gap-3 rounded-xl border border-border bg-card px-5 py-4 text-left font-sans text-foreground outline-none transition-colors duration-150 hover:border-input focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
           onfocus={() => {
             if (current()) cursor = row.key;
           }}

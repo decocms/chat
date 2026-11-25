@@ -272,8 +272,12 @@ export function createHomeSession(
         (result) => {
           if (get(personal.draft).ask.trim() === text) personal.editAsk("");
           uploaded.clear();
+          // The Home can stay open (its task workspace shows the destination): the suggestion is done.
           state.update((v) => ({
             ...v,
+            busy: "",
+            result: null,
+            source: "",
             files: v.files.filter(
               (f) => !files.some((sent) => sent.id === f.id),
             ),

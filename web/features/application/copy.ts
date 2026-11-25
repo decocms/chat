@@ -948,6 +948,24 @@ const EN: Readonly<Record<string, string>> = {
   "Cancelar resposta": "Cancel reply",
   "Remover trecho": "Remove passage",
   "Votação: {question}": "Poll: {question}",
+  Doc: "Doc",
+  Concluir: "Complete",
+  Concluída: "Completed",
+  "Visões da tarefa": "Task views",
+  "Esta tarefa ainda não tem doc.": "This task has no doc yet.",
+  "Pedir o doc pro @vibe": "Ask @vibe for the doc",
+  "@vibe escreve o doc desta thread: objetivo, o que já foi decidido e próximos passos.":
+    "@vibe write this thread's doc: the goal, what was decided and the next steps.",
+  "Nenhum arquivo nesta tarefa.": "No files in this task.",
+  Despachar: "Dispatch",
+  "Pedir pro @vibe": "Ask @vibe",
+  Resumir: "Summarize",
+  "@vibe resume onde isto está e o que falta pra fechar.":
+    "@vibe sum up where this stands and what's left to close it.",
+  "Abrir na sala": "Open in the room",
+  "Não foi possível abrir esta conversa.": "Couldn't open this conversation.",
+  "j/k mover · Enter abrir a tarefa · Esc fechar · r responder · e resolver · x selecionar":
+    "j/k move · Enter open the task · Esc close · r reply · e resolve · x select",
   "Remover votação": "Remove poll",
   "Essa mensagem está mais acima: role o chat pra carregar.":
     "That message is further up: scroll the chat to load it.",

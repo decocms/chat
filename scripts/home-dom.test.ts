@@ -1546,8 +1546,13 @@ test("home Inbox rejects connected old-opening task controls before DOM flush", 
   const fresh = find()!;
   expect(!!fresh).toBe(true);
   expect(fresh !== old).toBe(true);
-  // A click leaves the Home and opens the task's thread in its room.
+  // A click opens the task's workspace beside the list: the Home stays; "Abrir na sala" leaves for the room.
   fresh.click();
+  await flush();
+  expect(h.href()).toBe(before);
+  const workspace = h.target.querySelector("[data-task-workspace]");
+  expect(!!workspace).toBe(true);
+  h.target.querySelector<HTMLButtonElement>("[data-task-open-room]")!.click();
   expect(h.href() !== before).toBe(true);
   expect(get(h.inbox.state).binding === null).toBe(true);
 });
@@ -1618,7 +1623,10 @@ test("home Inbox old connected question controls cannot act on a same-ID canonic
   h.target
     .querySelector<HTMLButtonElement>("[data-room-inbox-message] button")!
     .click();
-  // A click leaves the Home and opens the room on the message.
+  await flush();
+  // A click opens the message's thread beside the list; "Abrir na sala" leaves for the room on it.
+  expect(h.href()).toBe(before);
+  h.target.querySelector<HTMLButtonElement>("[data-task-open-room]")!.click();
   expect(h.href() !== before).toBe(true);
 });
 

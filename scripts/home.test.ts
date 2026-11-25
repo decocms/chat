@@ -666,6 +666,9 @@ test("routed send uses the canonical posted thread and clears only its unchanged
   await session.send();
   expect(navigated).toEqual([{ roomId: "aaaaaa", thread: "canonical-epic" }]);
   expect(get(personal.draft).ask).toBe("");
+  // The Home stays (the destination opens beside it): the sent suggestion is gone.
+  expect(get(session.state).busy).toBe("");
+  expect(get(session.state).result).toBe(null);
   session.dispose();
   personal.dispose();
 });
