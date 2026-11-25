@@ -299,14 +299,15 @@ export const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.c
 
 // Every deco.chat email: centered table layout (Gmail/Outlook ignore most CSS), the real logo as a PNG (no SVG in
 // mail clients), the app's light tokens (web/styles/tailwind.css): Inter, near-black text and buttons, link blue, a white
-// card on the muted background.
+// card on the muted background. Gmail drops the Inter link, so the fallback is the app's own (--font-sans): the system
+// font (San Francisco, Segoe UI, Roboto) before Helvetica or Arial (Gimenes #5131).
 /** `origin`: where the logo and the footer link point (publicOrigin of the Worker that sends it). */
 export const emailHtml = (title: string, body: string, origin = DEFAULT_ORIGIN) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="color-scheme" content="light"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"></head>
 <body style="margin:0;padding:0;background:#f5f4f2">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4f2"><tr><td align="center" style="padding:32px 16px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;font-family:Inter,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0a0a09;font-size:15px;line-height:1.55">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif;color:#0a0a09;font-size:15px;line-height:1.55">
 <tr><td style="padding:0 4px 20px"><a href="${origin}" style="text-decoration:none"><img src="${origin}/email-logo.png" width="128" height="26" alt="deco.chat" style="display:block;border:0;width:128px;height:26px"></a></td></tr>
 <tr><td style="background:#ffffff;border-radius:16px;padding:32px 32px 28px;border:1px solid #edecea">
-<h1 style="margin:0 0 10px;font-family:Inter,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-weight:600;font-size:24px;line-height:1.25;color:#0a0a09">${title}</h1>${body}</td></tr>
+<h1 style="margin:0 0 10px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif;font-weight:600;font-size:24px;line-height:1.25;color:#0a0a09">${title}</h1>${body}</td></tr>
 <tr><td style="padding:18px 4px 0;font-size:12px;color:#676664"><a href="${origin}" style="color:#216bf2;text-decoration:none;font-weight:600">${new URL(origin).host}</a> · pensa junto, a AI organiza</td></tr>
 </table></td></tr></table></body></html>`;
