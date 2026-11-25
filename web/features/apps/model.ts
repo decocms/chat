@@ -89,6 +89,28 @@ export function safeOpenLink(raw: string): string | null {
     return null;
   }
 }
+/** The `_meta` key on the text blocks of a `ui/message` that asks for a draft: the text goes in the composer of the
+ *  thread, not in the room. The host context has the same key (`true`) when this host can do it. */
+export const APP_COMPOSE = "vibebook/compose";
+type AppMessageBlock = {
+  type: string;
+  text?: string;
+  _meta?: Record<string, unknown>;
+};
+/** The draft text when every text block asks for a draft, else null (the message is a post). */
+export function appDraft(content: readonly AppMessageBlock[]): string | null {
+  const blocks = content.filter((block) => block.type === "text");
+  if (
+    !blocks.length ||
+    !blocks.every((block) => block._meta?.[APP_COMPOSE] === true)
+  )
+    return null;
+  return blocks
+    .map((block) => block.text ?? "")
+    .join("\n")
+    .trim()
+    .slice(0, 4000);
+}
 
 export function connectionApps(connection: Connection) {
   const seen = new Set<string>();

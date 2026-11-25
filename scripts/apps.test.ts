@@ -14,6 +14,8 @@ import {
   roomApps,
   appIdentity,
   safeOpenLink,
+  appDraft,
+  APP_COMPOSE,
 } from "../web/features/apps/model";
 import { decodeAppEnvelope } from "../web/features/apps/transport";
 import { createRoomAppTools, toolOutput } from "../web/features/apps/tools";
@@ -98,6 +100,31 @@ test("room apps select newest exact filename versions, no absent-files crash or 
   expect(safeOpenLink("https://example.test/path")).toBe(
     "https://example.test/path",
   );
+});
+test("an app message is a draft for the composer only when every text block asks for it", () => {
+  const draft = { [APP_COMPOSE]: true };
+  expect(
+    appDraft([
+      { type: "text", text: "> «a quote»", _meta: draft },
+      { type: "image" },
+      { type: "text", text: "Arquivo: post.json\n", _meta: draft },
+    ]),
+  ).toBe("> «a quote»\nArquivo: post.json");
+  expect(appDraft([{ type: "text", text: "post this" }])).toBeNull();
+  expect(
+    appDraft([
+      { type: "text", text: "draft", _meta: draft },
+      { type: "text", text: "post", _meta: {} },
+    ]),
+  ).toBeNull();
+  expect(
+    appDraft([{ type: "text", text: "x", _meta: { [APP_COMPOSE]: "yes" } }]),
+  ).toBeNull();
+  expect(appDraft([{ type: "image" }])).toBeNull();
+  expect(appDraft([{ type: "text", text: "  ", _meta: draft }])).toBe("");
+  expect(
+    appDraft([{ type: "text", text: "a".repeat(5000), _meta: draft }]),
+  ).toHaveLength(4000);
 });
 test("existing inferred HTTP routes preserve raw argument objects and validate returned runtime envelopes", async () => {
   const seen: { url: string; method: string; body: unknown }[] = [];

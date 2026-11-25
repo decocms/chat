@@ -12,6 +12,8 @@ export type AppBridgeModule = Pick<
 export type AppsProps = {
   /** Put a prompt for your Claude in the composer (the empty tab's "Ask your Claude"). */
   ask?: (prompt: string) => void;
+  /** Add an app's draft to the composer of the thread (after the text already there) and focus it. It does not send. */
+  compose?: (text: string) => void;
   owner: AppsSession;
   api: AppsApi;
   connectionModes?: Readable<ReadonlyMap<string, ConnectionMode>>;
