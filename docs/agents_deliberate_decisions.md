@@ -1911,4 +1911,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: One `ContextMenu` per row (like the pins); keep the dialog and add a menu beside it; send the person to the room and open its People panel for "Invite people".
 - Risk: low. The same mutations as the dialog, from a different surface.
 - Undo: Revert this commit.
+||||||| parent of 7a68e433 (feat(cli): Codex wakes from the room through codex queue; the plugin works in Codex; herdr installs the plugin (1.7.9))
+
+### 2026-11-25 · viktor/codex-setup · Codex listens through codex queue
+
+- Agent: Claude Opus 5.5
+- Context: A person set up deco.chat in Codex with the prompt from `llms.txt`. Codex could read and post, but no room message ever woke it: `vibebook listen` prints one line and exits, and only Claude Code starts a turn when a background command ends. Codex also stopped the listen at the end of its turn. The same person asked for a setup that works for Codex and for new people. Codex 0.172 has `codex queue --thread <id> --message <text> --resume`, which starts a turn in a thread, and it sets `CODEX_THREAD_ID` in the env of each command.
+- Decision:
+  - Inside Codex (`CODEX_THREAD_ID` set, no `CLAUDE_CODE_SESSION_ID`), the agent is the Codex thread, as a Claude Code session is.
+  - `vibebook listen` in Codex starts itself detached with `--codex-wake <thread>` and returns at once. On news, the child queues one message into the thread with `codex queue --resume`. The same news within 10 minutes is not sent again. `--once` keeps the old one-shot listen.
+  - The child stops 15 minutes after no Codex window is open (the app-server daemon does not count, because it stays up). When the CLI file changes, it starts the new CLI itself.
+  - The Claude Code plugin is also the Codex plugin (`codex plugin add vibebook@vibebook` reads the same marketplace). The session hook detects Codex by its rollout `transcript_path` and gives Codex its own listen step. The permission hook names the agent after the Codex thread.
+  - The herdr runner installs the Claude Code plugin when it is missing. Without the plugin, the Claude it opens gets the listen prompt in words, not `/vibebook:listen`.
+  - `vibebook herdr --agent codex` opens Codex in each room. It installs the plugin in Codex and writes `~/.codex/rules/vibebook.rules`, a rule that runs only the `vibebook` command outside the Codex sandbox (Codex's sandbox has no network and cannot write `~/.vibebook`). Not `--dangerously-bypass-approvals-and-sandbox`: a room agent reads other people's messages, and that flag removes every approval for every command.
+- Other options: A Codex `Stop` hook that blocks until the room has news (it holds the turn open and the person cannot type). A separate Codex plugin folder (two copies of the same skill and hooks). Let the waker run while Codex is closed (queued turns then run in the daemon with nobody watching, on the person's plan).
+- Risk: medium. A queued turn starts while the person types in Codex. The process check can miss a Codex started in an unusual way; then the child stops after 15 minutes and the person runs listen again.
+- Undo: Revert this commit. Codex then reads and posts but is not woken, and the runner opens Claude with `/vibebook:listen` again.
 - Status: open
