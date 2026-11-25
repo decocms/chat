@@ -2106,6 +2106,59 @@ describe("chat", () => {
     stale.click();
     expect(sent).toHaveLength(before);
   }, 30_000);
+  test("poll card fills each row to its share, marks mine and shows closure", async () => {
+    const q = { ...message(62, ""), poll: "p" };
+    const me = fixture().me;
+    const poll = {
+      id: "p",
+      question: "Lunch?",
+      options: ["Pizza", "Sushi", "Salad"],
+      author: me,
+      multi: false,
+      closed: false,
+      votes: [[me, "a@test", "b@test"], ["c@test"], []],
+    };
+    const room = { ...fixture(), messages: [q], polls: { p: poll } };
+    const { target, update } = renderChat(room, {
+      actions: {
+        request: async () => ({ ok: true }),
+        draftReply: () => {},
+        reply: () => {},
+        navigate: () => {},
+        openFile: () => {},
+      },
+    });
+    await expectInteractiveReady(target);
+    const card = target.querySelector<HTMLElement>('[data-poll="p"]')!;
+    expect(card.textContent).toContain("Escolha uma · 4 votos");
+    const rows = Array.from(
+      card.querySelectorAll<HTMLButtonElement>("[data-vote]"),
+    );
+    expect(rows.map((row) => row.getAttribute("aria-pressed"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
+    expect(
+      rows.map((row) =>
+        row.querySelector("[data-vote-bar]")!.getAttribute("value"),
+      ),
+    ).toEqual(["75", "25", "0"]);
+    expect(rows.map((row) => row.textContent?.trim().endsWith("%"))).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    expect(rows[0].className).toContain("bg-brand-purple/15");
+    expect(card.querySelector("[data-poll-close]")?.textContent).toBe(
+      "Encerrar votação",
+    );
+    update({ ...room, polls: { p: { ...poll, closed: true } } });
+    flushSync();
+    expect(card.querySelector("[data-poll-close]") === null).toBe(true);
+    expect(card.textContent).toContain("Votação encerrada");
+    expect(rows.every((row) => row.disabled)).toBe(true);
+  }, 30_000);
   test("same-ID permission replacement invalidates old confirmation before any request", async () => {
     const q = {
       ...message(71, "⏸ Seu Claude pede permissão: old"),
@@ -6050,6 +6103,85 @@ describe("composer ownership and interactions", () => {
     flushSync();
     await dialogClosed();
     expect(target.textContent).toContain("Votação criada");
+  }, 30_000);
+  test("poll dialog starts with 2 options, adds on Enter and removes down to 2", async () => {
+    const { target } = renderComposer(fixture(), {
+      request: async () => ({ ok: true }),
+    });
+    target.querySelector<HTMLButtonElement>("[data-composer-more]")!.click();
+    flushSync();
+    await tick();
+    Array.from(
+      target.querySelectorAll<HTMLButtonElement>('[role="menu"] button'),
+    )
+      .find((button) => button.textContent?.includes("Criar votação"))!
+      .click();
+    flushSync();
+    await tick();
+    const options = () =>
+      Array.from(
+        document.querySelectorAll<HTMLInputElement>(
+          '[role="dialog"] [data-poll-option] input',
+        ),
+      );
+    const removes = () =>
+      Array.from(
+        document.querySelectorAll<HTMLButtonElement>(
+          '[role="dialog"] [data-poll-remove]',
+        ),
+      );
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+      "Opções",
+    );
+    expect(options()).toHaveLength(2);
+    expect(removes().every((button) => button.disabled)).toBe(true);
+    for (const [index, value] of ["First", "Second"].entries()) {
+      options()[index].value = value;
+      options()[index].dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    flushSync();
+    // Enter in the last option opens a new one and moves the cursor there.
+    const enter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    options()[1].dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(true);
+    flushSync();
+    await tick();
+    expect(options()).toHaveLength(3);
+    expect(document.activeElement).toBe(options()[2]);
+    expect(removes().every((button) => !button.disabled)).toBe(true);
+    options()[2].value = "Third";
+    options()[2].dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    // The ghost button adds one too.
+    document
+      .querySelector<HTMLButtonElement>('[role="dialog"] [data-poll-add]')!
+      .click();
+    flushSync();
+    await tick();
+    expect(options().map((input) => input.value)).toEqual([
+      "First",
+      "Second",
+      "Third",
+      "",
+    ]);
+    removes()[1].click();
+    flushSync();
+    expect(options().map((input) => input.value)).toEqual([
+      "First",
+      "Third",
+      "",
+    ]);
+    removes()[2].click();
+    flushSync();
+    expect(options().map((input) => input.value)).toEqual(["First", "Third"]);
+    expect(removes().every((button) => button.disabled)).toBe(true);
+    removes()[0].click();
+    flushSync();
+    expect(options()).toHaveLength(2);
   }, 30_000);
   test("uncertain identical candidate retains draft and blocks duplicate until explicit local review", async () => {
     const room = fixture(),

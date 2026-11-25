@@ -2,9 +2,10 @@
   import {
     POLL_QUESTION_LIMIT,
     POLL_OPTION_LIMIT,
+    POLL_MIN_OPTIONS,
     POLL_MAX_OPTIONS,
   } from "../../../shared/composition";
-  import { untrack, onDestroy } from "svelte";
+  import { untrack, onDestroy, tick } from "svelte";
   import type { ComposerEntry } from "./drafts";
   import type { ChatBridge } from "../../app/chatTypes";
   import Dialog from "../../lib/studio/Dialog.svelte";
@@ -14,8 +15,10 @@
   import Spinner from "../../lib/studio/Spinner.svelte";
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
-  import Checkbox from "../../lib/studio/Checkbox.svelte";
+  import Switch from "../../lib/studio/Switch.svelte";
   import Button from "../../lib/studio/Button.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
   let {
     entry,
     vb,
@@ -58,6 +61,40 @@
       ),
     });
   }
+  const canAdd = $derived(
+    !busy && $draft.poll.options.length < POLL_MAX_OPTIONS,
+  );
+  const canRemove = $derived(
+    !busy && $draft.poll.options.length > POLL_MIN_OPTIONS,
+  );
+  /** Adds an empty option at the end and puts the cursor in it. */
+  async function add() {
+    if (!allowed() || !canAdd) return;
+    entry.editPoll({ options: [...$draft.poll.options, ""] });
+    await tick();
+    const inputs = form?.querySelectorAll<HTMLInputElement>(
+      "[data-poll-option] input",
+    );
+    inputs?.[inputs.length - 1]?.focus();
+  }
+  function remove(index: number) {
+    if (!allowed() || !canRemove) return;
+    entry.editPoll({
+      options: $draft.poll.options.filter((_, i) => i !== index),
+    });
+  }
+  /** Enter moves down the list; in the last option it opens a new one instead of submitting. */
+  function enter(index: number, event: KeyboardEvent) {
+    if (event.key !== "Enter" || event.isComposing || event.shiftKey) return;
+    const last = index === $draft.poll.options.length - 1;
+    if (last && !canAdd) return;
+    event.preventDefault();
+    if (last) void add();
+    else
+      form
+        ?.querySelectorAll<HTMLInputElement>("[data-poll-option] input")
+        [index + 1]?.focus();
+  }
 </script>
 
 <Dialog bind:open>
@@ -91,32 +128,55 @@
           }}
         /></Label
       >
-      <div class="grid gap-2">
-        {#each $draft.poll.options as value, index}<Input
-            aria-label={vb.t("Opção {n}", { n: index + 1 })}
-            maxlength={POLL_OPTION_LIMIT}
-            {value}
-            disabled={busy}
-            oninput={(event) => option(index, event.currentTarget.value)}
-          />{/each}
-      </div>
-      <Button
-        variant="link"
-        class="h-auto justify-self-start px-0 text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
-        disabled={busy || $draft.poll.options.length >= POLL_MAX_OPTIONS}
-        onclick={(event) => {
-          if (allowed(event))
-            entry.editPoll({ options: [...$draft.poll.options, ""] });
-        }}>+ {vb.t("opção")}</Button
+      <fieldset
+        class="m-0 grid min-w-0 gap-2 border-0 border-t border-solid border-border p-0 pt-4"
       >
-      <label class="flex items-center gap-2"
-        ><Checkbox
+        <legend class="float-left p-0 text-sm font-medium"
+          >{vb.t("Opções")}</legend
+        >
+        {#each $draft.poll.options as value, index}<div
+            data-poll-option
+            class="flex items-center gap-1.5"
+          >
+            <Input
+              class="flex-1"
+              aria-label={vb.t("Opção {n}", { n: index + 1 })}
+              placeholder={vb.t("Opção {n}", { n: index + 1 })}
+              maxlength={POLL_OPTION_LIMIT}
+              {value}
+              disabled={busy}
+              oninput={(event) => option(index, event.currentTarget.value)}
+              onkeydown={(event) => enter(index, event)}
+            /><IconButton
+              label={vb.t("Remover opção")}
+              data-poll-remove={index}
+              class="text-muted-foreground"
+              disabled={!canRemove}
+              onclick={(event) => {
+                if (allowed(event)) remove(index);
+              }}><Icon icon="x" size={16} /></IconButton
+            >
+          </div>{/each}
+        <Button
+          variant="ghost"
+          size="sm"
+          data-poll-add
+          class="justify-self-start text-muted-foreground"
+          disabled={!canAdd}
+          onclick={(event) => {
+            if (allowed(event)) void add();
+          }}><Icon icon="plus" size={16} />{vb.t("Adicionar opção")}</Button
+        >
+      </fieldset>
+      <label
+        class="flex cursor-pointer items-center justify-between gap-3 border-t border-solid border-border pt-4"
+        ><span>{vb.t("Permitir várias respostas")}</span><Switch
           checked={$draft.poll.multi}
           disabled={busy}
           onCheckedChange={(multi) => {
             if (allowed()) entry.editPoll({ multi });
           }}
-        /><span>{vb.t("cada pessoa pode escolher várias")}</span></label
+        /></label
       >
       {#if $draft.pollError}<p
           role="alert"
