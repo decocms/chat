@@ -8,10 +8,13 @@
   /** Rich details on a popover surface: opens on hover or keyboard focus, and a tap toggles it on touch screens (a tooltip alone never opens there). Render the element in `trigger` and spread the props it receives onto it. */
   let {
     side = "right",
+    delay = 100,
     trigger,
     children,
   }: {
     side?: "top" | "right" | "bottom" | "left";
+    /** How long the pointer rests on the trigger before it opens, in ms. */
+    delay?: number;
     trigger: Snippet<[Record<string, unknown>]>;
     children: Snippet;
   } = $props();
@@ -19,7 +22,7 @@
     touch = false;
 </script>
 
-<TooltipProvider delayDuration={100} skipDelayDuration={300}>
+<TooltipProvider delayDuration={delay} skipDelayDuration={300}>
   <TooltipPrimitive.Root bind:open disableCloseOnTriggerClick>
     <TooltipPrimitive.Trigger
       onpointerdown={(event: PointerEvent) => {
