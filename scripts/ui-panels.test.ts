@@ -2578,8 +2578,7 @@ describe("chat", () => {
       expect(el.className).toContain("invisible");
       expect(el.className.split(/\s+/)).not.toContain("hidden");
     }
-    // Every message keeps its reaction row in the flow, inside its own box (nothing floats over the next message),
-    // 24px high even with nothing in it yet.
+    // The reaction row is in the flow, inside the message's own box (nothing floats over the next message), 24px high.
     for (const id of [9, 10]) {
       const row = target.querySelector<HTMLElement>(
         `#m${id} [data-reaction-row="${id}"]`,
@@ -2590,6 +2589,15 @@ describe("chat", () => {
         target.querySelectorAll(`#m${id} [data-message-reactions]`),
       ).toHaveLength(1);
     }
+    // A message with a reaction always shows its row; one with nothing yet opens it only on hover, so adjacent
+    // messages stay together (Gui #5347).
+    const rowClasses = (id: number) =>
+      target
+        .querySelector<HTMLElement>(`#m${id} [data-reaction-row="${id}"]`)!
+        .className.split(/\s+/);
+    expect(rowClasses(9)).not.toContain("hidden");
+    expect(rowClasses(10)).toContain("hidden");
+    expect(rowClasses(10)).toContain("pointer-fine:group-hover:flex");
     expect(target.querySelector("[data-reaction-bar]")).toBeNull();
     // 🙂 opens the picker in a popover next to it; the four quick ones stay where they were.
     const before = offered(10);
