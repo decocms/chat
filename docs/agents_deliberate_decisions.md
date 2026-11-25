@@ -2134,4 +2134,48 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Show 🙂 with chips only on phones (no hover there); the long press already offers every emoji.
 - Risk: low. A mouse user reaches more emoji by hovering the message, as with a message without chips.
 - Undo: Revert this commit.
+
+### 2026-11-25 · feat/tray-app · Menu bar app release: runners, pins and tools
+
+- Agent: claude-opus-5-5
+- Context: Gimenes approved a release workflow for the menu bar app (`tray/`) on macos-14, macos-13, windows-latest and ubuntu-22.04, with a herdr SHA-256 in the workflow. GitHub retired macos-13 and macos-14 (November 2026).
+- Decision:
+  - The workflow runs on `macos-15` (arm64) and `macos-15-intel` (x64). Windows and Linux are as requested.
+  - The herdr version and the SHA-256 of each file are in `scripts/tray-bins.ts`, not in the YAML. The workflow and a local build run the same script, so there is one pin.
+  - The workflow runs the Tauri CLI with `bunx @tauri-apps/cli@2.12.6`. It is not a dev dependency, because only the release and a local bundle need it.
+  - Windows ships herdr: herdr 0.9.5 has a Windows build (`herdr-windows-x86_64.zip`). Its `conpty/` folder and its notices go into the bundle (`tray/tauri.windows.conf.json`).
+  - Release files have fixed names (`deco.chat-<os>-<arch>.<ext>`) and a `SHA256SUMS.txt`. The release notes are in Portuguese and English.
+  - The `.app` also gets the Tauri ad-hoc signature (`signingIdentity: "-"`), so the `.dmg` contains a signed app. `tray/Info.plist` sets `LSUIElement` (no Dock icon).
+- Other options: The runners in the request (they do not start). Pins in the YAML (a second copy for local builds). `@tauri-apps/cli` in `package.json` (each `bun install` gets it). Windows without herdr (herdr exists for Windows).
+- Risk: low. Nobody ran the workflow yet.
+- Undo: Change the matrix, or move the pins into the YAML.
+- Status: open
+
+### 2026-11-25 · feat/tray-app · setup.sh installs the app, and opens it instead of herdr
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked for `public/setup.sh` to install the app from the newest `tray-v*` release, with a LaunchAgent on macOS and a systemd user service on Linux. He did not say how to find the release, what to do before the first release, or what the script opens at the end.
+- Decision:
+  - The script finds the newest `tray-v*` tag with the GitHub API (no token). If there is no release, or no file for the CPU, it prints "skipped" and continues. `VIBEBOOK_NO_TRAY=1` skips the step.
+  - It is step 6/6, after the login, so the app starts signed in.
+  - On macOS, before it replaces the app, it stops the LaunchAgent and the old app, its core and its runner (`pkill -f …/Contents/MacOS/vibebook`). It does not stop herdr, because the Claudes run in it.
+  - On Linux, the service has `KillMode=process`, so a restart does not stop herdr. Without FUSE 2 it sets `APPIMAGE_EXTRACT_AND_RUN=1`. The tray test is a `org.kde.StatusNotifierWatcher` name on the user D-Bus and a display. The service without a tray runs the CLI from step 1 (`vibebook watch`).
+  - When the app (or the service) is installed, the script does not open herdr at the end. It says that the app keeps herdr running and that `herdr` shows the Claudes.
+- Other options: `releases/latest` (another release type in the repo can become "latest"). Fail when there is no release (the script breaks until the first tag). Open herdr also (its tab starts a second runner, which stops at once).
+- Risk: medium. The macOS and Linux paths were tested only in parts (see the pull request).
+- Undo: Revert the step in `public/setup.sh`.
+- Status: open
+
+### 2026-11-25 · feat/tray-app · vibebook watch: menu words and runner restart
+
+- Agent: claude-opus-5-5
+- Context: The spike's `vibebook watch` and `vibebook tray` had Portuguese menu words only, and the runner ran once. AGENTS.md rule 6 asks for Portuguese and English.
+- Decision:
+  - The menu words are in Portuguese or English, from `VIBEBOOK_LANG`, `LC_ALL`, `LC_MESSAGES`, `LANG`, then the macOS `AppleLocale`, then `Intl`. The first label in the app before the core answers is "deco.chat…" (no words to translate).
+  - With `--menu`, when the runner stops, `watch` starts it again after 15 seconds. Without this, a runner that lost the lock to the herdr tab never ran again after the tab closed.
+  - `watch` passes `--agent` to the runner, uses the PATH separator of the system, hides console windows on Windows (`windowsHide`, and `CREATE_NO_WINDOW` in `tray/src/main.rs`), and knows the Windows path of a compiled Bun program (`B:\~BUN\`).
+  - The CLI version is 1.7.10 (no tag pushed).
+- Other options: Portuguese only (against rule 6). Run the runner once, as in the spike.
+- Risk: low. A runner that always fails starts again each 15 seconds and logs each time.
+- Undo: Revert the `watch` and `tray` cases in `cli/vibebook.ts`.
 - Status: open

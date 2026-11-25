@@ -61,6 +61,7 @@ The rule: quick CI on pull requests, long CI on `main`.
   - `chunk-diagnostics` (label `run-chunk-diagnostics`): which modules go into each chunk of the browser build.
 - The "Workers Builds" checks on a pull request are not required. Do not wait for them.
 - `router-bench` (`.github/workflows/router-bench.yml`) runs only on a pull request that touches the router (AGENTS.md, rule 14), and by hand. It needs the `OPENROUTER_API_KEY` and `CLOUDFLARE_API_TOKEN` (D1 read only) repository secrets. It comments the scores on the pull request and fails when a case fails or a score goes down. It does not print the text of a D1 case, because the logs are public. If it fails, do not merge: fix the change or ask a human.
+- `release-tray` (`.github/workflows/release-tray.yml`) runs only on a tag `tray-v*` and by hand. It builds the menu bar app (see "Release the menu bar app").
 - If CI on `main` fails, `.github/workflows/main-red.yml` opens an issue with the label `main-red` and mentions the commit author. When CI on `main` passes, it closes the issue.
 
 ## Build output
@@ -187,3 +188,14 @@ The recorder (`recorder/`) is a Worker of its own, `chat-recorder`, with a conta
 3. Push the tag `cli-v<version>`.
 4. `.github/workflows/publish-cli.yml` publishes to npm (Trusted Publishing, no token).
 5. Run `npm view vibebook.dev version`. Say that the release is out only when it shows the new version.
+
+## Release the menu bar app
+
+The menu bar app (`tray/`) has its own release. A merge into `main` does not release it.
+
+1. Increase `version` in `tray/tauri.conf.json` and `tray/Cargo.toml`. Commit.
+2. Push the tag `tray-v<version>`.
+3. `.github/workflows/release-tray.yml` builds the app for macOS (arm64, x64), Windows (x64) and Linux (x64). It makes a GitHub Release with the name of the tag.
+4. Look at the release. It must have the seven files in `tray/README.md` and `SHA256SUMS.txt`. `public/setup.sh` installs the newest `tray-v*` release.
+
+To build without a release, run the workflow by hand (`workflow_dispatch`). The files are then in the artifacts of the run. The app ships the CLI of the commit that it builds, so a change to `cli/` gets to the app only with a new app release.

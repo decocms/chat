@@ -21,6 +21,7 @@
     "scripts/app-hmr-browser.ts",
     "scripts/build-service-worker.ts",
     "scripts/icon-sprite.ts",
+    "scripts/tray-bins.ts",
     "scripts/pwa.test.ts",
     "scripts/browser-build.ts",
     "scripts/browser-check.ts",
