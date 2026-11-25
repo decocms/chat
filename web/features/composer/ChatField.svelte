@@ -86,7 +86,7 @@
     enabled?: () => boolean;
     /** Runs before Enter sends; return true when it handled the key. */
     onkeydown?: (event: KeyboardEvent) => boolean;
-    /** Items of the + menu; `close` closes it, `trigger` is the + button (stays in the page,
+    /** Items of the + menu (styled like the design system's dropdown menu: same box, row radius and padding); `close` closes it, `trigger` is the + button (stays in the page,
      *  so a dialog opened from the menu can return focus to it). Without it the + is disabled. */
     menu?: Snippet<[close: () => void, trigger: HTMLElement | null]>;
     /** Shown at the right end of the field while it's empty. */
@@ -484,7 +484,7 @@
           bind:this={menuNode}
           role="menu"
           tabindex="-1"
-          class="absolute bottom-full left-0 z-20 mb-2 grid min-w-56 origin-bottom-left gap-0.5 rounded-xl bg-popover p-1 text-popover-foreground shadow-edge-raised transition-[opacity,scale] duration-150 ease-[var(--vb-ease-out-cubic)] starting:scale-95 starting:opacity-0"
+          class="absolute bottom-full left-0 z-20 mb-2 grid min-w-56 origin-bottom-left rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md transition-[opacity,scale] duration-150 ease-[var(--vb-ease-out-cubic)] starting:scale-95 starting:opacity-0 [&>[role=menuitem]]:h-auto [&>[role=menuitem]]:rounded-lg [&>[role=menuitem]]:px-2 [&>[role=menuitem]]:py-1.5 [&>[role=menuitem]]:font-normal [&>[role=menuitem]]:active:translate-y-0 [&>[role=menuitem]_small]:text-muted-foreground [&>[role=menuitem]_svg]:text-muted-foreground"
           onkeydown={menuKeydown}
         >
           {@render menu(closeMenu, more)}
