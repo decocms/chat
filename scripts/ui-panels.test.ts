@@ -3433,6 +3433,13 @@ describe("chat", () => {
       expect(input.value).toBe("hello");
       expect(document.activeElement).toBe(input);
       expect(input.selectionStart).toBe(5);
+      // Selected like on hover for as long as the box is open, mouse or not.
+      const row = target.querySelector<HTMLElement>("#m3")!;
+      expect(row.dataset.editing).toBe("true");
+      expect(row.classList).toContain("bg-accent/55");
+      expect(target.querySelector<HTMLElement>("#m1")!.classList).not.toContain(
+        "bg-accent/55",
+      );
       expect(target.querySelector("#m3 [data-message-toolbar]")).toBeNull();
       expect(target.querySelector('[data-reaction-row="3"]')).toBeNull();
       expect(target.querySelector('[data-reaction-row="1"]')).not.toBeNull();
@@ -3445,6 +3452,8 @@ describe("chat", () => {
       type(input, "changed");
       expect(key(input, "Escape").defaultPrevented).toBe(true);
       expect(box(target)).toBeNull();
+      expect(row.dataset.editing).toBeUndefined();
+      expect(row.classList).not.toContain("bg-accent/55");
       expect(target.querySelector("#m3")?.textContent).toContain("hello");
       expect(requests).toEqual([]);
     });
@@ -3495,6 +3504,9 @@ describe("chat", () => {
       expect(requests).toEqual([
         { t: "msg.edit", id: 3, text: "saved by click" } satisfies RoomCommand,
       ]);
+      expect(target.querySelector<HTMLElement>("#m3")!.classList).not.toContain(
+        "bg-accent/55",
+      );
       startEditing("r", 3);
       flushSync();
       target
