@@ -2061,4 +2061,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Let the browser copy each selection (the names, marks and reaction chips come back, Gimenes #3955). Keep the full text for each message that the selection takes in (the bug).
 - Risk: low. A partly selected Markdown message gives its shown text, not its Markdown source.
 - Undo: Revert this commit.
+
+### 2026-11-25 · viktor/stable-room-nav · A room reopens your thread; recent threads first
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked that a room you come back to opens the thread you left, and that the sidebar lists your last 3 opened threads first. He did not say what happens when you open a thread that is already among the 3, where the pinned threads go, which kinds of navigation restore the thread, or where the visits are kept.
+- Decision:
+  - When you open a thread that is already among the 3 recent ones, the list does not change order. The row under the cursor does not move. Only a thread outside the 3 goes to the top and pushes out the oldest.
+  - The pinned threads stay above the recent ones. Their order is shared by the room and set by drag.
+  - The thread is restored only when a room opens without a target (a `RoomTarget` with only `roomId`: the rail, the home, search). A link to a thread, a message, a file or a pane goes where it says. A click on the room that is already open goes to main.
+  - The visits are kept in device storage (`localStorage`, key `vb.visits.<account>`), one entry per room. They are not synced to other devices. Without storage they last until the tab closes.
+- Other options: Move a thread to the top each time it opens (the rows jump under the cursor). Put the recent threads above the pinned ones. Restore the thread on each navigation to the room, also from links. Keep the visits on the server, so they follow you to other devices (a new write on each thread change, and more data per person).
+- Risk: low. It changes only which thread opens first and the order of the open threads in the sidebar.
+- Undo: Revert the commit. The `vb.visits.*` keys stay in `localStorage`, unused.
 - Status: open
