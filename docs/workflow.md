@@ -120,6 +120,7 @@ Each change to the call (`web/features/call/`, `src/calls.ts`, `recorder/`) gets
 1. In `.dev.vars`, set `REALTIME_SFU_APP_ID` and `REALTIME_SFU_APP_SECRET` (the SFU app; the media goes through it) and `DEV_EMAIL`.
 2. Run `bun run build:ui`, then `bun run dev`.
 3. Run `bun scripts/call-browser.ts`. Two people (fake microphone, camera and screen) join a call, share a screen and leave. The screenshots go to `/tmp/vibebook-call-browser` (`TEST_OUTPUT_DIR`).
+4. Run `bun scripts/call-answer-browser.ts`. A DM's call is answered from another room, the call follows the person to another room and Home, and the stage's tiles are 16:9 with 2 and 4 people. The screenshots go to `/tmp/vibebook-call-answer`.
 
 To test the recorder too:
 

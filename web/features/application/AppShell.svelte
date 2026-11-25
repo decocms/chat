@@ -13,9 +13,9 @@
   import AppNavigation from "../app-navigation/AppNavigation.svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
   import SettingsNav from "../app-navigation/SettingsNav.svelte";
-  import UpdateRow from "../app-navigation/UpdateRow.svelte";
+  import UpdateRow from "../user-center/UpdateRow.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
-  import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
+  import UserCenter from "../user-center/UserCenter.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Dialog from "../../lib/studio/Dialog.svelte";
@@ -32,6 +32,8 @@
   import { MediaQuery } from "svelte/reactivity";
   import { MOBILE_QUERY } from "../../lib/breakpoints";
   import IncomingCall from "../call/IncomingCall.svelte";
+  import CallPanel from "../call/CallPanel.svelte";
+  import { callHub } from "../call/hub";
   let {
     services,
     roomSnippet,
@@ -44,6 +46,11 @@
   const application = untrack(() => services.state),
     personal = untrack(() => services.personal.state),
     room = untrack(() => services.rootRoom.state);
+  // The call I am in is the app's (callHub): off a room (Home, the archive, the settings), the DM list's foot shows
+  // its panel; opening it goes back to the call's room, whose view opens the stage.
+  const calls = callHub(),
+    liveCall = calls.live;
+  $effect(() => calls.setMe($personal.me?.email ?? ""));
   const inbox = untrack(() => createApplicationInbox(services)),
     inboxView = inbox.state;
   const openInbox = (trigger?: HTMLElement) =>
@@ -323,13 +330,26 @@
             controller={services.navigation}
             lang={services.language}
           />{/if}
-        <SidebarFoot
+        {#snippet liveCallPanel()}{#if $liveCall}<CallPanel
+              call={$liveCall.session}
+              title={$liveCall.title}
+              onopen={() => {
+                if (current() && $liveCall)
+                  services.actions.navigate(`/b/${$liveCall.room}`);
+              }}
+              oncamera={() => {
+                if (current() && $liveCall)
+                  services.actions.navigate(`/b/${$liveCall.room}`);
+              }}
+              t={services.t}
+            />{/if}{/snippet}
+        <UserCenter above={$liveCall ? liveCallPanel : undefined}
           >{#if $personal.updateAvailable}<UpdateRow
               lang={services.language === "en" ? "en" : "pt"}
             />{/if}<AccountRow
             me={$personal.me}
             current={settings}
-          /></SidebarFoot
+          /></UserCenter
         >
       </aside>{/if}
     <div

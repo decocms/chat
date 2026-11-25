@@ -7,7 +7,7 @@
   import { isRecorder } from "../../../shared/call";
   import type { CallSession } from "./session";
   /** The room's call in the sidebar, while a call is on and I am not in it: one row "Na call · n" with the faces
-   * and the way in. The narrow rail: one green phone with the count. In the call, the panel at the sidebar's foot
+   * and the way in. The narrow rail: one green phone with the count. In the call, the panel in the user center
    * (CallPanel) has the call. */
   let {
     call,
