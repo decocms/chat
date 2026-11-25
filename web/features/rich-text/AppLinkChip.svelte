@@ -96,6 +96,6 @@
     data-rich-link="app"
     data-app-link={state.value.kind}
     onclick={onopen}
-    class="{chip} bg-secondary text-foreground hover:bg-secondary-hover focus-visible:outline-2 focus-visible:outline-ring"
+    class="{chip} bg-brand-purple/15 text-brand-purple-text hover:bg-brand-purple/25 focus-visible:outline-2 focus-visible:outline-ring [&_.text-muted-foreground]:text-brand-purple-text/70"
     >{@render label(state.value)}</a
   >{/if}
