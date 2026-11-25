@@ -219,6 +219,7 @@ export function reduceRoom(
         call: event.call,
         callThread: event.thread,
         ring: event.ring,
+        consent: event.consent,
       };
     default:
       return s;

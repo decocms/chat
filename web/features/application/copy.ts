@@ -841,6 +841,13 @@ const EN: Readonly<Record<string, string>> = {
   "Entrar na call: {people}": "Join the call: {people}",
   "Câmera e desfoque": "Camera and blur",
   "Supressão de ruído": "Noise suppression",
+  "Gravar esta call no Grain? Só grava se as duas pessoas aceitarem.":
+    "Record this call to Grain? It records only if both of you accept.",
+  Gravar: "Record",
+  "Não gravar": "Don't record",
+  "Esta call não vai ser gravada": "This call will not be recorded",
+  "Gravação: esperando a outra pessoa aceitar":
+    "Recording: waiting for the other person to accept",
   "Tela de {name}": "{name}'s screen",
   "Ver a tela de {name}": "See {name}'s screen",
   "Tela cheia": "Full screen",

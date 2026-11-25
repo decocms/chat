@@ -2001,3 +2001,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit.
 - Status: open
 
+### 2026-11-25 · JonasJesus42/dm-record-consent · How a DM asks for the recording
+
+- Agent: Claude Opus 5.5
+- Context: Jonas: "DM tem que ter o aviso e só grava se aceitar". A room's call stays recorded always, with the notice.
+- Decision:
+  - Each new DM call asks both people on the stage ("Gravar esta call no Grain?", Gravar / Não gravar). The recorder starts only after both said yes.
+  - One "Não gravar" ends the question for that call: a later yes does not record it. The next call asks again.
+  - The answer is stored in the Book's meta for the current call only (`call_consent`), and it counts from a stage that shows before the room has the person in the call.
+- Other options: Only the person who starts the call asks, and the other sees a notice. A setting per DM that stays between calls. Never record a DM.
+- Risk: low. A room's call does not change. A DM call where nobody answers is not recorded.
+- Undo: Revert this commit.
+- Status: open
