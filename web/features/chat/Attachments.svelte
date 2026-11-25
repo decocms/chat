@@ -5,7 +5,7 @@
   import type { ChatActions, ChatBridge } from "../../app/chatTypes";
   import { kb } from "../../app/panels";
   import Icon from "../../lib/studio/Icon.svelte";
-  import Button from "../../lib/studio/Button.svelte";
+  import { paneFocus } from "../room-layout/focus";
   import IconButton from "../../lib/studio/IconButton.svelte";
   let {
     roomId,
@@ -60,24 +60,59 @@
     class="mt-2 flex flex-wrap gap-2"
   >
     {#each files as file (file.id)}
-      {#if !file.embed && file.type === "text/html" && /^apps\/[\w.-]+\.html$/.test(file.name)}<div
-          data-room-app-row
-          class="flex w-full items-center gap-2 rounded-control border border-border p-2"
+      {#if !file.embed && file.type === "text/html" && /^apps\/[\w.-]+\.html$/.test(file.name)}{@const tool =
+          file.name.slice(
+            5,
+            -5,
+          )}<!-- A room app: one flat gray card (tile, name, who made it); the body opens it beside the chat, two quiet icons open it beside or expand it. -->
+        <div
+          data-room-app-card={tool}
+          class="flex w-full max-w-md min-w-0 items-center gap-1 rounded-2xl bg-muted p-1.5 pr-2.5"
         >
-          <b class="min-w-0 flex-1 truncate">{file.name.slice(5, -5)}</b>
-          <span class="text-xs text-muted-foreground"
-            >{vb.t("app da sala")}</span
-          >
-          <Button
-            variant="ghost"
+          <button
+            type="button"
+            data-room-app-open
             disabled={!actions.openApp}
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-xl border-0 bg-transparent p-2 text-left text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-default"
             onclick={(event) => {
               if (active && event.currentTarget.isConnected)
-                actions.openApp?.({
-                  connection: "room",
-                  tool: file.name.slice(5, -5),
-                });
-            }}>{vb.t("Abrir")}</Button
+                actions.openApp?.({ connection: "room", tool });
+            }}
+            ><span
+              data-room-app-icon
+              aria-hidden="true"
+              class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary-hover text-muted-foreground"
+              ><Icon icon="grid-01" size={18} /></span
+            ><span class="min-w-0 flex-1"
+              ><span class="block truncate text-base text-foreground"
+                >{tool}</span
+              ><span
+                data-room-app-meta
+                class="block truncate text-sm text-muted-foreground"
+                >{vb.t("App · {who}", { who: vb.name(file.author) })}</span
+              ></span
+            ></button
+          ><IconButton
+            label={vb.t("Abrir ao lado")}
+            data-room-app-beside
+            size="icon"
+            disabled={!actions.openApp}
+            class="text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
+            onclick={(event) => {
+              if (active && event.currentTarget.isConnected)
+                actions.openApp?.({ connection: "room", tool });
+            }}><Icon icon="layout-right" size={18} /></IconButton
+          ><IconButton
+            label={vb.t("Expandir")}
+            data-room-app-expand
+            size="icon"
+            disabled={!actions.openApp}
+            class="text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
+            onclick={(event) => {
+              if (!active || !event.currentTarget.isConnected) return;
+              actions.openApp?.({ connection: "room", tool });
+              paneFocus.set(true);
+            }}><Icon icon="expand-01" size={18} /></IconButton
           >
         </div>
       {:else if file.embed}<Embed

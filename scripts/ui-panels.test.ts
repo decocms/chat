@@ -28,6 +28,7 @@ import type { FilesProps } from "../web/features/files/types";
 import type { PeopleAction } from "../web/features/people/model";
 import { createComposerDrafts } from "../web/features/composer/drafts";
 import { editingMessage, startEditing } from "../web/features/chat/editing";
+import { paneFocus } from "../web/features/room-layout/focus";
 
 // Compile the real components, then run their DOM events with the browser Svelte
 // runtime. Run with: bun test --conditions=browser scripts/ui-panels.test.ts
@@ -2820,11 +2821,42 @@ describe("chat", () => {
     expect(attachments.querySelector("img")?.getAttribute("src")).toContain(
       "/image",
     );
-    const appRow = attachments.querySelector("[data-room-app-row]")!;
-    expect(appRow.textContent).toContain("demo");
-    expect(appRow.querySelector("iframe,a")).toBeNull();
-    appRow.querySelector<HTMLButtonElement>("button")!.click();
+    const appCard = attachments.querySelector<HTMLElement>(
+      '[data-room-app-card="demo"]',
+    )!;
+    expect(appCard.className).toContain("max-w-md");
+    expect(appCard.className).toContain("bg-muted");
+    expect(appCard.className).not.toMatch(/\/\d|border|shadow/);
+    expect(appCard.querySelector("[data-room-app-icon] svg")).not.toBeNull();
+    expect(appCard.textContent).toContain("demo");
+    expect(
+      appCard.querySelector("[data-room-app-meta]")!.textContent!.trim(),
+    ).toBe("App · you@test");
+    expect(appCard.querySelector("iframe,a")).toBeNull();
+    expect(
+      appCard
+        .querySelector("[data-room-app-beside]")!
+        .getAttribute("aria-label"),
+    ).toBe("Abrir ao lado");
+    expect(
+      appCard
+        .querySelector("[data-room-app-expand]")!
+        .getAttribute("aria-label"),
+    ).toBe("Expandir");
+    paneFocus.set(false);
+    appCard.querySelector<HTMLButtonElement>("[data-room-app-open]")!.click();
     expect(apps).toEqual([{ connection: "room", tool: "demo" }]);
+    appCard.querySelector<HTMLButtonElement>("[data-room-app-beside]")!.click();
+    expect(apps).toHaveLength(2);
+    expect(get(paneFocus)).toBe(false);
+    appCard.querySelector<HTMLButtonElement>("[data-room-app-expand]")!.click();
+    expect(apps).toEqual([
+      { connection: "room", tool: "demo" },
+      { connection: "room", tool: "demo" },
+      { connection: "room", tool: "demo" },
+    ]);
+    expect(get(paneFocus)).toBe(true);
+    paneFocus.set(false);
     expect(attachments.querySelectorAll("iframe")).toHaveLength(1);
     const iframe = attachments.querySelector("iframe")!;
     expect(mountedEmbeds).toHaveLength(1);
