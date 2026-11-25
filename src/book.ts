@@ -1925,6 +1925,9 @@ export class Book extends DurableObject<Env> {
     // answered with reply_to in main left the epic on "Claude está escrevendo" forever.
     const answerOf = replyTo ? this.answerEpicOf(replyTo) : undefined;
     if (answerOf && (!thread || thread === "main")) thread = answerOf;
+    // A reply in main to a request that became a thread goes into that thread (Gui #4562: main is thread starts).
+    const threadOf = replyTo && !answerOf && (!thread || thread === "main") ? this.epicsFrom(replyTo, true)[0]?.id : undefined;
+    if (threadOf) thread = threadOf;
     // No thread given: a reply goes where the message it answers is (an epic's thread), anything else to main.
     if (!thread) thread = (replyTo && (this.sql.exec(`SELECT thread FROM messages WHERE id = ?`, replyTo).toArray()[0]?.thread as string)) || "main";
     if (thread !== "main" && !this.epics().some((e) => e.id === thread)) return { ok: false, error: `unknown thread ${thread}; use "main" or an epic id from read_room` };
@@ -2014,13 +2017,31 @@ export class Book extends DurableObject<Env> {
       if (thread && thread !== "main" && this.sql.exec(`UPDATE epics SET status = 'doing' WHERE id = ? AND status = 'todo' AND COALESCE(done, 0) != 1`, thread).rowsWritten)
         this.epicsChanged();
     }
+    // A request of the agent's own human in main, taken with no thread yet: the server opens its thread now
+    // (Gui #4562: main is almost only thread starts). start_thread for this message returns it, with the tasks.
+    const work = status === "doing" ? this.workThread(id as number, email) : undefined;
     this.ctx.waitUntil(this.markBusy(false));
     this.ctx.waitUntil(this.blockedWait(email, id as number, status === "blocked" ? note ?? "" : null));
     // A question that became an answer epic: say where the answer goes, so it isn't written in main (Gui #4210).
     const answer = this.answerEpicOf(id as number);
     if (answer && this.answerPending(answer))
       return { ok: true, message_id: id, answer_thread: answer, how: `This question has an answer thread (${answer}). Write the answer with update_doc epic_id=${answer}, then post 1-2 lines with thread=${answer}. Never answer it in main.` };
+    if (work) return { ok: true, message_id: id, thread: work, how: `This request now has its thread (${work}). Work there: start_thread with from_message_id=${id} returns it (pass the title and tasks), and post with thread=${work}. Never in main.` };
     return { ok: true, message_id: id };
+  }
+  /** The thread for a request in main of `email` (not a DM, not an agent's or a reminder's line) that has none yet,
+   *  made when their agent acks it (Gui #4562). Title = the request; no tasks until start_thread gives them. */
+  workThread(msgId: number, email: string) {
+    if (this.isDm) return;
+    const m = this.sql.exec<{ thread: string; author: string; kind: string | null; text: string }>(`SELECT thread, author, kind, text FROM messages WHERE id = ?`, msgId).toArray()[0];
+    if (!m || m.thread !== "main" || m.kind || m.author.toLowerCase() !== email.toLowerCase() || this.epicsFrom(msgId).length) return;
+    const line = m.text.replace(/\s+/g, " ").trim(), cut = line.length > 70 ? `${line.slice(0, 70).replace(/\s+\S*$/, "")}…` : line;
+    if (!cut) return;
+    const id = this.createEpic(cut, [], [email.toLowerCase()], line.slice(0, 300));
+    this.set(`auto:${id}`, "1");
+    this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ?, status = 'doing' WHERE id = ?`, email.toLowerCase(), msgId, id);
+    this.epicsChanged();
+    return id;
   }
   /** The "esperando você" row for a blocked agent (ref b<msg>), or its removal (text null; "" = no note). */
   async blockedWait(email: string, msgId: number, text: string | null) {
@@ -2314,7 +2335,21 @@ export class Book extends DurableObject<Env> {
       (fromMsg && this.sql.exec(`SELECT id FROM messages WHERE id = ?`, fromMsg).toArray()[0]?.id) ??
       (backlog ? undefined : this.sql.exec(`SELECT id FROM messages WHERE author = ? AND kind IS NULL ORDER BY id DESC LIMIT 1`, email).toArray()[0]?.id);
     // The server already turned this question into an answer epic (the answer_thread router action, Gui #2767): the agent takes that one.
-    const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(done, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1") : undefined;
+    const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(done, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1" || this.get(`auto:${e.id}`) === "1") : undefined;
+    if (made && this.get(`auto:${made.id}`) === "1") {
+      // The thread its ack opened (workThread): it takes the agent's title, goal and tasks, once.
+      this.set(`auto:${made.id}`, "");
+      for (const title of tasks.slice(0, 12)) {
+        const task = this.addTask(made.id, title);
+        if (task) this.sql.exec(`UPDATE tasks SET owner = ? WHERE id = ?`, email.toLowerCase(), task);
+      }
+      this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, t, made.id);
+      if (why.trim()) this.set(`doc:${made.id}`, epicDocSeed(t, why));
+      this.epicsChanged();
+      if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
+      const e = this.epics().find((x) => x.id === made.id);
+      return { ok: true, epic_id: made.id, thread: made.id, tasks: e?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [] };
+    }
     if (made) {
       if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
       if (t && t !== this.epics().find((e) => e.id === made.id)?.title) this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, t, made.id), this.epicsChanged();
