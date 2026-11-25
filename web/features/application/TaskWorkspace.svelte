@@ -155,10 +155,26 @@
     }),
     { current: () => active, changed: () => {} },
   );
+  // A file or image in the thread opens in the room's dialog, as in the room (Gimenes #5673). The Inbox is at `/`,
+  // so the dialog keeps its history entry here, in memory: closing it closes it, and the address does not change.
+  let dialogEntry: unknown = null;
+  const dialog: ReturnType<typeof createFileViewer> = createFileViewer({
+    href: () => `${window.location.origin}/b/${roomId}`,
+    state: () => dialogEntry,
+    history: {
+      pushState: (entry: unknown) => void (dialogEntry = entry),
+      replaceState: (entry: unknown) => void (dialogEntry = entry),
+      back: () => {
+        dialogEntry = null;
+        queueMicrotask(() => dialog.consumePop());
+      },
+    },
+  });
   onDestroy(() => {
     active = false;
     connection.dispose();
     side.dispose();
+    dialog.dispose();
     paneFocus.set(false);
   });
 
@@ -237,8 +253,24 @@
   }
   const fileUrl = (file: Attachment) =>
     `/api/books/${encodeURIComponent(roomId)}/files/${encodeURIComponent(file.id)}`;
-  const openFile = (file: Attachment) =>
-    window.open(fileUrl(file), "_blank", "noopener");
+  /** The dialog, or a new tab for a file the room does not know. */
+  function openFile(
+    input: string | Attachment,
+    trigger?: HTMLElement,
+    label?: string,
+  ) {
+    if (!room) return false;
+    dialog.sync(room, request);
+    const opened = dialog.open(
+      typeof input === "string"
+        ? { roomId, id: input, label }
+        : { roomId, id: input.id, metadata: input },
+      trigger,
+    );
+    if (!opened && typeof input !== "string")
+      window.open(fileUrl(input), "_blank", "noopener");
+    return opened;
+  }
   const leave = (messageId?: number, target = selected) =>
     services.actions.navigate({ roomId, thread: target, messageId });
   const actions: ChatActions = {
@@ -316,7 +348,10 @@
   );
   // The viewer follows the room and opens the shown file (a new version of it too).
   $effect(() => {
-    if (room) side.sync(room, request);
+    if (room) {
+      side.sync(room, request);
+      dialog.sync(room, request);
+    }
   });
   $effect(() => {
     const target = shown;
@@ -623,3 +658,4 @@
       </div>
     </div>{/if}
 </section>
+<FileViewer controller={dialog} {lang} actions={richActions} />
