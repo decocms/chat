@@ -20,6 +20,7 @@ import type {
   AccessResult,
   RoomOrgResult,
   OrgRoomsResult,
+  OrgDirectoryResult,
   ArchivedResult,
   ClaudeToggleResult,
   LoginsResult,
@@ -123,6 +124,12 @@ sameAs<
 >(true);
 sameAs<
   Equal<InferResponseType<typeof api.api.org.rooms.$get, 200>, OrgRoomsResult>
+>(true);
+sameAs<
+  Equal<
+    InferResponseType<typeof api.api.org.directory.$get, 200>,
+    OrgDirectoryResult
+  >
 >(true);
 
 // Account and room lists.

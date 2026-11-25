@@ -2,7 +2,7 @@
 // Then anyone signed in with that domain sees its title and people on the home ("Da sua empresa") and joins it with
 // one click, like an accepted invite. A DM never opens. Only D1 here, so the rules run in bun tests.
 import { corporateDomain, isDmId } from "../shared/dm";
-import type { OrgRoom } from "../shared/schemas";
+import type { OrgDirectoryRoom, OrgRoom } from "../shared/schemas";
 
 /** The room is open to your domain, and is not a DM: asking to join it makes you a member at once. */
 export async function openToMe(db: D1Database, roomId: string, email: string) {
@@ -61,6 +61,33 @@ export async function orgRooms(
       .all<OrgRoom>()
   ).results;
   return { domain, rooms };
+}
+
+/** Every room open to your domain, the ones you are in too (`member`), by title: the rail's "Salas da empresa".
+ *  Only covers, never content; a room open to another domain, a private room or a DM never shows. */
+export async function orgDirectory(
+  db: D1Database,
+  email: string,
+): Promise<{ domain: string | null; rooms: OrgDirectoryRoom[] }> {
+  const domain = corporateDomain(email);
+  if (!domain) return { domain, rooms: [] };
+  const rows = (
+    await db
+      .prepare(
+        `SELECT b.id, b.title, b.icon,
+                (SELECT count(*) FROM members m WHERE m.book_id = b.id) AS people,
+                EXISTS (SELECT 1 FROM members m WHERE m.book_id = b.id AND m.email = ?2) AS member
+           FROM books b
+          WHERE b.org = ?1 AND b.dm IS NULL
+          ORDER BY b.title COLLATE NOCASE LIMIT 200`,
+      )
+      .bind(domain, email)
+      .all<Omit<OrgDirectoryRoom, "member"> & { member: number }>()
+  ).results;
+  return {
+    domain,
+    rooms: rows.map((row) => ({ ...row, member: !!row.member })),
+  };
 }
 
 /** What `requestAccess` needs from the Worker, so the rule runs without its bindings. */

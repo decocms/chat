@@ -133,6 +133,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     roomOrg: async () => ({ domain: "example.com", org: null }),
     setRoomOrg: async (_room, open) => ({ org: open ? "example.com" : null }),
     orgRooms: async () => ({ domain: "example.com", rooms: [] }),
+    orgDirectory: async () => ({ domain: "example.com", rooms: [] }),
     decideRequest: async () => true,
     createRoom: async () => "room",
     startRoom: async () => ({ id: "room" }),

@@ -3,6 +3,7 @@
 import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
 import {
+  orgDirectory,
   orgRooms,
   requestAccess,
   roomOrg,
@@ -153,4 +154,64 @@ test("switching off removes the room from the list; who joined stays", async () 
     "asked",
   );
   expect(await ports("bia@deco.cx").isMember(ROOM)).toBe(true);
+});
+
+test("the directory lists only rooms open to your domain, yours marked, never others", async () => {
+  const { db, ports } = world();
+  await setRoomOrg(db, ROOM, "ana@deco.cx", true);
+  // Another company's open room, a private room and a DM with the same domain: never listed.
+  await db
+    .prepare(
+      `INSERT INTO books (id, title, updated_at, org, org_by) VALUES ('bbbbbbbbbbbb', 'Outra', 2, 'other.com', 'eva@other.com')`,
+    )
+    .bind()
+    .run();
+  await db
+    .prepare(
+      `INSERT INTO books (id, title, updated_at) VALUES ('cccccccccccc', 'Privada', 3)`,
+    )
+    .bind()
+    .run();
+  await db
+    .prepare(`UPDATE books SET org = 'deco.cx' WHERE id = ?`)
+    .bind(DM)
+    .run();
+  await db
+    .prepare(
+      `INSERT INTO books (id, title, updated_at, org, org_by) VALUES ('dddddddddddd', 'Comercial', 4, 'deco.cx', 'ana@deco.cx')`,
+    )
+    .bind()
+    .run();
+  expect(await orgDirectory(db, "bia@deco.cx")).toEqual({
+    domain: "deco.cx",
+    rooms: [
+      {
+        id: "dddddddddddd",
+        title: "Comercial",
+        icon: null,
+        people: 0,
+        member: false,
+      },
+      { id: ROOM, title: "Produto", icon: null, people: 1, member: false },
+    ],
+  });
+  // The ones you are in stay, marked.
+  await requestAccess(ports("bia@deco.cx"), ROOM, "bia@deco.cx");
+  expect(
+    (await orgDirectory(db, "bia@deco.cx")).rooms.map((r) => [
+      r.id,
+      r.member,
+      r.people,
+    ]),
+  ).toEqual([
+    ["dddddddddddd", false, 0],
+    [ROOM, true, 2],
+  ]);
+  expect(
+    (await orgDirectory(db, "eva@other.com")).rooms.map((r) => r.id),
+  ).toEqual(["bbbbbbbbbbbb"]);
+  expect(await orgDirectory(db, "caio@gmail.com")).toEqual({
+    domain: null,
+    rooms: [],
+  });
 });

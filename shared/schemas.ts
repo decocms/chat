@@ -173,6 +173,20 @@ export const OrgRoom = z.object({
   opened_by_name: z.nullable(z.string()),
 });
 export type OrgRoom = z.infer<typeof OrgRoom>;
+/** A room open to your company in the rail's "Salas da empresa": `member` = you are in it already. */
+export const OrgDirectoryRoom = z.object({
+  id: z.string(),
+  title: z.string(),
+  icon: z.nullable(z.number()),
+  people: z.number(),
+  member: z.boolean(),
+});
+export type OrgDirectoryRoom = z.infer<typeof OrgDirectoryRoom>;
+export const OrgDirectoryResult = z.object({
+  domain: z.nullable(z.string()),
+  rooms: z.array(OrgDirectoryRoom),
+});
+export type OrgDirectoryResult = z.infer<typeof OrgDirectoryResult>;
 export const OrgRoomsResult = z.object({
   domain: z.nullable(z.string()),
   rooms: z.array(OrgRoom),

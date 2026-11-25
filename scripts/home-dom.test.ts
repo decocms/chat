@@ -120,6 +120,7 @@ const { default: RoomShellHarness } =
 const { createRoomResources } =
   await import("../web/features/application/roomResources");
 import type { Room, RoomEvent } from "../shared/room";
+import type { OrgDirectoryRoom } from "../shared/schemas";
 import type { RoomScopeBrowser } from "../web/features/room-scope/types";
 import type { RoomLayoutBrowser } from "../web/features/room-layout/types";
 const cleanups: (() => void)[] = [];
@@ -855,6 +856,7 @@ const profileApi: AccountApi = {
   answerInvite: async () => ({ ok: true as const }),
   orgRooms: async () => ({ domain: null, rooms: [] }),
   joinOrg: async () => ({ ok: true as const, member: true as const }),
+  orgDirectory: async () => ({ domain: null, rooms: [] }),
 };
 test("Home renders untrusted room metadata as text and passes exact room identity", async () => {
   const { personal, rooms, pwa, profile, creator } = await setup({
@@ -2016,4 +2018,51 @@ test("a phone's list of conversations puts a new version first, as the desktop s
   personal.updateAvailable(false);
   await flush();
   expect(update()).toBeNull();
+});
+
+test("the rail's 2×2 grid opens the company's rooms: Entrar joins one, the ones you are in say so", async () => {
+  const { controller } = await pendingNavigation();
+  const joined: string[] = [];
+  let rooms: OrgDirectoryRoom[] = [
+    { id: "aaaaaa", title: "Produto", icon: null, people: 3, member: false },
+    { id: "bbbbbb", title: "Comercial", icon: null, people: 1, member: true },
+  ];
+  controller.callbacks.orgDirectory = async () => ({
+    domain: "deco.cx",
+    rooms,
+  });
+  controller.callbacks.joinOrg = async (room) => {
+    joined.push(room);
+  };
+  const button = document.querySelector<HTMLButtonElement>(
+    "[data-company-rooms-button]",
+  )!;
+  expect(button.getAttribute("aria-label")).toBe("Company rooms");
+  button.click();
+  await flush();
+  await waitForView(document, '[data-company-room="aaaaaa"]');
+  const open = document.querySelector<HTMLElement>(
+    '[data-company-room="aaaaaa"]',
+  )!;
+  expect(open.textContent).toContain("Produto");
+  expect(open.textContent).toContain("3 people");
+  const here = document.querySelector<HTMLElement>(
+    '[data-company-room="bbbbbb"]',
+  )!;
+  expect(here.textContent).toContain("You're here");
+  expect(here.querySelector("button")).toBeNull();
+  [...open.querySelectorAll("button")]
+    .find((entry) => entry.textContent?.trim() === "Join")!
+    .click();
+  await flush();
+  expect(joined).toEqual(["aaaaaa"]);
+  expect(button.getAttribute("aria-expanded")).toBe("false");
+  // Opened again with nothing open to the company: the empty state.
+  rooms = [];
+  button.click();
+  await flush();
+  await waitForView(document, "[data-company-rooms-empty]");
+  expect(
+    document.querySelector("[data-company-rooms-empty]")!.textContent?.trim(),
+  ).toBe("No rooms open to your company yet.");
 });

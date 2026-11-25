@@ -19,6 +19,7 @@
   import RoomMenu from "./RoomMenu.svelte";
   import RoomSwitcher from "./RoomSwitcher.svelte";
   import AccountRow from "./AccountRow.svelte";
+  import CompanyRooms from "./CompanyRooms.svelte";
   import {
     switcherDms,
     unreadDms,
@@ -328,6 +329,8 @@
           controller.openCreate(event.currentTarget);
       }}
     />
+    <!-- Every room open to your company email domain (2×2 grid): join one from here. -->
+    <CompanyRooms {controller} {lang} />
   </div>
   {#if $personal.me}<!-- In a room, and on the home's desktop, your account row (a link to Settings) sits at the sidebar's foot. -->{#if !inRoom}{#if !accountInSidebar}<span
           aria-hidden="true"
