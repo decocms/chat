@@ -33,7 +33,6 @@
   import OrphanDrafts from "./OrphanDrafts.svelte";
   import ChatField from "./ChatField.svelte";
   import PollCreateDialog from "./PollCreateDialog.svelte";
-  import ReviewFollowUp from "./ReviewFollowUp.svelte";
   let {
     room,
     thread,
@@ -545,7 +544,6 @@
     }}
   >
     {#snippet above()}
-      <ReviewFollowUp {room} {thread} {entry} {request} t={vb.t} />
       {#if $draft.replyId}<div
           data-composer-reply
           class="flex items-center gap-2 border-b border-border py-1 pr-1.5 pl-3.5 text-xs text-muted-foreground transition-[opacity,translate] duration-150 ease-[var(--vb-ease-out-cubic)] starting:translate-y-1 starting:opacity-0"

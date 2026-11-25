@@ -19,7 +19,6 @@ import {
   emojiPicks,
   insertAt,
   matchingMessage,
-  reviewWaiting,
 } from "../web/features/composer/model";
 import {
   createSpeechController,
@@ -955,43 +954,4 @@ test("the drafts' storage keeps the newest MAX_STORED drafts and survives a stor
   expect(() => safe.write("k", { text: "x" })).not.toThrow();
   expect(safe.read("k")).toBeUndefined();
   expect(() => safe.remove("k")).not.toThrow();
-});
-
-test("the composer's follow-up asks only about your tasks in review in this open thread", () => {
-  const task = (
-    id: string,
-    status: "review" | "doing" | "done",
-    owner: string | null,
-  ) => ({
-    id,
-    title: id,
-    done: status === "done",
-    status,
-    owner,
-    due: null,
-  });
-  const room = {
-    me: "a@test",
-    epics: [
-      {
-        id: "e1",
-        title: "E1",
-        done: false,
-        tasks: [
-          task("mine", "review", "a@test"),
-          task("theirs", "review", "b@test"),
-          task("doing", "doing", "a@test"),
-        ],
-      },
-      {
-        id: "e2",
-        title: "E2",
-        done: true,
-        tasks: [task("closed", "review", "a@test")],
-      },
-    ],
-  } as unknown as Parameters<typeof reviewWaiting>[0];
-  expect(reviewWaiting(room, "e1").map((t) => t.id)).toEqual(["mine"]);
-  expect(reviewWaiting(room, "e2")).toEqual([]);
-  expect(reviewWaiting(room, "main")).toEqual([]);
 });
