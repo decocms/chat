@@ -358,13 +358,13 @@ export const composedText = (s: {
   [...s.quotes.map((quote) => quote.text.trim()), s.text.trim()]
     .filter(Boolean)
     .join("\n\n");
-/** `#par` in the draft suggests rooms you are in (not DMs), then this room's open threads, like
+/** `#par` in the draft suggests rooms you are in (not DMs), then this room's open threads (`room › thread`), like
  *  Discord's channels. Picking writes the room's link (roomReference). */
 export function roomPicks(
   text: string,
   caret: number,
   rooms: readonly ComposerRoom[],
-  room: Pick<Room, "id" | "epics">,
+  room: Pick<Room, "id" | "book" | "epics">,
   origin: string,
 ) {
   const match = /(^|[\s(])#([\p{L}\p{N}._-]*)$/u.exec(text.slice(0, caret));
@@ -372,6 +372,7 @@ export function roomPicks(
   const query = fold(match[2]);
   const matches = (title: string) => !query || fold(title).includes(query);
   const here = rooms.find((item) => item.id === room.id);
+  const roomTitle = here?.title || room.book.title;
   const items: RoomPick[] = rooms
     .filter((item) => matches(item.title))
     .slice(0, 8)
@@ -389,6 +390,7 @@ export function roomPicks(
       kind: "thread",
       id: epic.id,
       title: epic.title,
+      room: roomTitle,
       icon: here?.icon ?? 0,
       url: `${origin}/b/${room.id}?t=${encodeURIComponent(epic.id)}`,
     });
@@ -407,6 +409,8 @@ export type RoomPick =
       kind: "thread";
       id: string;
       title: string;
+      /** The room the thread is in (this one), shown before it. */
+      room: string;
       icon: number;
       url: string;
     };

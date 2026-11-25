@@ -505,7 +505,13 @@
                   size={16}
                   class="text-muted-foreground"
                 />{/if}</span
-            ><span class="min-w-0 truncate font-medium">{item.title}</span
+            >{#if item.kind === "thread"}<span
+                class="min-w-12 shrink-[999] truncate font-medium text-muted-foreground"
+                >{item.room}</span
+              ><span class="-mx-1 shrink-0 font-medium text-muted-foreground"
+                >›</span
+              >{/if}<span class="min-w-0 truncate font-medium"
+              >{item.title}</span
             ></button
           >{/each}{:else}
         {#each mentions?.items || [] as item, index}<button

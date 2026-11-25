@@ -5944,10 +5944,10 @@ describe("composer ownership and interactions", () => {
         item.getAttribute("data-room-pick"),
       ),
     ).toEqual(["abcdef12", "zzzzzz99", "yyyyyy77", "abcdef12?t=e"]);
-    // A thread row is its icon and title, the same size as a room row (they are this room's threads).
+    // A thread row is its icon, the room (muted) and the title, the same size as a room row.
     expect(
       target.querySelector('[data-room-pick="abcdef12?t=e"]')?.textContent,
-    ).toBe("Epic");
+    ).toBe("Room›Epic");
     // Typing filters (accents folded); Esc closes.
     input = edit(target, "veja #agi");
     expect(listbox()?.textContent).toContain("Projeto Ágil");
