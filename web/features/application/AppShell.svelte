@@ -16,6 +16,7 @@
   import UpdateRow from "../user-center/UpdateRow.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import UserCenter from "../user-center/UserCenter.svelte";
+  import NotifyOffer from "../notifications/NotifyOffer.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Dialog from "../../lib/studio/Dialog.svelte";
@@ -326,10 +327,11 @@
         <UserCenter
           >{#if $personal.updateAvailable}<UpdateRow
               lang={services.language === "en" ? "en" : "pt"}
-            />{/if}<AccountRow
-            me={$personal.me}
-            current={settings}
-          /></UserCenter
+            />{/if}<NotifyOffer
+            owner={services.pwa}
+            lang={services.language}
+            row
+          /><AccountRow me={$personal.me} current={settings} /></UserCenter
         >
       </aside>{/if}
     <div

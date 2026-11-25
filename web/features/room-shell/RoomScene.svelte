@@ -480,6 +480,10 @@
           rows,
         )}{#if $personal.updateAvailable && !collapsed}<UpdateRow
               lang={services.language === "en" ? "en" : "pt"}
+            />{/if}{#if !collapsed}<NotifyOffer
+              owner={services.pwa}
+              lang={services.language}
+              row
             />{/if}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
             <div
               data-document-pane="agents"
@@ -522,7 +526,10 @@
       />{/if}{/snippet}
   {#snippet attention()}{#if $view}
       <div>
-        <NotifyOffer owner={services.pwa} lang={services.language} />
+        <!-- Desktop has it in the user center (the sidebar's foot); a phone, here until its own user center. -->
+        <div class="md:hidden">
+          <NotifyOffer owner={services.pwa} lang={services.language} />
+        </div>
         <!-- Phones: the top bar has no space for the controls of the view (docs/design.md). -->
         {#if callIdle}<div class="flex justify-end px-4 pt-2 md:hidden">
             {@render callControls()}

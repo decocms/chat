@@ -425,7 +425,7 @@
       >
     </div>
     <div class="mb-2 px-2">
-      <NotifyOffer owner={pwa} {lang} card />
+      <div class="md:hidden"><NotifyOffer owner={pwa} {lang} card /></div>
       <InstallCard owner={pwa} {lang} compact />
     </div>
     <ChatList
@@ -480,7 +480,7 @@
       ]}
     >
       <div class="w-full max-w-xl">
-        <NotifyOffer owner={pwa} {lang} card />
+        <div class="md:hidden"><NotifyOffer owner={pwa} {lang} card /></div>
         <InstallCard owner={pwa} {lang} compact />
       </div>
       <section class="mt-[10vh] flex flex-col items-center max-md:mt-4">
