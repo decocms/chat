@@ -1,3 +1,5 @@
+import type { Readable } from "svelte/store";
+import type { OrgRoom } from "../../../shared/schemas";
 import type { PwaService } from "../pwa/service";
 import type { PersonalSession } from "./personal";
 import type { RoomsSession } from "../rooms/session";
@@ -32,4 +34,8 @@ export type HomeBridge = {
   /** The phone's `+` opens a DM: resolves with its id, or nothing when it went as a message request. */
   onconnect?: (email: string, text?: string) => Promise<string | undefined>;
   ondismiss?: (email: string) => Promise<void>;
+  /** Rooms open to your company domain that you did not join: the phone's home shows them over its list. */
+  company?: Readable<readonly OrgRoom[]>;
+  /** Joins a room open to your company and opens it. */
+  oncompany?: (room: string) => Promise<void>;
 };

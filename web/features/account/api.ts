@@ -1,6 +1,8 @@
 import { client } from "../../lib/client/api";
 import {
+  AccessRequestResult,
   AvatarResult,
+  OrgRoomsResult,
   ConnectResult,
   ErrorBody,
   LoginsResult,
@@ -73,6 +75,19 @@ export function createAccountApi(fetcher?: FetchLike) {
           { init: { signal } },
         )
         .then((response) => read(response, OkResult)),
+    /** The rooms open to your company domain that you did not join (the home's "Da sua empresa"). */
+    orgRooms: (signal: AbortSignal) =>
+      api.org.rooms
+        .$get({}, { init: { signal, cache: "no-store" } })
+        .then((response) => read(response, OrgRoomsResult)),
+    /** Join a room open to your company: asking lets you in at once (src/orgRooms.ts requestAccess). */
+    joinOrg: (room: string, signal: AbortSignal) =>
+      api.books[":id"].request
+        .$post(
+          { param: { id: encodeURIComponent(room) } },
+          { init: { signal } },
+        )
+        .then((response) => read(response, AccessRequestResult)),
   };
 }
 export type AccountApi = ReturnType<typeof createAccountApi>;

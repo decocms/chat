@@ -8,6 +8,8 @@ import { orderedRooms, roomsOnly } from "../home/model";
 import { createNewRoomSession } from "../home/session";
 import { createSearchSession } from "./search";
 import { authClock, type AuthClock } from "../auth/owner";
+import { corporateDomain } from "../../../shared/dm";
+import type { OrgRoom, OrgRoomsResult } from "../../../shared/schemas";
 export type AppNavigationCallbacks = {
   navigate: (target: RoomTarget) => void;
   home: () => void;
@@ -23,6 +25,10 @@ export type AppNavigationCallbacks = {
   connect?: (email: string, text?: string) => Promise<string | undefined>;
   /** Cancels your message request to someone. */
   dismiss?: (email: string) => Promise<void>;
+  /** The rooms open to your company domain that you did not join (GET /api/org/rooms). */
+  orgRooms?: (signal: AbortSignal) => Promise<OrgRoomsResult>;
+  /** Joins a room open to your company and opens it. */
+  joinOrg?: (room: string) => Promise<void>;
 };
 /** Where a room's menu opens (the pointer, or under the row from the keyboard) and for which room. */
 export type RoomMenuAnchor = Readonly<{ id: string; x: number; y: number }>;
@@ -73,10 +79,38 @@ export function createAppNavigationSession(
     creator.close();
     close();
   });
+  // "Da sua empresa": read again each time /api/me changes (a room joined, opened or closed pokes it), never cached.
+  const company = writable<readonly OrgRoom[]>([]);
+  let companyMe: unknown = null,
+    companyLoad: AbortController | null = null;
+  const stopCompany = personal.state.subscribe((value) => {
+    const load = callbacks.orgRooms;
+    if (!load || !value.me || value.me === companyMe) return;
+    companyMe = value.me;
+    companyLoad?.abort();
+    if (!corporateDomain(value.me.email)) return company.set([]);
+    const abort = (companyLoad = new AbortController());
+    // A failed read keeps the list as it was; it never reaches the personal store's other readers.
+    Promise.resolve(abort.signal)
+      .then(load)
+      .then(
+        (result) => {
+          if (companyLoad === abort) company.set(result.rooms);
+        },
+        () => {},
+      );
+  });
+  /** Joins a room open to your company: it leaves the list at once. */
+  async function joinCompany(room: string) {
+    await callbacks.joinOrg?.(room);
+    company.update((list) => list.filter((entry) => entry.id !== room));
+  }
   return {
     personal,
     rooms,
     state,
+    company: { subscribe: company.subscribe },
+    joinCompany,
     creator,
     search,
     callbacks,
@@ -209,6 +243,8 @@ export function createAppNavigationSession(
     },
     dispose() {
       stopIdentity();
+      stopCompany();
+      companyLoad?.abort();
       trigger = null;
       active = false;
       creator.dispose();

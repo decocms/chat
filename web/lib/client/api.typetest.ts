@@ -18,6 +18,8 @@ import type {
   StartRoomResult,
   AccessRequestResult,
   AccessResult,
+  RoomOrgResult,
+  OrgRoomsResult,
   ArchivedResult,
   ClaudeToggleResult,
   LoginsResult,
@@ -106,6 +108,22 @@ sameAs<Equal<UploadOk, UploadFileResult>>(true);
 sameAs<Equal<Key, PushKeyResult>>(true);
 sameAs<Equal<Sent, PushTestResult>>(true);
 sameAs<Equal<InferResponseType<typeof archive, 200>, OkResult>>(true);
+// A room open to your company: People's switch and the home's "Da sua empresa".
+const setOrg = api.api.books[":id"].org.$post;
+void setOrg({ param: { id: "r" }, json: { open: true } });
+const notOpen = { open: "yes" };
+// @ts-expect-error open is a boolean
+void setOrg({ param: { id: "r" }, json: notOpen });
+sameAs<Equal<InferResponseType<typeof setOrg, 200>, RoomOrgResult>>(true);
+sameAs<
+  Equal<
+    InferResponseType<(typeof api.api.books)[":id"]["org"]["$get"], 200>,
+    RoomOrgResult
+  >
+>(true);
+sameAs<
+  Equal<InferResponseType<typeof api.api.org.rooms.$get, 200>, OrgRoomsResult>
+>(true);
 
 // Account and room lists.
 const friends = api.api.friends.$post;

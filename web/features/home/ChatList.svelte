@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { MeResult } from "../../../shared/schemas";
+  import type { MeResult, OrgRoom } from "../../../shared/schemas";
   import Button from "../../lib/studio/Button.svelte";
   import RoomLink from "../app-navigation/RoomLink.svelte";
   import RoomRow from "../app-navigation/RoomRow.svelte";
