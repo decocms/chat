@@ -534,6 +534,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     ensureFileIndex: () => {
       if (current()) void fileIndex.load();
     },
+    openPerson: (email) => {
+      if (current()) services.actions.openPerson?.(email);
+    },
   };
   function openApp(target: AppTarget, requireOpeningConsent = false) {
     const captured = { ...target };

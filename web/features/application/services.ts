@@ -740,6 +740,10 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       openAccount,
       logout,
       sessionLost: denySession,
+      /** An @mention clicked in a room: the DM with that person (a room member, so it opens at once). */
+      openPerson(email: string) {
+        void navigation.callbacks.connect?.(email).catch(() => {});
+      },
       selectThread(
         thread: string,
         options: { replace?: boolean; transient?: boolean } = {},
