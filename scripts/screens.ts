@@ -152,6 +152,39 @@ try {
     await desk.screenshot({ path: join(out, "hover-1440.png") });
     shots.push("hover-1440.png");
   }
+  if (flag("thread")) {
+    // A message with a thread card and a reaction (Gimenes #5477): the reaction row keeps a gap under the card, and
+    // the 🙂 button shows only on hover, also when there are chips.
+    const source = desk
+      .locator("[data-chat-message]", { hasText: "Última mensagem curta" })
+      .first();
+    await source.hover();
+    await source.locator("[data-start-thread]").first().click();
+    // A new thread opens itself (?t=); its card shows in the main thread.
+    await desk.waitForURL(/[?&]t=/);
+    await desk.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+    await desk.locator("[data-thread-card]").first().waitFor();
+    const carded = desk
+      .locator("[data-chat-message]", {
+        has: desk.locator("[data-thread-card]"),
+      })
+      .first();
+    await carded.hover();
+    await carded.locator("[data-offer-react]").first().click();
+    await carded
+      .locator('[data-message-reactions] [aria-pressed="true"]')
+      .first()
+      .waitFor();
+    await desk.mouse.move(0, 0);
+    await desk.waitForTimeout(400);
+    await desk.screenshot({ path: join(out, "thread-react-1440.png") });
+    shots.push("thread-react-1440.png");
+    await carded.hover();
+    await desk.waitForTimeout(400);
+    await desk.screenshot({ path: join(out, "thread-react-hover-1440.png") });
+    shots.push("thread-react-hover-1440.png");
+    await desk.mouse.move(0, 0);
+  }
   if (flag("react")) {
     // The first reaction offered on hover, clicked: it should turn into a chip under the message.
     await target.hover();

@@ -521,6 +521,8 @@
           data-reaction-row={m.id}
           class={[
             "-mt-1 flex min-h-6 flex-wrap items-center justify-between gap-x-3 select-none",
+            // Right under a thread card it keeps a gap instead of pulling up into it (Gimenes #5477).
+            "[[data-thread-card]+&]:mt-1.5",
             // Nothing in the row yet: it opens only on hover (or focus, or while the picker is open), so adjacent
             // messages stay together and the hover makes the room (Gui #5347). Phones react from the long press.
             bare &&

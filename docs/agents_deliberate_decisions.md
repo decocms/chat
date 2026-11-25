@@ -2126,3 +2126,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A socket without `lite` works as before, and each failure goes back to it.
 - Undo: Revert this commit. Old apps and the CLI never send `lite`.
 - Status: open
+
+### 2026-11-25 · fix/reaction-row-gap · The reaction row keeps a gap under a thread card; 🙂 only on hover
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#5477) and Valls (#5478): the reactions sat glued to a thread card, and the 🙂 (more emoji) button stayed visible whenever a message had a reaction, at the end of the hidden quick reactions.
+- Decision: Right after a thread card the row gets `mt-1.5` instead of pulling up 4px. The 🙂 button is hover-only like the quick reactions, also with chips, and is hidden on touch screens, which react from the long press.
+- Other options: Show 🙂 with chips only on phones (no hover there); the long press already offers every emoji.
+- Risk: low. A mouse user reaches more emoji by hovering the message, as with a message without chips.
+- Undo: Revert this commit.
+- Status: open
