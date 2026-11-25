@@ -124,6 +124,7 @@ function apiFixture() {
     saveToken: async () => ({ ok: true }),
     removeToken: async () => ({ ok: true }),
     removeStudio: async () => ({ ok: true }),
+    studioProjects: async () => ({ projects: [] }),
   };
   return {
     api,

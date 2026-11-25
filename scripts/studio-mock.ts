@@ -1,5 +1,6 @@
 // A mock of deco Studio for local development of Studio agents (src/studioSandbox.ts), as FREESTYLE_API is for
-// freestyle. It answers the OAuth sign-in (it consents at once), the organizations, a chat's sandbox and its messages.
+// freestyle. It answers the OAuth sign-in (it consents at once), the organizations and their projects, a chat's
+// sandbox and its messages.
 // Run it, then put STUDIO_ORIGIN=http://127.0.0.1:8798 in .dev.vars and start `bun run dev`.
 //   bun scripts/studio-mock.ts          GET /_log shows the calls it received
 const port = Number(process.env.STUDIO_MOCK_PORT ?? 8798);
@@ -51,6 +52,15 @@ Bun.serve({
       });
     const body: unknown = await request.json().catch(() => null);
     log.push({ path, body });
+    if (path.endsWith("/tools/COLLECTION_VIRTUAL_MCP_LIST"))
+      return json({
+        items: [
+          { id: "mock-project", title: "Example Store" },
+          { id: "mock-project-2", title: "Example Blog" },
+        ],
+        totalCount: 2,
+        hasMore: false,
+      });
     if (path.endsWith("/tools/COLLECTION_VIRTUAL_MCP_GET"))
       return json({ item: { id: "mock-project", title: "Example Store" } });
     if (path.endsWith("/tools/THREAD_SANDBOX_START"))

@@ -413,6 +413,9 @@ export function createSandboxSession(
         }
       }
     },
+    /** The projects of one of the person's Studio organizations, for the project picker. A read: no state here. */
+    studioProjects: (org: string, signal: AbortSignal) =>
+      api.studioProjects(org, signal),
     /** `studio` = a deco Studio agent of that organization instead of a freestyle sandbox. */
     create(name = "", studio?: { org: string; project?: string }) {
       return run("create", "", name, studio);

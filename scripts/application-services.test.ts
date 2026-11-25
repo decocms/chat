@@ -102,6 +102,7 @@ function fixture(
     saveToken: async () => ({ ok: true }),
     removeToken: async () => ({ ok: true }),
     removeStudio: async () => ({ ok: true }),
+    studioProjects: async () => ({ projects: [] }),
   };
   const visits = createRoomVisits(null);
   const services = createApplicationServices({

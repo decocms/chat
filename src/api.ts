@@ -37,6 +37,7 @@ import {
   type RefreshConnectionResult,
   type CreateSandboxResult,
   type SandboxesResult,
+  type StudioProjectsResult,
   type SandboxSetupResult,
   type SandboxTerminalResult,
   AgentLimits,
@@ -197,7 +198,11 @@ export interface ApiServices {
   /** Ask freestyle whether this API key works: null = it does, else freestyle's reason. */
   checkFreestyleKey(key: string): Promise<string | null>;
   /** The person's deco Studio connection (Studio agents, src/studioSandbox.ts). */
-  studio: { disconnect(): Promise<void> };
+  studio: {
+    disconnect(): Promise<void>;
+    /** The projects of one of the person's Studio organizations. null = Studio is not connected. Throws Studio's error. */
+    projects(org: string): Promise<StudioProjectsResult["projects"] | null>;
+  };
   /** How recent a listener's last call must be to count as listening (ms). */
   listenFresh: number;
   /** The signed-in person's own sandboxes (by id + email); room membership is checked by the route. */
@@ -758,6 +763,19 @@ export const keysApi = homeApi
   .delete("/api/studio", async (c) => {
     await c.get("svc").studio.disconnect();
     return c.json(ok, 200);
+  })
+  // The projects of one Studio organization: the picker lists them, so nobody types a project id.
+  .get("/api/studio/orgs/:org/projects", async (c) => {
+    const svc = c.get("svc"), org = c.req.param("org");
+    if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(org)) return c.json({ error: svc.en ? "Pick a Studio organization." : "Escolha uma organização do Studio." } satisfies ErrorBody, 400);
+    try {
+      const projects = await svc.studio.projects(org);
+      if (projects === null) return c.json({ error: svc.en ? "Connect your deco Studio account first." : "Conecte sua conta do deco Studio primeiro." } satisfies ErrorBody, 409);
+      svc.track("studio_projects_listed");
+      return c.json({ projects } satisfies StudioProjectsResult, 200);
+    } catch {
+      return c.json({ error: svc.en ? "Studio did not answer with the projects. Try again." : "O Studio não respondeu com os projetos. Tente de novo." } satisfies ErrorBody, 502);
+    }
   })
   // The person's Claude subscription token (from `claude setup-token` in their own terminal): sandboxes start logged in.
   .post("/api/claude-token", body(ClaudeTokenBody), async (c) => {

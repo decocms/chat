@@ -8088,6 +8088,69 @@ describe("agent settings and sandbox ownership", () => {
   }, 30_000);
 });
 
+test("cloud agents keep their panel while the account store updates (no remount, no new read)", async () => {
+  const { createAgentsApi } = await import("../web/features/agents/api");
+  const { createAgentsService } =
+    await import("../web/features/agents/service");
+  const { default: CloudSettingsHarness } =
+    await import("./cloud-settings-harness.svelte");
+  const reads: string[] = [];
+  const api = createAgentsApi(async (input) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname.endsWith("/sandboxes")) reads.push(url.pathname);
+    return Response.json(
+      url.pathname === "/api/me"
+        ? { email: "me@test" }
+        : { connected: false, claude: false, sandboxes: [] },
+    );
+  });
+  const agents = createAgentsService({ origin: "http://localhost", api });
+  const rooms = () => [
+    { id: "r1", title: "Room one" },
+    { id: "r2", title: "Room two" },
+  ];
+  const view = writable({ account: "me@test", rooms: rooms(), revision: 0 });
+  const target = document.createElement("div");
+  document.body.append(target);
+  const instance = flushSync(() =>
+    mount(CloudSettingsHarness, { target, props: { view, agents } }),
+  );
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    flushSync();
+    const panel = target.querySelector("[data-sandboxes]");
+    const field = target.querySelector<HTMLInputElement>(
+      'input[aria-label="Freestyle key"]',
+    );
+    expect(panel !== null && field !== null).toBe(true);
+    field!.value = "typed-while-it-updates";
+    field!.dispatchEvent(new Event("input", { bubbles: true }));
+    // A /api/me refresh: the same account and rooms in a new store value, and the rooms sorted again after a
+    // room was opened in another tab (the one opened last comes first).
+    for (let revision = 1; revision <= 6; revision++) {
+      view.set({
+        account: "me@test",
+        rooms: revision % 2 ? rooms().reverse() : rooms(),
+        revision,
+      });
+      flushSync();
+      await tick();
+    }
+    expect(target.querySelector("[data-sandboxes]") === panel).toBe(true);
+    expect(
+      target.querySelector<HTMLInputElement>(
+        'input[aria-label="Freestyle key"]',
+      )?.value,
+    ).toBe("typed-while-it-updates");
+    expect(reads).toEqual(["/api/books/r1/sandboxes"]);
+  } finally {
+    flushSync(() => {
+      void unmount(instance);
+    });
+    target.remove();
+  }
+});
+
 test("denied agent metadata can recover through explicit read-only retry", async () => {
   const { createAgentsApi } = await import("../web/features/agents/api"),
     { createAgentAccountSession } =

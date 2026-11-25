@@ -73,6 +73,23 @@ export async function studioOrgs(env: Env, origin: string, email: string) {
   }
 }
 
+const Projects = z.object({ items: z.array(z.object({ id: z.string(), title: z.string() })) });
+/** The active projects of one Studio organization that this person can see, by title (the project picker of
+ *  "Criar agent do Studio"). The same kind of read as the organizations, with the same grant. */
+export async function studioProjectList(env: StudioEnv, s: StudioAuth) {
+  const { items } = await tool(env, s, "COLLECTION_VIRTUAL_MCP_LIST", {
+    where: { field: ["status"], operator: "eq", value: "active" },
+    orderBy: [{ field: ["title"], direction: "asc" }],
+    limit: 500,
+  }, Projects);
+  return items.map((p) => ({ id: p.id, title: p.title.trim().slice(0, 80) || p.id }));
+}
+/** null = this person has not connected Studio (or the grant ended). */
+export async function studioProjects(env: Env, origin: string, email: string, org: string) {
+  const auth = await studioAuth(env, origin, email, org);
+  return auth ? studioProjectList(env, auth) : null;
+}
+
 const AgentItem = z.object({ item: z.nullable(z.object({ id: z.string(), title: z.string() })) });
 /** The name a Studio agent has in Studio: a project's title. null = no such agent for this person. */
 export async function studioAgentTitle(env: StudioEnv, s: StudioAuth, id: string) {

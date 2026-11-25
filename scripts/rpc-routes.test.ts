@@ -235,7 +235,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       },
       signout: async () => ({ ok: true }),
     },
-    studio: { disconnect: async () => {} },
+    studio: { disconnect: async () => {}, projects: async () => [] },
     checkFreestyleKey: async (key) =>
       key.startsWith("good") ? null : "401 unauthorized",
     grants: {
