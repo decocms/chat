@@ -9,6 +9,7 @@ import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTIO
 import { reorderEpics } from "./epic-order";
 import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema, CallPeerSchema, RingSchema, CallConsentSchema, type CallConsent, type CallPeer, type Ring } from "../shared/room";
 import { isMarkDone } from "../shared/epicStatus";
+import { STALE_THREAD_MS, threadWaitText } from "../shared/threadWait";
 import { notificationFrom, notificationTitle } from "../shared/notificationTitle";
 import type { PostMessageResponse } from "../shared/rpc";
 import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion, EpicStatus } from "../shared/room";
@@ -82,6 +83,8 @@ const RESUME_MAX_AGE_MS = 6 * 3600_000, RESUME_MAX_ROWS = 200;
 const CLASSIFY_DELAY_MS = 30_000;
 // An answer epic still empty this long after its question gets one reminder for the person who asked (Gui #4210).
 const ANSWER_NUDGE_MS = 10 * 60_000;
+// nudgeStale: how many stalled threads @vibe calls about per pass, and how long until the next pass.
+const STALE_PER_PASS = 3, STALE_PASS_GAP_MS = 3600_000;
 /** A person undoes what the router did within this time (opens again a thread it closed, deletes a reply thread it
  *  made): the router was maybe wrong, so it becomes a suggested case in D1 router_feedback. */
 const UNDO_WINDOW_MS = 30 * 60_000;
@@ -323,10 +326,63 @@ export class Book extends DurableObject<Env> {
         DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref LIKE 't%' AND ref NOT IN (SELECT value FROM json_each(?))`).bind(id, JSON.stringify(keep)),
         DB.prepare(`DELETE FROM waits WHERE book_id = ? AND thread IN (SELECT value FROM json_each(?))`).bind(id, JSON.stringify(gone)),
         ...review.map(({ t, e }) => DB.prepare(`INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, '', ?, ?)`).bind(id, `t${t.id}`, t.owner, e.id, e.title, t.title, Date.now())),
-      ]).then(() => this.pokeMembers()).catch((e) => console.error("waits sync", String(e))),
+        ...this.threadWaitStatements(id, epics),
+      ]).then(() => this.pokeMembers()).catch((e) => { this.forgetThreadWaits(); console.error("waits sync", String(e)); }),
     );
     // Something changed on the board: @vibe grades it again (debounced, on the alarm).
     this.ctx.waitUntil(this.wakeAt(Date.now() + CLASSIFY_DELAY_MS));
+  }
+  /** When each thread last moved: made, or a message there from a person or an agent (@vibe's own lines don't count). */
+  threadActivity() {
+    const last = new Map(this.sql.exec<{ id: string; ts: number | null }>(`SELECT id, ts FROM epics`).toArray().map((r) => [r.id, r.ts ?? 0]));
+    for (const r of this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, max(ts) AS ts FROM messages WHERE thread != 'main' AND author != 'ai' GROUP BY thread`).toArray())
+      last.set(r.thread, Math.max(last.get(r.thread) ?? 0, r.ts));
+    return last;
+  }
+  /** The threads that wait on their owner (Gimenes #5242, PO #5257): every open thread with an owner, except an answer. */
+  ownedThreads(epics: ReturnType<Book["epics"]>) {
+    return epics.filter((e): e is typeof e & { owner: string } => !e.done && !e.answer && !!e.owner && e.owner !== "ai");
+  }
+  /** Every open thread you own is a wait in your Inbox (ref e<epicId>, shared/threadWait.ts): status|done/total, from
+   *  "ai" once @vibe called you about it (nudgeStale). A done, deleted or answer thread, or one whose owner changed,
+   *  loses its row. Only rows that changed since the last sync are written (meta thread_waits). */
+  threadWaitStatements(bookId: string, epics: ReturnType<Book["epics"]>) {
+    const DB = this.env.DB;
+    const act = this.threadActivity();
+    const rows = this.ownedThreads(epics).map((e) => {
+      const nudged = Number(this.get(`stale_nudge:${e.id}`) ?? 0);
+      const text = threadWaitText(e.status === "done" ? "review" : e.status, e.tasks.filter((t) => t.status === "done").length, e.tasks.length);
+      return { ref: `e${e.id}`, email: e.owner, thread: e.id, topic: e.title, author: nudged ? "ai" : "", text, ts: nudged || act.get(e.id) || Date.now() };
+    });
+    let before: Record<string, string> = {};
+    try { before = JSON.parse(this.get("thread_waits") ?? "{}") as Record<string, string>; } catch {}
+    const now: Record<string, string> = {};
+    const changed = rows.filter((r) => {
+      const key = `${r.ref}|${r.email}`, sig = `${r.topic}\u0000${r.author}\u0000${r.text}`;
+      now[key] = sig;
+      return before[key] !== sig;
+    });
+    this.set("thread_waits", JSON.stringify(now));
+    return [
+      DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref LIKE 'e%' AND (ref || '|' || email) NOT IN (SELECT value FROM json_each(?))`).bind(bookId, JSON.stringify(Object.keys(now))),
+      ...changed.map((r) =>
+        DB.prepare(
+          `INSERT INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (book_id, ref, email) DO UPDATE SET thread = excluded.thread, topic = excluded.topic, author = excluded.author, text = excluded.text, ts = excluded.ts`,
+        ).bind(bookId, r.ref, r.email, r.thread, r.topic, r.author, r.text, r.ts),
+      ),
+    ];
+  }
+  /** The thread waits alone (a nudge, or new activity after one): written now, and the owners' apps refetch. */
+  async syncThreadWaits() {
+    const id = this.get("book_id");
+    if (!id) return;
+    await this.env.DB.batch(this.threadWaitStatements(id, this.epics())).catch((e) => { this.forgetThreadWaits(); throw e; });
+    this.pokeMembers();
+  }
+  /** A sync that failed: the next one writes every row again. */
+  forgetThreadWaits() {
+    this.sql.exec(`DELETE FROM meta WHERE k = 'thread_waits'`);
   }
   messageRows(rows: readonly unknown[]): Msg[] {
     let files: Map<string, FileMeta> | undefined;
@@ -745,6 +801,16 @@ export class Book extends DurableObject<Env> {
       .map((t) => ({ epic_id: "main", epic: null, task_id: t.id, title: t.title, status: t.status, due: t.due }));
     return [...fromEpics, ...fromRoom];
   }
+  /** "Marcar como feita" on an open thread in the Inbox (outside the room): a person's own action, like the thread
+   *  bar's status menu. false = no such open thread. */
+  inboxDone(bookId: string, epicId: string, email: string) {
+    this.bind(bookId);
+    const e = this.epics().find((x) => x.id === epicId);
+    if (!e || e.done) return false;
+    this.setEpicStatus(epicId, "done");
+    this.ctx.waitUntil(track(this.env, "epic_status", { user: email, dims: { book: bookId, status: "done", via: "inbox" } }));
+    return true;
+  }
   /** The members' open apps refetch what they see outside this room (rail, waits): src/person.ts. */
   // msg: only a new message or rename (touch): a tab with this room open already has it and skips the /api/me refetch.
   pokeMembers(msg = false) {
@@ -1087,6 +1153,11 @@ export class Book extends DurableObject<Env> {
       if (q && q.author === author && ASK_OPENER.test(q.text)) { this.ctx.waitUntil(this.askWait(author, replyTo, "", null)); this.unblock(author); }
     }
     if (byPerson && !extra.quiet) this.ctx.waitUntil(this.answeredHere(author, thread, id));
+    // A thread @vibe called its owner about moved again: the call is over, and the owner's wait leaves "Para você".
+    if (author !== "ai" && thread !== "main" && this.get(`stale_nudge:${thread}`)) {
+      this.sql.exec(`DELETE FROM meta WHERE k = ?`, `stale_nudge:${thread}`);
+      this.ctx.waitUntil(this.syncThreadWaits().catch((e) => console.error("thread waits", String(e))));
+    }
     // In a DM every message from a person is for the other one, @ or not (push now, catch-up mail later).
     if ((text.includes("@") || (byPerson && this.isDm)) && !extra.quiet) this.ctx.waitUntil(this.queueMentions(m));
     return m;
@@ -1796,6 +1867,37 @@ export class Book extends DurableObject<Env> {
         : "⏰ Esta pergunta ainda não tem resposta. Um Claude de quem perguntou: escreva a resposta no doc desta thread (update_doc) e poste 1-2 linhas aqui.", { tag: "reminder", forWho: e.owner! });
     }
     return next;
+  }
+  /** Open threads of an owner that stood still STALE_THREAD_MS (Gimenes #5242, PO #5257): @vibe calls the owner once,
+   *  in the thread, and their Inbox wait moves to "Para você" (author "ai"). Once per quiet period: a message there
+   *  from a person or an agent clears the mark (addMessage), so the next quiet period calls again. Answer and done
+   *  threads are skipped. At most STALE_PER_PASS a pass, so a room with many old threads is not flooded at once.
+   *  Returns when the next one is due (0 = none). */
+  async nudgeStale(now = Date.now()) {
+    const due: { id: string; owner: string; title: string }[] = [];
+    let next = 0;
+    const act = this.threadActivity();
+    for (const e of this.ownedThreads(this.epics())) {
+      if (this.get(`stale_nudge:${e.id}`)) continue;
+      const at = (act.get(e.id) ?? 0) + STALE_THREAD_MS;
+      if (at > now) { next = next ? Math.min(next, at) : at; continue; }
+      due.push({ id: e.id, owner: e.owner, title: e.title });
+    }
+    if (!due.length) return next;
+    // The alarm runs for many reasons (a message, a board change): the pass gap holds however often it fires.
+    const passed = Number(this.get("stale_pass_at") ?? 0);
+    if (now - passed < STALE_PASS_GAP_MS) return passed + STALE_PASS_GAP_MS;
+    this.set("stale_pass_at", String(now));
+    const names = await this.names(), handles = await this.handles();
+    for (const e of due.slice(0, STALE_PER_PASS)) {
+      this.set(`stale_nudge:${e.id}`, String(now));
+      const who = handles[e.owner] ?? (names[e.owner] ?? e.owner.split("@")[0]).split(/\s+/)[0];
+      this.addMessage(e.id, "ai", this.en
+        ? `@${who} this thread has been stalled for 3 days: mark it done, cancel it, or keep going?`
+        : `@${who} essa thread está parada há 3 dias: marcar como feita, cancelar ou continuar?`);
+    }
+    await this.syncThreadWaits().catch((e) => console.error("thread waits", String(e)));
+    return due.length > STALE_PER_PASS ? now + STALE_PASS_GAP_MS : next;
   }
   /** "O que precisa de mim aqui" (Gui #3011): asked by a person, answered by their own Claude (brief_reply). Never a
    *  room message: only that person's sockets and their Claudes' read_room ever see it. Last 48h, ≤20. */
@@ -3341,6 +3443,7 @@ export class Book extends DurableObject<Env> {
     await this.sendDueMail().catch((e) => console.error("mention mail", String(e)));
     await this.grade().catch((e) => console.error("grade", String(e)));
     try { const next = this.nudgeUnanswered(); if (next) await this.wakeAt(next); } catch (e) { console.error("answer nudge", String(e)); }
+    try { const next = await this.nudgeStale(); if (next) await this.wakeAt(next); } catch (e) { console.error("stale nudge", String(e)); }
     const since = Number(this.get("classified_at_id") ?? 0);
     // Only people's own messages count: @vibe and agent posts don't make a room "talked about".
     const fresh = this.sql.exec(`SELECT count(*) AS n FROM messages WHERE id > ? AND author != 'ai' AND kind IS NULL`, since).one().n as number;
