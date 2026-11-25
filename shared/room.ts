@@ -61,6 +61,12 @@ export const CallPeerSchema = z.object({
 export type CallPeer = z.infer<typeof CallPeerSchema>;
 /** A DM's call ringing the other person (`to`) until `until` (shared/call.ts RING_MS). */
 export const RingSchema = z.object({ from: str, to: str, until: num });
+/** A DM's call is recorded only when both people said yes (Book.callConsent); one no: not this call. */
+export const CallConsentSchema = z.object({
+  yes: z.array(str),
+  no: z.array(str),
+});
+export type CallConsent = z.infer<typeof CallConsentSchema>;
 export type Ring = z.infer<typeof RingSchema>;
 export const PinSchema = z.object({
   id: str,
@@ -230,6 +236,8 @@ export const RoomSnapshotSchema = z.object({
   callThread: opt(str),
   /** A DM's call that rings someone now. */
   ring: opt(RingSchema),
+  /** A DM's call: who said yes or no to the recording. */
+  consent: opt(CallConsentSchema),
   /** This room's calls are recorded (CALL_RECORD_ROOMS): a call here without the recorder shows a warning. */
   callRecorded: opt(bool),
   names: opt(z.record(str, str)),

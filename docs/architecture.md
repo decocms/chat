@@ -144,6 +144,7 @@ A send can become "not confirmed" (a timeout, a dropped socket, a server error) 
 - A person who opens a room with a call on joins that call, with the microphone off. A person who leaves the call stays out until the call ends.
 - Calls are off until `REALTIME_SFU_APP_ID` and `REALTIME_SFU_APP_SECRET` exist (Worker secrets). Then the room state has `call`, and the app shows the call.
 - A call is recorded only in the rooms of `CALL_RECORD_ROOMS`, and only while the recorder is in it (see "The recorder").
+- A DM's call is recorded only after both people accept (`Book.callConsent`, meta `call_consent`, command `call.consent`). The stage asks each person ("Gravar esta call no Grain?"). One "Não gravar" stops the recording for that call. Each new call asks again.
 
 ### What a call costs
 
@@ -164,7 +165,7 @@ The limit uses the larger of two counts. The first is the account's real traffic
 
 The recorder is a Worker of its own, `chat-recorder` (`recorder/`), with one container for each start. It is apart from the chat so that a problem in it never stops a deploy of the chat.
 
-1. The first person joins a call. The call is the room's, not a thread's. A person alone in a call is not recorded. When a second person joins, if the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
+1. The first person joins a call. The call is the room's, not a thread's. A person alone in a call is not recorded. When a second person joins (in a DM: when both people accepted), if the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
 2. The request has the recording's title: the room's name (`Book.callTitle`). The title has no date: Grain shows it. The request also has a link that the chat signed for that room, good for 5 minutes (`recorderLink`). The link gives a session for the room's recorder identity (`shared/call.ts`, `recorderEmail`). That identity is not a person. It is a member of its one room, with no row in `members` (`isMember`).
 3. In the container, a Chromium opens the link, and the room's page joins the call as it does for a person, with the microphone off (`recorder/container/main.ts`) The recorder needs the call's screen open, because it records that screen and counts the people on it. The page can close it by itself, so the recorder opens it again. If it cannot see the call for 15 seconds, or saw nobody, it tells the room that the recording failed.
 4. The recorder is in the call's list, so each person sees "Gravando". It does not show as a person, and nobody receives its tracks.

@@ -138,7 +138,7 @@ To test the recorder too:
    ```
 
 4. Run `RECORDER_SECRET=<same> CF_TOKEN=<token that can run Workers AI> bun scripts/call-recorder-local.ts`. It stands in for the recorder Worker.
-5. Run `TEST_RECORDER=1 bun scripts/call-browser.ts`. Read the container's log with `docker logs rec`: it shows who it saw, the transcript lines and each step. With a fake Grain token, the last step fails at the upload, as expected.
+5. Run `TEST_RECORDER=1 bun scripts/call-browser.ts`. For a DM, run `bun scripts/call-dm-consent-browser.ts`: the two people answer the recording question, and the screens go to `/tmp/vibebook-call-dm-consent`. Read the container's log with `docker logs rec`: it shows who it saw, the transcript lines and each step. With a fake Grain token, the last step fails at the upload, as expected.
 6. Remove the container: `docker rm -f rec`.
 
 ## Test the camera's blur

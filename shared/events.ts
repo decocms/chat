@@ -19,6 +19,7 @@ import {
   BriefSchema,
   CallPeerSchema,
   RingSchema,
+  CallConsentSchema,
   TaskSchema,
 } from "./room";
 
@@ -149,6 +150,7 @@ export const RoomEventSchemas = {
     call: z.array(CallPeerSchema),
     thread: z.optional(str),
     ring: z.optional(RingSchema),
+    consent: z.optional(CallConsentSchema),
   }),
   conns: event("conns", {}),
   error: event("error", { error: z.optional(str) }),

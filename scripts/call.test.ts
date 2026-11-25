@@ -509,6 +509,37 @@ test("a DM's call rings the other person only, and answering stops it; the line 
   expect(r.frames.filter((f) => f.t === "msgEdit").at(-1)).toMatchObject({ text: "📞 Call de 1 min." });
 });
 
+test("a DM's call is recorded only when both say yes; one no means not this call, and a new call asks again", async () => {
+  const r = dmCall();
+  r.book.callJoin(DM, "ana@x.test", "s-ana", "https://x.test");
+  // Two people in a DM: no recorder yet, the stage asks.
+  expect(r.book.callJoin(DM, "bia@x.test", "s-bia", "https://x.test")).toBe(false);
+  expect(r.book.callConsentAnswer("ana@x.test", true)).toBe(false);
+  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ consent: { yes: ["ana@x.test"], no: [] } });
+  expect(r.book.callConsentAnswer("bia@x.test", true)).toBe(true);
+  r.book.callLeave("bia@x.test");
+  r.book.callLeave("ana@x.test");
+  // No call on: an answer counts for nothing.
+  expect(r.book.callConsentAnswer("ana@x.test", true)).toBe(false);
+  expect(r.book.callConsent()).toEqual({ yes: [], no: [] });
+  // A new call: the answers of the last one are gone.
+  r.book.callJoin(DM, "ana@x.test", "s-ana2", "https://x.test");
+  expect(r.book.callConsent()).toEqual({ yes: [], no: [] });
+  r.book.callJoin(DM, "bia@x.test", "s-bia2", "https://x.test");
+  expect(r.book.callConsentAnswer("bia@x.test", false)).toBe(false);
+  // After a no, a yes changes nothing in this call.
+  expect(r.book.callConsentAnswer("ana@x.test", true)).toBe(false);
+  expect(r.book.callConsent()).toEqual({ yes: [], no: ["bia@x.test"] });
+  await settle();
+});
+
+test("a room's call does not ask: two people make it a call to record", () => {
+  const r = callRoom();
+  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  expect(r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test")).toBe(true);
+  expect(r.book.callConsentAnswer("ana@x.test", false)).toBe(false);
+});
+
 test("declining stops the ring; the caller hanging up makes it a missed call", async () => {
   const r = dmCall();
   r.book.callJoin(DM, "ana@x.test", "s-ana", "https://x.test");
