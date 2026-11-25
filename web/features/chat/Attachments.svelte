@@ -5,7 +5,7 @@
   import type { ChatActions, ChatBridge } from "../../app/chatTypes";
   import { kb } from "../../app/panels";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { paneFocus } from "../room-layout/focus";
+  import { appFocusRequest } from "../room-layout/focus";
   import IconButton from "../../lib/studio/IconButton.svelte";
   let {
     roomId,
@@ -75,8 +75,9 @@
             disabled={!actions.openApp}
             class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-xl border-0 bg-transparent p-2 text-left text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-default"
             onclick={(event) => {
-              if (active && event.currentTarget.isConnected)
-                actions.openApp?.({ connection: "room", tool });
+              if (!active || !event.currentTarget.isConnected) return;
+              appFocusRequest.set(null);
+              actions.openApp?.({ connection: "room", tool });
             }}
             ><span
               data-room-app-icon
@@ -99,8 +100,9 @@
             disabled={!actions.openApp}
             class="text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
             onclick={(event) => {
-              if (active && event.currentTarget.isConnected)
-                actions.openApp?.({ connection: "room", tool });
+              if (!active || !event.currentTarget.isConnected) return;
+              appFocusRequest.set(null);
+              actions.openApp?.({ connection: "room", tool });
             }}><Icon icon="layout-right" size={18} /></IconButton
           ><IconButton
             label={vb.t("Expandir")}
@@ -110,8 +112,8 @@
             class="text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
             onclick={(event) => {
               if (!active || !event.currentTarget.isConnected) return;
+              appFocusRequest.set(tool);
               actions.openApp?.({ connection: "room", tool });
-              paneFocus.set(true);
             }}><Icon icon="expand-01" size={18} /></IconButton
           >
         </div>

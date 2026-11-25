@@ -28,7 +28,7 @@ import type { FilesProps } from "../web/features/files/types";
 import type { PeopleAction } from "../web/features/people/model";
 import { createComposerDrafts } from "../web/features/composer/drafts";
 import { editingMessage, startEditing } from "../web/features/chat/editing";
-import { paneFocus } from "../web/features/room-layout/focus";
+import { appFocusRequest } from "../web/features/room-layout/focus";
 
 // Compile the real components, then run their DOM events with the browser Svelte
 // runtime. Run with: bun test --conditions=browser scripts/ui-panels.test.ts
@@ -2843,20 +2843,20 @@ describe("chat", () => {
         .querySelector("[data-room-app-expand]")!
         .getAttribute("aria-label"),
     ).toBe("Expandir");
-    paneFocus.set(false);
+    appFocusRequest.set(null);
     appCard.querySelector<HTMLButtonElement>("[data-room-app-open]")!.click();
     expect(apps).toEqual([{ connection: "room", tool: "demo" }]);
-    appCard.querySelector<HTMLButtonElement>("[data-room-app-beside]")!.click();
-    expect(apps).toHaveLength(2);
-    expect(get(paneFocus)).toBe(false);
+    expect(get(appFocusRequest)).toBeNull();
     appCard.querySelector<HTMLButtonElement>("[data-room-app-expand]")!.click();
+    expect(apps).toHaveLength(2);
+    expect(get(appFocusRequest)).toBe("demo");
+    appCard.querySelector<HTMLButtonElement>("[data-room-app-beside]")!.click();
     expect(apps).toEqual([
       { connection: "room", tool: "demo" },
       { connection: "room", tool: "demo" },
       { connection: "room", tool: "demo" },
     ]);
-    expect(get(paneFocus)).toBe(true);
-    paneFocus.set(false);
+    expect(get(appFocusRequest)).toBeNull();
     expect(attachments.querySelectorAll("iframe")).toHaveLength(1);
     const iframe = attachments.querySelector("iframe")!;
     expect(mountedEmbeds).toHaveLength(1);
