@@ -17,6 +17,7 @@
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import UserCenter from "../user-center/UserCenter.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
+  import Requests from "../app-navigation/Requests.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Dialog from "../../lib/studio/Dialog.svelte";
@@ -352,7 +353,17 @@
             owner={services.pwa}
             lang={services.language}
             row
-          /><AccountRow me={$personal.me} current={settings} /></UserCenter
+          />{#if $personal.me}<Requests
+              center
+              invites={$personal.me.invites ?? []}
+              requests={$personal.me.requests}
+              lang={services.language === "en" ? "en" : "pt"}
+              onjoin={services.navigation.callbacks.answerInvite}
+              onanswer={services.navigation.callbacks.answerRequest}
+            />{/if}<AccountRow
+            me={$personal.me}
+            current={settings}
+          /></UserCenter
         >
       </aside>{/if}
     <div
