@@ -10,6 +10,7 @@ import type { DeviceLock } from "../account/device";
 import { createAgentsService } from "../agents/service";
 import type { AgentsApi } from "../agents/api";
 import type { MessagesApi } from "../root-room/api";
+import type { RoomCache } from "../room-cache/store";
 import type { PwaService } from "../pwa/service";
 import { createAppNavigationSession } from "../app-navigation/controller";
 import {
@@ -53,6 +54,8 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   agentsApi?: AgentsApi;
   /** Scroll-back over HTTP; without it, "older" goes on the socket. */
   messagesApi?: MessagesApi;
+  /** Rooms saved in IndexedDB (cache plan PR 3); without it, rooms live in memory only. */
+  roomCache?: RoomCache;
   runnerFetch?: FetchLike;
   device?: Pick<DeviceLock, "cancel" | "dispose" | "visibility">;
   roomConnection?: Parameters<typeof createRootRoomSession>[0]["connection"];
@@ -133,6 +136,18 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     runnerFetch: options.runnerFetch,
     onUnauthorized: denySession,
   });
+  // Saved rooms that are not yours any more (you left, were removed, or another account) go when /api/me says so.
+  let keptRooms = "";
+  const stopRoomPrune = options.roomCache
+    ? personal.state.subscribe((value) => {
+        if (!value.me) return;
+        const ids = value.me.books.map((book) => book.id);
+        const key = `${value.me.email}\n${ids.join(",")}`;
+        if (key === keptRooms) return;
+        keptRooms = key;
+        options.roomCache!.keep(value.me.email, ids);
+      })
+    : () => {};
   const root = createRootRoomSession({
     url: (id, thread, code, resume) =>
       browser.socketUrl(
@@ -143,6 +158,15 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         }`,
       ),
     connection: options.roomConnection,
+    ...(options.roomCache
+      ? {
+          persist: options.roomCache,
+          whenAccount: (found: (email: string) => void) =>
+            personal.state.subscribe((value) => {
+              if (value.me) found(value.me.email);
+            }),
+        }
+      : {}),
     ...(options.messagesApi
       ? {
           older: (roomId: string, thread: string, before?: number) =>
@@ -349,6 +373,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     // Drafts kept in the browser (composer/draftStore.ts) leave with the session, so a shared device keeps none.
     success: () => {
       browserDrafts().clear();
+      options.roomCache?.clear();
       browser.navigateDocument("/login?out=1");
     },
   });
@@ -606,6 +631,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   function denySession() {
     if (!active || sessionDenied) return;
     sessionDenied = true;
+    options.roomCache?.clear();
     // Clear canonical private data and synchronously run the ordinary identity
     // reset before redirecting. These document owners cannot recover from old
     // Room/member projections or controls that remain connected until a flush.
@@ -754,6 +780,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       stopPersonal();
       channel.dispose();
       logout.dispose();
+      stopRoomPrune();
       router.dispose();
       root.dispose();
       navigation.dispose();

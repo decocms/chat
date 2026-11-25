@@ -78,7 +78,13 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("msg.history"), id: num }),
   z.object({ t: z.literal("reminder.enable"), id, on: z.boolean() }),
   z.object({ t: z.literal("task.toggle"), id }),
-  z.object({ t: z.literal("task.status"), id, status: z.enum(TASK_STATUSES) }),
+  // from: "composer" is the follow-up above the composer (a task of yours in review), tracked as review_answer.
+  z.object({
+    t: z.literal("task.status"),
+    id,
+    status: z.enum(TASK_STATUSES),
+    from: z.optional(z.literal("composer")),
+  }),
   z.object({ t: z.literal("task.rename"), id, title: z.string() }),
   z.object({ t: z.literal("task.del"), id }),
   z.object({
