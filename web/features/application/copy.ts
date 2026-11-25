@@ -898,6 +898,8 @@ const EN: Readonly<Record<string, string>> = {
   "Na call · {n}": "In the call · {n}",
   "Na call": "In the call",
   "Chat da call": "Call chat",
+  "Nome da thread": "Thread name",
+  "Renomear thread": "Rename thread",
   em: "in",
   "Sala privada": "Private room",
   "Voltar para a call": "Back to the call",

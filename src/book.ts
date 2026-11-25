@@ -3394,8 +3394,14 @@ export class Book extends DurableObject<Env> {
       case "decision.del":
         this.sql.exec(`DELETE FROM decisions WHERE id = ?`, Number(m.id));
         return this.broadcast({ t: "decisions", decisions: this.decisions() });
-      case "epic.rename":
-        return this.renameEpic(String(m.id), String(m.title ?? ""));
+      case "epic.rename": {
+        // The thread bar's name, edited in place (any member of the room). Unknown or empty: refused, not a silent ok.
+        const id = String(m.id),
+          title = String(m.title ?? "").trim();
+        if (id === "main" || !this.epics().some((epic) => epic.id === id)) return new Refused("unknown epic");
+        if (!title) return new Refused("empty title");
+        return this.renameEpic(id, title);
+      }
       case "epic.del":
         return this.deleteEpic(String(m.id));
       case "epic.done":

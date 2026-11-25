@@ -19,6 +19,7 @@
     "scripts/document-scope-guards.test.ts",
     "scripts/docroom-socket.test.ts",
     "scripts/epic-delete-guards.test.ts",
+    "scripts/epic-rename.test.ts",
     "scripts/session-boundary.test.ts",
     "scripts/mcp-request-boundary.test.ts",
     "scripts/github-identity.test.ts",

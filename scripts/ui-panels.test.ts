@@ -7455,6 +7455,112 @@ describe("room sidebar header and suggestion ownership", () => {
     await tick();
     expect(commands).toHaveLength(0);
   }, 30_000);
+  test("bar title: a click on the epic's name edits it in place; Enter or blur saves, Esc and empty put it back; no rename outside an epic or for a non-member", async () => {
+    const room = fixture(),
+      commands: RoomCommand[] = [],
+      request = async (command: RoomCommand): Promise<CommandOutcome> => {
+        commands.push(command);
+        return { ok: true };
+      };
+    const { target, view, props, owner } = barTitle(
+      room,
+      { thread: "e" },
+      request,
+    );
+    const field = () =>
+      target.querySelector<HTMLInputElement>("[data-thread-title-input]");
+    const begin = async () => {
+      target.querySelector<HTMLElement>("[data-thread-title-edit]")!.click();
+      await tick();
+      flushSync();
+      return field()!;
+    };
+    const key = (input: HTMLInputElement, name: string) =>
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: name, bubbles: true }),
+      );
+    const type = (input: HTMLInputElement, value: string) => {
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      flushSync();
+    };
+    expect(field()).toBeNull();
+    // The click turns the name into a field with the text selected.
+    let input = await begin();
+    expect(input.value).toBe("Epic");
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 4]);
+    // Esc puts the name back and sends nothing.
+    type(input, "Outro");
+    key(input, "Escape");
+    flushSync();
+    expect(field()).toBeNull();
+    expect(
+      target.querySelector("[data-thread-title]")?.textContent?.trim(),
+    ).toBe("Epic");
+    // Empty or only spaces: back to the name, nothing sent.
+    input = await begin();
+    type(input, "   ");
+    key(input, "Enter");
+    flushSync();
+    expect(field()).toBeNull();
+    // The same name: nothing sent.
+    input = await begin();
+    key(input, "Enter");
+    flushSync();
+    expect(commands).toEqual([]);
+    // Enter saves the trimmed name; it shows right away, before the room's state comes back.
+    input = await begin();
+    type(input, "  Lançar o app  ");
+    key(input, "Enter");
+    await tick();
+    flushSync();
+    expect(commands).toEqual([
+      { t: "epic.rename", id: "e", title: "Lançar o app" },
+    ]);
+    expect(field()).toBeNull();
+    expect(
+      target.querySelector("[data-thread-title]")?.textContent?.trim(),
+    ).toBe("Lançar o app");
+    const renamed: Room = {
+      ...room,
+      epics: room.epics.map((epic) => ({ ...epic, title: "Lançar o app" })),
+    };
+    owner.sync(renamed, request);
+    view.update({ ...props, room: renamed });
+    await tick();
+    flushSync();
+    // A click away (blur) saves too.
+    input = await begin();
+    expect(input.value).toBe("Lançar o app");
+    type(input, "Lançar o app v2");
+    input.dispatchEvent(new Event("blur"));
+    await tick();
+    flushSync();
+    expect(commands.at(-1)).toEqual({
+      t: "epic.rename",
+      id: "e",
+      title: "Lançar o app v2",
+    });
+    // The main thread, a DM's person and a non-member: plain text, no field.
+    expect(
+      barTitle(room).target.querySelector("[data-thread-title-edit]"),
+    ).toBeNull();
+    expect(
+      barTitle(
+        { ...room, book: { ...room.book, dm: true } },
+        {},
+      ).target.querySelector("[data-thread-title-edit]"),
+    ).toBeNull();
+    const outsider = barTitle(
+      { ...room, members: room.members.filter((m) => m !== room.me) },
+      { thread: "e" },
+    ).target;
+    expect(outsider.querySelector("[data-thread-title-edit]")).toBeNull();
+    expect(
+      outsider.querySelector("[data-thread-title]")?.textContent?.trim(),
+    ).toBe("Epic");
+  }, 30_000);
   test("suggestion accept sends displayed snapshot only, handles server refusal and stale room controls", async () => {
     const room: Room = {
         ...fixture(),
