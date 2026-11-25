@@ -1941,3 +1941,59 @@ test("the phone home's waiting list opens the rest in place, and closes it again
   flushSync(() => more().click());
   expect(rows()).toBe(3);
 });
+
+test("a phone's list of conversations puts a new version first, as the desktop sidebar's green row (Gimenes #4613, #4630)", async () => {
+  environment.happyDOM.setViewport({ width: 400, height: 800 });
+  cleanups.push(() =>
+    environment.happyDOM.setViewport({ width: 1024, height: 768 }),
+  );
+  const { personal, rooms, pwa, profile, creator } = await setup({
+    me: async () => me({ books: [room("aaaaaa")] }),
+  });
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(Home, {
+      target,
+      props: {
+        pwa,
+        personal,
+        rooms,
+        profile,
+        creator,
+        lang: "en",
+        ago: () => "now",
+        onnavigate: () => {},
+        onlanguage: () => {},
+        onhome: () => {},
+        onarchived: () => {},
+        onnew: () => {},
+        onsettings: () => {},
+        onroomsettings: () => {},
+        onsearch: () => {},
+      },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(component);
+    }),
+  );
+  await flush();
+  const list = () => target.querySelector('[data-home-layout="chats"]');
+  const update = () => list()?.querySelector('[data-view="update"]');
+  expect(list()).not.toBeNull();
+  expect(update()).toBeNull();
+  personal.updateAvailable(true);
+  await flush();
+  expect(update()?.textContent).toContain("New version");
+  // First in the list: before the search field.
+  const search = list()!.querySelector("[data-home-search]")!;
+  expect(
+    update()!.compareDocumentPosition(search) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  personal.updateAvailable(false);
+  await flush();
+  expect(update()).toBeNull();
+});

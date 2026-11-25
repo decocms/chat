@@ -28,8 +28,10 @@
   ><span class="grid min-w-0 flex-1"
     ><span class="truncate text-sm font-semibold"
       >{en ? "New version" : "Nova versão"}</span
-    ><span class="truncate text-xs"
+    ><span class="truncate text-xs pointer-coarse:hidden"
       >{en ? "Click to update" : "Clique pra atualizar"}</span
+    ><span class="hidden truncate text-xs pointer-coarse:block"
+      >{en ? "Tap to update" : "Toque pra atualizar"}</span
     ></span
   ></button
 >
