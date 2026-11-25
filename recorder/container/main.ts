@@ -13,6 +13,7 @@ import { shareWith, type GrainUser } from "./share.ts";
 /** `recorder`: the address of the recorder's Worker, which has the speech-to-text (POST /transcribe). */
 type Job = { room: string; joinUrl: string; recorder?: string; title?: string };
 const GRAIN = "https://api.grain.com/_/public-api/v2/";
+const PLAYLIST = "Calls do deco.chat";
 const RAW = "/tmp/call.webm", OUT = "/tmp/call.mp4";
 /** The audio goes to the speech-to-text in parts of this many seconds (about 1.2 MB each). */
 const PART_S = 300;
@@ -271,6 +272,36 @@ async function share(recording: string, emails: string[]) {
   }
 }
 
+/** The recording goes to the workspace's playlist "Calls do deco.chat" (made the first time, open to the whole
+ *  workspace), so everyone in the workspace sees it. Grain's own "share with workspace" settings do not apply to
+ *  uploads, and its API cannot mark a recording as the workspace's: a workspace playlist is what it allows. */
+async function toWorkspace(recording: string) {
+  if (!recording) return;
+  try {
+    let playlist = "";
+    let cursor: string | null = null;
+    // ponytail: 20 pages of playlists at most; with more, a second "Calls do deco.chat" is made.
+    for (let page = 0; !playlist && page < 20; page++) {
+      const out = (await grain("POST", "playlists", cursor ? { cursor } : {})) as { playlists?: { id: string; title: string }[]; cursor?: string | null };
+      playlist = out.playlists?.find((item) => item.title === PLAYLIST)?.id ?? "";
+      cursor = out.cursor ?? null;
+      if (!cursor) break;
+    }
+    if (!playlist) {
+      const info = (await grain("GET", "token-info")) as { scope?: string; user_id?: string };
+      // A personal token owns the playlist itself; a workspace token must name an owner (the token's own user
+      // is unknown then): the people the recording is shared with can open it anyway.
+      if (info.scope !== "personal") return log("no workspace playlist: the Grain token is not a personal one");
+      playlist = String((await grain("POST", "playlists/create", { title: PLAYLIST, share_state: "workspace" })).id ?? "");
+      log("made the workspace playlist", playlist);
+    }
+    await grain("PUT", `playlists/${playlist}/recordings/${recording}`);
+    log("in the workspace playlist");
+  } catch (error) {
+    log("not in the workspace playlist:", String(error));
+  }
+}
+
 async function record(job: Job) {
   const origin = new URL(job.joinUrl).origin;
   rmSync(RAW, { force: true });
@@ -350,6 +381,7 @@ async function record(job: Job) {
     log("in Grain:", url);
     const emails = await tell(origin, { room: job.room, url, minutes: (seconds - alone) / 60, people: names, transcript: lines.map((line) => ({ name: line.name === UNKNOWN ? "Desconhecido" : line.name, start: line.start / 1000, text: line.text.slice(0, 4000) })) });
     await share(recording, emails);
+    await toWorkspace(recording);
   } catch (error) {
     // The room is told only when people could count on the recording: the recorder was in the call, or they are.
     log("failed:", String(error));

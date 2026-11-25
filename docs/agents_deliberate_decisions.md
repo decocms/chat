@@ -2027,3 +2027,13 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit and deploy the recorder again. The shares that were made stay.
 - Status: open
 
+
+### 2026-11-25 · JonasJesus42/grain-workspace-playlist · The recordings reach the workspace through a playlist
+
+- Agent: Claude Opus 5.5
+- Context: Jonas turned on every Grain setting to share recordings with the workspace, and the calls still did not show there. Those settings apply to Grain's bot and desktop recordings, not to uploads. The API reads `workspace_shared` and cannot write it. Jonas: "bora fazer o que tiver no nosso alcance para aparecer no workspace".
+- Decision: The recorder puts each recording in the playlist "Calls do deco.chat", with `share_state` "workspace". It finds the playlist by title, and makes it the first time. No new variable: the title is the key.
+- Other options: A Grain team with everyone, and each recording shared with that team (a team to keep up to date). A `GRAIN_PLAYLIST_ID` variable (a Cloudflare change for each environment).
+- Risk: low. A failure leaves the recording where it was, shared with the people of the call. A workspace token (not personal) cannot make the playlist: the log says so.
+- Undo: Revert this commit. The playlist stays in Grain.
+- Status: open
