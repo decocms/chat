@@ -1986,3 +1986,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. The model is 16 MB (was 250 KB): the first blur takes longer to start, then the browser keeps it in its cache. On a slow computer or phone the frame rate can go down.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · feat/dm-same-domain · Colleagues by company email domain in "Nova mensagem"
+
+- Agent: Claude Opus 5.5
+- Context: The product owner asked that people with the same company email find each other when they start a DM, with no change to the UI (Gimenes #5006, after the corporate rooms mockup). The details below were not specified.
+- Decision:
+  - A company domain is the domain of the email, except a list of free providers (gmail.com, hotmail.com, outlook.com, icloud.com, uol.com.br and others, `shared/dm.ts`).
+  - A colleague is a person with an account (a `users` row) on your company domain. The picker shows up to 200 of them after the people from your rooms, with "pelo seu e-mail @domínio".
+  - You can DM a colleague without a message request (`canDm`), the same as a person from your rooms.
+  - Nothing changes for rooms. A colleague does not see your rooms.
+- Other options: Let a company turn this on (a list of domains). Show colleagues only after you type. Keep the message request for colleagues.
+- Risk: medium. On a shared domain that is not in the list (a university, an ISP), strangers see each other's email, name and picture and can DM without a request.
+- Undo: Revert this commit.
+- Status: open
+

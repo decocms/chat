@@ -5,6 +5,8 @@ export type Contact = {
   name: string | null;
   avatar: number | null;
   rooms: readonly string[];
+  /** A colleague: your company email domain, no room shared. */
+  domain?: boolean;
 };
 
 /** Who you can DM right away: people from your rooms, then connections you share no room with. */

@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -109,6 +109,25 @@ try {
     await tab.waitForTimeout(1500);
     await tab.screenshot({ path: join(out, "link-1440.png") });
     shots.push("link-1440.png");
+  }
+  if (flag("dm")) {
+    // A colleague (Gimenes #5006): an account on the test email's domain, with no room shared, shows in "Nova
+    // mensagem" with "pelo seu e-mail". Local D1 only.
+    const domain =
+      ((await me.clone().json()) as { email: string }).email.split("@")[1] ??
+      "";
+    await $`bunx wrangler d1 execute chat --local --command ${`INSERT OR IGNORE INTO users (email, name) VALUES ('colega@${domain}', 'Colega de Teste')`}`.quiet();
+    const home = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    await home.goto(`${base}/`, { waitUntil: "networkidle" });
+    await home.locator("[data-home-new]").first().click();
+    await home.locator(`[data-contact="colega@${domain}"]`).waitFor();
+    await home.waitForTimeout(300);
+    await home.screenshot({ path: join(out, "dm-390.png") });
+    shots.push("dm-390.png");
   }
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
