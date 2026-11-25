@@ -31,7 +31,7 @@ Each change that a person can see gets screens from local development before its
 2. Run `bun run dev`. Wait until http://127.0.0.1:8797/api/me answers with the test email.
 3. Run `bun run screens -- --hover`. It makes a new room "Sala de teste" with three test messages and saves the room at 1440 px (still and with the mouse over a message), the room at 390 px and the home at 390 px in `.screens/<branch>/`.
    - If your change needs another state (a thread, a reaction, a dialog), add the steps to `scripts/screens.ts` in the same pull request.
-   - `--react` adds a reaction. `--link` opens a copied link to an old message in a new tab. `--dm` opens "Nova mensagem" with a colleague (an account on the test email's domain).
+   - `--react` adds a reaction. `--link` opens a copied link to an old message in a new tab. `--dm` opens "Nova mensagem" with a colleague (an account on the test email's domain). `--resume` makes four threads, opens two of them, goes to another room and comes back from the rail: the thread opens again, and the two threads are at the top of the sidebar.
 4. Look at each screen. If it does not show the change working, fix the change. Do not continue.
 5. Run `bun run screens -- --hover --publish`. It pushes the screens to the branch `pr-screens` (no workflow runs there; the repository is public, so test data only) and prints the Markdown. Put it in the "Screens" section of the pull request.
 

@@ -155,13 +155,15 @@ export const EPIC_PAGE = 10;
 
 /**
  * The sidebar's order: pinned epics first (in the room's shared order, which
- * their drag sets), then the rest by when their thread last spoke, newest
- * first. The server's `last` is when the room loaded; the messages that arrived
- * since (the ones this client holds) move an epic up live.
+ * their drag sets), then the threads you opened last on this device (`recent`,
+ * newest first), then the rest by when their thread last spoke, newest first.
+ * The server's `last` is when the room loaded; the messages that arrived since
+ * (the ones this client holds) move an epic up live.
  */
 export function sidebarEpics(
   epics: readonly Epic[],
   messages: readonly Message[],
+  recent: readonly string[] = [],
 ) {
   const seen = new Map<string, number>();
   for (const message of messages)
@@ -170,12 +172,19 @@ export function sidebarEpics(
       Math.max(seen.get(message.thread) ?? 0, message.ts),
     );
   const when = (epic: Epic) => Math.max(epic.last ?? 0, seen.get(epic.id) ?? 0);
+  const rank = (epic: Epic) => {
+    const index = recent.indexOf(epic.id);
+    return index < 0 ? recent.length : index;
+  };
   return [
     ...epics.filter((epic) => epic.pinned),
     ...epics
       .filter((epic) => !epic.pinned)
       .map((epic, index) => ({ epic, index, at: when(epic) }))
-      .sort((a, b) => b.at - a.at || a.index - b.index)
+      .sort(
+        (a, b) =>
+          rank(a.epic) - rank(b.epic) || b.at - a.at || a.index - b.index,
+      )
       .map(({ epic }) => epic),
   ];
 }

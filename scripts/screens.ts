@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--resume] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -128,6 +128,72 @@ try {
     await home.waitForTimeout(300);
     await home.screenshot({ path: join(out, "dm-390.png") });
     shots.push("dm-390.png");
+  }
+  if (flag("resume")) {
+    // Your last threads (Viktor): four threads from four messages, then you open the two oldest. They go to the top
+    // of the sidebar, and opening one of them again does not move the rows. You go to another room and come back
+    // from the rail: the thread you left opens, not the main chat.
+    const other = await fetch(`${base}/api/books`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: base },
+      body: JSON.stringify({ title: "Outra sala de teste" }),
+    });
+    if (!other.ok) throw new Error(`create room: ${other.status}`);
+    const { id: second } = (await other.json()) as { id: string };
+    const subjects = ["A", "B", "C", "D"].map((s) => `Assunto ${s} de teste`);
+    for (const subject of subjects) await send(desk, `${subject}.`);
+    const threads: string[] = [];
+    for (const subject of subjects) {
+      await desk.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+      const message = desk
+        .locator("[data-chat-message]", { hasText: subject })
+        .first();
+      await message.hover();
+      await message.locator("[data-start-thread]").click();
+      await desk.waitForURL(/[?&]t=/);
+      threads.push(new URL(desk.url()).searchParams.get("t")!);
+    }
+    // A fresh start: only the visits below count.
+    await desk.evaluate(() => {
+      for (const key of Object.keys(localStorage))
+        if (key.startsWith("vb.visits.")) localStorage.removeItem(key);
+    });
+    await desk.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+    const row = (id: string) => desk.locator(`[data-epic-thread="${id}"]`);
+    const order = () =>
+      desk
+        .locator("[data-epic-thread]")
+        .evaluateAll((rows) =>
+          rows.map((row) => row.getAttribute("data-epic-thread")),
+        );
+    const [a, b, c, d] = threads as [string, string, string, string];
+    await row(a).click();
+    await row(b).click();
+    await desk.waitForURL(new RegExp(`[?&]t=${b}`));
+    await desk.waitForTimeout(400);
+    const recent = await order();
+    if (recent.slice(0, 4).join() !== [b, a, d, c].join())
+      throw new Error(`sidebar order: ${recent.join()}`);
+    await row(a).click();
+    await desk.waitForURL(new RegExp(`[?&]t=${a}`));
+    await desk.waitForTimeout(400);
+    if ((await order()).join() !== recent.join())
+      throw new Error(`the rows moved: ${(await order()).join()}`);
+    await desk.mouse.move(0, 0);
+    await desk.screenshot({ path: join(out, "recent-1440.png") });
+    shots.push("recent-1440.png");
+    await desk.locator(`[data-room-id="${second}"] a`).click();
+    await desk.waitForURL(new RegExp(`/b/${second}`));
+    await desk.waitForTimeout(600);
+    await desk.mouse.move(0, 0);
+    await desk.screenshot({ path: join(out, "away-1440.png") });
+    shots.push("away-1440.png");
+    await desk.locator(`[data-room-id="${room}"] a`).click();
+    await desk.waitForURL(new RegExp(`/b/${room}\\?t=${a}`));
+    await desk.waitForTimeout(800);
+    await desk.mouse.move(0, 0);
+    await desk.screenshot({ path: join(out, "resume-1440.png") });
+    shots.push("resume-1440.png");
   }
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
