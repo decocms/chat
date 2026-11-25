@@ -6,6 +6,8 @@ import {
 import { EMOJI } from "../../../shared/emoji";
 import type { Attachment, Message, Room } from "../../../shared/room";
 import type { ComposerAgent, ComposerQuote, ComposerRoom } from "./types";
+import type { FieldLink } from "./fieldTokens";
+import { appLink } from "../rich-text/appLinks";
 export const AUDIO_EXT: Readonly<Record<string, string>> = {
   m4a: "audio/x-m4a",
   mp3: "audio/mpeg",
@@ -427,4 +429,46 @@ export function roomReference(pick: RoomPick) {
       return unreachable;
     }
   }
+}
+/** The room and thread links in the draft that the field draws as chips (what # writes, or a pasted link to one of
+ *  your rooms, or to a thread of this one). Other links stay as text. */
+export function roomLinks(
+  text: string,
+  rooms: readonly ComposerRoom[],
+  room: Pick<Room, "id" | "book" | "epics">,
+  page: string,
+): FieldLink[] {
+  const out: FieldLink[] = [];
+  for (const match of text.matchAll(/https?:\/\/[^\s<>"']+/g)) {
+    const link = appLink(match[0], page);
+    if (!link || link.message !== undefined) continue;
+    const start = match.index,
+      end = start + match[0].length,
+      mine = rooms.find((item) => item.id === link.room);
+    if (link.thread === undefined) {
+      if (mine)
+        out.push({
+          start,
+          end,
+          kind: "room",
+          id: mine.id,
+          title: mine.title,
+          icon: mine.icon,
+        });
+      continue;
+    }
+    if (link.room !== room.id) continue;
+    const epic = room.epics.find((item) => item.id === link.thread);
+    if (!epic?.title.trim()) continue;
+    out.push({
+      start,
+      end,
+      kind: "thread",
+      id: room.id,
+      title: epic.title,
+      room: mine?.title || room.book.title,
+      icon: mine?.icon ?? 0,
+    });
+  }
+  return out;
 }
