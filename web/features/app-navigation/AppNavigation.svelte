@@ -18,7 +18,6 @@
   import RailDm from "./RailDm.svelte";
   import RoomMenu from "./RoomMenu.svelte";
   import RoomSwitcher from "./RoomSwitcher.svelte";
-  import RailCube from "../home/RailCube.svelte";
   import AccountRow from "./AccountRow.svelte";
   import {
     switcherDms,
@@ -189,8 +188,8 @@
   );
   // Desktop: your Inbox for all rooms sits under the logo while something waits on you (Gimenes #3837).
   const waiting = $derived($personal.me?.waits.length ?? 0);
-  // The home cube turns while an agent works in any of your rooms: the rooms' busy_until, the same
-  // signal as each room tile's turning ✻ (personal's clock ticks `now` when the earliest one ends).
+  // An agent works in any of your rooms (the rooms' busy_until, the same signal as each room tile's turning ✻):
+  // the logo's label says so.
   const working = $derived(
     ($personal.me?.books ?? []).some(
       (room) => (room.busy_until ?? 0) > $personal.now,
@@ -212,7 +211,7 @@
   )}
 >
   <!-- Desktop: the logo sits in a band as tall as a room's header, so the divider below it meets the header's line. -->
-  <!-- The cube opens the Caixa de entrada (the desktop's Home) and carries what waits on you (Gimenes #3967); it turns while an agent works. -->
+  <!-- The logo opens the Caixa de entrada (the desktop's Home) and carries what waits on you (Gimenes #3967). -->
   <span
     class="relative max-md:hidden md:flex md:h-[51px] md:shrink-0 md:items-center"
     ><RailButton
@@ -223,7 +222,15 @@
       current={atHome}
       onclick={(event) => {
         if (event.currentTarget.isConnected) controller.callbacks.home();
-      }}><RailCube {working} /></RailButton
+      }}
+      ><img
+        src="/favicon.svg"
+        width="36"
+        height="36"
+        alt=""
+        draggable="false"
+        class="size-9 rounded-xl"
+      /></RailButton
     >{#if waiting}<Count
         value={waiting}
         label={text("waiting", { n: waiting })}
