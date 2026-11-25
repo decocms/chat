@@ -1971,3 +1971,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. RNNoise can cut a quiet voice. Each person can turn it off. It uses one more AudioContext and some CPU on each device in a call.
 - Undo: Revert this commit. The `vb-call-denoise` key in `localStorage` stays and is not read.
 - Status: open
+
+### 2026-11-25 · JonasJesus42/call-nav-blur · The blur uses the multiclass model and blurs only the background
+
+- Agent: Claude Opus 5.5
+- Context: In the call of Gimenes and Leandro the blur was "meio bugado". Jonas: the model does not find the person well, and the type of blur is different from Meet.
+- Decision:
+  - Use MediaPipe's `selfie_multiclass_256x256` model in place of `selfie_segmenter`. On a test portrait the old model kept part of the flag behind the shoulder as the person; the new one does not.
+  - Blur only the background: the frame with the person cut out, at a quarter of the size, drawn three times so its edge is opaque. The person's colors do not make a halo.
+  - A firm edge (a short ramp between 0.3 and 0.7 of the model's confidence), mixed with the mask of the frame before.
+  - Stronger levels: light 10 px, strong 32 px (was 6 and 18).
+- Measure (`scripts/call-blur-test.ts`, with the GPU of a MacBook): 18 frames a second with the old model, 15 with the new one.
+- Other options: Keep the old model with the new drawing (faster, but it does not fix the cut). A WebGL pipeline with a joint bilateral filter, as Meet has (much more code).
+- Risk: medium. The model is 16 MB (was 250 KB): the first blur takes longer to start, then the browser keeps it in its cache. On a slow computer or phone the frame rate can go down.
+- Undo: Revert this commit.
+- Status: open
