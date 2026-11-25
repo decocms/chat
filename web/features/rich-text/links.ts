@@ -34,12 +34,21 @@ export function fileTarget(
   const base = new URL(context.pageUrl),
     url = new URL(href, base);
   if (url.origin !== base.origin) return null;
-  const match = /^\/api\/books\/([0-9a-f]+)\/files\/([0-9a-f]+)$/.exec(
-    url.pathname,
-  );
-  if (!match || match[1] !== context.room.id) return null;
+  // The file's address, or the room's address with the file open (`/b/<room>#f<id>`, what the address bar shows
+  // while the dialog is open): both open the dialog (Gimenes #5689).
+  const api = /^\/api\/books\/([0-9a-f]+)\/files\/([0-9a-f]+)$/.exec(
+      url.pathname,
+    ),
+    page = /^\/b\/([0-9a-f]+)\/?$/.exec(url.pathname),
+    open = /^#f([0-9a-f]+)$/.exec(url.hash);
+  const [roomId, id] = api
+    ? [api[1]!, api[2]!]
+    : page && open
+      ? [page[1]!, open[1]!]
+      : [null, null];
+  if (!roomId || !id || roomId !== context.room.id) return null;
   const files = knownFiles(context),
-    file = files.find((f) => f.id === match[2]);
+    file = files.find((f) => f.id === id);
   const name =
     file?.name ||
     (label && !/^https?:\/\//.test(label)
@@ -51,11 +60,11 @@ export function fileTarget(
   return {
     kind: "file",
     href: `${url.pathname}${url.search}${url.hash}`,
-    file: { roomId: match[1], id: match[2], name, type: file?.type },
+    file: { roomId, id, name, type: file?.type },
     attachment: file,
     version:
       versions.length > 1
-        ? versions.length - versions.findIndex((f) => f.id === match[2])
+        ? versions.length - versions.findIndex((f) => f.id === id)
         : undefined,
   };
 }

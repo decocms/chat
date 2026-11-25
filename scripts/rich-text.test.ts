@@ -301,6 +301,38 @@ test("file chips keep exact immutable ID/version and partial-index fallback; for
   });
   expect(links[2].kind === "link" && links[2].target.kind).toBe("url");
 });
+test("a room address with a file open (/b/<room>#f<id>, the address bar's link) is that file's chip (Gimenes #5689)", () => {
+  const file = {
+    id: "aa11",
+    name: "print.png",
+    type: "image/png",
+    author: "jose@test.com",
+    size: 10,
+    ts: 1,
+  };
+  const ctx = { ...context, room: { ...context.room, files: [file] } };
+  const links = walk(
+    richText(
+      "https://example.test/b/abc123#faa11 https://example.test/b/def456#faa11 https://example.test/b/abc123#m4",
+      "human",
+      ctx,
+    ),
+  ).filter((n) => n.kind === "link");
+  expect(links[0].kind === "link" && links[0].target).toMatchObject({
+    kind: "file",
+    file: { roomId: "abc123", id: "aa11", name: "print.png" },
+    attachment: file,
+  });
+  expect(links[1].kind === "link" && links[1].target.kind).not.toBe("file");
+  expect(links[2].kind === "link" && links[2].target.kind).not.toBe("file");
+  const named = walk(
+    richText("[aqui](/b/abc123/#faa11)", "markdown", ctx),
+  ).find((n) => n.kind === "link");
+  expect(named?.kind === "link" && named.target).toMatchObject({
+    kind: "file",
+    file: { id: "aa11" },
+  });
+});
 test("missing chip loads one typed full index per partial snapshot and localizes before canonical name arrives", async () => {
   const sent: RoomCommand[] = [];
   let resolve!: (value: CommandOutcome) => void;
