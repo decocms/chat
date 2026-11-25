@@ -23,7 +23,7 @@ import {
 } from "./mcpconn";
 import { agentMessageFromWire } from "./bookMessages";
 import { signedInTo } from "./mcpauth";
-import { ASK_OPENER } from "./book";
+import { ASK_OPENER } from "./privateAsk";
 import { cardOf } from "./card";
 import { LISTEN_FRESH, markListening, poke } from "./person";
 import {

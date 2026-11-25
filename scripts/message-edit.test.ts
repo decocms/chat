@@ -263,7 +263,7 @@ test("a page of a thread: newest, before an id, after an id, with more and in ti
   );
   book.addMessage("main", email, "elsewhere");
   const page = (q: { before?: number; after?: number; limit: number }) =>
-    book.roomMessages("abcdef", { thread: "e1", ...q });
+    book.roomMessages("abcdef", { thread: "e1", ...q }, email);
   const texts = (p: { messages: { text: string }[] }) =>
     p.messages.map((m) => m.text);
   expect(texts(page({ limit: 3 }))).toEqual(["m4", "m5", "m6"]);
@@ -319,6 +319,7 @@ test("a reconnect resumes: newer, edited and deleted messages plus the open thre
     "main",
     window,
     "h1",
+    email,
   );
   expect(resumed?.epicsSame).toBe(true);
   const texts = Object.fromEntries(
@@ -332,17 +333,23 @@ test("a reconnect resumes: newer, edited and deleted messages plus the open thre
   // The open thread's window comes too (a reconnect can open another thread).
   expect(texts[ids[3]!]).toBe("m3");
   expect(
-    book.resumeOf(url(`since=${ids[3]}&at=${at}&eh=old`), "main", window, "h1")
-      ?.epicsSame,
+    book.resumeOf(
+      url(`since=${ids[3]}&at=${at}&eh=old`),
+      "main",
+      window,
+      "h1",
+      email,
+    )?.epicsSame,
   ).toBe(false);
   // No params, a state older than 6 h, or a time from the future: the whole state.
-  expect(book.resumeOf(url(""), "main", window, "h1")).toBeNull();
+  expect(book.resumeOf(url(""), "main", window, "h1", email)).toBeNull();
   expect(
     book.resumeOf(
       url(`since=${ids[3]}&at=${at - 7 * 3600_000}`),
       "main",
       window,
       "h1",
+      email,
     ),
   ).toBeNull();
   expect(
@@ -351,12 +358,13 @@ test("a reconnect resumes: newer, edited and deleted messages plus the open thre
       "main",
       window,
       "h1",
+      email,
     ),
   ).toBeNull();
   // More than 200 changed rows: the whole state.
   for (let i = 0; i < 201; i++) book.addMessage("main", email, `bulk ${i}`);
   expect(
-    book.resumeOf(url(`since=${ids[3]}&at=${at}`), "main", window, "h1"),
+    book.resumeOf(url(`since=${ids[3]}&at=${at}`), "main", window, "h1", email),
   ).toBeNull();
 });
 
@@ -424,4 +432,55 @@ test("a light socket gets hello, not state; GET room answers the same state a so
   } finally {
     setSystemTime();
   }
+});
+
+// A Claude's hook question (⏸/❓) and its human's answer are that human's alone (src/privateAsk.ts).
+test("another member never receives a Claude's hook ask; its human sees it and answers it", async () => {
+  const { book, frames } = fixture(); // the socket is `email`'s
+  const choices = { options: ["Aprovar", "Negar"], multi: false };
+  const ask = (who: string) =>
+    book.addMessage(
+      "main",
+      who,
+      "⏸ Seu Claude pede permissão: **Bash**\n`ls /Users/x`\n\nSó vale a resposta da sua conta logada aqui.",
+      { kind: "agent", choices },
+    ).id;
+  const hello = book.addMessage("main", other, "bom dia").id;
+  frames.length = 0;
+  const theirs = ask(other);
+  // other's ask never reaches email's open tab.
+  expect(frames).toHaveLength(0);
+  const mine = ask(email);
+  expect(frames.some((f) => f.includes(`"id":${mine}`))).toBe(true);
+  const answer = book.addMessage("main", email, "Aprovar", {
+    replyTo: mine,
+  }).id;
+  const ids = (ms: { id: number }[]) => ms.map((m) => m.id);
+  // Pages, the room open, resume, read_room and search: each viewer gets only their own.
+  const page = (who: string) =>
+    ids(
+      book.roomMessages("abcdef", { thread: "main", limit: 50 }, who).messages,
+    );
+  expect(page(email)).toEqual([hello, mine, answer]);
+  expect(page(other)).toEqual([hello, theirs]);
+  expect(page(owner)).toEqual([hello]);
+  expect(ids(book.roomWindow("main", owner).messages)).toEqual([hello]);
+  expect(book.roomWindow("main", owner).counts.main).toBe(1);
+  expect(ids(book.roomWindow("main", email).messages)).toEqual([
+    hello,
+    mine,
+    answer,
+  ]);
+  const read = async (who: string) =>
+    (await book.agentRead("abcdef", 0, who)).messages.map((m) => m.id);
+  expect(await read(owner)).toEqual([hello]);
+  expect(await read(email)).toEqual([hello, mine, answer]);
+  expect(ids(book.search("abcdef", "permissão", 8, owner).messages)).toEqual(
+    [],
+  );
+  expect(ids(book.search("abcdef", "permissão", 8, email).messages)).toEqual([
+    mine,
+  ]);
+  // What permission_wait reads back for the hook.
+  expect(book.answerTo("abcdef", mine, email)).toBe("Aprovar");
 });

@@ -2179,3 +2179,22 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A runner that always fails starts again each 15 seconds and logs each time.
 - Undo: Revert the `watch` and `tray` cases in `cli/vibebook.ts`.
 - Status: open
+
+### 2026-11-25 · feat/stop-hook-listen · A Claude cannot end its turn with its listen stopped
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#5522): agents, his too, stopped listening after a wake (the listen is one-shot) and ignored his messages until he asked in the terminal (missed_message #5520, #5521).
+- Decision: the plugin gets a Stop hook (`claude-plugin/hooks/stop-listen.mjs`). When the newest `vibebook listen` of this Claude Code session (its pid file in `~/.vibebook`, the CLI's agent id for the session) is no longer running, the hook blocks the stop once and tells the Claude to read the room and start the listen again. A session that never listened, a listen that still runs, a pid file older than a day and a second stop in a row (`stop_hook_active`) are left alone.
+- Other options: a listen that never exits (the background task's end is what wakes Claude Code, so it would wake nobody); a stronger rule in the skill (agents already had it and skipped it); a CLI change (needs a CLI release).
+- Risk: low. A Claude that was told to stop listening gets the reminder once per turn until its pid file is a day old.
+- Undo: Revert this commit and publish the plugin.
+- Status: open
+
+### 2026-11-25 · fix/agent-asks-out-of-chat · A Claude's ⏸/❓ hook question is only its human's, on the server too
+- Agent: Claude Opus 5.5
+- Context: PO: the permission and question asks the plugin's hooks post ("⏸ Seu Claude pede permissão: **Bash** `<command>`…") reached every member: paths and commands of one person's terminal in everyone's timeline. The app hid them only on the client.
+- Decision: `messages.private_to` (src/privateAsk.ts) = the ask's author, also on that author's answer ("Aprovar") to it; backfilled once per room for existing ones. Every read that leaves the Book for a viewer filters `private_to IS NULL OR private_to = viewer`: the room open and resume, pages, read_room, quotes, search. Live events about such a message go to the owner's tabs only. A private message does not move the room's last id (no unread, no listener wake, no mention mail) and the router, @vibe and the agent streak ignore it. Its human still sees the ask with its buttons in the chat and in the Inbox; the hook reads the answer as before (answerTo).
+- Other options: Not storing the ask as a message (a side table): the answer flow, closeAsk and the app's buttons all build on the message row, a bigger change for the same result. Reusing `for_who`: it means a reminder for one person, and other readers rely on that.
+- Risk: low. A read that forgets the filter shows the ask to others again (the client still hides it).
+- Undo: Revert this commit; the column stays and is ignored.
+- Status: open
