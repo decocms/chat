@@ -1870,6 +1870,23 @@ export class Book extends DurableObject<Env> {
         ).bind(e, id, upto),
       ),
     );
+    await this.readWaits(emails, upto);
+  }
+  /** Reading a message clears the notifications it made (PO #5172), like opening the thread and seeing it: what it
+   *  asked of you (waits m<id>) and the mention held back for the Inbox and the digest (digest_items). Work stays until
+   *  done: tasks in review (t), your Claude's questions (a/b). */
+  async readWaits(emails: string[], upto: number) {
+    const id = this.get("book_id");
+    if (!id || !emails.length) return;
+    const DB = this.env.DB;
+    const r = await DB.batch(
+      emails.flatMap((e) => [
+        DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND ref LIKE 'm%' AND CAST(substr(ref, 2) AS INTEGER) <= ?`).bind(id, e, upto),
+        DB.prepare(`DELETE FROM digest_items WHERE book_id = ? AND email = ? AND msg_id <= ?`).bind(id, e, upto),
+      ]),
+    );
+    const cleared = emails.filter((_, i) => r[2 * i]?.meta.changes || r[2 * i + 1]?.meta.changes);
+    if (cleared.length) await poke(this.env, cleared, { t: "me" });
   }
 
   // ---- agents (MCP, called over RPC by the Worker after it checked membership) ----

@@ -112,13 +112,13 @@
   );
   /** Past EPIC_PAGE unpinned epics the list stops at "Ver mais" (the open one always shows). */
   let showAll = $state(false);
-  /** How many epics fit before the sidebar's foot with "Ver mais" and the next section's title still above it, so the
+  /** How many epics fit before the user center with "Ver mais" and the next section's title still above it, so the
    *  rest of the sidebar starts in view (3 to EPIC_PAGE; EPIC_PAGE without a foot, on phones). */
   let fit = $state(EPIC_PAGE);
   let list = $state<HTMLElement | null>(null);
   function measure() {
     const side = list?.closest("[data-room-sidebar-panel]");
-    const foot = side?.querySelector("[data-sidebar-self]");
+    const foot = side?.querySelector("[data-user-center]");
     if (!list || !side || !foot?.getClientRects().length) {
       fit = EPIC_PAGE;
       return;
@@ -141,7 +141,7 @@
     const observer = new ResizeObserver(() => measure());
     observer.observe(side);
     for (const node of side.querySelectorAll(
-      "[data-sidebar-self], [data-room-views]",
+      "[data-user-center], [data-room-views]",
     ))
       observer.observe(node);
     return () => observer.disconnect();

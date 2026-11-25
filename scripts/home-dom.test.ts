@@ -225,7 +225,7 @@ test("direct Account composition preserves profile confirmation and supplies rea
     true,
   );
 });
-test("you at the sidebar's foot open the settings page: every section on it, leaving closes it, sign out runs the application flow", async () => {
+test("you in the user center open the settings page: every section on it, leaving closes it, sign out runs the application flow", async () => {
   const h = shellFixture(),
     target = document.createElement("div");
   document.body.append(target);

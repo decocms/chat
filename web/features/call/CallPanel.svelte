@@ -26,7 +26,7 @@
   } = $props();
   const view = $derived(call.state);
   const live = $derived($view.phase === "in");
-  // The panel has the color of the box under it (you and your agent, SidebarFoot). A round control: solid. `on`: the camera or the screen goes out.
+  // The panel has the color of the box under it (you and your agent, UserCenter). A round control: solid. `on`: the camera or the screen goes out.
   const control = "size-8 rounded-full [&_svg]:size-4";
   const idle =
     "bg-background text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground";

@@ -6,7 +6,7 @@
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
   import { settingsHref } from "../account/settings";
   /**
-   * You: a row at a sidebar's foot (a room's, the home's), or just your face
+   * You: a row in the user center (a room's sidebar, the home's), or just your face
    * (`row={false}`, a phone's top bar, with your name as a tooltip). It opens
    * your settings page; the shell follows `data-nav` links in place.
    */
