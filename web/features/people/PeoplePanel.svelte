@@ -277,23 +277,28 @@
         label={here ? vb.t("Online") : vb.t("Offline")}
         trigger={face}
       />{/if}
-    {#if onopen && !pending}<button
-        type="button"
-        data-open-dm={email}
-        title={email}
-        aria-label={vb.t("Abrir conversa com {name}", { name: label(email) })}
-        aria-busy={opening === email}
-        class={cn(
-          "min-w-0 flex-1 cursor-pointer truncate rounded-sm border-0 bg-transparent p-0 text-left font-sans text-sm leading-5 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-          members && "text-[0.9375rem]",
-        )}
-        onclick={() => {
-          void open(email);
-        }}>{label(email)}</button
-      >{:else}<span
-        class={cn("min-w-0 flex-1 truncate", members && "text-[0.9375rem]")}
-        title={email}>{label(email)}</span
-      >{/if}
+    <span class="flex min-w-0 flex-1 flex-col"
+      >{#if onopen && !pending}<button
+          type="button"
+          data-open-dm={email}
+          title={email}
+          aria-label={vb.t("Abrir conversa com {name}", { name: label(email) })}
+          aria-busy={opening === email}
+          class={cn(
+            "min-w-0 flex-1 cursor-pointer truncate rounded-sm border-0 bg-transparent p-0 text-left font-sans text-sm leading-5 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            members && "text-[0.9375rem]",
+          )}
+          onclick={() => {
+            void open(email);
+          }}>{label(email)}</button
+        >{:else}<span
+          class={cn("min-w-0 flex-1 truncate", members && "text-[0.9375rem]")}
+          title={email}>{label(email)}</span
+        >{/if}{#if members && label(email) !== email}<span
+          data-person-email
+          class="truncate text-xs leading-4 text-muted-foreground">{email}</span
+        >{/if}</span
+    >
     {#if pending}
       <Badge
         variant="muted"
