@@ -2757,15 +2757,20 @@ export class Book extends DurableObject<Env> {
         if (this.isDm) return new Refused("a DM has no epics");
         const title = String(m.title ?? "").trim();
         if (!title) return;
+        const from = m.from === undefined ? undefined : Number(m.from);
+        const origin =
+          from === undefined ? undefined : this.sql.exec<{ author: string }>(`SELECT author FROM messages WHERE id = ?`, from).toArray()[0];
+        if (from !== undefined && !origin) return new Refused("unknown message");
+        // A thread made from a person's message is that person's, not whoever clicked (Gimenes #4594). @vibe's messages
+        // have no person: the one who made the thread owns it.
+        const owner = origin && origin.author !== "ai" && origin.author.includes("@") ? origin.author : email;
         // The same id again is a retry of the same create: done already, nothing twice.
         if (m.id && this.sql.exec(`SELECT 1 FROM epics WHERE id = ?`, m.id).toArray().length) {
-          const mine = this.sql.exec<{ owner: string | null }>(`SELECT owner FROM epics WHERE id = ?`, m.id).toArray()[0]?.owner === email;
-          return mine ? undefined : new Refused("epic id in use");
+          const same = this.sql.exec<{ owner: string | null }>(`SELECT owner FROM epics WHERE id = ?`, m.id).toArray()[0]?.owner === owner;
+          return same ? undefined : new Refused("epic id in use");
         }
-        const from = m.from === undefined ? undefined : Number(m.from);
-        if (from !== undefined && !this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, from).toArray().length) return new Refused("unknown message");
         const id = this.createEpic(title, [], [], "", m.id);
-        this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, this.threadOrigin({ author: email }, from, title), id);
+        this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, owner, this.threadOrigin({ author: email }, from, title), id);
         this.epicsChanged();
         this.ctx.waitUntil(track(this.env, "thread_create", { user: email, dims: { book: this.get("book_id") ?? "", from: from === undefined ? "sidebar" : "message" } }));
         return;
