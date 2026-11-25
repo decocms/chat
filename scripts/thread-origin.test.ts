@@ -116,7 +116,15 @@ function fixture() {
       owner: string | null;
       from_msg: number | null;
     } | null;
-  return { book, run, messages, epic };
+  const acks = () =>
+    db.query(`SELECT msg_id, agent, status FROM acks`).all() as {
+      msg_id: number;
+      agent: string;
+      status: string;
+    }[];
+  const ageAcks = (ms: number) =>
+    db.query(`UPDATE acks SET ts = ts - ?`).run(ms);
+  return { book, run, messages, epic, acks, ageAcks };
 }
 
 test("the sidebar's Nova thread writes the title in main and the thread starts from it; the same id again makes nothing", async () => {
@@ -257,4 +265,110 @@ test("a thread made from someone else's message is theirs, a retry still works, 
   const vibe = f.book.addMessage("main", "ai", "lembrete: revisar o PR");
   await f.run({ t: "epic", title: "Revisar", from: vibe.id, id: "aaaa0011" });
   expect(f.epic("aaaa0011")?.owner).toBe(email);
+});
+
+test("start_epic with no from_message_id never quotes an unrelated message: it starts from its own title and why", async () => {
+  const f = fixture();
+  const other = "other@example.test";
+  // Recent, unrelated messages: the human's own in main and in a thread, and someone else's.
+  await f.run({ t: "epic", title: "Pagamentos", id: "aaaa0020" });
+  f.book.addMessage("main", email, "alguém viu o deploy de ontem?");
+  f.book.addMessage("aaaa0020", email, "e o reembolso?");
+  f.book.addMessage("main", other, "almoço às 13h?");
+  const before = f.messages().map((m) => m.id);
+  const out = (await f.book.agentEpic(
+    "abcdef",
+    email,
+    "Card de app mais bonito",
+    "O card de app no chat fica mais legível.",
+    ["Ajustar o card"],
+    "Claude Opus 5.5",
+    undefined,
+    "agent-1",
+  )) as { ok: boolean; epic_id: string };
+  expect(out.ok).toBe(true);
+  const line = f.messages().at(-1)!;
+  expect(before).not.toContain(line.id);
+  expect(line).toMatchObject({
+    thread: "main",
+    author: email,
+    kind: "agent",
+    reply_to: null,
+    text: "**Card de app mais bonito**\n\nO card de app no chat fica mais legível.",
+  });
+  expect(f.epic(out.epic_id)?.from_msg).toBe(line.id);
+  // Nothing unrelated is marked as taken by the agent.
+  expect(f.acks()).toEqual([]);
+});
+
+test("start_epic with from_message_id starts from that message and takes it", async () => {
+  const f = fixture();
+  const source = f.book.addMessage(
+    "main",
+    email,
+    "deixa o card de app mais bonito",
+  );
+  f.book.addMessage("main", email, "outra coisa depois");
+  const out = (await f.book.agentEpic(
+    "abcdef",
+    email,
+    "Card de app",
+    "",
+    ["Ajustar"],
+    "Claude Opus 5.5",
+    source.id,
+    "agent-1",
+  )) as { ok: boolean; epic_id: string };
+  expect(out.ok).toBe(true);
+  expect(f.epic(out.epic_id)?.from_msg).toBe(source.id);
+  expect(f.acks()).toEqual([
+    { msg_id: source.id, agent: "agent-1", status: "doing" },
+  ]);
+});
+
+test("start_epic right after acking a request takes that request's thread; an old ack is not the request", async () => {
+  const f = fixture();
+  const request = f.book.addMessage(
+    "main",
+    email,
+    "melhora o card de app no chat",
+  );
+  f.book.agentAck("abcdef", "agent-1", email, "Claude Opus 5.5", request.id);
+  f.book.addMessage("main", email, "e o deploy?");
+  const out = (await f.book.agentEpic(
+    "abcdef",
+    email,
+    "Card de app",
+    "",
+    ["Ajustar"],
+    "Claude Opus 5.5",
+    undefined,
+    "agent-1",
+  )) as { ok: boolean; epic_id: string };
+  expect(f.epic(out.epic_id)?.from_msg).toBe(request.id);
+  expect(f.book.epicsFrom(request.id).map((e) => e.id)).toEqual([out.epic_id]);
+
+  // Later, an ack older than a few minutes: the next thread with no from_message_id has its own line.
+  const g = fixture();
+  const old = g.book.addMessage("main", email, "melhora o card de app no chat");
+  g.book.agentAck("abcdef", "agent-1", email, "Claude Opus 5.5", old.id);
+  g.ageAcks(60 * 60_000);
+  const later = (await g.book.agentEpic(
+    "abcdef",
+    email,
+    "Limpeza",
+    "",
+    [],
+    "Claude Opus 5.5",
+    undefined,
+    "agent-1",
+  )) as { ok: boolean; epic_id: string };
+  const line = g.messages().at(-1)!;
+  expect(line).toMatchObject({
+    thread: "main",
+    kind: "agent",
+    reply_to: null,
+    text: "**Limpeza**",
+  });
+  expect(g.epic(later.epic_id)?.from_msg).toBe(line.id);
 });

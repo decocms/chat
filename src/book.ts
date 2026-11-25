@@ -25,6 +25,8 @@ class Refused {
 const REPEAT_WINDOW_MS = 10_000;
 /** How many of the thread's newest rows that fallback looks at: a bounded scan, not the whole thread. */
 const REPEAT_SCAN_ROWS = 50;
+/** How recent an agent's "doing" ack must be to count as the request of a thread it opens without from_message_id. */
+const ACK_REQUEST_MS = 10 * 60_000;
 import { type Card, cardText } from "./card";
 import { poke } from "./person";
 import { dmTitle, isDmId } from "./dm";
@@ -2476,6 +2478,13 @@ export class Book extends DurableObject<Env> {
       .exec<{ id: string }>(`SELECT e.id FROM epics e LEFT JOIN messages o ON o.id = e.from_msg WHERE (e.from_msg = ? OR (o.thread = 'main' AND o.reply_to = ?))${open ? " AND COALESCE(e.done, 0) <= 0" : ""} ORDER BY e.ts DESC`, msgId, msgId)
       .toArray();
   }
+  /** The request `agent` took a moment ago: its latest "doing" ack within ACK_REQUEST_MS, while that message has no
+   *  thread but the one its ack opened (workThread). Anything older or already threaded is not this thread's request. */
+  takenRequest(agent: string): number | undefined {
+    const id = this.sql.exec<{ msg_id: number }>(`SELECT msg_id FROM acks WHERE agent = ? AND status = 'doing' AND ts > ? ORDER BY ts DESC LIMIT 1`, agent, Date.now() - ACK_REQUEST_MS).toArray()[0]?.msg_id;
+    if (id === undefined || !this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, id).toArray().length) return;
+    return this.epicsFrom(id).every((e) => this.get(`auto:${e.id}`) === "1") ? id : undefined;
+  }
   async agentEpic(bookId: string, email: string, title: string, why = "", tasks: string[] = [], via = "", fromMsg?: number, agent = "", owner = "", backlog = false, answer = false) {
     this.bind(bookId);
     // A DM is only a conversation: an epic asked for here goes to the room it belongs to.
@@ -2487,12 +2496,13 @@ export class Book extends DurableObject<Env> {
     if (owner && own !== owner.trim().toLowerCase()) return { ok: false, error: `owner must be a member email: ${members.join(", ")}` };
     const t = title.trim().slice(0, 200);
     if (!t) return { ok: false, error: "title is required" };
-    // The request it came from: the one given, else the person's latest own message, in any thread (an epic can
-    // branch out of another epic's thread). The app draws the epic as a thread card under that message.
-    // A backlog epic only links a request it was given (not the latest message: 36 of them would all hang there).
+    // The request it came from: the one given, else the request this agent just took (its "doing" ack of the last
+    // few minutes, on a message with no thread of its own yet besides the one that ack opened): ack, then
+    // start_thread, in one turn. Never the person's latest message by itself: it is often about something else, and
+    // the thread would quote it as its origin. A backlog epic only links a request it was given.
     const src =
       (fromMsg && this.sql.exec(`SELECT id FROM messages WHERE id = ?`, fromMsg).toArray()[0]?.id) ??
-      (backlog ? undefined : this.sql.exec(`SELECT id FROM messages WHERE author = ? AND kind IS NULL ORDER BY id DESC LIMIT 1`, email).toArray()[0]?.id);
+      (backlog || !agent ? undefined : this.takenRequest(agent));
     // The server already turned this question into an answer epic (the answer_thread router action, Gui #2767): the agent takes that one.
     const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(done, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1" || this.get(`auto:${e.id}`) === "1") : undefined;
     if (made && this.get(`auto:${made.id}`) === "1") {
@@ -2528,7 +2538,9 @@ export class Book extends DurableObject<Env> {
       // Opening an epic for a request is taking it: the request itself shows "X está fazendo isso".
       if (agent && !backlog) this.agentAck(bookId, agent, email, via || "agent", Number(src));
     } else if (!backlog) {
-      const line = this.en ? `↳ became the epic **${t}**: the conversation and progress continue there.` : `↳ virou o épico **${t}**: a conversa e o andamento seguem lá.`;
+      // No request: the thread starts from its own line in main, the agent's title and goal (not anyone's message).
+      const goal = why.trim().slice(0, 500);
+      const line = `**${t}**${goal ? `\n\n${goal}` : ""}`;
       this.sql.exec(`UPDATE epics SET from_msg = ? WHERE id = ?`, this.threadOrigin({ author: email, kind: "agent", via: via || undefined }, undefined, line), id);
       this.epicsChanged();
     } else this.epicsChanged();
