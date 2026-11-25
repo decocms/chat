@@ -2158,3 +2158,56 @@ test("the call's panel in another room goes back to the call's room with the sta
   await flush();
   expect(h.target.querySelector("[data-call-stage]") !== null).toBe(true);
 });
+
+test("home Inbox keeps the item you answered open on the right after it leaves the list (PO #5569)", async () => {
+  const task = (id: string, title: string): InboxTask => ({
+    book_id: "aaaaaa",
+    room: "Room",
+    epic_id: `e${id}`,
+    epic: `Epic ${id}`,
+    task_id: id,
+    title,
+    status: "todo",
+    due: null,
+  });
+  const first = task("t1", "Answered task"),
+    second = task("t2", "Other task");
+  let tasks = [first, second];
+  const h = await homeInbox({
+    inbox: async () => ({ waits: [], mentions: [], tasks }),
+  });
+  h.inbox.open();
+  await flush();
+  await waitForView(h.target, "[data-room-inbox] button");
+  const row = (title: string) =>
+    [
+      ...h.target.querySelectorAll<HTMLButtonElement>(
+        '[data-room-inbox-message][data-kind="task"] [data-inbox-open]',
+      ),
+    ].find((node) => node.textContent?.includes(title));
+  for (let i = 0; i < 20 && !row(first.title); i++) {
+    h.target
+      .querySelector<HTMLButtonElement>(
+        '[data-home-tab="tasks"][aria-selected="false"]',
+      )
+      ?.click();
+    await flush();
+  }
+  row(first.title)!.click();
+  await flush();
+  const workspace = () =>
+    h.target.querySelector<HTMLElement>("[data-home-workspace]")!;
+  expect(workspace().dataset.item).toBe("t:aaaaaa:t1");
+  // The task is done in its room: the Inbox reads again and it leaves the list…
+  tasks = [second];
+  h.inbox.changed(get(h.inbox.state).binding!);
+  for (let i = 0; i < 20 && row(first.title); i++) await flush();
+  expect(!!row(first.title)).toBe(false);
+  // …but it stays open on the right, with nothing left to act on, until you pick another item.
+  expect(workspace().dataset.item).toBe("t:aaaaaa:t1");
+  expect(workspace().dataset.gone).toBe("true");
+  expect(!!h.target.querySelector("[data-task-workspace]")).toBe(true);
+  row(second.title)!.click();
+  await flush();
+  expect(workspace().dataset.item).toBe("t:aaaaaa:t2");
+});

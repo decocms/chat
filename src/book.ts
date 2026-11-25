@@ -1206,7 +1206,7 @@ export class Book extends DurableObject<Env> {
     const byPerson = !extra.kind && author !== "ai";
     // A message for one person (a reminder) is not the room's last line for everyone else.
     const last = extra.forWho ? undefined : { by: author, text: previewText(text, extra.card, files), agent: extra.kind === "agent" };
-    if (!extra.quiet && !privateTo) this.ctx.waitUntil(this.touch({ lastId: id, human: byPerson ? id : undefined, agent: byPerson ? undefined : id, last }).then(() => this.markRead([...new Set([...this.online(), ...(byPerson ? [author] : [])])], id)));
+    if (!extra.quiet && !privateTo) this.ctx.waitUntil(this.touch({ lastId: id, human: byPerson ? id : undefined, agent: byPerson ? undefined : id, last }).then(() => this.readOnPost(author, byPerson, id)));
     if (byPerson && replyTo) {
       const q = this.sql.exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE id = ? AND kind = 'agent' AND choices IS NOT NULL`, replyTo).toArray()[0];
       // Answered in the room: its wait goes, and so does the "⏸ espera você no terminal" the Notification hook put up
@@ -2071,7 +2071,15 @@ export class Book extends DurableObject<Env> {
     this.pokeMembers(true);
   }
   /** What each person has seen in this room (the app's unread dots): everyone with the room open, up to `upto`. */
-  async markRead(emails: string[], upto: number) {
+  /** A message went in: everyone with the room open has read up to it, and so has its author. An author who only looks
+   *  from the Home Inbox (a peek socket, not online) moves their read point but keeps the asks of the room's other
+   *  threads: answering one item there must not clear the others (PO #5569). Their answered ask goes by answeredHere. */
+  async readOnPost(author: string, byPerson: boolean, upto: number) {
+    const here = this.online();
+    await this.markRead(here, upto);
+    if (byPerson && !here.includes(author)) await this.markRead([author], upto, false);
+  }
+  async markRead(emails: string[], upto: number, waits = true) {
     const id = this.get("book_id");
     if (!id || !emails.length || !upto) return;
     await this.env.DB.batch(
@@ -2081,7 +2089,7 @@ export class Book extends DurableObject<Env> {
         ).bind(e, id, upto),
       ),
     );
-    await this.readWaits(emails, upto);
+    if (waits) await this.readWaits(emails, upto);
   }
   /** Reading a message clears the notifications it made (PO #5172), like opening the thread and seeing it: what it
    *  asked of you (waits m<id>, a mention or your own agent's message) and the mention held back for the Inbox and the digest (digest_items). Work stays until
