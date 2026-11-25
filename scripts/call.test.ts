@@ -133,6 +133,20 @@ test("each piece of the transcript goes to the person who spoke the most while i
   ]);
 });
 
+test("noise that the model wrote as words is dropped, and a call of one person has one name", () => {
+  const turns: Turn[] = [{ name: "rafa", start: 1000, end: 3000 }];
+  const pieces = [
+    { start: 1200, end: 2800, text: "Bom dia.", quiet: 0.1 },
+    { start: 40_000, end: 41_000, text: "Obrigado.", quiet: 0.9 },
+    { start: 80_000, end: 82_000, text: "Vamos ver isso amanhã.", quiet: 0.2 },
+  ];
+  expect(attribute(turns, pieces, ["rafa"]).map((line) => [line.name, line.text])).toEqual([
+    ["rafa", "Bom dia."],
+    ["rafa", "Vamos ver isso amanhã."],
+  ]);
+  expect(attribute(turns, pieces, ["rafa", "bia"]).map((line) => line.name)).toEqual(["rafa", "?"]);
+});
+
 test("the room's transcript file keeps one paragraph for each turn, with the time", () => {
   expect(
     transcriptMarkdown("Call · 2026-11-24", [

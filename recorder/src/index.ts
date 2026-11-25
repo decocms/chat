@@ -64,10 +64,11 @@ export default {
       // From the container: one part of the call's audio. The answer: its pieces of text, with their times.
       const audio = new Uint8Array(await request.arrayBuffer());
       if (!audio.byteLength || audio.byteLength > AUDIO_MAX) return new Response("audio empty or too large", { status: 413 });
-      const out = (await env.AI.run(WHISPER, { audio: base64(audio) })) as { transcription_info?: { language?: string }; segments?: { start?: number; end?: number; text?: string }[] };
+      const out = (await env.AI.run(WHISPER, { audio: base64(audio) })) as { transcription_info?: { language?: string }; segments?: { start?: number; end?: number; text?: string; no_speech_prob?: number }[] };
       return Response.json({
         language: out.transcription_info?.language ?? "",
-        segments: (out.segments ?? []).map((piece) => ({ start: Number(piece.start) || 0, end: Number(piece.end) || 0, text: String(piece.text ?? "") })),
+        // `quiet`: how sure the model is that the piece has no speech. It writes words for noise at times.
+        segments: (out.segments ?? []).map((piece) => ({ start: Number(piece.start) || 0, end: Number(piece.end) || 0, text: String(piece.text ?? ""), quiet: Number(piece.no_speech_prob) || 0 })),
       });
     }
     const job = (await request.json().catch(() => null)) as Partial<Job> | null;
