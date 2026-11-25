@@ -635,8 +635,9 @@
     data-home-list
     class="flex min-h-0 w-[420px] shrink-0 flex-col border-r border-border"
   >
-    <!-- The ask box on top of the list, as high as the open item's header: the two rows of tabs line up. -->
-    <header data-home-hero class="flex h-16 shrink-0 items-center px-4">
+    <!-- The ask box on top of the list (16px above it, 20px under it), as high as the open item's header:
+         the two rows of tabs line up. -->
+    <header data-home-hero class="flex h-[92px] shrink-0 items-start px-4 pt-4">
       <div data-home-ask="inbox" class="w-full">
         <HomeAsk
           personal={services.personal}
@@ -649,7 +650,7 @@
       </div>
     </header>
     <div
-      class="flex h-10 shrink-0 items-center gap-1 border-b border-border px-4"
+      class="flex h-11 shrink-0 items-stretch gap-1 border-b border-border px-4"
     >
       <div role="tablist" aria-label={t("Caixa de entrada")} class="flex">
         {#each tabs as item (item.id)}{@const count =
@@ -659,7 +660,7 @@
             data-home-tab={item.id}
             aria-selected={tab === item.id}
             class={cn(
-              "-mb-px flex h-10 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-3 font-sans first:pl-0 text-sm whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "-mb-px flex cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-3 font-sans first:pl-0 text-sm whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring",
               tab === item.id
                 ? "border-foreground font-medium text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
@@ -678,7 +679,7 @@
       </div>
       {#if picked.length}<span
           data-inbox-selection
-          class="ml-auto flex items-center gap-1 text-xs text-muted-foreground"
+          class="ml-auto flex items-center gap-1 self-center text-xs text-muted-foreground"
           >{t("{n} selecionados", { n: picked.length })}<Button
             size="sm"
             variant="ghost"
@@ -694,7 +695,7 @@
           aria-label={t("Mais ações")}
           class={cn(
             buttonVariants({ variant: "ghost", size: "icon-sm" }),
-            "size-8 shrink-0 text-muted-foreground",
+            "size-8 shrink-0 self-center text-muted-foreground",
             !picked.length && "ml-auto",
           )}><Icon icon="dots-horizontal" size={15} /></DropdownMenuTrigger
         >
@@ -712,7 +713,7 @@
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-    <div class="min-h-0 flex-1 overflow-auto px-2 pt-2 pb-16">
+    <div class="min-h-0 flex-1 overflow-auto px-2 pt-3 pb-16">
       {#if $inbox.error && $inbox.error !== "resolve"}<ErrorState
           title={t("Não foi possível carregar a caixa de entrada.")}
           compact

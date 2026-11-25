@@ -316,7 +316,7 @@
   class="flex h-full min-h-0 min-w-0 flex-col bg-background"
 >
   <!-- One row, as high as the ask box on the list's side, so the two rows of tabs line up. -->
-  <header class="flex h-16 shrink-0 items-center gap-2.5 px-6">
+  <header class="flex h-[92px] shrink-0 items-center gap-2.5 px-6">
     <RoomAvatar
       title={header.room}
       icon={summary ? roomIcon(summary) : null}
@@ -349,7 +349,7 @@
   <div
     role="tablist"
     aria-label={t("Visões da tarefa")}
-    class="flex h-10 shrink-0 border-b border-border px-6"
+    class="flex h-11 shrink-0 border-b border-border px-6"
   >
     {#each views as item (item.id)}<button
         type="button"
