@@ -1228,7 +1228,13 @@ async function trayLatest(): Promise<string> {
 function cliUpdate(bin: string): string[] | undefined {
   let real = bin;
   try { real = realpathSync(bin); } catch {}
-  if (!real.replace(/\\/g, "/").includes("/node_modules/vibebook.dev/")) return [bin, "update"];
+  const path = real.replace(/\\/g, "/");
+  if (!path.includes("/node_modules/vibebook.dev/")) return [bin, "update"];
+  // The package manager that installed it: npm would install a second copy that PATH does not reach.
+  if (path.includes("/.bun/install/global/")) {
+    const bun = findAgent("bun");
+    return bun ? [bun, "add", "-g", "vibebook.dev@latest"] : undefined;
+  }
   const npm = findAgent("npm");
   return npm ? [npm, "i", "-g", "vibebook.dev@latest"] : undefined;
 }
@@ -1703,7 +1709,8 @@ async function main() {
           else spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], { stdio: "ignore", detached: true }).unref();
         }
         await scan();
-        deco.state = ok ? "checked" : "failed";
+        // Still behind after the install: say so (and offer it again), not the same Install line.
+        deco.state = ok && !(cli && cliBehind()) ? "checked" : "failed";
         draw();
       };
       draw();

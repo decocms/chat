@@ -1333,8 +1333,13 @@ function cliUpdate(bin) {
   try {
     real = realpathSync(bin);
   } catch {}
-  if (!real.replace(/\\/g, "/").includes("/node_modules/vibebook.dev/"))
+  const path = real.replace(/\\/g, "/");
+  if (!path.includes("/node_modules/vibebook.dev/"))
     return [bin, "update"];
+  if (path.includes("/.bun/install/global/")) {
+    const bun = findAgent("bun");
+    return bun ? [bun, "add", "-g", "vibebook.dev@latest"] : undefined;
+  }
   const npm = findAgent("npm");
   return npm ? [npm, "i", "-g", "vibebook.dev@latest"] : undefined;
 }
@@ -1961,7 +1966,7 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
             spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], { stdio: "ignore", detached: true }).unref();
         }
         await scan();
-        deco.state = ok ? "checked" : "failed";
+        deco.state = ok && !(cli && cliBehind()) ? "checked" : "failed";
         draw();
       };
       draw();
