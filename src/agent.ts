@@ -1093,7 +1093,7 @@ const TOOLS = [
   {
     name: "start_thread",
     description:
-      "Turn a request into its own thread: creates an epic (the request as its first task, or the tasks you pass, plus a doc that starts with the goal) and shows it as a thread under the request's message in the main thread (your human's latest one, or from_message_id). Threads do not nest: for a request inside another thread, the room writes one line in the main thread that links it, and the new thread starts from that line. Then talk, report progress and say it's done inside that epic (post with thread = epic_id) and move its tasks with set_task_status; when every task is done the epic moves to review, and it is done when your human says so. A DM has no epics: asked for one in a DM, pick the room it belongs to (inbox lists your human's rooms; ask if it's unclear), start_thread there with its room_id, and answer in the DM with the link.",
+      "Turn a request into its own thread: creates an epic (the request as its first task, or the tasks you pass, plus a doc that starts with the goal) and shows it as a thread under the request's message in the main thread (from_message_id, or the request you just acked as doing; with neither, the thread starts from its own title and why in main, never from someone's unrelated message). Threads do not nest: for a request inside another thread, the room writes one line in the main thread that links it, and the new thread starts from that line. Then talk, report progress and say it's done inside that epic (post with thread = epic_id) and move its tasks with set_task_status; when every task is done the epic moves to review, and it is done when your human says so. A DM has no epics: asked for one in a DM, pick the room it belongs to (inbox lists your human's rooms; ask if it's unclear), start_thread there with its room_id, and answer in the DM with the link.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1120,7 +1120,7 @@ const TOOLS = [
         from_message_id: {
           type: "number",
           description:
-            "the main-thread message this request came from; default: your human's latest message there",
+            "the message this request came from; pass it whenever the thread comes from a message. Default: the request you acked as doing in the last few minutes, else none",
         },
         owner: {
           type: "string",
