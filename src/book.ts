@@ -1355,12 +1355,16 @@ export class Book extends DurableObject<Env> {
     return { members, names, handles, nm, roster, before };
   }
   /** The people a message waits on become D1 `waits` rows (home, rail, MCP `pending`) and get a push. Whoever already
-   *  wrote in the thread after it is left out (answeredHere already ran for them). */
+   *  wrote in the thread after it, or reacted to it, is left out: answeredHere and reactedHere already ran for them,
+   *  before this pass (an LLM call) was done, so the message would stay orange (Gimenes #4604). */
   async saveWaits(id: number, emails: string[]) {
     const bookId = this.get("book_id");
-    const m = this.sql.exec<{ thread: string; author: string; text: string; ts: number }>(`SELECT thread, author, text, ts FROM messages WHERE id = ?`, id).toArray()[0];
+    const m = this.sql
+      .exec<{ thread: string; author: string; text: string; ts: number; reactions: string | null }>(`SELECT thread, author, text, ts, reactions FROM messages WHERE id = ?`, id)
+      .toArray()[0];
     if (!bookId || !m) return;
     const later = new Set(this.sql.exec<{ author: string }>(`SELECT DISTINCT author FROM messages WHERE thread = ? AND id > ? AND kind IS NULL`, m.thread, id).toArray().map((x) => x.author));
+    for (const who of Object.values(storedReactions(m.reactions) ?? {}).flat()) later.add(who);
     const asked = emails.filter((e) => !later.has(e));
     const topic = m.thread === "main" ? "" : (this.epics().find((e) => e.id === m.thread)?.title ?? "");
     if (asked.length) {
