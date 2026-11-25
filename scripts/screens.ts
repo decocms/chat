@@ -392,6 +392,11 @@ if (flag("publish")) {
       console.log(
         `![${file}](https://raw.githubusercontent.com/${repo}/${sha}/${name}/${file})`,
       );
+    // A video does not show inline in a pull request: a link to the file.
+    for (const file of videos)
+      console.log(
+        `[${file}](https://raw.githubusercontent.com/${repo}/${sha}/${name}/${file})`,
+      );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
