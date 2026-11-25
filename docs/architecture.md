@@ -191,7 +191,7 @@ The microphone goes through RNNoise (`web/features/call/denoise.ts`) before it g
 
 ### Background blur
 
-The camera dialog (`CameraDialog`) shows the picture before it goes to the call. The person can put the background out of focus (`web/features/call/blur.ts`). A model finds the person in each frame, in the browser: no picture goes to a server for this. The runtime (`@mediapipe/tasks-vision`, 15 MB) loads only when the person turns the blur on.
+The camera dialog (`CameraDialog`) shows the picture before it goes to the call. The person can put the background out of focus (`web/features/call/blur.ts`). A model finds the person in each frame, in the browser: no picture goes to a server for this. The runtime (`@mediapipe/tasks-vision`, 15 MB) and the model (`selfie_multiclass_256x256`, 16 MB) load only when the person turns the blur on. Only the background is blurred, at a quarter of the size, with the person cut out, so the colors of the person do not make a halo around them. The mask of each frame is mixed with the mask of the frame before, so the edge does not shake.
 
 ## Security
 

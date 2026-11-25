@@ -141,6 +141,19 @@ To test the recorder too:
 5. Run `TEST_RECORDER=1 bun scripts/call-browser.ts`. Read the container's log with `docker logs rec`: it shows who it saw, the transcript lines and each step. With a fake Grain token, the last step fails at the upload, as expected.
 6. Remove the container: `docker rm -f rec`.
 
+## Test the camera's blur
+
+Each change to the blur (`web/features/call/blur.ts`) gets this test. Put the screens of before and after in the pull request.
+
+1. Do steps 1 and 2 of "Test the call locally".
+2. Make a camera file from a photo of a person (public domain or your own, because the screens go to a public branch):
+
+   ```
+   ffmpeg -loop 1 -i person.jpg -vf "scale=-2:720,pad=1280:720:(ow-iw)/2:0,format=yuv420p" -t 3 -r 24 /tmp/person.y4m
+   ```
+
+3. Run `TEST_GPU=1 TEST_CAMERA=/tmp/person.y4m bun scripts/call-blur-test.ts`. It opens "Câmera e desfoque" in a call and saves the preview at each level in `/tmp/vibebook-call-blur` (`TEST_LABEL` names the files). It prints the frames a second with the strong blur (`strong_fps`). Without `TEST_GPU=1`, Chrome draws on the CPU and the number is much lower than a person sees.
+
 ## Test the call's audio
 
 Each change to the microphone path of the call (`web/features/call/session.ts`, `denoise.ts`) gets this test. Put its numbers in the pull request.
