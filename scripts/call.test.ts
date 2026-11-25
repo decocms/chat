@@ -342,3 +342,125 @@ test("a person alone is not recorded; the second person makes it a call to recor
   expect(r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test")).toBe(true);
   expect(r.book.liveCallThread()).toBe(CALL_THREAD);
 });
+
+test("a hang-up takes only that session out of the call; a newer session of the person stays", () => {
+  const r = callRoom("dm0123456789abcdef0123");
+  r.book.callJoin("dm0123456789abcdef0123", "ana@x.test", "s-ana", "https://x.test");
+  // An old session (a tab that joined before and was replaced) leaving does not take the new one out.
+  r.book.callLeave("ana@x.test", "s-old");
+  expect(r.book.callPeers().map((p) => p.session)).toEqual(["s-ana"]);
+  r.book.callLeave("ana@x.test", "s-ana");
+  expect(r.book.callPeers()).toEqual([]);
+  expect(r.book.liveCallThread()).toBeUndefined();
+  expect(r.frames.filter((f) => f.t === "call").at(-1)?.call).toEqual([]);
+});
+
+// ---- the tab's call session (web/features/call/session.ts) with a fake browser and a fake SFU route ----
+function fakeBrowser() {
+  const saved = { navigator: globalThis.navigator, document: globalThis.document, RTCPeerConnection: globalThis.RTCPeerConnection, MediaStream: globalThis.MediaStream };
+  const track = { enabled: true, kind: "audio", stop() {} };
+  const stream = { getTracks: () => [track], getAudioTracks: () => [track], getVideoTracks: () => [] };
+  class FakePc {
+    closed = false;
+    localDescription: { sdp: string } | null = null;
+    ontrack: unknown = null;
+    addTransceiver() {
+      return { mid: "0", sender: { getParameters: () => ({ encodings: [] }), setParameters: async () => {} } };
+    }
+    async createOffer() {
+      return { type: "offer", sdp: "v=0" };
+    }
+    async createAnswer() {
+      return { type: "answer", sdp: "v=0" };
+    }
+    async setLocalDescription(d: { sdp?: string }) {
+      if (this.closed) throw Error("InvalidStateError: closed");
+      this.localDescription = { sdp: d.sdp ?? "" };
+    }
+    async setRemoteDescription() {
+      if (this.closed) throw Error("InvalidStateError: closed");
+    }
+    async getStats() {
+      return new Map();
+    }
+    close() {
+      this.closed = true;
+    }
+  }
+  Object.assign(globalThis, {
+    navigator: { mediaDevices: { getUserMedia: async () => stream } },
+    document: { visibilityState: "visible", addEventListener() {}, removeEventListener() {} },
+    RTCPeerConnection: FakePc,
+    MediaStream: class {},
+  });
+  return () => Object.assign(globalThis, saved);
+}
+const later = () => new Promise((resolve) => setTimeout(resolve, 5));
+
+test("hanging up while the room lets me in: that session leaves the call, and no error shows", async () => {
+  const restore = fakeBrowser();
+  try {
+    let letIn: (session: string) => void = () => {};
+    const left: string[] = [], sent: string[] = [];
+    const api = {
+      join: () => new Promise<string>((resolve) => (letIn = resolve)),
+      tracks: async () => ({ sessionDescription: { type: "answer" as const, sdp: "v=0" }, tracks: [] }),
+      answer: async () => {},
+      close: async () => {},
+      leave: async (_room: string, session: string) => void left.push(session),
+    };
+    const { createCallSession } = await import("../web/features/call/session");
+    const call = createCallSession("dm0123456789abcdef0123", api, (c) => (sent.push(c.t), true), () => "main");
+    const views: { phase: string; error: string }[] = [];
+    call.state.subscribe((v) => views.push({ phase: v.phase, error: v.error }));
+    call.join();
+    await later();
+    call.leave();
+    letIn("s-late");
+    await later();
+    expect(left).toEqual(["s-late"]);
+    expect(views.at(-1)).toEqual({ phase: "idle", error: "" });
+    expect(views.some((v) => v.error)).toBe(false);
+  } finally {
+    restore();
+  }
+});
+
+test("hanging up while the SFU answers a step: the step's failure is no error of the call, and the room is told", async () => {
+  const restore = fakeBrowser();
+  try {
+    let fail: (e: Error) => void = () => {};
+    const left: string[] = [];
+    let pushes = 0;
+    const api = {
+      join: async () => "s-me",
+      // The microphone's push answers; the next request (a pull) is on its way when the person hangs up.
+      tracks: (_room: string, body: { push?: unknown[] }) =>
+        body.push && !pushes++
+          ? Promise.resolve({ sessionDescription: { type: "answer" as const, sdp: "v=0" }, tracks: [] })
+          : new Promise<never>((_, reject) => (fail = reject)),
+      answer: async () => {},
+      close: async () => {},
+      leave: async (_room: string, session: string) => void left.push(session),
+    };
+    const { createCallSession } = await import("../web/features/call/session");
+    const call = createCallSession("dm0123456789abcdef0123", api, () => true, () => "main");
+    let view = { phase: "", error: "" };
+    call.state.subscribe((v) => (view = { phase: v.phase, error: v.error }));
+    call.join();
+    await later();
+    expect(view.phase).toBe("in");
+    call.setPeers([
+      { email: "me@x.test", session: "s-me", tracks: ["mic"] },
+      { email: "ana@x.test", session: "s-ana", tracks: ["mic"] },
+    ], "me@x.test");
+    await later();
+    call.leave();
+    expect(left).toEqual(["s-me"]);
+    fail(Error("call tracks 403"));
+    await later();
+    expect(view).toEqual({ phase: "idle", error: "" });
+  } finally {
+    restore();
+  }
+});

@@ -1,6 +1,7 @@
 import type { Attachment, Room } from "../../../shared/room";
 import type { ChatActions } from "../../app/chatTypes";
 import type { RichFileReader } from "./roomFiles";
+import type { AppLink } from "./appLinks";
 export type RichPolicy = "document" | "file-preview";
 export type RichMode = "human" | "markdown" | "inline";
 export type RichContext = {
@@ -21,7 +22,7 @@ export type RichFileReference = {
 export type RichNavigation = { kind: "thread" | "document"; id?: string };
 export type RichActions = Pick<
   ChatActions,
-  "navigate" | "openFile" | "ensureFileIndex"
+  "navigate" | "openFile" | "ensureFileIndex" | "openAppLink"
 > & {
   navigateRich?: (target: RichNavigation) => void;
   openFileReference?: (file: RichFileReference) => void;
@@ -37,7 +38,9 @@ export type LinkTarget =
       attachment?: Attachment;
       version?: number;
     }
-  | { kind: "github"; href: string; label: string };
+  | { kind: "github"; href: string; label: string }
+  /** A room, thread or message of this app; chip = the link's text is the bare URL, so a chip takes its place. */
+  | { kind: "app"; href: string; link: AppLink; chip: boolean };
 export type RichNamespace =
   | "http://www.w3.org/1999/xhtml"
   | "http://www.w3.org/2000/svg"
