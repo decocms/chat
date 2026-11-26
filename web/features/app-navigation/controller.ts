@@ -33,6 +33,8 @@ export type AppNavigationCallbacks = {
   orgRooms?: (signal: AbortSignal) => Promise<OrgRoomsResult>;
   /** Joins a room open to your company and opens it. */
   joinOrg?: (room: string) => Promise<void>;
+  /** You looked at the company rooms: the ones opened up to `until` are no longer new (POST /api/org/rooms/seen). */
+  seeOrgRooms?: (until: number) => Promise<void>;
   /** Whether you run the deco.chat menu bar app on a computer (GET /api/me/app). */
   meApp?: (signal: AbortSignal) => Promise<MeAppResult>;
 };
@@ -92,14 +94,14 @@ export function createAppNavigationSession(
   const company = writable<readonly OrgRoom[]>([]);
   let companyMe: unknown = null,
     companyLoad: AbortController | null = null;
-  function loadCompany(email: string) {
+  function loadCompany(email: string): Promise<void> {
     const load = callbacks.orgRooms;
-    if (!load) return;
+    if (!load) return Promise.resolve();
     companyLoad?.abort();
-    if (!corporateDomain(email)) return company.set([]);
+    if (!corporateDomain(email)) return Promise.resolve(company.set([]));
     const abort = (companyLoad = new AbortController());
     // A failed read keeps the list as it was; it never reaches the personal store's other readers.
-    Promise.resolve(abort.signal)
+    return Promise.resolve(abort.signal)
       .then(load)
       .then(
         (result) => {
@@ -113,11 +115,43 @@ export function createAppNavigationSession(
     companyMe = value.me;
     loadCompany(value.me.email);
   });
-  /** Reads the company's rooms again (the "Salas da empresa" dialog, each time it opens). */
+  /** Reads the company's rooms again (the "Salas da empresa" dialog, each time it opens, and the app regaining focus). */
   function refreshCompany() {
     const me = get(personal.state).me;
-    if (me) loadCompany(me.email);
+    return me ? loadCompany(me.email) : Promise.resolve();
   }
+  /** The list opened: read it again, then tell the server that what it shows was seen (every device drops the dot).
+   *  The rows keep their "New" pill until the list closes. */
+  function openCompany() {
+    void refreshCompany().then(() => {
+      const shown = get(company).filter((room) => room.new);
+      if (!shown.length || !callbacks.seeOrgRooms) return;
+      const until = Math.max(...shown.map((room) => room.opened_at ?? 0));
+      callbacks.seeOrgRooms(until).catch(() => {});
+    });
+  }
+  /** The list closed: nothing in it is new anymore. */
+  function closeCompany() {
+    company.update((list) =>
+      list.some((room) => room.new)
+        ? list.map((room) => (room.new ? { ...room, new: false } : room))
+        : list,
+    );
+  }
+  // A room opened to your company meanwhile: read the list again when the app comes back (no polling), at most once a
+  // minute.
+  let companyAt = 0;
+  const companyBack = () => {
+    if (
+      document.visibilityState !== "visible" ||
+      Date.now() - companyAt < 60_000
+    )
+      return;
+    companyAt = Date.now();
+    void refreshCompany();
+  };
+  if (typeof document !== "undefined")
+    document.addEventListener("visibilitychange", companyBack);
   // "Instale o app" (Gimenes #5843): null until known, read once per signed-in person; a failed read stays null.
   const appInstalled = writable<boolean | null>(null);
   let appEmail = "",
@@ -151,6 +185,8 @@ export function createAppNavigationSession(
     appInstalled: { subscribe: appInstalled.subscribe },
     joinCompany,
     refreshCompany,
+    openCompany,
+    closeCompany,
     creator,
     search,
     callbacks,
@@ -294,6 +330,8 @@ export function createAppNavigationSession(
     dispose() {
       stopIdentity();
       stopCompany();
+      if (typeof document !== "undefined")
+        document.removeEventListener("visibilitychange", companyBack);
       companyLoad?.abort();
       stopApp();
       appLoad?.abort();

@@ -185,6 +185,7 @@ function fixture(
       dismiss: async () => ({ ok: true as const }),
       answerInvite: async () => ({ ok: true as const }),
       orgRooms: async () => ({ domain: null, rooms: [] }),
+      seeOrgRooms: async () => ({ ok: true as const }),
       meApp: async () => ({ app: true }),
       joinOrg: async () => ({ ok: true as const, member: true as const }),
     },

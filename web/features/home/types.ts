@@ -41,6 +41,8 @@ export type HomeBridge = {
   company?: Readable<readonly OrgRoom[]>;
   /** Joins a room open to your company and opens it. */
   oncompany?: (room: string) => Promise<void>;
-  /** Reads the company's rooms again when their dialog opens. */
+  /** Reads the company's rooms again when their dialog opens, and marks what it shows as seen. */
   oncompanyopen?: () => void;
+  /** Their dialog closed: nothing in it is new anymore. */
+  oncompanyclose?: () => void;
 };

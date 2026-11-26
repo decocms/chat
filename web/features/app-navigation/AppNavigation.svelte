@@ -324,7 +324,8 @@
         rooms={$company}
         {lang}
         onjoin={controller.joinCompany}
-        onopen={controller.refreshCompany}
+        onopen={controller.openCompany}
+        onclose={controller.closeCompany}
       />{/if}
     <RailButton
       icon="search-md"
