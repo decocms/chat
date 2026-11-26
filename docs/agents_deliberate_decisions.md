@@ -2440,3 +2440,4 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The toolbar is wider by four buttons, plus one per extra reaction of yours.
 - Undo: Revert the commit.
 - Status: open
+- Update (Valls): the bar keeps only the main actions, the rest go in a ⋯ menu (`DropdownMenu`, like Discord's message menu). On your message the bar has edit, forward and thread; on someone else's, reply, forward and copy. The menu has every other action, then delete in red after a divider. The bar is 36 px high with 4 px padding, so every 28 px item (and the pressed ring) sits centred with the same space above and below. The bar stays shown while its menu is open.

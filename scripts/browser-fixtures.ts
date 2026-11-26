@@ -168,7 +168,8 @@ export async function startThreadFromMessage(page: Page, text: string) {
   await expect(message).toBeVisible();
   await message.hover();
   // One click makes the thread and opens it (Gimenes #4310): no title step.
-  await message.locator("[data-start-thread]").click();
+  // Your message: thread is in the hover bar (others' messages keep it in ⋯).
+  await message.locator("[data-message-toolbar] [data-start-thread]").click();
   const row = page
     .locator("[data-epic-thread]")
     .filter({ hasText: text })

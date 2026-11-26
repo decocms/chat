@@ -336,6 +336,34 @@ function otherField(target: HTMLElement) {
 }
 
 /** The chat's hover toolbar mounts on the first pointer in a message (web/features/chat/Message.svelte). */
+/** One action of a hovered message: in its toolbar, or else in its ⋯ menu (opened here). */
+async function messageAction(target: HTMLElement, id: number, attr: string) {
+  const inBar = target.querySelector<HTMLElement>(
+    `#m${id} [data-message-toolbar] [${attr}]`,
+  );
+  if (inBar) return inBar;
+  await openMessageMenu(target, id);
+  return document.querySelector<HTMLElement>(
+    `[data-message-menu="${id}"] [${attr}]`,
+  );
+}
+async function openMessageMenu(target: HTMLElement, id: number) {
+  if (document.querySelector(`[data-message-menu="${id}"]`)) return;
+  const more = target.querySelector<HTMLElement>(
+    `#m${id} [data-more-actions="${id}"]`,
+  );
+  if (!more) return;
+  more.dispatchEvent(
+    new PointerEvent("pointerdown", {
+      bubbles: true,
+      button: 0,
+      pointerType: "mouse",
+    }),
+  );
+  flushSync();
+  await tick();
+  flushSync();
+}
 function hoverMessages(target: HTMLElement) {
   for (const row of target.querySelectorAll("[data-chat-message]"))
     row.dispatchEvent(new PointerEvent("pointerenter"));
@@ -2648,24 +2676,71 @@ describe("chat", () => {
     expect(sent).toHaveLength(3);
     expect(sent[2]).toMatchObject({ t: "react", id: 9 });
   }, 30_000);
-  test("the message toolbar puts delete last, red, after a divider (Gimenes #4591)", () => {
-    const mine = { ...message(8, "My message"), author: "me@test" };
-    const { target } = renderChat({ ...fixture(), messages: [mine] });
+  test("the hover bar keeps the main actions and puts the rest in ⋯, delete last, red, after a divider (Valls, Gimenes #4591)", async () => {
+    const mine = { ...message(8, "My message"), author: "me@test", kind: null };
+    const theirs = {
+      ...message(9, "Their message"),
+      author: "you@test",
+      kind: null,
+    };
+    const { target } = renderChat({
+      ...fixture(),
+      messages: [mine, theirs],
+    });
     hoverMessages(target);
-    const del = target.querySelector<HTMLElement>(
-      '#m8 [data-delete-message="8"]',
+    const bar = (id: number) =>
+      [
+        ...target.querySelectorAll<HTMLElement>(
+          `#m${id} [data-message-toolbar] button`,
+        ),
+      ]
+        .filter((el) => !el.hasAttribute("data-quick-react"))
+        .map((el) => el.getAttribute("aria-label"));
+    // Yours: edit, forward, thread (when the room offers them), then ⋯. Someone else's: reply, forward, copy, then ⋯.
+    expect(bar(8)).toEqual([
+      "Mais reações",
+      "Editar mensagem",
+      ...(target.querySelector("#m8 [data-message-toolbar] [data-forward]")
+        ? ["Encaminhar"]
+        : []),
+      ...(target.querySelector("#m8 [data-message-toolbar] [data-start-thread]")
+        ? ["Criar thread"]
+        : []),
+      "Mais ações",
+    ]);
+    expect(bar(9).slice(0, 2)).toEqual(["Mais reações", "Responder"]);
+    expect(bar(9).at(-2)).toBe("Copiar texto");
+    expect(bar(9).at(-1)).toBe("Mais ações");
+    // ⋯ on yours: every other action, delete last, red, after a divider.
+    await openMessageMenu(target, 8);
+    const menu = document.querySelector<HTMLElement>(
+      '[data-message-menu="8"]',
+    )!;
+    expect(menu).not.toBeNull();
+    const rows = [
+      ...menu.querySelectorAll<HTMLElement>(
+        "[data-slot=dropdown-menu-item], [data-slot=dropdown-menu-separator]",
+      ),
+    ];
+    const keys = rows.map((el) =>
+      el.dataset.slot === "dropdown-menu-separator"
+        ? "|"
+        : el.hasAttribute("data-reply")
+          ? "reply"
+          : el.hasAttribute("data-copy")
+            ? "copy"
+            : el.hasAttribute("data-copylink")
+              ? "link"
+              : el.hasAttribute("data-delete-message")
+                ? "delete"
+                : "other",
     );
-    expect(del).not.toBeNull();
-    expect(del!.className).toContain("text-destructive");
-    const buttons = [...del!.parentElement!.children].filter(
-      (el) => el.tagName === "BUTTON",
-    );
-    expect(buttons.at(-1)?.getAttribute("data-delete-message")).toBe("8");
-    expect(del!.previousElementSibling?.getAttribute("aria-hidden")).toBe(
-      "true",
-    );
+    expect(keys.slice(0, 3)).toEqual(["reply", "copy", "link"]);
+    expect(keys.slice(-2)).toEqual(["|", "delete"]);
+    expect(rows.at(-1)!.dataset.variant).toBe("destructive");
+    expect(menu.querySelector("[data-edit-message]")).toBeNull();
   });
-  test("quotes, actions and origin survive chat refresh; @vibe notices are hidden", () => {
+  test("quotes, actions and origin survive chat refresh; @vibe notices are hidden", async () => {
     const origin = message(7, "Original request");
     const reply = { ...message(8, "A response"), reply_to: 7 };
     const notice = {
@@ -2691,7 +2766,7 @@ describe("chat", () => {
     // @vibe's routine notices are hidden (Gui #3317).
     expect(target.querySelector("#m9")).toBeNull();
     hoverMessages(target);
-    expect(target.querySelector('#m8 [data-copylink="8"]')).not.toBeNull();
+    expect(await messageAction(target, 8, 'data-copylink="8"')).not.toBeNull();
     target.querySelector<HTMLElement>("#olderBtn")!.click();
     expect(pages).toBe(1);
     update({
@@ -2734,9 +2809,7 @@ describe("chat", () => {
     hoverMessages(target);
     // A message that already started a thread has its card, not a second Criar thread.
     expect(target.querySelector("#m10 [data-start-thread]")).toBeNull();
-    target
-      .querySelector<HTMLButtonElement>('#m8 [data-start-thread="8"]')!
-      .click();
+    (await messageAction(target, 8, 'data-start-thread="8"'))!.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     flushSync();
     // No title line: the click itself creates the thread, titled from the message.
@@ -2777,9 +2850,7 @@ describe("chat", () => {
     };
     const main = renderChat(room, { thread: "main", actions });
     hoverMessages(main.target);
-    main.target
-      .querySelector<HTMLButtonElement>('#m8 [data-start-thread="8"]')!
-      .click();
+    (await messageAction(main.target, 8, 'data-start-thread="8"'))!.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     flushSync();
     const id = opened[0]!;
@@ -2949,7 +3020,7 @@ describe("chat", () => {
     await tick();
     flushSync();
     expect(copied).toContain("Body");
-    target.querySelector<HTMLButtonElement>("#m8 [data-copylink]")!.click();
+    (await messageAction(target, 8, "data-copylink"))!.click();
     await tick();
     flushSync();
     expect(copied.at(-1)).toContain("/b/r?t=e#m8");
