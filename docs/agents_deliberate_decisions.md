@@ -2306,3 +2306,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A message that streams while the pointer is on it does not follow the bottom until the pointer leaves it.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · feat/composer-format-hints · Shortcut hints show while you select text
+
+- Agent: claude-opus-5-5
+- Context: Pedro selected "A and C" of the proposal in the room (thread "PR #484", message #5759): inline code gets a background, and the composer shows the formatting shortcuts. Nobody found the shortcuts of #484 with no hint. The proposal said "the tooltip of the composer", but the composer has no tooltip.
+- Decision:
+  - A line with six shortcuts (bold, italic, underline, strikethrough, code, link) shows above the field while you select text in it. The keys are written as the computer writes them (`⌘⇧K` on a Mac, `Ctrl+Shift+K` on other computers). It shows only on desktop with a mouse (`md:pointer-fine:`): a phone has no ⌘ or Ctrl keys. It does not take clicks.
+  - The code block and the quote are not in the line, to keep it on one row. They are in `markdownShortcuts.ts` and in the docs.
+  - Inline code in a message has `bg-muted`, `rounded-sm` and a small padding. In a code block (`pre`) the `code` has no background, because the `pre` has one.
+  - No new `track()` event: the browser has no route for one, and the `message` event already has `marks: true` (#484). The hint works if that number goes up.
+- Other options: A button with a menu of shortcuts (a new control in a full row). A hint in the placeholder (it goes away when you type). A toolbar of buttons on selection, as in Discord (more work, and clicks).
+- Risk: low. The line can cover the last line of the chat while you select text.
+- Undo: Revert the commit.
+- Status: open

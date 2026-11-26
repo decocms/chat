@@ -250,6 +250,18 @@ try {
     await desk.waitForTimeout(400);
     await desk.screenshot({ path: join(out, "marks-1440.png") });
     shots.push("marks-1440.png");
+    // Text selected in the field: the line with the shortcuts shows above it.
+    await field.click();
+    await field.fill("Selecione um texto para formatar");
+    await field.evaluate((node: HTMLTextAreaElement) =>
+      node.setSelectionRange(10, 15),
+    );
+    await field.dispatchEvent("select");
+    await desk.locator("[data-format-hints]").waitFor();
+    await desk.waitForTimeout(300);
+    await desk.screenshot({ path: join(out, "hints-1440.png") });
+    shots.push("hints-1440.png");
+    await field.fill("");
   }
   if (flag("studio")) {
     // Studio agents (Settings › Cloud): the deco Studio card before and after connecting, and an agent in the room.
