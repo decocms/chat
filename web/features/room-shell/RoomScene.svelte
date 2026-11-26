@@ -377,6 +377,28 @@
     }
     if ($viewerState.open) void viewerModule.ensure();
   });
+  /** A press on an image or a file of the chat loads the viewer before the click opens it. Else the first open shows
+   *  the loading dialog, then the viewer: a flash on a phone (Gimenes #6014). */
+  $effect(() => {
+    const press = (event: PointerEvent) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest("[data-message-image], [data-file-open]")
+      )
+        void viewerModule.ensure();
+    };
+    document.addEventListener("pointerdown", press, true);
+    return () => document.removeEventListener("pointerdown", press, true);
+  });
+  /** The loading dialog shows only when the viewer is slow (400 ms) or failed: a fast load opens the viewer at once. */
+  let viewerSlow = $state(false);
+  const viewerWaiting = $derived($viewerState.open && !FileViewer);
+  $effect(() => {
+    viewerSlow = false;
+    if (!viewerWaiting) return;
+    const timer = setTimeout(() => (viewerSlow = true), 400);
+    return () => clearTimeout(timer);
+  });
   $effect(() => {
     const revision = $view?.chatRevision;
     if (revision === undefined) return;
@@ -750,7 +772,7 @@
 </RoomLayout>
 {#if $view}{#if FileViewer}<FileViewer
       {...$view.viewer}
-    />{:else if $viewerState.open && $viewerState.target}{#key $viewerState.target}<Snapshot
+    />{:else if $viewerState.open && $viewerState.target && (viewerSlow || $viewerView.phase === "error")}{#key $viewerState.target}<Snapshot
         value={$viewerState.target}
         >{#snippet children(target)}<Dialog
             open

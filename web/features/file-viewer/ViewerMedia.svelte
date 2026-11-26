@@ -30,6 +30,7 @@
   let stage: HTMLDivElement | undefined = $state();
   let natural = $state({ width: 0, height: 0 });
   let box = $state({ width: 0, height: 0 });
+  let settled = $state(false);
   const zooming = $derived(zoom !== undefined && content.kind === "image");
   /** Fit again when the box or the image changes size (a window resize, the image loaded). */
   $effect(() => {
@@ -143,12 +144,16 @@
           height: image?.naturalHeight ?? 0,
         };
         onready();
+        // Animate zoom changes only after the first fit is painted: else the image shrinks from its own size.
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => (settled = true)),
+        );
       }}
       {onerror}
       use:zoomStyle={{ view: zoom, width: natural.width }}
       class={[
         "absolute top-1/2 left-1/2 block w-(--zoom-w) max-w-none origin-center [transform:translate(calc(-50%_+_var(--zoom-x)),calc(-50%_+_var(--zoom-y)))_scale(var(--zoom-s))]",
-        !drag && "transition-transform duration-150 ease-out",
+        settled && !drag && "transition-transform duration-150 ease-out",
         !natural.width && "invisible",
       ]}
     />
