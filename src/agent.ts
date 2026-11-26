@@ -1815,7 +1815,7 @@ async function call(
             )
             .bind(mid, me.email, name, kind, Date.now())
             .run();
-          if (kind === "app") appCheckedIn(me.email);
+          appCheckedIn(me.email);
           const ids = (Array.isArray(a.agents) ? a.agents : [])
             .filter(
               (x): x is string =>
@@ -3163,7 +3163,7 @@ export async function handleAgentMcp(
         .then((mid) =>
           env.DB.batch([
             env.DB.prepare(
-              `INSERT INTO machines (id, email, name, kind, seen_at, created_at) VALUES (?1, ?2, ?3, 'herdr', ?4, ?4)
+              `INSERT INTO machines (id, email, name, kind, seen_at, created_at) VALUES (?1, ?2, ?3, 'cli', ?4, ?4)
            ON CONFLICT(id) DO UPDATE SET seen_at = excluded.seen_at WHERE machines.email = excluded.email`,
             ).bind(mid, props.email, name, now),
             env.DB.prepare(

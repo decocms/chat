@@ -19,11 +19,12 @@ export const sandboxMachine = (sandboxId: string) => `sb_${sandboxId}`;
 /** A machine that checked in within this long is online. The runner asks claude_rooms at least every 5 min. */
 export const MACHINE_FRESH = 7 * 60_000;
 
-/** The menu bar app counts as installed while one of the person's "app" machines (its runner sends kind app) was seen
- *  within this long (Gimenes #5843). */
+/** The person counts as set up (no "Instale o app", no app_hint) while one of their computers ran the runner (the
+ *  app's, kind app; or `vibebook herdr`, kind herdr or herdr-app) within this long (Gimenes #5843, #5960). A machine
+ *  that only made CLI calls (kind cli) does not count. */
 export const APP_FRESH = 30 * 864e5;
 /** Binds (email, the oldest seen_at that counts). */
-export const APP_SQL = `SELECT 1 AS x FROM machines WHERE email = ? AND kind = 'app' AND seen_at > ? LIMIT 1`;
+export const APP_SQL = `SELECT 1 AS x FROM machines WHERE email = ? AND kind IN ('app', 'herdr', 'herdr-app') AND seen_at > ? LIMIT 1`;
 const appSeen = new Map<string, { at: number; app: boolean }>();
 /** True when this person runs the deco.chat menu bar app on a computer. Cached per isolate for 10 min. */
 /** The part of D1 that hasApp uses (this file is also type-checked without the Workers types). */
