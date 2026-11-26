@@ -62,6 +62,7 @@
     "scripts/people.test.ts",
     "scripts/secondary-panels-browser.ts",
     "scripts/chat.test.ts",
+    "scripts/room-search.test.ts",
     "scripts/mobile-edge-back.test.ts",
     "scripts/rich-text.test.ts",
     "scripts/rich-file-index.test.ts",

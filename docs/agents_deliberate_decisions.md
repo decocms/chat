@@ -2429,3 +2429,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. With many devices the menu is long; it scrolls.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · viktor/room-search-people · Room search by person, and the empty pane
+
+- Agent: claude-opus-5-5
+- Context: Viktor reported that the Search pane stayed open and empty after he cleared the room's search. He also asked to filter the search by a person, with or without words. He did not say what happens to the messages that a person's agent posts in their name, where the filter goes, or how a phone gets the search.
+- Decision:
+  - Cause of the empty pane: `RoomHeader` only opened the Search pane. When the query became empty, the pane stayed open with nothing to list. Now an empty search gives the column back: the pane that was open before (the doc or People), or no pane. A closed pane goes back to its old pane, so ⌥⌘B does not open an empty Search pane. The search belongs to one room (`roomSearch` keeps the room id), so it does not follow you to the next room.
+  - The person filter shows only the person's own messages. The messages that their agent posts in their name (`kind = 'agent'`, same `author`) are not included. The chat draws those as another author ("claude de Ana"), and in an active room they would hide the person's own words.
+  - The filter is a person icon at the end of the field. It opens a popover with the room's members (`Popover` and `Command`, the parts of `Combobox`). `Combobox` was not used as it is: its custom trigger is a `div` that the keyboard cannot reach. The picked person is a chip before the words. People who left the room are not in the list.
+  - The words do not match the author's name. The person filter does that job. A name match would be a substring match with no word limit, so a word like "ana" would list every message of a person whose name contains it, with no mark in the line to show why.
+  - A new endpoint, `GET /api/books/:id/search` (members only, the same rate limit as `/api/search`), searches only this room, 30 messages for each page, with `before` for the next page ("Mostrar mais"). Before, the pane asked the search of all rooms and kept this room's results: at most 8, and none when the room was not in the 30 rooms opened last.
+  - Phones had no room search. A search icon in the phone's top bar opens the Search pane in the sheet, with the same field at its top. On a phone, an empty search keeps the pane open, because the field is in it.
+  - The agent tool `search` did not get a person filter.
+- Other options: Include the agent's messages, or add a "with agents" switch. Use `Combobox` with its `div` trigger. Match the author's name in the words. Keep the search of all rooms and only filter it in the browser. Leave phones without a search.
+- Risk: low.
+- Undo: Revert the commit.
+- Status: open

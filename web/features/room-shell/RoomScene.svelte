@@ -18,6 +18,7 @@
   import Composer from "../composer/Composer.svelte";
   import DocumentPanel from "../documents/DocumentPanel.svelte";
   import RoomSearch from "../chat/RoomSearch.svelte";
+  import { searchPlaceholder } from "../chat/roomSearch";
   import { threadTitle } from "../room-sidebar/model";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import { isDmId } from "../../../shared/dm";
@@ -720,6 +721,10 @@
       {#if $geometry.pane === "search"}<RoomSearch
           roomId={$view.sidebar.room.id}
           messages={$view.sidebar.room.messages}
+          members={$view.sidebar.room.members}
+          me={$view.sidebar.room.me}
+          placeholder={searchPlaceholder($view.sidebar.room.book, services.t)}
+          phone={$geometry.mobile}
           epicTitle={(thread) =>
             threadTitle($view.sidebar.room, thread) ?? null}
           vb={{
@@ -728,7 +733,12 @@
             ago: $view.sidebar.vb.ago,
             avatarVersion: $view.sidebar.vb.avatarVersion,
           }}
-          search={(q, signal) => services.personal.api.search(q, signal)}
+          search={(filter, signal) =>
+            services.personal.api.roomSearch(
+              $view.sidebar.room.id,
+              filter,
+              signal,
+            )}
           onjump={(id, thread) => $view?.chat?.actions.navigate(id, thread)}
         />{/if}
     {/if}{/snippet}

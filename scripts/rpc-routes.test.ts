@@ -131,6 +131,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     pushToMe: async () => 1,
     sqlAll: async () => [],
     search: async () => ({ rooms: 0, epics: [], messages: [] }),
+    roomSearch: async () => ({ messages: [], more: false }),
     inbox: async () => ({ waits: [], mentions: [], tasks: [] }),
     threadDone: async () => true,
     isEmail: (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value),
@@ -1052,6 +1053,59 @@ test("personal query contracts preserve first duplicates, search normalization",
     // @ts-expect-error there is no room search query in this existing endpoint.
     await rpc.api.search.$get({ query: { room: "room" } });
   }
+});
+
+test("room search: members only, a person alone is enough, and the page cursor is a positive id", async () => {
+  const calls: { room: string; q: string; from?: string; before?: number }[] =
+    [];
+  const hit = {
+    id: 9,
+    thread: "main",
+    topic: null,
+    author: "ana@example.test",
+    by_agent: false,
+    via: null,
+    ts: 1,
+    files: [],
+    snippet: "oi",
+  };
+  const f = fixture({
+    roomSearch: async (room, q, from, before) => {
+      calls.push({ room, q, from, before });
+      return { messages: [hit], more: true };
+    },
+  });
+  const rpc = hc<typeof api>("http://localhost", { fetch: f.app.request });
+  const room = rpc.api.books[":id"].search;
+  const ok = await room.$get({
+    param: { id: "aaaaaa" },
+    query: { from: " Ana@Example.test " },
+  });
+  expect(ok.status).toBe(200);
+  expect(await ok.json()).toEqual({ messages: [hit], more: true });
+  await room.$get({
+    param: { id: "aaaaaa" },
+    query: { q: "  deploy  ", from: "ana@example.test", before: "40" },
+  });
+  await f.app.request("/api/books/aaaaaa/search?q=deploy&before=-3");
+  expect(calls).toEqual([
+    { room: "aaaaaa", q: "", from: "ana@example.test", before: undefined },
+    { room: "aaaaaa", q: "deploy", from: "ana@example.test", before: 40 },
+    { room: "aaaaaa", q: "deploy", from: undefined, before: undefined },
+  ]);
+  // Nothing to look for: an empty answer, and the room is not asked.
+  const none = await f.app.request("/api/books/aaaaaa/search?q=a");
+  expect(await none.json()).toEqual({ messages: [], more: false });
+  expect(calls).toHaveLength(3);
+  const outsider = fixture({ isMember: async () => false });
+  const denied = await outsider.app.request(
+    "/api/books/aaaaaa/search?from=ana@example.test",
+  );
+  expect(denied.status).toBe(403);
+  const limited = fixture({ roomSearch: async () => false });
+  expect(
+    (await limited.app.request("/api/books/aaaaaa/search?q=hello")).status,
+  ).toBe(429);
 });
 
 test("personal query contracts leave rate limits and cached me payloads unchanged", async () => {

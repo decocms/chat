@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -864,6 +864,7 @@ try {
     }
   }
   if (flag("forward")) await forwardScreens(browser, shots);
+  if (flag("search")) await searchScreens(browser, shots);
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
     ["/", "home-390.png"],
@@ -1340,4 +1341,173 @@ async function forwardScreens(
   await phone.locator("[data-forward-copy]").tap();
   await copied(phone, false);
   await shot(phone, "forward-copied-390.png");
+}
+
+/**
+ * The room's search (--search): words, a person alone, both, and the column after the search is cleared, at 1440 px
+ * (Portuguese) and 390 px (English). Two test people talk in a new room (Bruno joins with the dev_as cookie). Each
+ * way to clear (×, Esc, Backspace to empty) is checked: the run fails if the Search pane stays open, or if the pane
+ * that was open before (the doc) does not come back.
+ */
+async function searchScreens(
+  browser: import("playwright").Browser,
+  shots: string[],
+) {
+  const json = (email?: string) => ({
+    "content-type": "application/json",
+    origin: base,
+    ...(email ? { cookie: `dev_as=${encodeURIComponent(email)}` } : {}),
+  });
+  const post = async (path: string, body: unknown, email?: string) => {
+    const response = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: json(email),
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`${path}: ${response.status}`);
+    return (await response.json()) as { id?: string };
+  };
+  const bruno = "bruno@example.test";
+  await post("/api/me", { name: "Ana Souza" });
+  const { id: room } = await post("/api/books", { title: "Projeto Aurora" });
+  await post(`/api/books/${room}/members`, { email: bruno });
+  await post("/api/me", { name: "Bruno Lima" }, bruno);
+  await post(`/api/books/${room}/invite`, { yes: true }, bruno);
+  const say = (text: string, email?: string) =>
+    post(`/api/books/${room}/post`, { text, thread: "main" }, email);
+  await say("Bom dia! Hoje sai o deploy da versão nova do site?");
+  await say("Sai sim, o deploy fica pra depois do almoço.", bruno);
+  await say("Combinado. Eu reviso o texto da página inicial antes.");
+  await say("Atualizei as fotos da página de contato.", bruno);
+  await say("O deploy terminou, já está no ar.", bruno);
+  await say("Perfeito! Vou avisar o cliente.");
+  await say("Amanhã eu olho os números de acesso.", bruno);
+  const shot = async (page: Page, file: string) => {
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(out, file) });
+    shots.push(file);
+  };
+  const settled = async (page: Page, count: number) => {
+    await page.waitForFunction(
+      (n) => document.querySelectorAll("[data-search-hit]").length === n,
+      count,
+    );
+    // The server's page lands after the loaded matches: wait for the spinner to go.
+    await page.waitForTimeout(700);
+  };
+  /** After a clear: the Search pane is gone, and the column is as it was (`pane`: the pane open before, or none). */
+  const closed = async (page: Page, how: string, pane?: string) => {
+    await page.waitForTimeout(300);
+    if (await page.locator("[data-room-search]").isVisible())
+      throw new Error(`${how}: the Search pane stayed open`);
+    const open = await page.locator("[data-room-document]").isVisible();
+    const now = await page
+      .locator("[data-room-layout]")
+      .getAttribute("data-pane");
+    if (pane ? !open || now !== pane : open)
+      throw new Error(
+        `${how}: the right column is ${open ? now : "closed"}, not ${pane ?? "closed"}`,
+      );
+  };
+
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    locale: "pt-BR",
+  });
+  const desk = await context.newPage();
+  await desk.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+  await desk
+    .locator("[data-chat-message]", { hasText: "números de acesso" })
+    .first()
+    .waitFor();
+  // Start with the pane closed, as in the report: the chat has all the width.
+  const toggle = async () => {
+    await desk.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+    await desk.keyboard.press(
+      process.platform === "darwin" ? "Meta+Alt+KeyB" : "Control+Alt+KeyB",
+    );
+    await desk.waitForTimeout(400);
+  };
+  await desk.waitForTimeout(500);
+  if (await desk.locator("[data-room-document]").isVisible()) await toggle();
+  if (await desk.locator("[data-room-document]").isVisible())
+    throw new Error("the pane did not close before the search");
+  const field = desk.locator("[data-room-search-field] input");
+  await field.fill("deploy");
+  await settled(desk, 3);
+  await shot(desk, "search-text-1440.png");
+  await desk.locator("[data-search-people]").click();
+  await desk.locator("[data-search-people-list]").waitFor();
+  await shot(desk, "search-people-1440.png");
+  await desk.locator(`[data-search-person-option="${bruno}"]`).click();
+  await settled(desk, 2);
+  await shot(desk, "search-text-person-1440.png");
+  await field.fill("");
+  await settled(desk, 4);
+  await shot(desk, "search-person-1440.png");
+  // × clears the words and the person: the Search pane closes, and the chat has its width back.
+  await desk
+    .locator("[data-room-search-field] [aria-label='Limpar busca']")
+    .click();
+  await closed(desk, "×");
+  await shot(desk, "search-cleared-1440.png");
+  await field.fill("deploy");
+  await settled(desk, 3);
+  await field.press("Escape");
+  await closed(desk, "Esc");
+  await field.fill("de");
+  await desk.locator("[data-room-search]").waitFor();
+  await field.press("Backspace");
+  await field.press("Backspace");
+  await closed(desk, "Backspace");
+  // The doc was open before the search: clearing brings it back.
+  await toggle();
+  const before = await desk
+    .locator("[data-room-layout]")
+    .getAttribute("data-pane");
+  // The panel toggle opens the pane that was there, not an empty Search pane.
+  if (
+    before === "search" ||
+    (await desk.locator("[data-room-search]").isVisible())
+  )
+    throw new Error("the panel toggle opened the empty Search pane");
+  await field.fill("deploy");
+  await settled(desk, 3);
+  await field.fill("");
+  await closed(desk, "doc open before", before ?? "doc");
+  await shot(desk, "search-cleared-doc-1440.png");
+  await context.close();
+
+  const phone = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  await phone.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+  await phone
+    .locator("[data-chat-message]", { hasText: "numbers" })
+    .or(phone.locator("[data-chat-message]", { hasText: "números de acesso" }))
+    .first()
+    .waitFor();
+  await phone.locator("[data-phone-search]").tap();
+  await phone.locator("[data-room-search] [data-room-search-field]").waitFor();
+  await shot(phone, "search-phone-390.png");
+  await phone.locator("[data-room-search] [data-search-people]").tap();
+  await phone.locator(`[data-search-person-option="${bruno}"]`).tap();
+  await settled(phone, 4);
+  await shot(phone, "search-phone-person-390.png");
+  await phone
+    .locator("[data-room-search] [data-room-search-field] input")
+    .fill("deploy");
+  await settled(phone, 2);
+  await shot(phone, "search-phone-text-person-390.png");
+  // A tap on a match closes the sheet and shows the message in the chat.
+  await phone.locator("[data-search-hit]").first().tap();
+  await phone.waitForTimeout(800);
+  if (await phone.locator("[data-room-search]").isVisible())
+    throw new Error(
+      "phone: the Search pane stayed over the chat after a tap on a match",
+    );
+  await shot(phone, "search-phone-jump-390.png");
 }

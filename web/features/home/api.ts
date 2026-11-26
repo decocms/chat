@@ -12,6 +12,7 @@ import {
   RoomIconResult,
   RouteResult,
   SearchResult,
+  RoomSearchResult,
   StartRoomResult,
   TINTS,
 } from "../../../shared/schemas";
@@ -64,6 +65,25 @@ export function createHomeApi(fetcher?: FetchLike) {
       api.search
         .$get({ query: { q } }, { init: { signal } })
         .then((response) => read(response, SearchResult)),
+    /** One room's search: by words, by a person (`person`, an email), or both; `before` asks for the next page. */
+    roomSearch: (
+      id: string,
+      filter: { text: string; person: string; before?: number },
+      signal?: AbortSignal,
+    ) =>
+      room.search
+        .$get(
+          {
+            param: param(id),
+            query: {
+              ...(filter.text ? { q: filter.text } : {}),
+              ...(filter.person ? { from: filter.person } : {}),
+              ...(filter.before ? { before: String(filter.before) } : {}),
+            },
+          },
+          { init: { signal } },
+        )
+        .then((response) => read(response, RoomSearchResult)),
     route: (text: string, signal?: AbortSignal) =>
       api.route
         .$post({ json: { text } }, { init: { signal } })

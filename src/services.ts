@@ -211,6 +211,11 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       ctx.waitUntil(track(env, "search", { user: email, dims: { via: "app", hits: out.messages.length + out.epics.length, rooms: out.rooms } }));
       return out;
     },
+    roomSearch: async (roomId, q, from, before) => {
+      if (!(await env.AGENT_LIMIT.limit({ key: `search:${email}` })).success) return false;
+      const { messages, more } = await bookStub(env, roomId).search(roomId, q, 30, email, { from, before });
+      return { messages, more };
+    },
     inbox: () => inbox(env, email),
     threadDone: (roomId, epicId) => bookStub(env, roomId).inboxDone(roomId, epicId, email),
     isEmail: (s) => EMAIL_RE.test(s),
