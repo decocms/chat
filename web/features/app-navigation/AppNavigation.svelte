@@ -75,6 +75,9 @@
   const archiveRoom = $derived(
     $personal.me?.books.find((room) => room.id === $nav.archiveId),
   );
+  const leaveRoom = $derived(
+    $personal.me?.books.find((room) => room.id === $nav.leaveId),
+  );
   const renameRoom = $derived(
     $personal.me?.books.find((room) => room.id === $nav.renameId),
   );
@@ -88,6 +91,7 @@
   $effect(() => {
     if ($nav.menu && !menuRoom) controller.closeMenu();
     if ($nav.archiveId && !archiveRoom) controller.closeSettings();
+    if ($nav.leaveId && !leaveRoom) controller.closeSettings();
     if ($nav.renameId && !renameRoom) controller.closeSettings();
     if (
       renameRoom &&

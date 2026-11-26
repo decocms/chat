@@ -170,6 +170,9 @@
     }
   }
   const itemClass = "gap-2";
+  // Archive and Leave: a solid red row under the pointer or the keyboard.
+  const destructiveFocus =
+    "data-[variant=destructive]:focus:bg-destructive data-[variant=destructive]:focus:text-destructive-foreground dark:data-[variant=destructive]:focus:bg-destructive data-[variant=destructive]:focus:*:[svg]:!text-destructive-foreground";
 </script>
 
 <input
@@ -204,9 +207,9 @@
         class="w-56"
         onCloseAutoFocus={(event) => {
           event.preventDefault();
-          // A dialog the menu opened (archive, rename) takes the focus itself.
+          // A dialog the menu opened (archive, leave, rename) takes the focus itself.
           const s = get(controller.state);
-          if (s.archiveId || s.renameId) return;
+          if (s.archiveId || s.leaveId || s.renameId) return;
           controller.returnFocus(null)?.focus({ preventScroll: true });
         }}
       >
@@ -315,13 +318,16 @@
         {#if !room.dm}<DropdownMenuSeparator />
           <DropdownMenuItem
             variant="destructive"
-            class={cn(
-              itemClass,
-              "data-[variant=destructive]:focus:bg-destructive data-[variant=destructive]:focus:text-destructive-foreground dark:data-[variant=destructive]:focus:bg-destructive data-[variant=destructive]:focus:*:[svg]:!text-destructive-foreground",
-            )}
+            class={cn(itemClass, destructiveFocus)}
             onSelect={() => controller.askArchive(id)}
             ><Icon icon="archive" />{t("Arquivar")}</DropdownMenuItem
-          >{/if}
+          >{#if room.owner && room.owner !== $personal.me?.email}<DropdownMenuItem
+              variant="destructive"
+              class={cn(itemClass, destructiveFocus)}
+              data-room-menu-leave
+              onSelect={() => controller.askLeave(id)}
+              ><Icon icon="log-out-01" />{t("Sair da sala")}</DropdownMenuItem
+            >{/if}{/if}
       </DropdownMenuContent>
     </DropdownMenu>
   {/if}{/key}

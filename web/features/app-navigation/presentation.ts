@@ -2,7 +2,8 @@ import { get, writable, type Readable } from "svelte/store";
 import type { AppNavigationSession } from "./controller";
 import type { ClientClock } from "../../lib/client/clock";
 import { createDeferredModule } from "../deferred-view/module";
-export type NavigationDialogKind = "search" | "create" | "archive" | "rename";
+export type NavigationDialogKind =
+  "search" | "create" | "archive" | "leave" | "rename";
 export type NavigationDialogIntent = Readonly<{
   kind: NavigationDialogKind;
   account: string;
@@ -24,11 +25,18 @@ export type NavigationDialogOwners = {
     fallback: HTMLElement | null,
   ): HTMLElement | null;
 };
-const kinds: NavigationDialogKind[] = ["archive", "rename", "create", "search"];
+const kinds: NavigationDialogKind[] = [
+  "archive",
+  "leave",
+  "rename",
+  "create",
+  "search",
+];
 const empty = (): NavigationDialogBindings => ({
   search: null,
   create: null,
   archive: null,
+  leave: null,
   rename: null,
 });
 /** Module lifetime is shared public code; each concurrent canonical opening has its own identity. */
@@ -66,6 +74,7 @@ export function createNavigationPresentation<T>(
       search: search.open,
       create: creator.open && !creator.inline && !!creator.binding,
       archive: !!nav.archiveId,
+      leave: !!nav.leaveId,
       rename: !!nav.renameId,
     };
     const next = { ...values };
@@ -76,9 +85,11 @@ export function createNavigationPresentation<T>(
       const roomId =
         kind === "archive"
           ? nav.archiveId
-          : kind === "rename"
-            ? nav.renameId
-            : null;
+          : kind === "leave"
+            ? nav.leaveId
+            : kind === "rename"
+              ? nav.renameId
+              : null;
       const same =
         previous &&
         open[kind] &&

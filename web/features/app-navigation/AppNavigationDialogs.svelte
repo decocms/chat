@@ -51,11 +51,15 @@
   const archiveRoom = $derived(
     $personal.me?.books.find((room) => room.id === $nav.archiveId),
   );
+  const leaveRoom = $derived(
+    $personal.me?.books.find((room) => room.id === $nav.leaveId),
+  );
   const renameRoom = $derived(
     $personal.me?.books.find((room) => room.id === $nav.renameId),
   );
   let createInput = $state<HTMLTextAreaElement | null>(null),
     archiveCancel = $state<HTMLButtonElement | null>(null),
+    leaveCancel = $state<HTMLButtonElement | null>(null),
     renameInput = $state<HTMLInputElement | null>(null);
   let mounted = false,
     imageSequence = 0,
@@ -323,6 +327,47 @@
                   lang,
                   $mutations.issues[`archive:${archiveRoom.id}`]!,
                 )}
+              </p>{/if}{/if}
+        </TitledDialog>
+      {:else if intent.kind === "leave"}
+        <TitledDialog
+          open={!!leaveRoom}
+          title={text("leaveTitle")}
+          description={text("leaveHelp")}
+          closeLabel={text("close")}
+          onOpenChange={(open) => {
+            if (!open && current(intent)) controller.closeSettings();
+          }}
+          initialFocus={() => leaveCancel}
+          returnFocus={() => focusBack(intent)}
+        >
+          {#if leaveRoom}<div class="flex flex-wrap gap-2" data-room-leave>
+              <Button
+                bind:ref={leaveCancel}
+                variant="outline"
+                onclick={(event) => {
+                  if (current(intent) && event.currentTarget.isConnected)
+                    controller.closeSettings();
+                }}>{text("cancel")}</Button
+              ><Button
+                variant="destructive"
+                disabled={!!$mutations.pending[`leave:${leaveRoom.id}`]}
+                aria-busy={!!$mutations.pending[`leave:${leaveRoom.id}`] ||
+                  undefined}
+                onclick={(event) => {
+                  if (current(intent) && event.currentTarget.isConnected)
+                    void controller.confirmLeave();
+                }}
+                >{#if $mutations.pending[`leave:${leaveRoom.id}`]}<Spinner
+                    size="xs"
+                  />{/if}{text("leaveAction")}</Button
+              >
+            </div>
+            {#if $mutations.issues[`leave:${leaveRoom.id}`]}<p
+                role="alert"
+                class="break-words text-destructive"
+              >
+                {homeIssue(lang, $mutations.issues[`leave:${leaveRoom.id}`]!)}
               </p>{/if}{/if}
         </TitledDialog>
       {:else if intent.kind === "rename"}

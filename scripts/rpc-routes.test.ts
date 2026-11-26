@@ -2170,3 +2170,41 @@ test("the call routes are members-only, off without an SFU app, and say when the
   );
   expect(malformed.status).toBe(400);
 });
+
+test("leave: a member takes themself out; the owner and a DM can't; tracked as book_left", async () => {
+  const removed: { room: string; who: string }[] = [];
+  const tracked: { name: string; dims?: Record<string, unknown> }[] = [];
+  const f = fixture({
+    // The real removeMember refuses the owner with a 400 (src/services.ts).
+    removeMember: async (room, who) => {
+      if (room === "owned")
+        return { error: "O dono não pode ser removido.", status: 400 };
+      removed.push({ room, who });
+      return null;
+    },
+    track: (name, dims) => void tracked.push({ name, dims }),
+  });
+  const left = await f.json("/api/books/room/leave", {});
+  expect(left.status).toBe(200);
+  expect(await left.json()).toEqual({ ok: true });
+  expect(removed).toEqual([{ room: "room", who: "test@example.com" }]);
+  expect(tracked).toEqual([{ name: "book_left", dims: { book: "room" } }]);
+  const owner = await f.json("/api/books/owned/leave", {});
+  expect(owner.status).toBe(400);
+  expect(await owner.json()).toEqual({
+    error: "O dono não pode ser removido.",
+  });
+  const dm = await f.json("/api/books/dm000000000000000000aa/leave", {});
+  expect(dm.status).toBe(400);
+  expect(removed).toHaveLength(1);
+  expect(tracked).toHaveLength(1);
+  const outsider = fixture({
+    isMember: async () => false,
+    removeMember: async (room, who) => {
+      removed.push({ room, who });
+      return null;
+    },
+  });
+  expect((await outsider.json("/api/books/room/leave", {})).status).toBe(403);
+  expect(removed).toHaveLength(1);
+});

@@ -45,6 +45,8 @@ export function createAppNavigationSession(
     /** The room (or DM) whose context menu is open. */
     menu: null as RoomMenuAnchor | null,
     archiveId: null as string | null,
+    /** The room whose "Sair da sala?" confirm is open. */
+    leaveId: null as string | null,
     renameId: null as string | null,
     renameDraft: "",
     renameBusy: false,
@@ -64,6 +66,7 @@ export function createAppNavigationSession(
       ...s,
       menu: null,
       archiveId: null,
+      leaveId: null,
       renameId: null,
       renameBusy: false,
       renameError: "",
@@ -165,6 +168,9 @@ export function createAppNavigationSession(
     askArchive(id: string) {
       state.update((s) => ({ ...s, menu: null, archiveId: id }));
     },
+    askLeave(id: string) {
+      state.update((s) => ({ ...s, menu: null, leaveId: id }));
+    },
     /** The room's dot goes now; the server keeps it for your other tabs and devices. */
     markRead(id: string) {
       if (active) void rooms.read(id);
@@ -172,6 +178,13 @@ export function createAppNavigationSession(
     confirmArchive() {
       const id = get(state).archiveId;
       if (id) void rooms.archive(id);
+    },
+    /** Takes you out of the room; leaving the open room goes home, since it is no longer yours to see. */
+    async confirmLeave() {
+      const id = get(state).leaveId;
+      if (!id) return;
+      const left = await rooms.leave(id);
+      if (left && active && get(state).roomId === id) callbacks.home();
     },
     move(id: string, delta: number) {
       const ids = railRooms().map((room) => room.id),
