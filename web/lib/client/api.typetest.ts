@@ -23,6 +23,7 @@ import type {
   ArchivedResult,
   ClaudeToggleResult,
   LoginsResult,
+  MeAppResult,
   OkResult,
   SearchResult,
   SearchQuery,
@@ -137,6 +138,8 @@ type Logins = InferResponseType<typeof api.api.me.logins.$get, 200>;
 sameAs<Equal<Archived, ArchivedResult>>(true);
 sameAs<Equal<Search, SearchResult>>(true);
 sameAs<Equal<Logins, LoginsResult>>(true);
+type MeApp = InferResponseType<typeof api.api.me.app.$get, 200>;
+sameAs<Equal<MeApp, MeAppResult>>(true);
 declare const found: Search;
 const snippet: string = found.messages[0].snippet;
 // @ts-expect-error search hits carry a snippet, not the full text

@@ -30,6 +30,7 @@ deco.chat now works through the `vibebook` CLI, like `gh`: one login per machine
    - Listen: run `vibebook listen --model "<your model name>"` with Bash `run_in_background` (inside the linked repo it hears only that room; it exits when there are unread messages; then read_room, handle it, and start it again the same way; never mention re-arming or silence).
    - Post one line in the room: this repo is linked and you're listening.
 4. Tell them it's done: what people write in the room now reaches this session while they talk to you about other things. Each repo folder is its own agent: reopening Claude there picks up where it stopped.
+5. Tell them about the deco.chat app (a menu bar app): it opens a Claude Code in each room where they turn "Meu Claude" on, and keeps it listening with no terminal open, so a listener that stops starts again. On macOS or Linux they run `curl -fsSL https://chat.decocms.com/setup.sh | sh`; on Windows they install the .msi of the newest `tray-v` release at https://github.com/decocms/chat/releases. Do not install it yourself: they decide. While they do not run it, `read_room` returns `app_hint` with the same suggestion.
 
 ## Using the CLI
 

@@ -1,5 +1,5 @@
 import { AgentDbRow, MachineDbRow, UploadHeaders } from "./apiServerSchemas";
-import { DELIVERS, deliveryJoins, MACHINE_FRESH, sandboxMachine } from "./delivery";
+import { APP_FRESH, APP_SQL, DELIVERS, deliveryJoins, MACHINE_FRESH, sandboxMachine } from "./delivery";
 import { requestBytes, RequestBytesError } from "./requestBytes";
 import { SttQuery, SttResult, CallJoinResult, CallTracksBody, CallAnswerBody, CallCloseBody, CallLeaveBody, CALL_LIMIT, type CallSfuResult, type CallDescription, type CallTracksBody as CallTracksBodyType, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
@@ -77,6 +77,7 @@ import {
   ConnectResult,
   InviteAnswerBody,
   LoginsResult,
+  MeAppResult,
   type SearchResult,
   SearchQuery,
   type RoomSearchResult,
@@ -539,6 +540,11 @@ export const accountApi = api
     const svc = c.get("svc");
     const rows = await svc.sqlAll(`SELECT COALESCE(json_extract(dims, '$.method'), 'email') AS method, MAX(ts) AS last, COUNT(*) AS n FROM events WHERE user = ? AND name = 'login' GROUP BY 1`, c.get("email"));
     return c.json(LoginsResult.parse({ logins: rows }) satisfies LoginsResult, 200);
+  })
+  // The user center's "Instale o app" row shows while this is false (Gimenes #5843).
+  .get("/api/me/app", async (c) => {
+    const rows = await c.get("svc").sqlAll(APP_SQL, c.get("email"), Date.now() - APP_FRESH);
+    return c.json({ app: rows.length > 0 } satisfies MeAppResult, 200);
   })
   .post("/api/friends", body(ConnectBody, "invalid email"), async (c) => {
     const svc = c.get("svc"), { email, text } = c.req.valid("json"), who = email.trim().toLowerCase();

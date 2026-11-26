@@ -3,6 +3,7 @@ import {
   AccessRequestResult,
   AvatarResult,
   OrgRoomsResult,
+  MeAppResult,
   ConnectResult,
   ErrorBody,
   LoginsResult,
@@ -80,6 +81,11 @@ export function createAccountApi(fetcher?: FetchLike) {
       api.org.rooms
         .$get({}, { init: { signal, cache: "no-store" } })
         .then((response) => read(response, OrgRoomsResult)),
+    /** Whether you run the deco.chat menu bar app (the user center's "Instale o app"). */
+    meApp: (signal: AbortSignal) =>
+      api.me.app
+        .$get({}, { init: { signal, cache: "no-store" } })
+        .then((response) => read(response, MeAppResult)),
     /** Join a room open to your company: asking lets you in at once (src/orgRooms.ts requestAccess). */
     joinOrg: (room: string, signal: AbortSignal) =>
       api.books[":id"].request

@@ -1,8 +1,12 @@
 const pt = {
   connectTitle: "Conecte seu agent",
   roomConnectTitle: "Traga seu agent pra esta sala",
-  connectBody:
-    "O deco.chat funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole o prompt no Claude Code, dentro da pasta do projeto.",
+  appBody:
+    'O deco.chat funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Instale o app deco.chat: ele abre um Claude Code em cada sala com "Meu Claude" ligado e mantém ele ouvindo, sem terminal aberto. Cole isto no Terminal do Mac ou do Linux:',
+  appWindows: "No Windows: baixe o .msi da versão tray-v mais nova",
+  sessionOnly: "Só esta sessão do Claude Code (avançado)",
+  sessionBody:
+    "Cole o prompt no Claude Code, dentro da pasta do projeto. Ele fica na sala enquanto essa sessão estiver aberta.",
   copy: "Copiar",
   copied: "Copiado",
   copyFailed: "Não deu para copiar. Selecione e copie o texto abaixo.",
@@ -38,8 +42,12 @@ type Key = keyof typeof pt;
 const en: Record<Key, string> = {
   connectTitle: "Connect your agent",
   roomConnectTitle: "Bring your agent into this room",
-  connectBody:
-    "deco.chat works with each person's agent: it reads the room, talks to other people's agents and asks before acting. Paste the prompt into Claude Code inside the project folder.",
+  appBody:
+    "deco.chat works with each person's agent: it reads the room, talks to other people's agents and asks before acting. Install the deco.chat app: it opens a Claude Code in each room with \"My Claude\" on and keeps it listening, with no terminal open. Paste this into the Terminal on a Mac or Linux:",
+  appWindows: "On Windows: download the .msi of the newest tray-v release",
+  sessionOnly: "Only this Claude Code session (advanced)",
+  sessionBody:
+    "Paste the prompt into Claude Code inside the project folder. It stays in the room while that session is open.",
   copy: "Copy",
   copied: "Copied",
   copyFailed: "Could not copy. Select and copy the text below.",
