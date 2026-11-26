@@ -51,6 +51,7 @@
     room,
     actions,
     footer,
+    last = false,
   }: {
     message: ChatMessage;
     previous?: ChatMessage;
@@ -60,6 +61,8 @@
     room: Room;
     actions: ChatActions;
     footer?: Footer;
+    /** The last message of the room or thread: its empty reaction row keeps its height (Gui #5741). */
+    last?: boolean;
   } = $props();
   let actionController = $state<
     { copy: (link?: boolean) => Promise<void> } | undefined
@@ -523,8 +526,14 @@
             "[[data-thread-card]+&]:mt-1.5",
             // Nothing in the row yet: it opens only on hover (or focus, or while the picker is open), so adjacent
             // messages stay together and the hover makes the room (Gui #5347). Phones react from the long press.
+            // The last message keeps that height, only hidden: opening it on hover there grows the list at the
+            // bottom, and the whole conversation jumps up (Gui #5741).
             bare &&
+              !last &&
               "hidden pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex has-[[data-picking]]:flex",
+            bare &&
+              last &&
+              "invisible pointer-coarse:hidden pointer-fine:group-hover:visible pointer-fine:group-has-focus-visible:visible has-[[data-picking]]:visible",
           ]}
         >
           {#if reactable}<MessageReactions

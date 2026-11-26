@@ -2549,8 +2549,9 @@ describe("chat", () => {
       reactions: { "👍": ["ana@test"] },
     };
     const bare = { ...message(10, "Nothing under it"), kind: null };
+    const last = { ...message(11, "The last one"), kind: null };
     const { target } = renderChat(
-      { ...fixture(), messages: [reacted, bare] },
+      { ...fixture(), messages: [reacted, bare, last] },
       {
         actions: {
           request: async (command: RoomCommand): Promise<CommandOutcome> => {
@@ -2599,6 +2600,10 @@ describe("chat", () => {
     expect(rowClasses(9)).not.toContain("hidden");
     expect(rowClasses(10)).toContain("hidden");
     expect(rowClasses(10)).toContain("pointer-fine:group-hover:flex");
+    // The last message keeps the row's height, only invisible: opening it there grew the list at the bottom (Gui #5741).
+    expect(rowClasses(11)).not.toContain("hidden");
+    expect(rowClasses(11)).toContain("invisible");
+    expect(rowClasses(11)).toContain("pointer-fine:group-hover:visible");
     expect(target.querySelector("[data-reaction-bar]")).toBeNull();
     // 🙂 opens the picker in a popover next to it; the four quick ones stay where they were.
     const before = offered(10);
