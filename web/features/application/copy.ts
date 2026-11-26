@@ -1252,7 +1252,27 @@ const EN: Readonly<Record<string, string>> = {
   "Documento vazio. Clique em <b>Editar</b> ou peça pro seu agent resumir as decisões aqui.":
     "Empty doc. Click <b>Edit</b> or ask your agent to summarize the decisions here.",
   "@vibe avaliou este doc. O agent de cada um também recebe isso (doc_notes).":
-    "@vibe reviewed this doc. Everyone's agent gets this too (doc_notes).",
+    "@vibe reviewed this doc. Everyone's agent gets this too (doc_notes).", // "Encaminhar" (web/features/forward).
+  Encaminhar: "Forward",
+  "Encaminhar mensagens": "Forward messages",
+  "Selecionar mensagem": "Select message",
+  "1 mensagem selecionada": "1 message selected",
+  "{n} mensagens selecionadas": "{n} messages selected",
+  "Shift+clique seleciona um intervalo": "Shift+click selects a range",
+  "Encaminhar para…": "Forward to…",
+  "Escolha a sala, a conversa ou a thread.":
+    "Pick the room, the conversation or the thread.",
+  "Nesta sala": "In this room",
+  Conversas: "Conversations",
+  "Threads de outras salas": "Threads in other rooms",
+  "Buscando threads…": "Searching threads…",
+  "Não deu pra copiar o arquivo {name}. Tente de novo.":
+    "Couldn't copy the file {name}. Try again.",
+  "Não deu pra encaminhar. Tente de novo.": "Couldn't forward. Try again.",
+  "Não deu pra copiar. Tente de novo.": "Couldn't copy. Try again.",
+  "Encaminhado de {from}": "Forwarded from {from}",
+  "Anexo: {name}": "Attachment: {name}",
+  "Anexos: {names}": "Attachments: {names}",
   // The first-run dialog over the home (web/features/onboarding).
   "Passo {n} de 3": "Step {n} of 3",
   Continuar: "Continue",

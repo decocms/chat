@@ -2139,6 +2139,48 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. An old message that has `**x**` or `_x_` now shows the mark.
 - Undo: Revert this commit.
 
+### 2026-11-25 · viktor/forward-messages · Forward: one quote block, files copied
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked for a WhatsApp-like "Encaminhar": select N messages, pick a room or thread, and land in its composer with the timestamp, names, texts and attachments, not sent. He did not say the text format, where the selection bar goes, or how attachments move to another room.
+- Decision:
+  - The package is one quote block (`forwardText`): a line "Encaminhado de {room} › {thread}", then for each message "> **{name}** · {time}, {date}", its text lines with "> ", and "> Anexo: {name}". A person's message draws "> " lines as one quote and `**name**` in bold (rich-text `human`). The text is in the app's language.
+  - Attachments: the browser downloads each file of the source room (`readFileBlob`) and puts a copy in the destination composer (`addFiles`), so the destination room stores its own copy. A file id of one room is not valid in another room, and the server gets no new copy path.
+  - The forward goes through memory (`forward/pending.ts`), not localStorage: the destination room scope takes it on its first sync of that thread. A reload in between drops it.
+  - The bar (count, Cancelar, Encaminhar) takes the composer's place while selection mode is on, as in WhatsApp, with the composer's shape (`composer/shape.ts`). `docs/design.md` puts a bar for selected items "above the list" (a rule written for the Inbox). In the chat, a bar at the top covered the message that was just picked, or pushed the messages when it took height, because the chat keeps its scroll at the bottom. In the composer's place, no message moves. Phones show Cancelar as an x.
+  - Shift+click gives the range the state of the last message clicked (Gmail-like), so it selects a range after a click that selected.
+  - Selection mode only picks people's and agents' messages with text or files (not notices, issues, reminders, deleted messages or the thread's origin). While it is on, a click on a message picks it: links, files and buttons inside do nothing, the hover toolbar and the swipe do not show.
+  - The picker (`CommandDialog`) lists the open room's main thread and its 30 newest open threads, your rooms and your DMs (`me.books`, as Cmd+K), and, from 2 characters, the threads of other rooms from the room search. It does not list another room's threads without a query, because the browser has no list of them.
+  - Mentions in a forwarded text are not changed: "@name" in the package can notify that person when the forward is sent. The person sees the text before Enter.
+- Other options: A WhatsApp-style text per message ("[time] name: text", as the copy of many messages makes); the bar at the top of the chat (tried: it hid or moved messages); links to the files instead of copies (a person of the destination often cannot open the source room).
+- Risk: low. Nothing is sent without Enter.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-25 · viktor/forward-messages · A Worker route for the forward event
+
+- Agent: claude-opus-5-5
+- Context: AGENTS.md rule 9 asks for a `track()` event from each new surface, and Viktor asked for one. The browser app has no event path (see the earlier entries that skipped `track()` for this reason), and a forward sends nothing to the server by itself.
+- Decision: A typed route `POST /api/books/:id/forwarded` (`ForwardedBody`) that writes the `messages_forwarded` event with counts only: `n`, `files`, `to` (`same`, `room`, `dm`), `thread`, `range`. Members of the source room only. The browser sends it after the destination is picked and ignores a failure.
+- Other options: No event (against rule 9 and the request). A general client event route (more surface than one feature needs). An event when the forwarded message is sent (the server cannot tell a forward from a typed message).
+- Risk: low. One D1 row per forward. No text leaves the browser.
+- Undo: Remove the route, `ForwardedBody` and `reportForward`.
+- Status: open
+
+### 2026-11-25 · viktor/forward-messages · Forward bar: Copiar puts the package in the clipboard
+
+- Agent: claude-opus-5-5
+- Context: Rafael Valls asked for a button that copies the selected messages to the clipboard, next to the forward to a room or thread. Viktor approved it and said to copy the same package as the forward. Nobody said how files go, what the feedback is, or how phones show the button.
+- Decision:
+  - "Copiar" copies the forward package as plain text (`forwardPackage`, the same function the forward uses): "Encaminhado de {room} › {thread}", then each message as a "> " quote with `**name**`, time and date. Files go as their names ("> Anexo: plano.pdf"), because the clipboard helper (`copyChatText`) writes text only. Each message is copied as the room has it now: an edit after the pick counts.
+  - On success, selection mode ends and the room notice (`showNotice`, the pill at the foot of the room) says "Copiado" for 2.5 s. The bar goes away at once, so the word cannot be in the bar. On failure, the bar stays with "Não deu pra copiar. Tente de novo." in it, and the person can press Copiar again.
+  - Copiar is an outline button with `copy-01`. Phones show only the icon (the word stays for screen readers), so the count still fits next to the x and Encaminhar.
+  - The copy counts as a forward: `messages_forwarded` with `to: "clipboard"` and `thread: false`. No new route.
+- Other options: The WhatsApp-style transcript ("[time] name: text", `transcriptText`) that the browser copy of a selection makes; it reads better in a mail, but it is a second format for the same action. A separate event `messages_copied` (a second route for one button).
+- Risk: low. The Markdown marks (`>`, `**`) show as text where the paste target does not read Markdown.
+- Undo: Remove the Copiar button, `copyForward`, `ForwardPort.text`/`copied` and the `clipboard` value of `ForwardedBody.to`.
+- Status: open
+
 ### 2026-11-25 · feat/lite-socket · How the light socket gets the room
 
 - Agent: Claude Opus 5.5

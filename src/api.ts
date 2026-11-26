@@ -94,6 +94,7 @@ import {
   RoomOrderBody,
   TINTS,
   TintBody,
+  ForwardedBody,
   RoomOrgBody,
   type RoomOrgResult,
   type OrgRoomsResult,
@@ -419,6 +420,14 @@ export const api = roomPosts
     const { tint } = c.req.valid("json");
     const known = (TINTS as readonly string[]).includes(tint ?? "");
     await svc.sql(`UPDATE members SET tint = ? WHERE book_id = ? AND email = ?`, known ? tint ?? null : null, id, c.get("email"));
+    return c.json(ok, 200);
+  })
+  // "Encaminhar": the forward went to a composer (the person still sends it). Counts only, for the event.
+  .post("/api/books/:id/forwarded", body(ForwardedBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    const b = c.req.valid("json");
+    svc.track("messages_forwarded", { book: id, n: b.n, files: b.files, to: b.to, thread: b.thread, range: b.range });
     return c.json(ok, 200);
   })
   // "Aberta pra @<domain>" in People: a member opens the room to their company email domain, or closes it.
