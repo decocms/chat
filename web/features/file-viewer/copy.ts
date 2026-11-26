@@ -30,6 +30,14 @@ const en = {
   unpin: "Unpin this version",
   pinError:
     "The pin change is unconfirmed. Review the current pin before retrying.",
+  zoomIn: "Zoom in (+)",
+  zoomOut: "Zoom out (−)",
+  fit: "Fit to screen (0)",
+  fitLabel: "Fit",
+  previousImage: "Previous image (←)",
+  nextImage: "Next image (→)",
+  of: "of",
+  downloadImage: "Download",
 };
 const pt: typeof en = {
   file: "arquivo",
@@ -61,4 +69,12 @@ const pt: typeof en = {
   unpin: "Desafixar esta versão",
   pinError:
     "A alteração não foi confirmada. Confira o pin atual antes de tentar de novo.",
+  zoomIn: "Aumentar zoom (+)",
+  zoomOut: "Diminuir zoom (−)",
+  fit: "Ajustar à tela (0)",
+  fitLabel: "Ajustar",
+  previousImage: "Imagem anterior (←)",
+  nextImage: "Próxima imagem (→)",
+  of: "de",
+  downloadImage: "Baixar",
 };

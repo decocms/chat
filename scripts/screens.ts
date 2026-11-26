@@ -160,6 +160,79 @@ try {
     await desk.screenshot({ path: join(out, "hover-1440.png") });
     shots.push("hover-1440.png");
   }
+  if (flag("image")) {
+    // The full-screen image viewer (Gimenes #5961, option B): fit, a click zooms at the click, ← goes to the
+    // previous image of the thread. Two drawn images (test data only), with small text that needs the zoom.
+    for (const [name, title] of [
+      ["primeira.png", "Primeira imagem"],
+      ["topbar.png", "Topbar com detalhe pequeno"],
+    ]) {
+      const data = await desk.evaluate((title) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1600;
+        canvas.height = 1000;
+        const g = canvas.getContext("2d")!;
+        g.fillStyle = "#dbe7ff";
+        g.fillRect(0, 0, 1600, 1000);
+        g.fillStyle = "#ffffff";
+        g.fillRect(60, 60, 1480, 110);
+        g.fillRect(60, 220, 700, 700);
+        g.fillStyle = "#1c2a4a";
+        g.font = "bold 56px sans-serif";
+        g.fillText(title, 100, 135);
+        g.font = "14px sans-serif";
+        g.fillText("v2.4.1 · detalhe que só se lê com zoom", 1180, 130);
+        return canvas.toDataURL("image/png").split(",")[1]!;
+      }, title);
+      await desk.locator('[data-composer] input[type="file"]').setInputFiles({
+        name,
+        mimeType: "image/png",
+        buffer: Buffer.from(data, "base64"),
+      });
+      await desk.waitForTimeout(1500);
+      await send(desk, `Imagem: ${title}`);
+    }
+    await desk
+      .locator('[data-chat-message] img[alt="topbar.png"]')
+      .last()
+      .click();
+    const viewer = desk.locator("[data-image-preview] [data-image-stage] img");
+    await viewer.waitFor();
+    await desk.mouse.move(0, 0);
+    await desk.waitForTimeout(600);
+    await desk.screenshot({ path: join(out, "image-fit-1440.png") });
+    shots.push("image-fit-1440.png");
+    const stage = await desk.locator("[data-image-stage]").boundingBox();
+    if (!stage) throw new Error("image stage has no box");
+    await desk.mouse.click(
+      stage.x + stage.width * 0.8,
+      stage.y + stage.height * 0.2,
+    );
+    await desk.waitForTimeout(600);
+    await desk.screenshot({ path: join(out, "image-zoom-1440.png") });
+    shots.push("image-zoom-1440.png");
+    await desk.keyboard.press("ArrowLeft");
+    await desk
+      .locator('[data-image-preview] img[alt="primeira.png"]')
+      .waitFor();
+    await desk.waitForTimeout(600);
+    await desk.screenshot({ path: join(out, "image-previous-1440.png") });
+    shots.push("image-previous-1440.png");
+    await desk.keyboard.press("Escape");
+    await desk.locator("[data-image-preview]").waitFor({ state: "detached" });
+    await desk.setViewportSize({ width: 390, height: 844 });
+    await desk
+      .locator('[data-chat-message] img[alt="topbar.png"]')
+      .last()
+      .click();
+    await desk.locator("[data-image-preview] [data-image-stage] img").waitFor();
+    await desk.waitForTimeout(600);
+    await desk.screenshot({ path: join(out, "image-fit-390.png") });
+    shots.push("image-fit-390.png");
+    await desk.keyboard.press("Escape");
+    await desk.locator("[data-image-preview]").waitFor({ state: "detached" });
+    await desk.setViewportSize({ width: 1440, height: 900 });
+  }
   if (flag("thread")) {
     // A message with a thread card and a reaction (Gimenes #5477): the reaction row keeps a gap under the card, and
     // the 🙂 button shows only on hover, also when there are chips.

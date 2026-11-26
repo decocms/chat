@@ -16,6 +16,7 @@
   import VersionPicker from "./VersionPicker.svelte";
   import { csvData, externalFileURL, fileURL, viewerKind } from "./model";
   import { viewerText } from "./copy";
+  import { fitted, isFitted, zoomLabel, zoomTo, type ZoomView } from "./zoom";
   let {
     controller,
     lang = "pt",
@@ -161,6 +162,62 @@
     };
   });
   onDestroy(() => controller.closeNavigation());
+  /** An image opens full screen, on the dark stage, with zoom and ←/→ through the images of its thread (Gimenes
+   *  #5961, option B). One title bar holds every control, so all have the same size. */
+  const stage = $derived(image && !inline);
+  let zoom = $state<ZoomView | undefined>();
+  $effect(() => {
+    void $view.target?.id;
+    zoom = stage ? fitted(1) : undefined;
+  });
+  const tone = $derived(
+    stage
+      ? "text-call-muted-foreground hover:bg-call-button-hover hover:text-call-foreground"
+      : "text-muted-foreground hover:text-foreground",
+  );
+  /** The images of the opened image's thread, in order (only the messages the room has loaded). */
+  const siblings = $derived.by(() => {
+    const room = $view.room,
+      id = $view.target?.id;
+    if (!stage || !room || !id) return [];
+    const home = room.messages.find((message) =>
+      message.files?.some((file) => file.id === id),
+    );
+    if (!home) return [];
+    return room.messages
+      .filter((message) => message.thread === home.thread)
+      .flatMap((message) =>
+        (message.files ?? []).filter(
+          (file) => viewerKind(file.type, file.name) === "image",
+        ),
+      );
+  });
+  const at = $derived(
+    siblings.findIndex((file) => file.id === $view.target?.id),
+  );
+  const go = (step: number) => {
+    const file = at < 0 ? undefined : siblings[at + step];
+    if (file && $view.room)
+      controller.open({ roomId: $view.room.id, id: file.id, metadata: file });
+  };
+  const zoomBy = (factor: number) => {
+    if (zoom) zoom = zoomTo(zoom, zoom.scale * factor);
+  };
+  const keys = (event: KeyboardEvent) => {
+    if (!stage || event.metaKey || event.ctrlKey || event.altKey) return;
+    const act: Record<string, () => void> = {
+      "+": () => zoomBy(1.25),
+      "=": () => zoomBy(1.25),
+      "-": () => zoomBy(0.8),
+      "0": () => zoom && (zoom = fitted(zoom.fit)),
+      ArrowLeft: () => go(-1),
+      ArrowRight: () => go(1),
+    };
+    const run = act[event.key];
+    if (!run) return;
+    event.preventDefault();
+    run();
+  };
 </script>
 
 <!-- The version picker and the file's actions: one compact row, in the full-screen title bar or (only the picker) beside the chat, whose panel header has the rest. -->
@@ -173,8 +230,10 @@
         size="icon"
         aria-pressed={pinned}
         class={pinned
-          ? "bg-muted text-foreground"
-          : "text-muted-foreground hover:text-foreground"}
+          ? stage
+            ? "bg-call-button text-call-foreground"
+            : "bg-muted text-foreground"
+          : tone}
         disabled={$view.pinPending}
         onclick={(event) => {
           if (event.currentTarget.isConnected) controller.togglePin();
@@ -184,7 +243,7 @@
         label={text("external")}
         tooltipSide="bottom"
         size="icon"
-        class="text-muted-foreground hover:text-foreground"
+        class={tone}
         href={externalFileURL($view.target, location.origin, iosStandalone)}
         target="_blank"
         rel="noopener noreferrer"
@@ -254,6 +313,7 @@
           {#if ["image", "audio", "html", "pdf"].includes($view.content.kind)}
             {@const operation = $view.content.operation}
             <ViewerMedia
+              bind:zoom
               content={$view.content}
               name={$view.name}
               onready={() => controller.ready(operation)}
@@ -353,9 +413,10 @@
       bind:ref={content}
       data-image-preview={image || undefined}
       class={image
-        ? "flex max-h-[90dvh] w-full max-w-[90vw] flex-col gap-3 overflow-auto p-4 md:max-w-xl font-sans text-sm text-foreground"
+        ? "inset-0 top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none bg-call-stage p-0 font-sans text-sm text-call-foreground shadow-none outline-none backdrop-blur-none md:max-w-none"
         : "inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto md:max-w-none font-sans text-sm text-foreground"}
-      closeButtonClassName={image ? "top-4 right-4" : undefined}
+      closeButtonClassName={image ? "hidden" : undefined}
+      onkeydown={keys}
       closeLabel={text("close")}
       preventScroll={false}
       preventBodyPointerEvents={false}
@@ -373,18 +434,104 @@
         }
       }}
     >
-      <DialogHeader class="flex-row items-center gap-1 space-y-0 pr-8">
-        <DialogTitle class="min-w-0 flex-1 truncate font-sans"
-          >{$view.name || "File"}</DialogTitle
+      {#if image}
+        <DialogHeader
+          class="flex-row items-center gap-1 space-y-0 px-3 py-2 text-left"
         >
-        {@render tools()}
-      </DialogHeader>
-      {@render preview()}
-      {#if image && sent}<p
-          class="m-0 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground"
+          <DialogTitle
+            class="min-w-0 flex-1 truncate font-sans text-call-foreground"
+            >{$view.name || "File"}</DialogTitle
+          >
+          {#if zoom}<div class="flex items-center gap-1 max-md:hidden">
+              <IconButton
+                label={text("zoomOut")}
+                tooltipSide="bottom"
+                size="icon"
+                class={tone}
+                disabled={isFitted(zoom)}
+                onclick={() => zoomBy(0.8)}
+                ><Icon icon="minus" size={18} /></IconButton
+              ><Button
+                variant="ghost"
+                size="sm"
+                class="min-w-14 text-call-muted-foreground tabular-nums hover:bg-call-button-hover hover:text-call-foreground"
+                title={text("fit")}
+                onclick={() =>
+                  zoom &&
+                  (zoom = isFitted(zoom)
+                    ? zoomTo(zoom, Math.max(1, zoom.fit * 2))
+                    : fitted(zoom.fit))}
+                >{zoomLabel(zoom) ?? text("fitLabel")}</Button
+              ><IconButton
+                label={text("zoomIn")}
+                tooltipSide="bottom"
+                size="icon"
+                class={tone}
+                onclick={() => zoomBy(1.25)}
+                ><Icon icon="plus" size={18} /></IconButton
+              ><IconButton
+                label={text("fit")}
+                tooltipSide="bottom"
+                size="icon"
+                class={tone}
+                disabled={isFitted(zoom)}
+                onclick={() => zoom && (zoom = fitted(zoom.fit))}
+                ><Icon icon="expand-01" size={18} /></IconButton
+              ><span class="mx-1 h-5 w-px bg-call-button"></span>
+            </div>{/if}
+          {@render tools()}
+          {#if $view.target}<IconButton
+              label={text("downloadImage")}
+              tooltipSide="bottom"
+              size="icon"
+              class={tone}
+              href={fileURL($view.target)}
+              download={$view.name}
+              ><Icon icon="download-01" size={18} /></IconButton
+            >{/if}
+          <span class="mx-1 h-5 w-px bg-call-button"></span>
+          <IconButton
+            label={text("close")}
+            tooltipSide="bottom"
+            size="icon"
+            class={tone}
+            onclick={close}><Icon icon="x" size={18} /></IconButton
+          >
+        </DialogHeader>
+        <div class="relative flex min-h-0 flex-1 flex-col md:px-14">
+          {@render preview()}
+          {#if at > 0}<IconButton
+              label={text("previousImage")}
+              size="icon"
+              class="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-call-button text-call-muted-foreground hover:bg-call-button-hover hover:text-call-foreground"
+              onclick={() => go(-1)}
+              ><Icon icon="chevron-left" size={20} /></IconButton
+            >{/if}
+          {#if at >= 0 && at < siblings.length - 1}<IconButton
+              label={text("nextImage")}
+              size="icon"
+              class="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-call-button text-call-muted-foreground hover:bg-call-button-hover hover:text-call-foreground"
+              onclick={() => go(1)}
+              ><Icon icon="chevron-right" size={20} /></IconButton
+            >{/if}
+        </div>
+        <p
+          class="m-0 flex flex-wrap justify-between gap-2 px-3 py-2 text-xs text-call-muted-foreground"
         >
-          <span>{sent}</span>{#if size}<span>{size}</span>{/if}
-        </p>{/if}
+          <span
+            >{sent}{#if siblings.length > 1 && at >= 0}
+              {` · ${at + 1} ${text("of")} ${siblings.length}`}{/if}</span
+          >{#if size}<span>{size}</span>{/if}
+        </p>
+      {:else}
+        <DialogHeader class="flex-row items-center gap-1 space-y-0 pr-8">
+          <DialogTitle class="min-w-0 flex-1 truncate font-sans"
+            >{$view.name || "File"}</DialogTitle
+          >
+          {@render tools()}
+        </DialogHeader>
+        {@render preview()}
+      {/if}
     </DialogContent>
   </Dialog>{/if}
 

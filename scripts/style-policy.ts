@@ -12,6 +12,14 @@ export const HOLO_PROPERTIES = [
   "--ry",
   "--active",
 ];
+/** The full-screen image viewer's zoom (Gimenes #5961): this one file may set the image's offset, scale and width the
+ *  same way. Nothing else. */
+export const ZOOM_SOURCE = "web/features/file-viewer/zoomStyle.ts";
+export const ZOOM_PROPERTIES = ["--zoom-x", "--zoom-y", "--zoom-s", "--zoom-w"];
+const STYLE_PROPERTY_SOURCES: Record<string, string[]> = {
+  [HOLO_SOURCE]: HOLO_PROPERTIES,
+  [ZOOM_SOURCE]: ZOOM_PROPERTIES,
+};
 import ts from "typescript";
 import { parse } from "svelte/compiler";
 import postcss from "postcss";
@@ -164,11 +172,12 @@ export function auditPresentation(
     // The card protocol's `props.style` is a closed semantic variant, not CSS.
     // Permit only strict comparisons with its catalog values, never mutation,
     // forwarding as inline CSS, computed access, or reading DOM style fields.
-    // `x.style.setProperty("--mx", …)` in HOLO_SOURCE, with a listed name as a string literal.
+    // `x.style.setProperty("--mx", …)` in HOLO_SOURCE (or ZOOM_SOURCE), with a name of its list as a string literal.
     const holoProperty = (node: ts.PropertyAccessExpression) => {
       const call = node.parent?.parent;
+      const allowed = STYLE_PROPERTY_SOURCES[file];
       return (
-        file === HOLO_SOURCE &&
+        !!allowed &&
         node.name.text === "style" &&
         ts.isPropertyAccessExpression(node.parent) &&
         node.parent.name.text === "setProperty" &&
@@ -177,7 +186,7 @@ export function auditPresentation(
         call.expression === node.parent &&
         !!call.arguments[0] &&
         ts.isStringLiteralLike(call.arguments[0]) &&
-        HOLO_PROPERTIES.includes(call.arguments[0].text)
+        allowed.includes(call.arguments[0].text)
       );
     };
     const cardVariantComparison = (node: ts.PropertyAccessExpression) => {

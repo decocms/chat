@@ -2519,3 +2519,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: A room message can make one of these Claudes run commands on the person's computer without a prompt. A Claude Code process that writes `~/.claude.json` at the same moment can overwrite the trust entry (then the question shows once).
 - Undo: Revert the commit and release the app again.
 - Status: open
+
+### 2026-11-26 · feat/image-lightbox · How the full-screen image viewer is built
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes #5961: in the image dialog, the X did not align with the other buttons, and there was no zoom. He chose option B (full screen) from my mockups (#5980).
+- Decision:
+  - The image opens in the same `Dialog`, full screen, on the dark call stage tokens (`bg-call-stage`, `text-call-foreground`, `bg-call-button`). One title bar holds the zoom, the file actions, Baixar and the X, all `IconButton`s of one size. The dialog's own close button is hidden.
+  - The zoom logic is pure (`web/features/file-viewer/zoom.ts`, tested). A click goes from fit to 2× fit (at least 100 %) at the click. Wheel and trackpad pinch zoom at the cursor, to 8×. Drag pans. Keys + − 0. ← → open the other images of the thread that the room has loaded.
+  - The image moves through four CSS custom properties that a Svelte action sets (`zoomStyle.ts`). The style policy allowed this only for the holo card. I added this one file and its four properties to that allowlist (`ZOOM_SOURCE`, `ZOOM_PROPERTIES`).
+  - Icons: `minus`, `plus` and `expand-01` from the sprite. The zoom icons of Untitled UI need a download of `@untitledui/icons`.
+  - On a phone, the zoom buttons are hidden, and a tap zooms. There is no two-finger pinch yet.
+- Other options: A larger dialog (option A). A zoom library (a new dependency).
+- Risk: The style allowlist is a little wider. Images of a thread that the room did not load are not in ← →.
+- Undo: Revert the commit.
+- Status: open
