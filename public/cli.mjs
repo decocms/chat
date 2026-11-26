@@ -2052,7 +2052,18 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
             openBrowser(`https://github.com/decocms/chat/releases/tag/tray-v${deco.appLatest}`);
           else {
             writePrivate(APP_UPDATED, { to: deco.appLatest, at: Date.now() });
-            spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], { stdio: "ignore", detached: true }).unref();
+            const log = openSync(join2(HOME, "app-update.log"), "w", 384);
+            const setup = spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], {
+              stdio: ["ignore", log, log],
+              detached: true,
+              env: { ...process.env, PATH: [...new Set(agentDirs())].join(":") }
+            });
+            closeSync(log);
+            setup.on("exit", () => {
+              deco.state = "failed";
+              draw();
+            });
+            setup.unref();
             setTimeout(() => void check(), 5 * 60000);
             return;
           }

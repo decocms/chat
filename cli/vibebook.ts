@@ -1805,7 +1805,20 @@ async function main() {
             // setup.sh replaces this app and starts the new one, which shows "Atualizado · <version>" (APP_UPDATED).
             // Until then the line stays "Instalando atualização…"; if no new app came in 5 min, check again.
             writePrivate(APP_UPDATED, { to: deco.appLatest, at: Date.now() });
-            spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], { stdio: "ignore", detached: true }).unref();
+            // The app's PATH is short (/usr/bin:/bin): setup.sh must find vibebook, claude and herdr (Gimenes #6057).
+            // Its output goes to app-update.log. If it ends before it replaces this app, it failed: say so.
+            const log = openSync(join(HOME, "app-update.log"), "w", 0o600);
+            const setup = spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], {
+              stdio: ["ignore", log, log],
+              detached: true,
+              env: { ...process.env, PATH: [...new Set(agentDirs())].join(":") },
+            });
+            closeSync(log);
+            setup.on("exit", () => {
+              deco.state = "failed";
+              draw();
+            });
+            setup.unref();
             setTimeout(() => void check(), 5 * 60_000);
             return;
           }
