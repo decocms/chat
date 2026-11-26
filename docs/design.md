@@ -98,6 +98,7 @@ While a person is in the room's call, the call takes the view (`CallStage`, the 
 5. Full screen is the room's layout without the sidebar and the top bar, so that the chat can open beside the stage.
 6. Phones: the stage is above the chat.
 7. A person who is not in a call that is on gets one line above the chat: who is there, and "Entrar na call (n)".
+8. The "Mais opções" menu of the controls has the microphone and the audio output of this device ("Microfone", "Saída de áudio"), as radio items. It shows the output list only if the browser can change the output (`setSinkId`). Safari and Firefox do not show it.
 
 ### What does not go in the top bar
 

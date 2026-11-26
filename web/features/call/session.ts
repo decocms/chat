@@ -7,6 +7,18 @@ import type { SendRoomCommand } from "../../../shared/commands";
 import type { CallApi } from "./callApi";
 import { isRecorder } from "../../../shared/call";
 import type { Denoiser } from "./denoise";
+import {
+  audioDevices,
+  canChooseOutput,
+  chosenDevice,
+  micConstraints,
+  sinkId,
+  storedDevice,
+  storeDevice,
+  SYSTEM_DEVICE,
+  systemDeviceKey,
+  type AudioDevice,
+} from "./devices";
 
 // The noise suppression (RNNoise, denoise.ts) is on unless the person turned it off on this device.
 const DENOISE_KEY = "vb-call-denoise";
@@ -63,6 +75,15 @@ export type CallView = {
   notice: "" | "alone" | "idle";
   /** The people I silenced for me only (emails): this tab does not play their voice; nobody else is told. */
   silenced: string[];
+};
+/** The microphones and outputs that this device has, and the ones the call uses now (SYSTEM_DEVICE: the system's).
+ *  `output`: the browser can send the call's sound to an output that the page chooses (setSinkId). */
+export type CallDevices = {
+  inputs: AudioDevice[];
+  outputs: AudioDevice[];
+  mic: string;
+  speaker: string;
+  output: boolean;
 };
 const IDLE: CallView = {
   phase: "idle",
@@ -170,6 +191,13 @@ export function createCallSession(
   thread: () => string,
 ) {
   const state = writable<CallView>(IDLE);
+  const devices = writable<CallDevices>({
+    inputs: [],
+    outputs: [],
+    mic: SYSTEM_DEVICE,
+    speaker: SYSTEM_DEVICE,
+    output: false,
+  });
   let pc: RTCPeerConnection | null = null,
     session = "",
     mic: MediaStream | null = null,
@@ -194,7 +222,11 @@ export function createCallSession(
     // the call ended belongs to the old one: what it does or fails afterwards is no error of the call (a hang-up
     // showed "A call falhou", 2026-11-25).
     epoch = 0,
-    queue: Promise<unknown> = Promise.resolve();
+    queue: Promise<unknown> = Promise.resolve(),
+    // A change of the microphone's track (another device, the noise suppression on or off) waits for the one before.
+    micQueue: Promise<unknown> = Promise.resolve(),
+    // The system's microphone as the last device list had it: a new one (a headset plugged in) is taken again.
+    systemMic = "";
   /** key → mid of what this tab receives; mid → whose track it is; mid → the element that plays it. */
   const pulled = new Map<string, string>(),
     owners = new Map<string, { email: string; key: string }>(),
@@ -283,6 +315,11 @@ export function createCallSession(
     clearInterval(speakTimer);
     clearTimeout(retryTimer);
     document.removeEventListener("visibilitychange", onVisibility);
+    navigator.mediaDevices?.removeEventListener?.(
+      "devicechange",
+      onDeviceChange,
+    );
+    systemMic = "";
     screenSent = idleReports = 0;
     for (const key of [...meters.keys()]) unlisten(key);
     heard.clear();
@@ -431,6 +468,7 @@ export function createCallSession(
     const player = new Audio();
     player.srcObject = stream;
     player.muted = get(state).silenced.includes(email);
+    void sink(player, get(devices).speaker);
     void player.play().catch(() => {});
     players.set(mid, player);
     listen(mid, email, stream);
@@ -476,6 +514,116 @@ export function createCallSession(
   }
   const onVisibility = () => void enqueue(sync);
 
+  const micStep = <T>(job: () => Promise<T>) => {
+    const step = micQueue.then(job);
+    micQueue = step.catch(() => {});
+    return step;
+  };
+  /** Sends the call's sound of one person to an output. A browser without setSinkId plays it on the system's. */
+  async function sink(player: HTMLAudioElement, id: string) {
+    if (!canChooseOutput()) return true;
+    try {
+      await player.setSinkId(sinkId(id));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  async function useSpeaker(id: string) {
+    devices.update((value) => ({ ...value, speaker: id }));
+    const done = await Promise.all(
+      [...players.values()].map((p) => sink(p, id)),
+    );
+    if (done.every(Boolean) || id === SYSTEM_DEVICE) return true;
+    // The output went away while it was chosen: the system's plays everything.
+    await useSpeaker(SYSTEM_DEVICE);
+    return false;
+  }
+  /** Changes the microphone in the call: a new track of that device goes to the SFU in place of the old one, with
+   *  the same cleanup, the same mute and the noise suppression if it is on. The old track stops. false: the device
+   *  did not open, and the old microphone stays. */
+  function useMic(id: string) {
+    const at = epoch;
+    return micStep(async () => {
+      if (at !== epoch || !mic || !micSender) return false;
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: micConstraints(MIC_CLEANUP, id, true),
+        });
+      } catch {
+        return false;
+      }
+      const [track] = stream.getAudioTracks();
+      const next = track && denoiser ? await cleaned(stream) : null;
+      const sender = micSender;
+      if (!track || at !== epoch || !sender || !mic) {
+        next?.stop();
+        stream.getTracks().forEach((one) => one.stop());
+        return false;
+      }
+      track.enabled = !get(state).muted;
+      try {
+        await sender.replaceTrack(next?.track ?? track);
+      } catch {
+        next?.stop();
+        stream.getTracks().forEach((one) => one.stop());
+        return false;
+      }
+      denoiser?.stop();
+      mic.getTracks().forEach((one) => one.stop());
+      mic = stream;
+      denoiser = next;
+      watchMic(track);
+      unlisten("mic");
+      listen("mic", self, stream);
+      devices.update((value) => ({ ...value, mic: id }));
+      return true;
+    });
+  }
+  /** A microphone that is unplugged ends its track: the call takes the device that is left. */
+  function watchMic(track: MediaStreamTrack) {
+    track.onended = () => {
+      if (mic?.getAudioTracks()[0] === track) void refreshDevices(true);
+    };
+  }
+  /** Reads the devices again. The call follows: a chosen device that went away gives the system's, and one that
+   *  came back is used again. `ended`: the microphone in use stopped, so it is taken again. */
+  async function refreshDevices(ended = false) {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    let list: MediaDeviceInfo[];
+    try {
+      list = await navigator.mediaDevices.enumerateDevices();
+    } catch {
+      return;
+    }
+    const inputs = audioDevices(list, "audioinput"),
+      outputs = audioDevices(list, "audiooutput"),
+      output = canChooseOutput(),
+      wantMic = chosenDevice(inputs, storedDevice("audioinput")),
+      wantSpeaker = output
+        ? chosenDevice(outputs, storedDevice("audiooutput"))
+        : SYSTEM_DEVICE,
+      system = systemDeviceKey(list, "audioinput"),
+      now = get(devices);
+    const newSystem =
+      wantMic === SYSTEM_DEVICE &&
+      !!systemMic &&
+      !!system &&
+      system !== systemMic;
+    systemMic = system;
+    devices.update((value) => ({ ...value, inputs, outputs, output }));
+    if (get(state).phase !== "in") return;
+    if (ended || newSystem || wantMic !== now.mic)
+      void useMic(wantMic).then((done) => {
+        // The chosen one did not open after the old one stopped: the system's, so the call still hears me.
+        if (!done && ended && wantMic !== SYSTEM_DEVICE)
+          void useMic(SYSTEM_DEVICE);
+      });
+    if (wantSpeaker !== now.speaker) void useSpeaker(wantSpeaker);
+  }
+  const onDeviceChange = () => void refreshDevices();
+
   return {
     state: { subscribe: state.subscribe },
     /** The room's word on who is in the call. Missing from it while in the call = this tab was dropped. */
@@ -500,8 +648,10 @@ export function createCallSession(
       if (get(state).phase !== "idle") return;
       state.set({ ...IDLE, phase: "joining", muted });
       // Asked for inside the click, before any await: browsers want the gesture.
+      // The microphone chosen on this device, if it is there; else the browser's own.
+      const wanted = storedDevice("audioinput");
       const media = navigator.mediaDevices.getUserMedia({
-        audio: MIC_CLEANUP,
+        audio: micConstraints(MIC_CLEANUP, wanted, false),
       });
       const at = epoch;
       let joined = "";
@@ -529,6 +679,17 @@ export function createCallSession(
           pc.ontrack = received;
           const [track] = mic.getAudioTracks();
           if (track) track.enabled = !muted;
+          if (track) watchMic(track);
+          // The browser can give another microphone than the one asked for (it is not plugged in): the system's.
+          devices.update((value) => ({
+            ...value,
+            mic:
+              wanted !== SYSTEM_DEVICE &&
+              track?.getSettings().deviceId === wanted
+                ? wanted
+                : SYSTEM_DEVICE,
+            speaker: SYSTEM_DEVICE,
+          }));
           // The call gets the cleaned microphone; the raw one stays for mute and for the speaking mark. If the
           // cleaning does not start (an old browser), the raw microphone goes.
           if (track && get(denoiseOn)) denoiser = await cleaned(mic);
@@ -540,7 +701,13 @@ export function createCallSession(
           listen("mic", self, mic);
           speakTimer = setInterval(measure, SPEAK_MS);
           document.addEventListener("visibilitychange", onVisibility);
+          navigator.mediaDevices.addEventListener?.(
+            "devicechange",
+            onDeviceChange,
+          );
           patch({ phase: "in" });
+          // Now with the labels (the microphone is allowed): the lists, and the output chosen on this device.
+          void refreshDevices();
           send({ t: "call.mute", muted });
           void enqueue(sync);
         } catch (error) {
@@ -568,16 +735,40 @@ export function createCallSession(
       } catch {
         // Private mode: it lasts until the page closes.
       }
-      const [track] = mic?.getAudioTracks() ?? [];
-      if (!micSender || !mic || !track) return;
-      if (on && !denoiser) denoiser = await cleaned(mic);
-      await micSender
-        .replaceTrack(on && denoiser ? denoiser.track : track)
-        .catch(() => {});
-      if (!on) {
-        denoiser?.stop();
-        denoiser = null;
+      await micStep(async () => {
+        const [track] = mic?.getAudioTracks() ?? [];
+        if (!micSender || !mic || !track) return;
+        if (on && !denoiser) denoiser = await cleaned(mic);
+        await micSender
+          ?.replaceTrack(on && denoiser ? denoiser.track : track)
+          .catch(() => {});
+        if (!on) {
+          denoiser?.stop();
+          denoiser = null;
+        }
+      });
+    },
+    /** The devices of this machine and the ones in use (the stage's menu). */
+    devices: { subscribe: devices.subscribe },
+    /** Reads the devices again (the menu opens: a device may be new). */
+    refreshDevices() {
+      void refreshDevices();
+    },
+    /** Another microphone, in the call now and in the next calls on this device. false: it did not open. */
+    async chooseMic(id: string) {
+      storeDevice("audioinput", id);
+      if (get(state).phase !== "in") {
+        devices.update((value) => ({ ...value, mic: id }));
+        return true;
       }
+      return useMic(id);
+    },
+    /** Another output for the call's sound, now and in the next calls on this device. false: it did not play. */
+    async chooseSpeaker(id: string) {
+      storeDevice("audiooutput", id);
+      const done = await useSpeaker(id);
+      if (!done) storeDevice("audiooutput", SYSTEM_DEVICE);
+      return done;
     },
     /** Silence a person for me only ("Silenciar pra mim"), or hear them again. Their microphone stays on for the
      *  others: only this tab stops playing their voice. */

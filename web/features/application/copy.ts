@@ -913,6 +913,15 @@ const EN: Readonly<Record<string, string>> = {
   "Entrar na call: {people}": "Join the call: {people}",
   "Câmera e desfoque": "Camera and blur",
   "Supressão de ruído": "Noise suppression",
+  Microfone: "Microphone",
+  "Microfone {n}": "Microphone {n}",
+  "Saída de áudio": "Audio output",
+  "Saída {n}": "Output {n}",
+  "Padrão do sistema": "System default",
+  "Não consegui usar esse microfone. A call segue com o anterior.":
+    "I could not use that microphone. The call goes on with the one before.",
+  "Não consegui tocar o som nessa saída. A call segue no padrão do sistema.":
+    "I could not play the sound on that output. The call goes on with the system default.",
   "Gravar esta call no Grain? Só grava se as duas pessoas aceitarem.":
     "Record this call to Grain? It records only if both of you accept.",
   Gravar: "Record",

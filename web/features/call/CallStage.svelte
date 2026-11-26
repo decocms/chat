@@ -17,6 +17,11 @@
   import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
   import DropdownMenuCheckboxItem from "../../lib/studio/DropdownMenuCheckboxItem.svelte";
   import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
+  import DropdownMenuLabel from "../../lib/studio/DropdownMenuLabel.svelte";
+  import DropdownMenuRadioGroup from "../../lib/studio/DropdownMenuRadioGroup.svelte";
+  import DropdownMenuRadioItem from "../../lib/studio/DropdownMenuRadioItem.svelte";
+  import DropdownMenuSeparator from "../../lib/studio/DropdownMenuSeparator.svelte";
+  import { SYSTEM_DEVICE } from "./devices";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { meetLink, meetMessage } from "./meet";
   import CameraDialog from "./CameraDialog.svelte";
@@ -67,6 +72,21 @@
   } = $props();
   const view = $derived(call.state);
   const denoise = denoiseOn;
+  const devices = $derived(call.devices);
+  async function chooseMic(id: string) {
+    if (!(await call.chooseMic(id)))
+      showToast(
+        t("Não consegui usar esse microfone. A call segue com o anterior."),
+      );
+  }
+  async function chooseSpeaker(id: string) {
+    if (!(await call.chooseSpeaker(id)))
+      showToast(
+        t(
+          "Não consegui tocar o som nessa saída. A call segue no padrão do sistema.",
+        ),
+      );
+  }
   const name = (email: string) =>
     (room.names?.[email] ?? email.split("@")[0] ?? "").split(/\s+/)[0];
   // The recorder is in the call's list and is not a person: it shows as the "recording" mark.
@@ -598,7 +618,11 @@
               onclick={() => onchat?.()}
               ><Icon icon="message-circle-01" /></IconButton
             >{/if}
-          <DropdownMenu>
+          <DropdownMenu
+            onOpenChange={(open) => {
+              if (open) call.refreshDevices();
+            }}
+          >
             <DropdownMenuTrigger disabled={!live}>
               {#snippet child({ props: trigger })}<IconButton
                   {...trigger}
@@ -613,8 +637,58 @@
             <DropdownMenuContent
               side="top"
               align="center"
-              class="w-56 font-sans"
+              class="w-72 max-w-[calc(100vw-2rem)] font-sans"
             >
+              <!-- The devices of this machine. The output list is only where the browser can choose one
+                   (setSinkId): Safari and Firefox play on the system's output. -->
+              {#if $devices.inputs.length}<DropdownMenuLabel
+                  class="text-xs text-muted-foreground"
+                  >{t("Microfone")}</DropdownMenuLabel
+                >
+                <DropdownMenuRadioGroup
+                  data-call-mics
+                  value={$devices.mic}
+                  onValueChange={(id) => void chooseMic(id)}
+                >
+                  <DropdownMenuRadioItem
+                    value={SYSTEM_DEVICE}
+                    data-call-device={SYSTEM_DEVICE}
+                    >{t("Padrão do sistema")}</DropdownMenuRadioItem
+                  >
+                  {#each $devices.inputs as device, index (device.id)}<DropdownMenuRadioItem
+                      value={device.id}
+                      data-call-device={device.id}
+                      ><span class="min-w-0 truncate"
+                        >{device.label ||
+                          t("Microfone {n}", { n: index + 1 })}</span
+                      ></DropdownMenuRadioItem
+                    >{/each}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />{/if}
+              {#if $devices.output && $devices.outputs.length}<DropdownMenuLabel
+                  class="text-xs text-muted-foreground"
+                  >{t("Saída de áudio")}</DropdownMenuLabel
+                >
+                <DropdownMenuRadioGroup
+                  data-call-speakers
+                  value={$devices.speaker}
+                  onValueChange={(id) => void chooseSpeaker(id)}
+                >
+                  <DropdownMenuRadioItem
+                    value={SYSTEM_DEVICE}
+                    data-call-device={SYSTEM_DEVICE}
+                    >{t("Padrão do sistema")}</DropdownMenuRadioItem
+                  >
+                  {#each $devices.outputs as device, index (device.id)}<DropdownMenuRadioItem
+                      value={device.id}
+                      data-call-device={device.id}
+                      ><span class="min-w-0 truncate"
+                        >{device.label ||
+                          t("Saída {n}", { n: index + 1 })}</span
+                      ></DropdownMenuRadioItem
+                    >{/each}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />{/if}
               <DropdownMenuCheckboxItem
                 data-call-denoise
                 checked={$denoise}

@@ -7,9 +7,17 @@
   import CallPanel from "../../features/call/CallPanel.svelte";
   import {
     denoiseOn,
+    type CallDevices,
     type CallSession,
     type CallView,
   } from "../../features/call/session";
+  import {
+    audioDevices,
+    canChooseOutput,
+    chosenDevice,
+    storedDevice,
+    storeDevice,
+  } from "../../features/call/devices";
   import type { CallPeer, Room } from "../../../shared/room";
   import { recorderEmail } from "../../../shared/call";
   // The call's stage with no SFU: a fake session whose state comes from the URL, for screenshots and design
@@ -125,6 +133,29 @@
   });
   const patch = (next: Partial<CallView>) =>
     store.update((view) => ({ ...view, ...next }));
+  // The machine's own devices (a screenshot stubs enumerateDevices), and the choice in device storage, as the real
+  // session reads them.
+  const devices = writable<CallDevices>({
+    inputs: [],
+    outputs: [],
+    mic: storedDevice("audioinput"),
+    speaker: storedDevice("audiooutput"),
+    output: canChooseOutput(),
+  });
+  async function refreshDevices() {
+    const list =
+      (await navigator.mediaDevices?.enumerateDevices().catch(() => [])) ?? [];
+    const inputs = audioDevices(list, "audioinput"),
+      outputs = audioDevices(list, "audiooutput");
+    devices.set({
+      inputs,
+      outputs,
+      output: canChooseOutput(),
+      mic: chosenDevice(inputs, storedDevice("audioinput")),
+      speaker: chosenDevice(outputs, storedDevice("audiooutput")),
+    });
+  }
+  void refreshDevices();
   const call: CallSession = {
     state: { subscribe: store.subscribe },
     setPeers() {},
@@ -139,6 +170,18 @@
           : [...view.silenced, email],
       })),
     toggleDenoise: async () => denoiseOn.update((on) => !on),
+    devices: { subscribe: devices.subscribe },
+    refreshDevices: () => void refreshDevices(),
+    chooseMic: async (id) => {
+      storeDevice("audioinput", id);
+      devices.update((value) => ({ ...value, mic: id }));
+      return true;
+    },
+    chooseSpeaker: async (id) => {
+      storeDevice("audiooutput", id);
+      devices.update((value) => ({ ...value, speaker: id }));
+      return true;
+    },
     share: () => patch({ notice: "alone" }),
     stopShare: () => patch({ sharing: false }),
     startCamera: (stream) => patch({ camera: true, ownCam: stream }),

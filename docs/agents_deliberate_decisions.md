@@ -2411,3 +2411,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert the commit.
 - Status: open
 - Update (fix/react-opens-space, Gui #5825): a click on the floating row (the picker opens) makes its room. A spacer after the message grows from 0 to 20 px with the `grid-rows` transition, and the next message slides down. When a reaction is given, the row goes into the flow with the same 20 px, so nothing jumps. Esc closes the space again. A quick reaction (👍) without the picker puts the row in the flow at once, without the animation.
+
+### 2026-11-26 · viktor/call-audio-devices · Microphone and audio output in the call's menu
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked for a microphone picker and an audio output picker in the call. He did not say where they go, what happens when the chosen device comes back, or if the output choice also applies to the app's chimes.
+- Decision:
+  - The two lists are radio groups in the "Mais opções" menu of the stage, above "Supressão de ruído". They are not submenus, because a submenu opens to the side and does not fit a phone. The menu is `w-72`, at most the screen width.
+  - The first item of each list is "Padrão do sistema". The browser's own aliases of the system's device (Chrome's `default` and `communications`) are not in the list.
+  - The choice stays in device storage (`vb-call-mic`, `vb-call-speaker`). If the chosen device is unplugged, the call uses the system's device and the choice stays. When the device comes back (`devicechange`), the call uses it again. If the system's microphone changes while the call uses it (a headset is plugged in), the call takes the new one.
+  - A new microphone goes with `RTCRtpSender.replaceTrack`, with the same cleanup constraints, the same mute and a new RNNoise node if the noise suppression is on. The old track stops. If the new device does not open, the old one stays and a toast says so.
+  - The output applies `setSinkId` to each voice of the call, also to voices that come later. The call's `AudioContext` only measures who speaks, and the noise suppression's `AudioContext` sends to a track, so neither plays sound. The app's chime (`createChime`, messages and the ring) stays on the system's output.
+  - The sidebar's call panel (`CallPanel`) has no picker. It has no menu, and the stage is one click away.
+  - No `track()` event: the change is local to the browser, and the browser has no route for an event.
+  - The screens use the call's gallery fixture with test devices, because a real call needs the SFU credentials.
+- Other options: Submenus. A device dialog like "Câmera e desfoque". Forget the choice when the device goes away. Send the chime to the chosen output too.
+- Risk: low. With many devices the menu is long; it scrolls.
+- Undo: Revert the commit.
+- Status: open
