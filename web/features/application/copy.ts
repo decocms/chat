@@ -680,14 +680,14 @@ const EN: Readonly<Record<string, string>> = {
   "Ligar agent": "Turn on agent",
   "Abre em {path} ({how}).": "Opens in {path} ({how}).",
   "pasta da sala": "room folder",
-  "Ligado, mas nenhum agent seu está ouvindo esta sala agora: ele pode estar abrindo, ocupado com outra tarefa (o vibebook herdr pede pra ele ouvir quando ficar livre) ou o vibebook herdr não está rodando. Clique pra desligar.":
-    "On, but none of your agents is listening to this room right now: it may be starting, busy with another task (vibebook herdr asks it to listen once it's free), or vibebook herdr isn't running. Click to turn off.",
+  "Ligado, mas nenhum agent seu está ouvindo esta sala agora: ele pode estar abrindo, ocupado com outra tarefa (o app deco.chat pede pra ele ouvir quando ficar livre) ou o app deco.chat não está rodando. Clique pra desligar.":
+    "On, but none of your agents is listening to this room right now: it may be starting, busy with another task (the deco.chat app asks it to listen once it's free), or the deco.chat app isn't running. Click to turn off.",
   "Seu agent está ligado nesta sala. Clique pra desligar (fecha a aba dele no herdr; a conversa pode ser retomada).":
     "Your agent is on in this room. Click to turn off (closes its tab in herdr; the conversation can be resumed).",
-  "Abre um Claude Code seu para esta sala no herdr, ouvindo as mensagens. Precisa do vibebook herdr rodando na sua máquina.":
-    "Opens a Claude Code of yours for this room in herdr, listening for messages. Needs vibebook herdr running on your machine.",
-  "O vibebook herdr não está rodando nesta máquina.":
-    "vibebook herdr isn't running on this machine.",
+  "Abre um Claude Code seu para esta sala no herdr, ouvindo as mensagens. Precisa do app deco.chat rodando na sua máquina.":
+    "Opens a Claude Code of yours for this room in herdr, listening for messages. Needs the deco.chat app running on your machine.",
+  "O app deco.chat não está rodando nesta máquina.":
+    "The deco.chat app isn't running on this machine.",
   "em {repo}": "in {repo}",
   "ouvindo todas as salas agora": "listening to every room now",
   "{p}% · reseta {at}": "{p}% · resets {at}",
@@ -983,10 +983,10 @@ const EN: Readonly<Record<string, string>> = {
   "Seu agent ainda não está ouvindo.": "Your agent isn't listening yet.",
   "Abrindo seu agent no seu computador…":
     "Opening your agent on your computer…",
-  "Confira se o vibebook herdr está rodando no seu computador, ou se o agent parou numa pergunta lá.":
-    "Check that vibebook herdr is running on your computer, or whether agent stopped at a question there.",
-  "O vibebook herdr abre o Claude Code na pasta da sala; leva uns segundos.":
-    "vibebook herdr opens Claude Code in the room's folder; it takes a few seconds.",
+  "Confira se o app deco.chat está rodando no seu computador, ou se o agent parou numa pergunta lá.":
+    "Check that the deco.chat app is running on your computer, or whether agent stopped at a question there.",
+  "O app deco.chat abre o Claude Code na pasta da sala; leva uns segundos.":
+    "The deco.chat app opens Claude Code in the room's folder; it takes a few seconds.",
   "Seu agent não está nesta sala.": "Your agent isn't in this room.",
   "1 voto": "1 vote",
   "{n} votos": "{n} votes",
@@ -1205,8 +1205,8 @@ const EN: Readonly<Record<string, string>> = {
   "ligado · ainda não está ouvindo": "on · not listening yet",
   desligado: "off",
   "pasta nova": "new folder",
-  "Abre (ou fecha) um Claude Code seu para esta sala pelo vibebook herdr, na sua máquina.":
-    "Opens (or closes) a Claude Code of yours for this room through vibebook herdr, on your machine.",
+  "Abre (ou fecha) um Claude Code seu para esta sala pelo app deco.chat, na sua máquina.":
+    "Opens (or closes) a Claude Code of yours for this room through the deco.chat app, on your machine.",
   Conectados: "Connected",
   "Criar sandbox": "Create sandbox",
   Pronto: "Done",

@@ -81,6 +81,9 @@ export async function connectDirectSdk(
         "last-event-id",
       ])
         if (original.has(name)) headers.set(name, original.get(name)!);
+      // The browser calls the server directly: a new header name would fail the CORS preflight of a server that allows
+      // only this one. The server side (src/mcpconn.ts) already sends X-Deco-Chat-Identity too; this one moves when
+      // the servers allow it (public/mcp-identity.txt).
       headers.set("x-vibebook-identity", identity);
       const signal = AbortSignal.any([
         lifetime.signal,

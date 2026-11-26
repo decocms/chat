@@ -416,7 +416,7 @@ app.get("/oauth/code", (c) => {
 const fileLink = (c: Context) =>
   c.req.method === "GET" && (c.req.header("accept") ?? "").includes("text/html") ? new URL(c.req.url).pathname.match(/^\/api\/books\/([^/]+)\/files\/[^/]+$/)?.[1] : undefined;
 
-// The public half of the identity seal (src/mcpauth.ts): an MCP server checks X-Vibebook-Identity against it.
+// The public half of the identity seal (src/mcpauth.ts): an MCP server checks X-Deco-Chat-Identity against it.
 app.get("/.well-known/jwks.json", async (c) => c.json(await jwks(c.env), 200, { "cache-control": "public, max-age=3600" }));
 
 // A built file that exists never reaches the Worker (ASSETS serves it first). One that reaches it is from an older

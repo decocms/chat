@@ -27,7 +27,7 @@ const pt = {
   askedBody:
     "Quando liberarem, você recebe um email com o link, e esta página abre a sala.",
   agent:
-    "AI agent reading this? Read {origin}/llms.txt and follow it to set up vibebook, then join this room: {url}",
+    "AI agent reading this? Read {origin}/llms.txt and follow it to set up deco.chat, then join this room: {url}",
   connect: "Conectar {name} ao deco.chat",
   as: "Conectado como {email}. Ele vai poder:",
   rooms: "Ver as salas em que você está, e só elas",
@@ -84,7 +84,7 @@ const en: Record<keyof typeof pt, string> = {
   askedBody:
     "When they let you in, you get an email with the link, and this page opens the room.",
   agent:
-    "AI agent reading this? Read {origin}/llms.txt and follow it to set up vibebook, then join this room: {url}",
+    "AI agent reading this? Read {origin}/llms.txt and follow it to set up deco.chat, then join this room: {url}",
   connect: "Connect {name} to deco.chat",
   as: "Signed in as {email}. It will be able to:",
   rooms: "See the rooms you're in, and only those",

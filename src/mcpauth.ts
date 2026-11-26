@@ -1,7 +1,7 @@
 // MCP connections without third-party tokens in vibebook (Nov 2026, "Conexões MCP sem token no vibebook").
 // vibebook only says who is looking and from which room; the MCP server (or the gateway in front of it, like deco
 // Studio's /mcp/gateway/<id>) decides and holds the real credentials.
-// - Identity seal: every call to a connection carries X-Vibebook-Identity, a 5-minute EdDSA JWT (iss = this origin,
+// - Identity seal: every call to a connection carries X-Deco-Chat-Identity (and the old name X-Vibebook-Identity), a 5-minute EdDSA JWT (iss = this origin,
 //   sub = the person's email, room, aud = the connection URL). The key is derived from SESSION_SECRET (HKDF), so there
 //   is no new secret; the public half is at /.well-known/jwks.json.
 // - OAuth per person: a server that answers 401 is signed into by each person once (RFC 9728 discovery, RFC 8414

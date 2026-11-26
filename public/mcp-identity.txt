@@ -1,10 +1,12 @@
-# Verify X-Vibebook-Identity (MCP servers that deco.chat calls)
+# Verify X-Deco-Chat-Identity (MCP servers that deco.chat calls)
 
 deco.chat sends no tokens to MCP servers. Every call to a connected server carries a header that says who calls:
 
 ```
-X-Vibebook-Identity: <JWT>
+X-Deco-Chat-Identity: <JWT>
 ```
+
+> The header had the name `X-Vibebook-Identity` before Nov 2026. deco.chat still sends the old name with the same JWT, and calls from the browser (the room's Apps tab) send only the old name for now. Read the new name first, then the old one. If your server answers CORS preflights, allow both names in `Access-Control-Allow-Headers`.
 
 - A 5-minute EdDSA (Ed25519) JWT.
 - Claims: `iss` = the deco.chat origin (`https://chat.decocms.com`), `sub` and `email` = the person's verified email, `room` = the room id, `aud` = the exact URL of your MCP endpoint (origin + path, no query), `iat`, `exp`, `jti`.
@@ -20,7 +22,7 @@ Your server must check, in this order:
 
 On failure answer **403**, not 401: a 401 makes deco.chat look for an OAuth login.
 
-> The origin changed in Nov 2026 from `https://vibebook.dev` to `https://chat.decocms.com`. A server that still pins `vibebook.dev` answers 403 "invalid vibebook identity". Trust the new origin (keys at `https://chat.decocms.com/.well-known/jwks.json`).
+> The origin changed in Nov 2026 from `https://vibebook.dev` to `https://chat.decocms.com`. A server that still pins `vibebook.dev` answers 403 "invalid deco.chat identity" (or "invalid vibebook identity", with older code). Trust the new origin (keys at `https://chat.decocms.com/.well-known/jwks.json`).
 
 ## Code (Cloudflare Workers, Node 20+, Bun, Deno: Web Crypto only)
 
@@ -40,8 +42,9 @@ async function jwks(iss: string, kid: string) {
 }
 
 /** The caller's email, or null. `aud` = your MCP endpoint, e.g. "https://example.com/mcp". */
-export async function vibebookEmail(req: Request, aud: string): Promise<string | null> {
-  const jwt = req.headers.get("x-vibebook-identity");
+export async function decoChatEmail(req: Request, aud: string): Promise<string | null> {
+  // The old name X-Vibebook-Identity is still sent too, and is the only one in calls made from the browser (for now).
+  const jwt = req.headers.get("x-deco-chat-identity") ?? req.headers.get("x-vibebook-identity");
   const [h, p, s] = jwt?.split(".") ?? [];
   if (!h || !p || !s) return null;
   try {
@@ -57,15 +60,15 @@ export async function vibebookEmail(req: Request, aud: string): Promise<string |
     return null;
   }
 }
-// In the handler: const email = await vibebookEmail(req, url.origin + url.pathname);
-// if (!email || !allowed(email)) return new Response("invalid vibebook identity", { status: 403 });
+// In the handler: const email = await decoChatEmail(req, url.origin + url.pathname);
+// if (!email || !allowed(email)) return new Response("invalid deco.chat identity", { status: 403 });
 ```
 
 ## Prompt for the Claude of your MCP server
 
 ```
 This MCP server is called from deco.chat rooms. Read https://chat.decocms.com/mcp-identity.txt and make every
-request require a valid X-Vibebook-Identity: Ed25519 JWT, keys from https://chat.decocms.com/.well-known/jwks.json
+request require a valid X-Deco-Chat-Identity (or the old X-Vibebook-Identity): Ed25519 JWT, keys from https://chat.decocms.com/.well-known/jwks.json
 (cached 1h, refetch on unknown kid), iss exactly https://chat.decocms.com, aud exactly this endpoint's URL
 (origin + path), exp in the future, sub in an allowlist I keep in config (emails or @domain). Answer 403 (not 401)
 when it fails. If the code pins https://vibebook.dev, replace it with https://chat.decocms.com. Add a test that a

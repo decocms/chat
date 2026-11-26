@@ -3006,9 +3006,14 @@ async function ownMachine(db: D1Database, mid: string, email: string) {
     .first<string>("email");
   return owner && owner !== email ? ownSession(mid, email, "m_") : mid;
 }
-/** agent → the role this isolate last recorded for it (x-vibebook-role). */
+/** A header that the CLI sends: `x-deco-chat-<name>` from CLI 1.8.1, `x-vibebook-<name>` before (Gimenes #5948).
+ *  Both are read until the old CLIs are gone. */
+const cliHeader = (request: Request, name: string) =>
+  request.headers.get(`x-deco-chat-${name}`) ??
+  request.headers.get(`x-vibebook-${name}`);
+/** agent → the role this isolate last recorded for it (x-deco-chat-role). */
 const agentRole = new Map<string, string | null>();
-/** agent|machine → when this isolate last recorded that agent's machine (x-vibebook-machine). */
+/** agent|machine → when this isolate last recorded that agent's machine (x-deco-chat-machine). */
 const machineSeen = new Map<string, number>();
 const lastWrite = new Map<string, number>();
 const POLL_TOOLS = new Set(["wait_for_messages", "claude_rooms"]);
@@ -3134,11 +3139,11 @@ export async function handleAgentMcp(
     if (agentOwner.size > 20_000) agentOwner.clear();
     agentOwner.set(agentId, props.email);
   }
-  // Every agent belongs to a machine (docs/machine-hub.md): the CLI sends its computer's id (x-vibebook-machine, from
+  // Every agent belongs to a machine (docs/machine-hub.md): the CLI sends its computer's id (x-deco-chat-machine, from
   // ~/.vibebook/machine.json) and name. The machine is registered for this person and stays online while its agents
   // call (at most every 2 min per agent and isolate), and the agent follows that machine's switch. A machine id that
   // belongs to someone else maps to a per-person one (ownMachine). A sandbox keeps its own machine.
-  const sent = request.headers.get("x-vibebook-machine") ?? "";
+  const sent = cliHeader(request, "machine") ?? "";
   const mKey = `${agentId}|${sent}`;
   if (
     !props.sandbox &&
@@ -3148,7 +3153,7 @@ export async function handleAgentMcp(
     if (machineSeen.size > 20_000) machineSeen.clear();
     machineSeen.set(mKey, Date.now());
     const name =
-      (request.headers.get("x-vibebook-machine-name") ?? "")
+      (cliHeader(request, "machine-name") ?? "")
         .replace(/[\p{Cc}]/gu, "")
         .trim()
         .slice(0, 40) || "computer";
@@ -3183,9 +3188,9 @@ export async function handleAgentMcp(
         .run()
         .catch(() => {}),
     );
-  // Its role in the rooms (vibebook listen --role, x-vibebook-role; shared/roles.ts): none = the Primary. Written when it
+  // Its role in the rooms (vibebook listen --role, x-deco-chat-role; shared/roles.ts): none = the Primary. Written when it
   // changes (cached per isolate like the machine), so the People list can show the chip.
-  const roleHdr = (request.headers.get("x-vibebook-role") ?? "").trim().toLowerCase();
+  const roleHdr = (cliHeader(request, "role") ?? "").trim().toLowerCase();
   const role = ROLE_NAME.test(roleHdr) ? roleHdr : null;
   if (agentRole.get(agentId) !== role) {
     if (agentRole.size > 20_000) agentRole.clear();
@@ -3193,17 +3198,15 @@ export async function handleAgentMcp(
     ctx.waitUntil(env.DB.prepare(`UPDATE agents SET role = ? WHERE id = ? AND coalesce(role, '') != coalesce(?, '')`).bind(role, agentId, role).run().catch(() => {}));
   }
   const me: Me = { ...props, agent: agentId, role };
-  // The CLI reads its Claude Code session's transcript and sends "tokens/window" (x-vibebook-context): the room shows
+  // The CLI reads its Claude Code session's transcript and sends "tokens/window" (x-deco-chat-context): the room shows
   // how full each Claude's context is. Anything else is ignored.
-  const cx = request.headers
-    .get("x-vibebook-context")
-    ?.match(/^(\d{1,8})\/(\d{5,8})$/);
+  const cx = cliHeader(request, "context")?.match(/^(\d{1,8})\/(\d{5,8})$/);
   const ctxTokens = cx ? Math.min(+cx[1], +cx[2]) : null;
   // With the CLI's statusline wrapper, also the plan's limits: {five_hour|seven_day: {p: % used, r: reset epoch s}}.
   const limits = (() => {
     try {
       const j: unknown = JSON.parse(
-        request.headers.get("x-vibebook-limits") ?? "",
+        cliHeader(request, "limits") ?? "",
       );
       const out: Record<string, { p: number; r: number }> = {};
       for (const k of ["five_hour", "seven_day"]) {
@@ -3234,7 +3237,7 @@ export async function handleAgentMcp(
           env.DB,
           props.email,
           agentId,
-          request.headers.get("x-vibebook-usage"),
+          cliHeader(request, "usage"),
         ),
         recordLimits(env.DB, props.email, limits),
       ]),
