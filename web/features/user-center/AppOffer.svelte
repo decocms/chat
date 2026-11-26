@@ -7,8 +7,9 @@
    * "Instale o app", a notice of the user center on desktop (Gimenes #5843):
    * it shows while none of your computers runs the deco.chat menu bar app
    * (`installed` false; null = not known yet, no row). On macOS and Linux,
-   * Copiar copies the one line that installs it (setup.sh) and the row says
-   * where to paste it. On Windows, Baixar opens the releases, where the .msi
+   * Copiar copies the one line that installs it (setup.sh). Then the button
+   * reads Copiado and the row says where to paste it, short enough to show in
+   * full (Gimenes #5920). On Windows, Baixar opens the releases, where the .msi
    * is. × hides it on this browser for 14 days. The row goes away by itself
    * when the app's runner checks in (the next read of /api/me/app).
    */
@@ -59,8 +60,8 @@
   const line = $derived(
     copied === "ok"
       ? en
-        ? "Copied: paste it in the Terminal"
-        : "Copiado: cole no Terminal"
+        ? "Paste it in Terminal"
+        : "Cole no Terminal"
       : copied === "failed"
         ? command
         : en
@@ -89,14 +90,14 @@
         ]}
         title={line}>{line}</span
       ></span
-    ><IconButton
-      label={en ? "Not now" : "Agora não"}
-      size="icon-xs"
-      class="hidden group-hover:inline-flex group-focus-within:inline-flex [@media(hover:none)]:inline-flex"
-      onclick={(event) => {
-        if (event.currentTarget.isConnected) hide();
-      }}><Icon icon="x" /></IconButton
-    >{#if windows}<Button
+    ><!-- After Copiar the × steps aside, so "Cole no Terminal" shows in full. -->{#if copied !== "ok"}<IconButton
+        label={en ? "Not now" : "Agora não"}
+        size="icon-xs"
+        class="hidden group-hover:inline-flex group-focus-within:inline-flex [@media(hover:none)]:inline-flex"
+        onclick={(event) => {
+          if (event.currentTarget.isConnected) hide();
+        }}><Icon icon="x" /></IconButton
+      >{/if}{#if windows}<Button
         size="xs"
         href={RELEASES}
         target="_blank"
@@ -105,6 +106,13 @@
         size="xs"
         onclick={(event) => {
           if (event.currentTarget.isConnected) void copy();
-        }}>{en ? "Copy" : "Copiar"}</Button
+        }}
+        >{copied === "ok"
+          ? en
+            ? "Copied"
+            : "Copiado"
+          : en
+            ? "Copy"
+            : "Copiar"}</Button
       >{/if}
   </div>{/if}
