@@ -3,6 +3,7 @@ import type { Room, Message } from "../shared/room";
 import type { RoomCommand } from "../shared/commands";
 import { createChatPresentation } from "../web/features/chat-viewport/presentation";
 import {
+  CHAT_WINDOW_PHONE,
   createChatViewport,
   type ChatViewport,
   type ChatSurface,
@@ -47,7 +48,7 @@ function clock() {
     },
   };
 }
-function harness(count = 120) {
+function harness(count = 120, size?: () => number) {
   let current = true,
     queued = true,
     draw = false,
@@ -124,6 +125,7 @@ function harness(count = 120) {
     },
     schedule: time.schedule,
     cancel: time.cancel,
+    size,
   });
   view.sync(value, selected, generation, true);
   view.attach(surface);
@@ -181,6 +183,15 @@ test("window grows sixty locally then requests actual older boundary, preserving
   expect(h.commands).toHaveLength(0);
   h.view.loadOlder();
   expect(h.commands).toEqual([{ t: "older", thread: "main", before: 1 }]);
+  h.view.dispose();
+});
+test("a phone draws twenty messages, and twenty more per scroll-back step (Gimenes #6050)", () => {
+  const h = harness(120, () => CHAT_WINDOW_PHONE);
+  expect(h.view.selection().list).toHaveLength(CHAT_WINDOW_PHONE);
+  expect(h.view.selection().list[0]?.id).toBe(101);
+  h.view.loadOlder();
+  expect(h.view.selection().list).toHaveLength(CHAT_WINDOW_PHONE * 2);
+  expect(h.commands).toHaveLength(0);
   h.view.dispose();
 });
 test("fresh partial snapshot invalidates completed history and permits one initial fill", () => {
