@@ -81,20 +81,25 @@ export async function openRoomPane(
   };
   await expect(layout).toBeVisible();
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
-    // Phones (A2, #4331): the strip under the top bar has Doc, Arquivos,
-    // Decisões and Lembretes; the avatars at the bar's end open Pessoas; the
-    // drawer (the title) keeps Apps and Agents. Each opens the doc sheet.
+    // Phones (B, #6052): the top bar's ⋮ has Doc, Arquivos, Decisões,
+    // Lembretes and Pessoas; the drawer (the title) keeps Apps and Agents.
+    // Each opens the doc sheet.
     const shortcut = async (tab: string) => {
-      const strip = page.locator(
-        `[data-phone-strip] [data-document-pane="${tab}"]`,
-      );
-      if (tab === "people") {
-        await page.locator("[data-room-bar] [data-phone-people]").click();
-        return;
-      }
-      if (await strip.isVisible()) {
-        await strip.click();
-        return;
+      const item = page.locator(`[data-phone-more-item="${tab}"]`);
+      if (
+        ["doc", "files", "decisions", "reminders", "people"].includes(tab) &&
+        (await page.locator("[data-room-bar] [data-phone-more]").isVisible())
+      ) {
+        await page.locator("[data-room-bar] [data-phone-more]").click();
+        const shown = await item
+          .waitFor({ state: "visible", timeout: 3000 })
+          .then(() => true)
+          .catch(() => false);
+        if (shown) {
+          await item.click();
+          return;
+        }
+        await page.keyboard.press("Escape");
       }
       if ((await layout.getAttribute("data-sheet")) !== "side")
         await page.locator("[data-room-bar] [data-phone-title]").click();

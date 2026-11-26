@@ -66,11 +66,14 @@ The room's search field is `RoomSearchField` (chat). It finds messages of the ro
 
 ### The top bar on phones
 
-The phone layout is A2 (Gimenes #4309, #4331):
+The phone layout is B: one line, like WhatsApp (Gimenes #6016, #6030, #6032, #6052):
 
-1. ← goes back to the home. It shows the number of user center rows (see "The user center on phones"). The title (thread, then room) with ▾ opens the drawer with the threads.
-2. At the end of the bar, the search icon opens the Search pane. Then a room shows the avatars of the other people, online first: two faces, then "+N". A tap opens People. A DM shows your account there.
-3. Under the bar, a strip is always there: Doc, Arquivos, Decisões, Lembretes (`phoneStripPanes`). A DM has no Doc. A tap opens that pane in the doc sheet. While the sheet is open, the sheet's own tab row takes the strip's place.
+1. ← goes back to the home. It shows the number of user center rows (see "The user center on phones"). Then the room's icon (a DM: the person's face) and the title with ▾. The title opens the drawer with the threads.
+2. Under the title, a subtitle:
+   - A room's main thread: "3 online · 2 agentes" when other people are online, "2 agentes trabalhando" when only agents listen, else the first names of the members.
+   - A thread: the room's name and the epic's progress.
+   - A DM: "online" when the person is online.
+3. At the end of the bar: the search icon (it opens the Search pane), then ⋮. The ⋮ menu has "Iniciar chamada" ("Ligar para <name>" in a DM) while the room has no call, then Doc, Arquivos, Decisões, Lembretes and Pessoas (`phoneMenuPanes`). A DM has no Doc and no Pessoas. An item opens that pane in the doc sheet.
 4. The drawer's tab row keeps only Apps and Agents (`phoneDrawerPanes`).
 
 ### Controls of the view

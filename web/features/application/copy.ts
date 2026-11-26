@@ -574,6 +574,13 @@ const EN: Readonly<Record<string, string>> = {
   "Não deu pra marcar como feita. Tente de novo.":
     "Couldn't mark it as done. Try again.",
   "Copiar link da thread": "Copy thread link",
+  "Iniciar chamada": "Start a call",
+  "Ligar para {name}": "Call {name}",
+  "{n} online": "{n} online",
+  "1 agente": "1 agent",
+  "{n} agentes": "{n} agents",
+  "1 agente trabalhando": "1 agent working",
+  "{n} agentes trabalhando": "{n} agents working",
   "Reabrir thread": "Reopen thread",
   "Thread reaberta": "Thread reopened",
   "Não deu pra reabrir a thread. Tente de novo.":
