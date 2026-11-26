@@ -55,7 +55,6 @@
     actions,
     footer,
     onpick,
-    last = false,
   }: {
     message: ChatMessage;
     previous?: ChatMessage;
@@ -67,8 +66,6 @@
     footer?: Footer;
     /** Selection mode of "Encaminhar": a click (Shift for a range) or a tap on this message. */
     onpick?: (id: number, shift: boolean) => void;
-    /** The last message of the room or thread: its empty reaction row keeps its height (Gui #5741). */
-    last?: boolean;
   } = $props();
   // Selection mode (forward, like WhatsApp): a column of checkboxes at the left, the message moves to the right, and a
   // click anywhere on the message picks it. Links, files and buttons in it do nothing meanwhile.
@@ -207,9 +204,6 @@
   const reacted = $derived(
     Object.values(m.reactions ?? {}).some((who) => who.length),
   );
-  // Nothing under the message yet: no chips, no acks. Its row still keeps its height (the quick reactions show there on
-  // hover), except on a phone, where there is no hover and the long-press sheet reacts.
-  const bare = $derived(!footer && !reacted);
   const quote = $derived(
     m.reply_to
       ? [...room.messages, ...(room.origins || [])].find(
@@ -415,7 +409,7 @@
           >{vb.hhmm(m.ts)}</time
         >{/if}
     </div>
-    <div data-message-body class="relative min-w-0 flex-1 space-y-1">
+    <div data-message-body class="min-w-0 flex-1 space-y-1">
       {#if !continuous}<div
           data-message-head
           class="-mb-0.5 flex min-h-5 flex-wrap items-center gap-x-2 text-xs text-muted-foreground max-md:text-sm"
@@ -548,28 +542,17 @@
             {actions}
             {vb}
           />{/each}{/if}
-      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. With chips or
-           acks it is always there; with nothing yet it opens on hover with the quick reactions (Gui #4726, #5347), so
-           a run of messages stays together. It pulls up over the body's 4px gap, inside
+      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. Only when there
+           is something in it (chips or acks): the quick reactions are in the hover toolbar, with reply (Valls), so a
+           hover adds nothing under a message and covers nothing below it. It pulls up over the body's 4px gap, inside
            the message. Not selectable: copying a conversation takes the messages, not ✓ ⏳ ✻ and the reaction chips
-           (Gimenes #3622). Not while the
-           text is a box: its "esc / enter" line sits there. -->
-      {#if !origin && !editing && (footer || reactable)}<div
+           (Gimenes #3622). Not while the text is a box: its "esc / enter" line sits there. -->
+      {#if !origin && !editing && (footer || reacted)}<div
           data-reaction-row={m.id}
           class={[
             "-mt-1 flex min-h-6 flex-wrap items-center justify-between gap-x-3 select-none",
             // Right under a thread card it keeps a gap instead of pulling up into it (Gimenes #5477).
             "[[data-thread-card]+&]:mt-1.5",
-            // Nothing in the row yet: it shows only on hover (or focus, or while the picker is open), so adjacent
-            // messages stay together (Gui #5347). It floats over the space under the message instead of opening
-            // room there, so the hover moves no other message (Gui #5797). Phones react from the long press.
-            // The last message keeps that height, only hidden: nothing is under it to float over (Gui #5741).
-            bare &&
-              !last &&
-              "absolute inset-x-0 top-full z-10 hidden bg-background pb-2.5 pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex has-[[data-picking]]:flex",
-            bare &&
-              last &&
-              "invisible pointer-coarse:hidden pointer-fine:group-hover:visible pointer-fine:group-has-focus-visible:visible has-[[data-picking]]:visible",
           ]}
         >
           {#if reactable}<MessageReactions
@@ -584,16 +567,6 @@
         </div>{/if}
     </div>
   </div>
-  <!-- The floating row covers the next message on hover; a click on it (the picker opens) makes its room: this
-       grows to the row's 20px and the next message slides down (Gui #5825). A reaction then puts the row in the
-       flow with the same height, so nothing jumps. -->
-  {#if !origin && !editing && reactable && bare && !last}<div
-      aria-hidden="true"
-      data-reaction-space={m.id}
-      class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-out group-has-[[data-picking]]:grid-rows-[1fr] motion-reduce:transition-none"
-    >
-      <div class="min-h-0 overflow-hidden"><div class="h-5"></div></div>
-    </div>{/if}
   {#if editing || selecting}<!-- No toolbar while the text is a box, or while messages are picked. -->{:else if toolbar}<MessageActions
       bind:this={actionController}
       bind:sheet

@@ -171,7 +171,10 @@ try {
       })
       .first();
     await carded.hover();
-    await carded.locator("[data-offer-react]").first().click();
+    await carded
+      .locator("[data-message-toolbar] [data-quick-react]")
+      .first()
+      .click();
     await carded
       .locator('[data-message-reactions] [aria-pressed="true"]')
       .first()
@@ -187,9 +190,12 @@ try {
     await desk.mouse.move(0, 0);
   }
   if (flag("react")) {
-    // The first reaction offered on hover, clicked: it should turn into a chip under the message.
+    // The first quick reaction of the hover toolbar, clicked: it should turn into a chip under the message.
     await target.hover();
-    await target.locator("[data-offer-react]").first().click();
+    await target
+      .locator("[data-message-toolbar] [data-quick-react]")
+      .first()
+      .click();
     await target
       .locator('[data-message-reactions] [aria-pressed="true"]')
       .first()

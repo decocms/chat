@@ -2540,18 +2540,30 @@ describe("chat", () => {
       owner.dispose();
     }
   }, 30_000);
-  test("quick reactions sit in the row each message keeps, never move a message, show an emoji given once, and the picker is a popover next to them", async () => {
+  test("quick reactions sit in the hover toolbar with reply, yours pressed (plus any other you gave), and nothing opens under a message on hover", async () => {
     const sent: RoomCommand[] = [];
-    const reacted = {
+    const theirs = {
       ...message(9, "Has a reaction"),
-      author: "me@test",
+      author: "you@test",
       kind: null,
       reactions: { "👍": ["ana@test"] },
     };
     const bare = { ...message(10, "Nothing under it"), kind: null };
-    const last = { ...message(11, "The last one"), kind: null };
+    const mineDefault = {
+      ...message(11, "I liked it"),
+      kind: null,
+      reactions: { "❤️": ["me@test", "ana@test"] },
+    };
+    const mineExtra = {
+      ...message(12, "I reacted with a rocket"),
+      kind: null,
+      reactions: { "🚀": ["me@test"], "👍": ["ana@test"] },
+    };
     const { target } = renderChat(
-      { ...fixture(), messages: [reacted, bare, last] },
+      {
+        ...fixture(),
+        messages: [theirs, bare, mineDefault, mineExtra],
+      },
       {
         actions: {
           request: async (command: RoomCommand): Promise<CommandOutcome> => {
@@ -2567,76 +2579,74 @@ describe("chat", () => {
     );
     hoverMessages(target);
     flushSync();
-    // An emoji already given is its chip only, never also a suggestion (it showed twice on hover).
-    const offered = (id: number) =>
-      [
-        ...target.querySelectorAll<HTMLElement>(`#m${id} [data-offer-react]`),
-      ].map((el) => el.getAttribute("data-offer-react"));
-    expect(offered(9)).toEqual(["❤️", "😂", "🎉"]);
-    // The hover-only buttons keep their place while hidden (invisible, never display: none): hovering moves nothing.
-    for (const el of target.querySelectorAll<HTMLElement>(
-      "[data-offer-react]",
-    )) {
-      expect(el.className).toContain("invisible");
-      expect(el.className.split(/\s+/)).not.toContain("hidden");
-    }
-    // A row with a reaction is in the flow, inside the message's own box, 24px high.
-    for (const id of [9]) {
-      const row = target.querySelector<HTMLElement>(
-        `#m${id} [data-reaction-row="${id}"]`,
+    const bar = (id: number) =>
+      target.querySelector<HTMLElement>(`#m${id} [data-message-toolbar]`)!;
+    const quick = (id: number) =>
+      [...bar(id).querySelectorAll<HTMLElement>("[data-quick-react]")].map(
+        (el) => [
+          el.getAttribute("data-quick-react"),
+          el.getAttribute("aria-pressed"),
+        ],
       );
-      expect(row?.className).toContain("min-h-6");
-      expect(row?.className.split(/\s+/)).not.toContain("absolute");
-      expect(
-        target.querySelectorAll(`#m${id} [data-message-reactions]`),
-      ).toHaveLength(1);
-    }
-    // A message with a reaction always shows its row; one with nothing yet opens it only on hover, so adjacent
-    // messages stay together (Gui #5347).
-    const rowClasses = (id: number) =>
-      target
-        .querySelector<HTMLElement>(`#m${id} [data-reaction-row="${id}"]`)!
-        .className.split(/\s+/);
-    expect(rowClasses(9)).not.toContain("hidden");
-    expect(rowClasses(10)).toContain("hidden");
-    expect(rowClasses(10)).toContain("pointer-fine:group-hover:flex");
-    // An empty row floats under its message on hover, so the hover moves no other message (Gui #5797).
-    expect(rowClasses(10)).toContain("absolute");
-    expect(rowClasses(10)).toContain("top-full");
-    // A click (the picker opens) makes its room under the message, animated; only that message has the space (Gui #5825).
-    const space = (id: number) =>
-      target.querySelector<HTMLElement>(`[data-reaction-space="${id}"]`);
-    expect(space(10)?.className).toContain(
-      "group-has-[[data-picking]]:grid-rows-[1fr]",
+    // The three quick ones, in the same bar as reply (Valls): none pressed when you have not reacted.
+    expect(quick(10)).toEqual([
+      ["👍", "false"],
+      ["❤️", "false"],
+      ["😂", "false"],
+    ]);
+    expect(bar(10).querySelector('[data-reply="10"]')).not.toBeNull();
+    expect(bar(10).querySelector('[data-more-reactions="10"]')).not.toBeNull();
+    // Someone else's 👍 is not yours: not pressed.
+    expect(quick(9)[0]).toEqual(["👍", "false"]);
+    // Yours is pressed, in the own-chip style.
+    expect(quick(11)).toEqual([
+      ["👍", "false"],
+      ["❤️", "true"],
+      ["😂", "false"],
+    ]);
+    const heart = bar(11).querySelector<HTMLElement>(
+      '[data-quick-react="❤️"]',
+    )!;
+    expect(heart.className).toContain("bg-brand-purple/15");
+    // One you gave that is not a quick one shows as a fourth, pressed.
+    expect(quick(12)).toEqual([
+      ["👍", "false"],
+      ["❤️", "false"],
+      ["😂", "false"],
+      ["🚀", "true"],
+    ]);
+    // A message with nothing under it has no reaction row at all: the hover opens nothing under it, so it covers
+    // nothing below and moves nothing (no floating row, no spacer).
+    expect(target.querySelector('[data-reaction-row="10"]')).toBeNull();
+    expect(target.querySelector("[data-reaction-space]")).toBeNull();
+    expect(target.querySelector("[data-offer-react]")).toBeNull();
+    // A row with a reaction is in the flow, inside the message's own box, 24px high.
+    const row = target.querySelector<HTMLElement>(
+      '#m9 [data-reaction-row="9"]',
     );
-    expect(space(9)).toBeNull();
-    expect(space(11)).toBeNull();
-    // The last message keeps the row's height, only invisible: opening it there grew the list at the bottom (Gui #5741).
-    expect(rowClasses(11)).not.toContain("hidden");
-    expect(rowClasses(11)).toContain("invisible");
-    expect(rowClasses(11)).toContain("pointer-fine:group-hover:visible");
-    expect(target.querySelector("[data-reaction-bar]")).toBeNull();
-    // 🙂 opens the picker in a popover next to it; the four quick ones stay where they were.
-    const before = offered(10);
-    expect(before).toEqual(["👍", "❤️", "😂", "🎉"]);
-    target.querySelector<HTMLElement>("#m10 [data-add-reaction]")!.click();
+    expect(row?.className).toContain("min-h-6");
+    expect(row?.className.split(/\s+/)).not.toContain("absolute");
+    expect(row?.className.split(/\s+/)).not.toContain("hidden");
+    // A click reacts; on yours it takes it back (the same toggle).
+    bar(10).querySelector<HTMLElement>('[data-quick-react="😂"]')!.click();
+    bar(12).querySelector<HTMLElement>('[data-quick-react="🚀"]')!.click();
+    flushSync();
+    expect(sent).toEqual([
+      { t: "react", id: 10, emoji: "😂" },
+      { t: "react", id: 12, emoji: "🚀" },
+    ]);
+    // 🙂 next to the chips opens the picker in a popover there (Gimenes #5477).
+    target.querySelector<HTMLElement>("#m9 [data-add-reaction]")!.click();
     flushSync();
     await tick();
     const popover = document.querySelector<HTMLElement>(
-      '[data-emoji-popover="10"]',
+      '[data-emoji-popover="9"]',
     );
     expect(popover?.getAttribute("data-slot")).toBe("popover-content");
-    expect(document.querySelector("[data-slot=dialog-content]")).toBeNull();
-    expect(offered(10)).toEqual(before);
-    expect(
-      target
-        .querySelector("#m10 [data-message-reactions]")
-        ?.hasAttribute("data-picking"),
-    ).toBe(true);
     popover!.querySelector<HTMLElement>("[data-emoji-grid] button")!.click();
     flushSync();
-    expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ t: "react", id: 10 });
+    expect(sent).toHaveLength(3);
+    expect(sent[2]).toMatchObject({ t: "react", id: 9 });
   }, 30_000);
   test("the message toolbar puts delete last, red, after a divider (Gimenes #4591)", () => {
     const mine = { ...message(8, "My message"), author: "me@test" };
@@ -3575,7 +3585,8 @@ describe("chat", () => {
       );
       expect(target.querySelector("#m3 [data-message-toolbar]")).toBeNull();
       expect(target.querySelector('[data-reaction-row="3"]')).toBeNull();
-      expect(target.querySelector('[data-reaction-row="1"]')).not.toBeNull();
+      // The other messages keep their hover toolbar (the reactions live there now, not in an empty row).
+      expect(target.querySelector("#m1 [data-message-toolbar]")).not.toBeNull();
       expect(target.querySelector("#m3 [data-message-head]")).not.toBeNull();
       expect(
         target.querySelector("[data-message-editor-hint]")?.textContent,

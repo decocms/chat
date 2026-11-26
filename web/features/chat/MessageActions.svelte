@@ -22,7 +22,7 @@
   import SheetContent from "../../lib/studio/SheetContent.svelte";
   import SheetTitle from "../../lib/studio/SheetTitle.svelte";
   import type { MessageVersion } from "../../../shared/room";
-  import { QUICK_REACTIONS } from "./reactions";
+  import { OWN_REACTION, QUICK_REACTIONS, toolbarReactions } from "./reactions";
   import { startEditing } from "./editing";
   let {
     message,
@@ -101,7 +101,7 @@
   }
   const mine = (emoji: string) =>
     !!me && (message.reactions?.[emoji] ?? []).includes(me);
-  // The full emoji picker, past the four quick ones (like Discord's and Slack's "add reaction").
+  // The full emoji picker, past the quick ones (like Discord's and Slack's "add reaction").
   let picking = $state(false);
   function react(emoji: string) {
     if (!active) return;
@@ -162,14 +162,30 @@
     )}
   >
     <TooltipProvider>
-      <!-- The hover bar has no reactions (Gui #4716, #4726): they are offered in the reaction row under the message. -->
-      {#if canReact && !floating}{#each QUICK_REACTIONS as emoji (emoji)}<IconButton
-            label={vb.t("Reagir com {emoji}", { emoji })}
+      <!-- Reactions sit with the actions, at the top (Valls): the three quick ones, then any other you gave, each
+           pressed when it is yours (a click takes it back), then 🙂 for every emoji. Inline: the quick eight. -->
+      {#if canReact}{#each floating ? toolbarReactions(message.reactions, me) : QUICK_REACTIONS as emoji (emoji)}<IconButton
+            label={mine(emoji)
+              ? vb.t("Tirar sua reação {emoji}", { emoji })
+              : vb.t("Reagir com {emoji}", { emoji })}
             data-quick-react={emoji}
             aria-pressed={mine(emoji)}
-            class={cn("text-base leading-none", mine(emoji) && "bg-accent")}
+            class={cn(
+              "text-base leading-none",
+              floating
+                ? "rounded-full border border-solid border-transparent"
+                : mine(emoji) && "bg-accent",
+              floating && mine(emoji) && OWN_REACTION,
+            )}
             onclick={() => react(emoji)}>{emoji}</IconButton
           >{/each}
+        {#if floating}<IconButton
+            label={vb.t("Mais reações")}
+            data-more-reactions={message.id}
+            class="rounded-full text-muted-foreground hover:text-foreground"
+            onclick={() => (picking = true)}
+            ><Icon icon="face-smile" size={16} /></IconButton
+          >{/if}
         <div
           aria-hidden="true"
           class="mx-0.5 h-4 w-px shrink-0 bg-border"
