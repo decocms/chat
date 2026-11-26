@@ -2471,3 +2471,13 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: People on app 0.1.1 or 0.1.2 still see the hint until they update to the app release that has this CLI. A Claude can repeat the hint in a new session.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · fix/app-offer-copied · "Copiado" on the button of the "Instale o app" row
+
+- Agent: Claude Opus 5.5
+- Context: Cecilia could not read where to paste the install line: "Copiado: cole no Terminal" was cut. Gimenes #5920 asked to put the copied state on the button and to make the instruction short enough to show in full.
+- Decision: After Copiar, the button reads "Copiado" ("Copied"), the line under the title reads "Cole no Terminal" ("Paste it in Terminal"), and the × hides until the row shows again. The × took the space that the line needs.
+- Other options: Let the line wrap to two lines. Keep the × and make the line shorter ("No Terminal"), which says less.
+- Risk: After a copy, the row cannot be hidden until the page loads again.
+- Undo: Revert the commit.
+- Status: open
