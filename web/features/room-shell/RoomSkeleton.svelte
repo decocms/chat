@@ -32,7 +32,7 @@
     onhome,
   }: {
     roomId: string | null;
-    /** The thread the URL opens (?t=): main reads "Sala principal" at once. */
+    /** The thread the URL opens (?t=): on a phone, main reads the room's name at once. */
     thread?: string;
     services: BrowserApplicationServices;
     onhome(event: MouseEvent): void;
@@ -40,6 +40,8 @@
   const personal = untrack(() => services.personal.state);
   // A DM's sidebar is your DM list, already known: draw it for real, so it stays put.
   const dm = $derived(!!roomId && isDmId(roomId));
+  // Phone: a room's main thread reads its icon and name, like RoomHeader.
+  const roomMain = $derived(thread === "main" && !dm);
   const room = $derived(
     roomId ? $personal.me?.books.find((book) => book.id === roomId) : undefined,
   );
@@ -227,14 +229,18 @@
               person={peer}
               lang={en ? "en" : "pt"}
               surface="background"
+            />{:else if roomMain && title}<RoomAvatar
+              {title}
+              {icon}
+              lang={en ? "en" : "pt"}
+              surface="background"
             />{/if}
           <!-- Left, right after ←, like RoomHeader's title (Gimenes #3796). -->
           <span class="flex min-w-0 flex-col items-start">
             <span
               class="flex max-w-full min-w-0 items-center gap-1 text-base leading-5 font-semibold"
-              >{#if dm && title}<span class="truncate">{title}</span
-                >{:else if thread === "main" && !dm}<span class="truncate"
-                  >{t("Sala principal")}</span
+              >{#if (dm || roomMain) && title}<span class="truncate"
+                  >{title}</span
                 >{:else}<span class="flex h-5 items-center"
                   >{@render line("w-32")}</span
                 >{/if}<Icon
@@ -243,7 +249,7 @@
                 class="shrink-0"
               /></span
             >
-            {#if !dm}{#if title}<span
+            {#if !dm && !roomMain}{#if title}<span
                   class="max-w-full truncate text-xs leading-4 text-muted-foreground"
                   >{title}</span
                 >{:else}<span class="flex h-4 items-center"
