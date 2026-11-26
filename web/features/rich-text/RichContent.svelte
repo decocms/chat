@@ -48,6 +48,11 @@
       fileIndex,
     }),
   );
+  // One flow of text and inline nodes (the text's last line is the box's last line), or blocks (paragraphs, lists).
+  // A message puts its "seen" faces at the end of the last line (chat/Message.svelte).
+  const flowing = $derived(
+    mode === "human" || (nodes.length === 1 && nodes[0].kind === "text"),
+  );
 </script>
 
 {#if mode === "inline"}<span
@@ -57,7 +62,8 @@
   >
 {:else}<div
     data-rich-content
-    class={mode === "human" || (nodes.length === 1 && nodes[0].kind === "text")
+    data-rich-flow={flowing ? "inline" : "block"}
+    class={flowing
       ? "min-w-0 max-w-full overflow-x-auto whitespace-pre-wrap break-words font-sans leading-6 text-foreground [&>blockquote:first-child]:mt-1 [&>blockquote:last-child]:mb-0"
       : // The block margins stay between blocks: a lone paragraph sits as close to the name above it as plain text does.
         "min-w-0 max-w-full overflow-x-auto break-words font-sans leading-6 text-foreground [&>:first-child]:mt-0 [&>:last-child]:mb-0"}

@@ -2568,6 +2568,58 @@ describe("chat", () => {
       owner.dispose();
     }
   }, 30_000);
+  test("a message with only faces under it lays them over its last line (no row of height); chips or a status keep the row", () => {
+    const pass = (msg_id: number, who = "Codex") => ({
+      msg_id,
+      email: "agent@test",
+      who,
+      status: "idle" as const,
+      ts: Date.now(),
+    });
+    // 1: faces only (an agent passed). 2: faces and a 👍. 3: faces and a "done". 4: a person's message, faces only.
+    const { target } = renderChat({
+      ...fixture(),
+      messages: [
+        message(1, "Faces only"),
+        {
+          ...message(2, "Faces and a chip"),
+          author: "ana@test",
+          reactions: { "👍": ["ana@test"] },
+        },
+        message(3, "Faces and a status"),
+        {
+          ...message(4, "A person, faces only"),
+          author: "ana@test",
+          kind: null,
+        },
+      ],
+      acks: [
+        pass(1),
+        pass(2),
+        pass(3),
+        { ...pass(3, "Claude"), email: "c@test", status: "done" as const },
+        pass(4),
+      ],
+    });
+    const row = (id: number) =>
+      target.querySelector<HTMLElement>(`[data-reaction-row="${id}"]`)!;
+    for (const id of [1, 4]) {
+      expect(row(id).hasAttribute("data-faces-only")).toBe(true);
+      // Right after the text, so the CSS lays it over the last line; the body reserves the faces' width there.
+      expect(
+        row(id).previousElementSibling?.hasAttribute("data-rich-flow"),
+      ).toBe(true);
+      expect(
+        target.querySelector<HTMLElement>(`#m${id} [data-message-body]`)!
+          .className,
+      ).toContain("[--faces:56px]");
+    }
+    expect(row(1).className).toContain("[[data-rich-flow=inline]+&]:absolute");
+    for (const id of [2, 3]) {
+      expect(row(id).hasAttribute("data-faces-only")).toBe(false);
+      expect(row(id).className).not.toContain("absolute");
+    }
+  });
   test("spacing comes from the layout: a group starts 16px down whatever sits under the message above, a run 6px", () => {
     // 1 and 2: one agent's run (2 has a reaction). 3: someone else, a new group right after a row. 4: a reply from
     // the same agent (its own group). 5: a new group after a message with nothing under it.
