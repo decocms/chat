@@ -3,6 +3,7 @@
   import type { MeResult } from "../../../shared/schemas";
   import { listRowVariants } from "../../lib/studio/list-row";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
+  import RoomTile from "./RoomTile.svelte";
   import VibeCube from "./VibeCube.svelte";
   import { homeText, type HomeLanguage } from "./copy";
   import {
@@ -47,6 +48,10 @@
   } = $props();
   const rooms = $derived(quietRooms(me, now, layout === "desk" ? 4 : 2));
   const working = $derived(rooms.working.length);
+  // The desk's grid: the rooms at work first (the tile shows it), then the rooms that moved last.
+  const tiles = $derived(
+    [...rooms.working, ...quietRooms(me, now, 8).recent].slice(0, 8),
+  );
   const status = $derived(
     working === 1
       ? homeText(lang, "clearWorkingOne")
@@ -81,16 +86,29 @@
     </div>
   </div>
   {@render children?.()}
-  {#if rooms.working.length}{@render group(
+  {#if layout === "phone" && rooms.working.length}{@render group(
       "now",
       homeText(lang, "clearNow"),
       rooms.working,
     )}{/if}
-  {#if layout === "desk" && rooms.recent.length}{@render group(
-      "recent",
-      homeText(lang, "clearRecent"),
-      rooms.recent,
-    )}{/if}
+  {#if layout === "desk" && tiles.length}<section
+      data-inbox-clear-group="tiles"
+      aria-label={homeText(lang, "clearRecent")}
+      class="flex w-full flex-col gap-3"
+    >
+      <h3 class="m-0 text-xs font-medium text-muted-foreground">
+        {homeText(lang, "clearRecent")}
+      </h3>
+      <div class="grid grid-cols-4 gap-x-2 gap-y-4">
+        {#each tiles as room (room.id)}<RoomTile
+            {room}
+            {lang}
+            size="xl"
+            {now}
+            onnavigate={(target) => onopen(target.roomId)}
+          />{/each}
+      </div>
+    </section>{/if}
 </div>
 
 {#snippet group(id: string, label: string, list: RoomSummary[])}<section

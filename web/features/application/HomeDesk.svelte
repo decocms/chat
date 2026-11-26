@@ -668,13 +668,13 @@
             )}{/each}
         </div>
       {:else if !$inbox.error}<div data-home-list-empty={tab} class="px-1">
-          {#if tab === "foryou"}<AskStarters {lang} onstart={start} />{:else}<p
-              class="m-0 px-3 text-sm text-muted-foreground"
-            >
-              {tab === "mentions"
+          <p class="m-0 px-3 text-sm text-muted-foreground">
+            {tab === "foryou"
+              ? t("Nada esperando você.")
+              : tab === "mentions"
                 ? t("Nenhuma menção.")
                 : t("Nenhuma tarefa aberta.")}
-            </p>{/if}
+          </p>
         </div>
       {/if}
     </div>
@@ -732,7 +732,8 @@
               clear={!feed.length}
               ago={since}
               onopen={(roomId) => work({ roomId })}
-            />
+              ><AskStarters {lang} layout="chips" onstart={start} /></InboxClear
+            >
           </div>
         </div>{/if}{/if}
   </div>
