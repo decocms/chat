@@ -1999,11 +1999,12 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
         if (!who)
           return out({ icon: "off", menu: [{ id: "login", label: tr.login }, { sep: true }, { id: "quit", label: tr.quit }] });
         const newest = [appBehind() && `deco.chat ${deco.appLatest}`, cliBehind() && `CLI ${deco.cliLatest}`].filter(Boolean).join(" · ");
-        const item = deco.state === "updating" ? { id: "update", label: tr.updating, enabled: false } : deco.state === "checking" ? { id: "check", label: tr.checking, enabled: false } : deco.state === "failed" ? { id: "update", label: tr.failed } : deco.state === "checked" && newest ? { id: "update", label: `${tr.install} · ${newest}` } : deco.state === "checked" ? { id: "check", label: [tr.upToDate, deco.installed || appVersion || deco.cliVersion && `CLI ${deco.cliVersion}`].filter(Boolean).join(" · ") } : { id: "check", label: tr.check };
+        const item = deco.state === "updating" ? { id: "update", label: tr.updating, enabled: false } : deco.state === "checking" ? { id: "check", label: tr.checking, enabled: false } : deco.state === "failed" ? { id: "update", label: tr.failed } : deco.state === "checked" && newest ? { id: "update", label: `${tr.install} · ${newest}` } : deco.state === "checked" ? { id: "check", label: [tr.upToDate, deco.installed || appVersion || deco.cliVersion && `CLI ${deco.cliVersion}`].filter(Boolean).join(" · "), enabled: false } : { id: "check", label: tr.check };
         out({
           icon: "on",
           menu: [
             { id: "who", label: who, enabled: false },
+            { id: "version", label: appVersion ? `deco.chat ${appVersion}` : `CLI ${VERSION}`, enabled: false },
             { sep: true },
             item,
             { id: "open", label: tr.open },
