@@ -7,7 +7,7 @@
    * WebGL draw. The picture is a third larger than the tile, as on the rail:
    * the shader leaves room around the cube. Without WebGL it falls back to ✦.
    */
-  type Size = "3xs" | "2xs" | "xs" | "sm" | "base";
+  type Size = "3xs" | "2xs" | "xs" | "sm" | "base" | "xl";
   let { size = "sm", class: className }: { size?: Size; class?: string } =
     $props();
   const box: Record<Size, string> = {
@@ -16,6 +16,7 @@
     xs: "size-6 text-[0.625rem]",
     sm: "size-8 text-xs",
     base: "size-10 text-sm",
+    xl: "size-16 text-2xl",
   };
 </script>
 

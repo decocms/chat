@@ -17,7 +17,10 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import { cn } from "../../lib/studio/utils";
   import { mentionSegments } from "../composer/model";
+  import AskStarters from "../home/AskStarters.svelte";
   import HomeAsk from "../home/HomeAsk.svelte";
+  import InboxClear from "../home/InboxClear.svelte";
+  import { homeText } from "../home/copy";
   import {
     fold,
     personVersion,
@@ -327,6 +330,17 @@
       },
       thread,
     );
+  }
+  /** A starter of the Inbox at zero: its words go into the ask box, the caret at their end. */
+  function start(text: string) {
+    if (!current()) return;
+    services.personal.editAsk(text);
+    void tick().then(() => {
+      const field = document.getElementById("home-ask");
+      if (!(field instanceof HTMLTextAreaElement)) return;
+      field.focus();
+      field.setSelectionRange(text.length, text.length);
+    });
   }
   /** "Abrir na sala": leave the Home for the item in its room. */
   function leaveFor(card: Card) {
@@ -653,6 +667,15 @@
               item,
             )}{/each}
         </div>
+      {:else if !$inbox.error}<div data-home-list-empty={tab} class="px-1">
+          {#if tab === "foryou"}<AskStarters {lang} onstart={start} />{:else}<p
+              class="m-0 px-3 text-sm text-muted-foreground"
+            >
+              {tab === "mentions"
+                ? t("Nenhuma menção.")
+                : t("Nenhuma tarefa aberta.")}
+            </p>{/if}
+        </div>
       {/if}
     </div>
   </div>
@@ -690,20 +713,28 @@
             ? undefined
             : itemActions}
         />{/key}
-    {:else if !loading && !($inbox.error && !order.length)}{@render empty(
-        order.length
-          ? t("Escolha um item da lista.")
-          : tab === "foryou"
-            ? t("Nada esperando você.")
-            : tab === "mentions"
-              ? t("Nenhuma menção.")
-              : t("Nenhuma tarefa aberta."),
-        !order.length && tab === "foryou"
-          ? t(
-              "Mande algo na caixa acima. Quando alguém precisar de você, aparece aqui.",
-            )
-          : "",
-      )}{/if}
+    {:else if !loading && !($inbox.error && !order.length)}{#if order.length}{@render empty(
+          t("Escolha um item da lista."),
+        )}{:else}<div
+          data-home-empty
+          class="flex h-full justify-center overflow-auto"
+        >
+          <div class="my-auto flex w-full justify-center">
+            <InboxClear
+              me={$personal.me}
+              now={$personal.now}
+              {lang}
+              title={tab === "foryou"
+                ? homeText(lang, "clearTitle")
+                : tab === "mentions"
+                  ? t("Nenhuma menção.")
+                  : t("Nenhuma tarefa aberta.")}
+              clear={!feed.length}
+              ago={since}
+              onopen={(roomId) => work({ roomId })}
+            />
+          </div>
+        </div>{/if}{/if}
   </div>
 
   {#if hints}<p
@@ -742,14 +773,11 @@
     </div>{/if}
 </section>
 
-{#snippet empty(title: string, detail = "")}<div
+{#snippet empty(title: string)}<div
     data-home-empty
     class="flex h-full flex-col items-center justify-center gap-1 px-6 py-14 text-center"
   >
     <p class="m-0 text-sm font-medium">{title}</p>
-    {#if detail}<p class="m-0 max-w-80 text-sm text-muted-foreground">
-        {detail}
-      </p>{/if}
   </div>{/snippet}
 
 <!-- A message as the chat draws it: plain text with @mentions as the purple chip. -->

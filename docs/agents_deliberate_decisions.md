@@ -2469,5 +2469,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - Setup instructions: the app's install line is first; the prompt moved under "Só esta sessão do Claude Code (avançado)". `public/llms.txt` step 5 tells a Claude that follows the prompt to suggest the app.
 - Other options: an `x-vibebook-app` header on each CLI call (the first proposal); a CLI in a Claude's terminal is the same with or without the app, so the runner's machine is the true signal. Storing "hint shown" per person (a new column). A field in `/api/me` (cached in the Person DO).
 - Risk: People on app 0.1.1 or 0.1.2 still see the hint until they update to the app release that has this CLI. A Claude can repeat the hint in a new session.
+
+### 2026-11-26 · feat/inbox-empty-state · The Inbox at zero shows what is still moving
+
+- Agent: claude-opus-5-5
+- Context: Valls: when nothing waits, the Inbox is sad. The right side had only two lines of text, and the list on the left was blank.
+- Decision:
+  - A new organism, `InboxClear` (`web/features/home/`), takes the right side when the tab is empty. It has the cube (`VibeCube`, the static picture: no new WebGL context), a headline ("Tudo em dia"), one line with real data (how many agents work now), and two short lists: the rooms an agent works in now, and the 4 rooms that moved last (`quietRooms` in `model.ts`). A row opens its room beside the list, as the ask box does. No component did this: `RoomTile` is a grid tile without a preview line, and `RoomRow` is the phone's chat row.
+  - A new molecule, `AskStarters`, fills the empty "Pra você" list with three starters ("Resumir o dia", "Criar uma tarefa", "Chamar o time"). A click writes the start of the ask into the ask box and puts the caret at the end. You finish it and send. It sends nothing.
+  - A phone's "Pra você" chip at zero shows the same `InboxClear` (without the recent rooms: "Todas" is that list) with the starters as chips.
+  - The cube's shared picture is now 176 px (it was 96 px), so the 64 px cube is sharp on a 2x screen.
+  - No new `track()` event: the browser has no route for one. The ask box's own events count what the starters start.
+- Other options: A grid of `RoomTile`s under the cube (screenshot on `feat/inbox-empty-state-tiles`). An illustration. Starters that send at once (they would send words that you did not choose).
+- Risk: low. The starters' words go through the router like any ask.
 - Undo: Revert the commit.
 - Status: open

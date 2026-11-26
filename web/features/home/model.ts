@@ -203,6 +203,23 @@ export const recentRooms = (books: readonly RoomSummary[]) =>
       (b.opened_at ?? 0) - (a.opened_at ?? 0) ||
       (b.updated_at ?? 0) - (a.updated_at ?? 0),
   );
+/** The Inbox at zero: the rooms an agent works in now, then the rooms that moved last (not those), newest first. */
+export function quietRooms(
+  me: MeResult | null,
+  now: number,
+  limit = 4,
+): { working: RoomSummary[]; recent: RoomSummary[] } {
+  const books = me?.books ?? [];
+  const busy = (room: RoomSummary) => (room.busy_until ?? 0) > now;
+  const newest = (a: RoomSummary, b: RoomSummary) =>
+    (b.updated_at ?? 0) - (a.updated_at ?? 0);
+  const working = books.filter(busy).sort(newest).slice(0, limit);
+  const recent = books
+    .filter((room) => !busy(room) && (room.updated_at ?? 0) > 0)
+    .sort(newest)
+    .slice(0, limit);
+  return { working, recent };
+}
 export const unread = (room: RoomSummary, seen = 0) =>
   room.last_human_id > Math.max(room.read_id, seen)
     ? "human"
