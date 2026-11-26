@@ -1,4 +1,6 @@
 import type { Epic } from "../../../shared/room";
+import type { RoomCommand } from "../../../shared/commands";
+import { targetHref } from "../home/model";
 /** Keep a directly opened done epic in its original tree position. */
 export const activeEpics = (epics: readonly Epic[], thread: string) =>
   epics.filter((epic) => !epic.done || epic.id === thread);
@@ -174,3 +176,20 @@ export function sidebarEpics(epics: readonly Epic[]) {
     ...byCreated(epics.filter((epic) => !epic.pinned)),
   ];
 }
+
+/** A thread's link to share: the room with `?t=<thread>`, as every link to a thread in the app (targetHref). */
+export const threadLink = (origin: string, roomId: string, thread: string) =>
+  new URL(targetHref({ roomId, thread }), origin).href;
+
+/**
+ * The thread menu's status item, as the status pill sets it (Book.setEpicStatus): an open thread
+ * becomes done and its open tasks close (like "Mark as done"); a done thread opens again (doing).
+ */
+export const threadMenuStatus = (
+  epic: Pick<Epic, "id" | "done">,
+): Extract<RoomCommand, { t: "epic.status" }> => ({
+  t: "epic.status",
+  id: epic.id,
+  status: epic.done ? "doing" : "done",
+  via: "menu",
+});

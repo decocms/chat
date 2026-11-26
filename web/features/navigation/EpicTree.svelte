@@ -26,6 +26,12 @@
     ROOT_GROUP,
     type SortMove,
   } from "../../lib/components/SortableList.svelte";
+  import { copyChatText } from "../chat/clipboard";
+  import {
+    roomMenuTrigger,
+    type MenuPoint,
+  } from "../app-navigation/roomMenuTrigger";
+  import ThreadMenu from "./ThreadMenu.svelte";
   import {
     doneEpics,
     activeEpics,
@@ -34,6 +40,8 @@
     reorderEpics,
     sidebarEpics,
     visibleEpics,
+    threadLink,
+    threadMenuStatus,
     EPIC_PAGE,
     type ThreadView,
   } from "./model";
@@ -68,6 +76,8 @@
       avatarVersion: (email: string) => number | null | undefined;
       epicBusy: (epic: Epic) => string | null;
       waitsIn: (thread: string) => readonly WaitReference[];
+      /** The room's notice at the foot of the screen ("Copiado"); without it, the list's own status line says it. */
+      notice?: (text: string) => void;
     };
   } = $props();
   const uid = $props.id();
@@ -324,6 +334,65 @@
     const target = adjacent(id, direction);
     if (mode === "open" && target) reorder(id, target.id, direction === 1);
   }
+  // A row's menu (ThreadMenu): a right-click, a long press or Shift+F10 on the row (roomMenuTrigger).
+  let menu = $state<{
+    id: string;
+    trigger: HTMLElement;
+    point: MenuPoint;
+    keyboard: boolean;
+  } | null>(null);
+  const menuEpic = $derived(
+    menu ? room.epics.find((epic) => epic.id === menu!.id) : undefined,
+  );
+  const openMenu =
+    (id: string) => (trigger: HTMLElement, point?: MenuPoint) => {
+      if (disposed) return;
+      // From the keyboard: under the row, at its start.
+      const box = trigger.getBoundingClientRect();
+      menu = {
+        id,
+        trigger,
+        point: point ?? { x: box.left + 12, y: box.bottom },
+        keyboard: !point,
+      };
+    };
+  // Opened from the keyboard, the focus goes back to the row. After a pointer, it does not: the row's
+  // tooltip opens on focus and stays open over the list.
+  function closeMenu() {
+    const trigger = menu?.keyboard ? menu.trigger : null;
+    menu = null;
+    if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+  }
+  function say(text: string) {
+    if (disposed) return;
+    if (vb.notice) vb.notice(text);
+    else announcement = text;
+  }
+  async function copyThreadLink(id: string) {
+    try {
+      await copyChatText(threadLink(location.href, room.id, id));
+      navigator.vibrate?.(15);
+      say(vb.t("Copiado"));
+    } catch {
+      say(vb.t("Não consegui copiar o link."));
+    }
+  }
+  /** Done (its open tasks close, like "Mark as done"), or open again from the Done tab. */
+  async function toggleDone(epic: Epic) {
+    const reopen = !!epic.done;
+    const ok = await submit(threadMenuStatus(epic));
+    say(
+      vb.t(
+        reopen
+          ? ok
+            ? "Thread reaberta"
+            : "Não deu pra reabrir a thread. Tente de novo."
+          : ok
+            ? "Thread marcada como feita"
+            : "Não deu pra marcar como feita. Tente de novo.",
+      ),
+    );
+  }
   // The labels are the same English words in both languages (Viktor).
   const views = $derived([
     {
@@ -397,16 +466,19 @@
               data-epic={epic.id}
               class="group/row relative"
             >
+              <!-- A long press opens the row's menu, so on a touch screen it does not also select the title. -->
               <div
                 role="group"
                 aria-label={epic.title}
+                use:roomMenuTrigger={openMenu(epic.id)}
                 class={cn(
-                  "flex items-center rounded-lg transition-colors duration-150 hover:bg-sidebar-accent",
-                  current && "bg-sidebar-accent text-sidebar-accent-foreground",
+                  "flex items-center rounded-lg transition-colors duration-150 pointer-coarse:select-none [-webkit-touch-callout:none] hover:bg-sidebar-accent",
+                  (current || menu?.id === epic.id) &&
+                    "bg-sidebar-accent text-sidebar-accent-foreground",
                 )}
               >
-                <!-- Hover: the full title, whose it is, and how much of it is done (Gimenes #4156). -->
-                <Tooltip>
+                <!-- Hover: the full title, whose it is, and how much of it is done (Gimenes #4156). Not while the row's menu is open. -->
+                <Tooltip disabled={menu?.id === epic.id}>
                   <TooltipTrigger>
                     {#snippet child({ props })}
                       <Button
@@ -422,8 +494,8 @@
                         )}
                         data-epic-thread={epic.id}
                         aria-keyshortcuts={value === "open" && epic.pinned
-                          ? "Alt+ArrowUp Alt+ArrowDown"
-                          : undefined}
+                          ? "Shift+F10 Alt+ArrowUp Alt+ArrowDown"
+                          : "Shift+F10"}
                         onkeydown={(event) => {
                           if (value !== "open" || !event.altKey || !epic.pinned)
                             return;
@@ -601,6 +673,15 @@
         >{@render panel(view)}</TabsContent
       >{/each}
   </Tabs>
+  {#key menu}{#if menu && menuEpic}{@const target = menuEpic}<ThreadMenu
+        epic={target}
+        point={menu.point}
+        busy={mutationBusy}
+        t={vb.t}
+        onclose={closeMenu}
+        oncopy={() => void copyThreadLink(target.id)}
+        onstatus={() => void toggleDone(target)}
+      />{/if}{/key}
   <p role="status" aria-live="polite" class="sr-only">{announcement}</p>
   {#if error}<p role="alert" class="m-0 text-sm text-destructive">
       {error}

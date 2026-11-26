@@ -2534,3 +2534,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: The style allowlist is a little wider. Images of a thread that the room did not load are not in ← →.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · viktor/thread-context-menu · Thread row menu: link, mark done, reopen
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked for a right-click menu on the sidebar's thread rows with two items: copy the thread's link, and "settle" the thread, because the automatic done detection misses some threads. He did not say which command to use, what happens to the open tasks, the words, or how the menu is built.
+- Decision:
+  - "Marcar como feita" / "Mark as done" (the words the app already uses) sends `epic.status` `done`, the status pill's command. `Book.setEpicStatus` closes every open task too, like the exact "Mark as done" message and the router. A done thread shows "Reabrir thread" / "Reopen thread" in place of it, which sends `epic.status` `doing`. Reopening does not open the tasks again.
+  - `epic.status` gets an optional `via: "menu"`, so the `epic_status` event says `via: "menu"` instead of `"app"`. "Copiar link da thread" has no event: the browser has no analytics path of its own.
+  - No "Desfazer" (Undo) after "Marcar como feita" (docs/design.md, Feedback 5). The status pill, which does the same thing, has none, and "Reabrir thread" in the Done tab undoes it. The row leaves the list without the `slide` animation, as with the status pill.
+  - A new component, `ThreadMenu`, built from the studio `DropdownMenu` and opened at the pointer, like `RoomMenu`. The row uses `roomMenuTrigger` (right-click, a 500 ms long press, Shift+F10). `RoomMenu` is bound to the app navigation controller and to rooms, so it cannot show a thread. The studio `ContextMenu` was not used: its trigger must wrap the row, which already has a tooltip trigger, and its long press waits 700 ms.
+  - The menu has no scroll lock (`preventScroll={false}`). With the lock, bits-ui turns off the pointer on the page, and the finger that ends a long press in the phone's drawer lands on the drawer's backdrop and closes the drawer.
+  - The room's notice (`RoomScene`) moves from `z-30` to `z-50`, so that it shows above the phone's drawer and its backdrop.
+- Other options: `epic.done` (keeps the open tasks, has no event). A new "settle" command (a second concept for done). Undo with a 5 s delay (needs an action in the room's notice). The studio `ContextMenu`.
+- Risk: low
+- Undo: Revert the commit. Old clients do not send `via`, and the server ignores a missing one.
+- Status: open

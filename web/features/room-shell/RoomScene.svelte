@@ -811,9 +811,10 @@
         }}>{viewerText(services.language, "reload")}</Button
       >
     </aside>{/if}
+  <!-- Above the phone's drawer (z-50) and its backdrop: a thread menu in the drawer says "Copiado" here too. -->
   {#if $view.notice}<aside
       role="status"
-      class="fixed bottom-4 left-1/2 z-30 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-control border border-border bg-popover p-3 font-sans text-sm text-popover-foreground shadow-md"
+      class="fixed bottom-4 left-1/2 z-50 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-control border border-border bg-popover p-3 font-sans text-sm text-popover-foreground shadow-md"
     >
       {$view.notice}
     </aside>{/if}

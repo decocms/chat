@@ -48,9 +48,14 @@ function fixture(seed?: (db: Database) => void) {
   };
   const frames: string[] = [];
   const ws = { readyState: 1, send: (frame: string) => frames.push(frame) };
-  const statement = () => {
-    const bound = () => ({
-      run: async () => ({ meta: { changes: 0 } }),
+  // The D1 writes that ran (track() events among them): the query and its values.
+  const d1: { query: string; values: unknown[] }[] = [];
+  const statement = (query: string) => {
+    const bound = (...values: unknown[]) => ({
+      run: async () => {
+        d1.push({ query, values });
+        return { meta: { changes: 0 } };
+      },
       first: async () => null,
       all: async () => ({ results: [] }),
     });
@@ -117,7 +122,7 @@ function fixture(seed?: (db: Database) => void) {
       owner: string | null;
       from_msg: number | null;
     } | null;
-  return { book, run, messages, epic, db };
+  return { book, run, messages, epic, db, d1 };
 }
 
 // The Circulei case: a question became an answer epic, and the Claude answered with reply_to in main.
@@ -464,4 +469,42 @@ test("an ack opens no thread for someone else's message, a thread message, or id
     f.book.agentAck("abcdef", "a1", email, "Claude", mine.id, "idle"),
   ).not.toHaveProperty("thread");
   expect(f.db.query(`SELECT COUNT(*) AS n FROM epics`).get()).toEqual({ n: 0 });
+});
+
+test("the sidebar's thread menu marks a thread done with its open tasks, and opens it again; the event says menu", async () => {
+  const f = fixture();
+  const id = f.book.createEpic("Trabalho", ["Um", "Dois"]);
+  const tasks = () =>
+    f.db
+      .query(`SELECT done, status FROM tasks WHERE epic_id = ? ORDER BY ts`)
+      .all(id);
+  expect(
+    await f.run({ t: "epic.status", id, status: "done", via: "menu" }),
+  ).toEqual({ ok: true });
+  expect(status(f, id)).toEqual({ done: 1, status: "done" });
+  expect(tasks()).toEqual([
+    { done: 1, status: "done" },
+    { done: 1, status: "done" },
+  ]);
+  expect(
+    await f.run({ t: "epic.status", id, status: "doing", via: "menu" }),
+  ).toEqual({ ok: true });
+  expect(status(f, id)).toEqual({ done: 0, status: "doing" });
+  // The status pill sends no via: its events stay "app".
+  await f.run({ t: "epic.status", id, status: "review" });
+  await Promise.resolve();
+  const vias = f.d1
+    .filter((row) => row.values[0] === "epic_status")
+    .map(
+      (row) =>
+        JSON.parse(String(row.values[5])) as { via: string; status: string },
+    )
+    .map((dims) => `${dims.status}:${dims.via}`);
+  expect(vias).toEqual(["done:menu", "doing:menu", "review:app"]);
+  expect(
+    await f.run({ t: "epic.status", id: "nope", status: "done", via: "menu" }),
+  ).toEqual({
+    ok: false,
+    error: "unknown epic",
+  });
 });

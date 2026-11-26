@@ -245,6 +245,7 @@
             avatarVersion: vb.avatarVersion,
             epicBusy: vb.epicBusy,
             waitsIn: vb.waitsIn,
+            notice: vb.notice,
           }}
         />
       </div>{/snippet}

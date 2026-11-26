@@ -3489,7 +3489,7 @@ export class Book extends DurableObject<Env> {
         return this.setDone(String(m.id), m.done !== false);
       case "epic.status": {
         const out = this.setEpicStatus(String(m.id), m.status);
-        if (!out) this.ctx.waitUntil(track(this.env, "epic_status", { user: email, dims: { book: this.get("book_id") ?? "", status: m.status, via: "app" } }));
+        if (!out) this.ctx.waitUntil(track(this.env, "epic_status", { user: email, dims: { book: this.get("book_id") ?? "", status: m.status, via: m.via === "menu" ? "menu" : "app" } }));
         return out;
       }
       case "epic.pin": // the sidebar's pin: shared, like the order; pinned epics sit above the ones sorted by recency
