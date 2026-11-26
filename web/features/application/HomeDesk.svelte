@@ -719,7 +719,7 @@
           data-home-empty
           class="flex h-full justify-center overflow-auto"
         >
-          <div class="my-auto flex w-full justify-center">
+          <div class="flex w-full justify-center">
             <InboxClear
               me={$personal.me}
               now={$personal.now}

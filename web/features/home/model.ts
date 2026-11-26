@@ -220,6 +220,25 @@ export function quietRooms(
     .slice(0, limit);
   return { working, recent };
 }
+/** What a busy room's agent said last, and whose agent it is ("Seu Claude", "Claude de Ana"); null when the room's
+ *  newest line is not an agent's (the row then says only that an agent works there). */
+export function agentLine(
+  room: RoomSummary,
+  me: MeResult | null,
+  lang: HomeLanguage,
+): { who: string; text: string } | null {
+  const text = plainWaitText(room.last_text ?? "");
+  if (!room.last_agent || !text) return null;
+  const by = room.last_by ?? "";
+  const who =
+    by && by === me?.email
+      ? homeText(lang, "yourClaude")
+      : homeText(lang, "agentOf", {
+          name:
+            (room.last_by_name ?? by.split("@")[0] ?? "").split(" ")[0] ?? "",
+        });
+  return { who, text };
+}
 export const unread = (room: RoomSummary, seen = 0) =>
   room.last_human_id > Math.max(room.read_id, seen)
     ? "human"
