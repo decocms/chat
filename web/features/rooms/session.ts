@@ -131,6 +131,15 @@ export function createRoomsSession(
         id,
       );
     },
+    /** "Sair da sala": the room leaves your list once the server takes you out. */
+    leave(id: string) {
+      return run(
+        `leave:${id}`,
+        (signal) => personal.api.leave(id, signal),
+        (me) => !me.books.some((room) => room.id === id),
+        id,
+      );
+    },
     /** Marks everything in the room as read: the dot goes at once, the server keeps it for your other devices. */
     read(id: string) {
       const room = get(personal.state).me?.books.find((room) => room.id === id);

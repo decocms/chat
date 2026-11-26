@@ -118,6 +118,11 @@ const pt = {
   archiveHelp:
     "Sai da sua lista e do inbox do seu agent e vai pro Arquivo. Nada é apagado: quem mais está na sala continua vendo, e você restaura quando quiser.",
   archiveAction: "Arquivar",
+  leave: "Sair da sala",
+  leaveTitle: "Sair da sala?",
+  leaveHelp:
+    "Você deixa de ver a sala e de receber avisos dela. Pra voltar, alguém precisa te convidar de novo.",
+  leaveAction: "Sair",
   restore: "Restaurar",
   archived:
     "Salas que você arquivou. Elas continuam existindo pra quem está nelas.",
@@ -310,6 +315,11 @@ const en: Record<keyof typeof pt, string> = {
   archiveHelp:
     "Leaves your list and your agent inbox and goes to Archive. Nothing is deleted: others in the room still see it, and you can restore it anytime.",
   archiveAction: "Archive",
+  leave: "Leave room",
+  leaveTitle: "Leave this room?",
+  leaveHelp:
+    "You stop seeing the room and getting its notifications. To come back, someone has to invite you again.",
+  leaveAction: "Leave",
   restore: "Restore",
   archived: "Rooms you archived. They still exist for their other members.",
   noArchived: "Nothing archived.",

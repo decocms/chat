@@ -569,6 +569,8 @@ export const MeBook = z.object({
   sandboxes_running: z.number(),
   /** The room's members' emails, comma-separated (D1 group_concat). */
   members: str,
+  /** Who made the room: they can't leave it, so its menu has no "Sair da sala" for them. */
+  owner: z.optional(str),
   /** 1 = a direct-message room (src/dm.ts): listed with your DMs, not with the rooms. */
   dm: z.optional(num),
   /** A DM's other person's name and picture version (null in rooms and your own DM): your other lists may not know them. */

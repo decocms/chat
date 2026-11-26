@@ -97,6 +97,11 @@ export function createHomeApi(fetcher?: FetchLike) {
       room.archive
         .$post({ param: param(id), json: { archived } }, { init: { signal } })
         .then((response) => read(response, OkResult)),
+    /** "Sair da sala": you take yourself out of the room (POST /api/books/:id/leave). */
+    leave: (id: string, signal?: AbortSignal) =>
+      room.leave
+        .$post({ param: param(id) }, { init: { signal } })
+        .then((response) => read(response, OkResult)),
     read: (id: string, signal?: AbortSignal) =>
       room.read
         .$post({ param: param(id) }, { init: { signal } })

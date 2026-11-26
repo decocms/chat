@@ -452,6 +452,18 @@ export const api = roomPosts
     svc.track(archived === false ? "book_restored" : "book_archived", { book: id });
     return c.json(ok, 200);
   })
+  // "Sair da sala" in a room's menu: you take yourself out, with the same rules as removing someone (the owner stays,
+  // a DM is for its two people). To come back, someone invites you again.
+  .post("/api/books/:id/leave", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    if (isDmId(id)) return c.json({ error: "a DM is only for its two people" } satisfies ErrorBody, 400);
+    const no = await svc.removeMember(id, c.get("email"));
+    if (no?.status === 400) return c.json({ error: no.error } satisfies ErrorBody, 400);
+    if (no) return c.json({ error: no.error } satisfies ErrorBody, 403);
+    svc.track("book_left", { book: id });
+    return c.json(ok, 200);
+  })
   // "Mark as read" in a room's menu: everything in the room up to now, for you only.
   .post("/api/books/:id/read", async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");

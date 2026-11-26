@@ -74,6 +74,7 @@ export function homeApi(overrides: Partial<HomeApi> = {}): HomeApi {
       ts: 1,
     }),
     archive: async () => ({ ok: true }),
+    leave: async () => ({ ok: true }),
     tint: async () => ({ ok: true }),
     read: async () => ({ ok: true }),
     icon: async () => ({ ok: true, icon: 1 }),

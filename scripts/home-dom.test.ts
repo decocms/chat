@@ -1519,6 +1519,67 @@ test("Shift+F10 on a rail room opens the menu under it; a newer opening replaces
   expect(document.querySelector("[data-room-menu]")).toBeNull();
 });
 
+test("Leave room sits under Archive for a member, not for the owner or in a DM, and its confirm takes you out", async () => {
+  const left: string[] = [];
+  const dm = "dm00000000000000000bb1";
+  const { h, controller, code } = await pendingNavigation({
+    leave: async (id) => {
+      left.push(id);
+      return { ok: true };
+    },
+  });
+  h.canonical(
+    me({
+      books: [
+        room("aaaaaa", { owner: "other@test.com" }),
+        room("bbbbbb", { owner: "me@test.com" }),
+        room(dm, { dm: 1, owner: "other@test.com" }),
+      ],
+    }),
+  );
+  await h.services.personal.refresh();
+  await flush();
+  const items = async (id: string) => {
+    controller.openMenu(id, undefined, { x: 0, y: 0 });
+    await flush();
+    await waitForView(document, `[data-room-menu="${id}"]`);
+    return [
+      ...document
+        .querySelector(`[data-room-menu="${id}"]`)!
+        .querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ];
+  };
+  const names = (list: HTMLElement[]) =>
+    list.map((item) => item.textContent?.trim());
+  // The owner can't leave: no item.
+  expect(names(await items("bbbbbb"))).not.toContain("Leave room");
+  // A DM is for its two people: no item.
+  expect(names(await items(dm))).not.toContain("Leave room");
+  // A member: right under Archive, destructive like it.
+  const member = await items("aaaaaa");
+  expect(names(member).slice(-2)).toEqual(["Archive", "Leave room"]);
+  const leave = member.at(-1)!;
+  expect(leave.getAttribute("data-variant")).toBe("destructive");
+  leave.click();
+  await flush();
+  expect(get(controller.state).menu).toBeNull();
+  expect(get(controller.state).leaveId).toBe("aaaaaa");
+  code.resolve(NavigationDialogs);
+  await flush();
+  await waitForView(document, "[data-room-leave]");
+  const dialog = document.querySelector('[role="dialog"]')!;
+  expect(dialog.textContent).toContain("Leave this room?");
+  expect(dialog.textContent).toContain(
+    "You stop seeing the room and getting its notifications.",
+  );
+  const confirm = [
+    ...dialog.querySelectorAll<HTMLButtonElement>("button"),
+  ].find((button) => button.textContent?.trim() === "Leave")!;
+  confirm.click();
+  await flush();
+  expect(left).toEqual(["aaaaaa"]);
+});
+
 // The home Inbox (/?inbox, HomeInbox) with typed synthetic HTTP ports; no Worker claim.
 async function homeInbox(overrides: Partial<HomeApi> = {}) {
   const h = shellFixture(overrides);

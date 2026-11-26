@@ -410,6 +410,7 @@ const EN: Readonly<Record<string, string>> = {
   "Nenhuma sala ainda. Crie uma, chame quem trabalha com você e conecte seu agent ao lado.":
     "No rooms yet. Create one, invite the people you work with and connect your agent on the side.",
   Arquivar: "Archive",
+  "Sair da sala": "Leave room",
   "Arquivar {title}": "Archive {title}",
   "Ainda sem resumo. O @vibe escreve um quando a conversa andar.":
     "No summary yet. @vibe writes one once the conversation gets going.",

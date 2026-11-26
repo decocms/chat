@@ -65,7 +65,7 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
   // One round trip's worth: the reads run together.
   const [books, friends, requests, sent, invites, people, me, waits, colleagues] = await Promise.all([
     db.prepare(
-      `SELECT b.id, b.title, b.folder, b.summary, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
+      `SELECT b.id, b.title, b.folder, b.summary, b.owner, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
          coalesce(r.last_id, 0) AS read_id, b.last_by, b.last_text, b.last_agent,
          (SELECT u.name FROM users u WHERE u.email = b.last_by) AS last_by_name,
          (SELECT count(*) FROM sandboxes s WHERE s.book_id = b.id AND s.state = 'running') AS sandboxes_running,

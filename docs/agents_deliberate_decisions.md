@@ -2320,3 +2320,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The line can cover the last line of the chat while you select text.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · feat/leave-room · Leave a room from its menu
+
+- Agent: claude-opus-5-5
+- Context: Valls asked for "Sair da sala" in the room menu, under Archive, with a confirm. The owner and DMs do not get it. Before this, nobody could leave a room.
+- Decision:
+  - The server has a new route, `POST /api/books/:id/leave`. It calls `removeMember` on the person who sends it, with the same rules: the owner gets a 400, and a DM gets a 400. It sends the event `book_left`. The People panel still does not let you remove yourself.
+  - `/api/me` now gives each room its `owner` (`MeBook.owner`, optional). The menu shows the item only when `owner` is known and is not you. A cached `/api/me` from before this change has no `owner`, so the item is hidden until the next read.
+  - The confirm is a `TitledDialog` in `AppNavigationDialogs`, like Archive (a new `leave` dialog kind). After the server says yes, the room leaves the list in the same way as after Archive. If it was the open room, the app goes home, because you can no longer see the room. Archive does not navigate: an archived room stays open to you.
+  - Phones use the same `RoomMenu` (long press), so they get the item too.
+- Other options: A boolean `can_leave` in `/api/me` instead of `owner`. A confirm in the menu itself. Using `DELETE /members/:email` with your own email (the People panel blocks that on purpose).
+- Risk: low. Leaving cannot be undone by you: someone has to invite you again. The confirm says so.
+- Undo: Revert the commit.
+- Status: open
