@@ -41,6 +41,8 @@
   import ChatField from "./ChatField.svelte";
   import { linkResolver } from "../rich-text/linkResolver";
   import PollCreateDialog from "./PollCreateDialog.svelte";
+  import ComposerMenuItems from "./ComposerMenuItems.svelte";
+  import AttachmentCards from "./AttachmentCards.svelte";
   let {
     room,
     thread,
@@ -611,7 +613,9 @@
       void entry.submit();
     }}
     onkeydown={keydown}
-    mention={(handle) => knownMention(handle, room, vb.knownNames)}
+    mention={(handle) =>
+      knownMention(handle, room, vb.knownNames) ||
+      agents.some((agent) => agent.email === room.me && agent.name === handle)}
     links={(text) =>
       roomLinks(text, rooms, room, window.location.href, {
         read: (link) => {
@@ -711,83 +715,35 @@
               ></Chip
             >{/each}
         </div>{/if}
-      {#if $draft.attachments.length}<div
-          class="flex flex-wrap gap-2 px-2 pt-2"
-        >
-          {#each $draft.attachments as item (item.id)}{@const image =
-              preview(item)}
-            <div
-              data-composer-attachment={item.id}
-              class="relative flex w-32 flex-col gap-1 rounded-control bg-card p-2 shadow-edge transition-[opacity,scale] duration-150 ease-[var(--vb-ease-out-cubic)] starting:scale-95 starting:opacity-0"
-            >
-              {#if image}<img
-                  src={image}
-                  alt={item.name}
-                  class="h-20 w-full rounded-sm object-cover"
-                />{:else}<Icon icon="file-02" size={16} />{/if}<span
-                class="break-words text-xs">{item.name}</span
-              ><span role="status" class="text-xs text-muted-foreground"
-                >{item.phase === "queued" || item.phase === "uploading"
-                  ? vb.t("Enviando…")
-                  : item.phase === "error"
-                    ? composerError(item.error || "failed", vb.t)
-                    : vb.t("Pronto")}</span
-              >{#if item.phase === "error"}<Button
-                  size="sm"
-                  variant="outline"
-                  onclick={(event) => {
-                    if (canInteract(event)) entry.retryUpload(item.id);
-                  }}>{vb.t("Tentar novamente")}</Button
-                >{/if}<IconButton
-                label={vb.t("Remover anexo")}
-                size="icon-xs"
-                class="absolute right-1 top-1 rounded-full bg-card shadow-edge"
-                onclick={(event) => {
-                  if (canInteract(event)) entry.removeFile(item.id);
-                }}><Icon icon="x" size={14} /></IconButton
-              >
-            </div>{/each}
-        </div>{/if}
-    {/snippet}
-    {#snippet menu(close)}<Button
-        variant="menu"
-        role="menuitem"
-        onclick={(event) => {
-          if (!canInteract(event)) return;
-          close();
-          fileInput?.click();
+      <AttachmentCards
+        items={$draft.attachments}
+        {preview}
+        t={vb.t}
+        onremove={(id, event) => {
+          if (canInteract(event)) entry.removeFile(id);
         }}
-        ><Icon icon="paperclip" />{vb.t("Anexar arquivo")}
-        <small>{vb.t("ou Cmd+V")}</small></Button
-      ><Button
-        variant="menu"
-        role="menuitem"
-        onclick={(event) => {
-          if (!canInteract(event)) return;
-          close();
+        onretry={(id, event) => {
+          if (canInteract(event)) entry.retryUpload(id);
+        }}
+      />
+    {/snippet}
+    {#snippet menu(close)}<ComposerMenuItems
+        t={vb.t}
+        {close}
+        allowed={(event) => canInteract(event)}
+        onattach={() => fileInput?.click()}
+        onmention={() => {
           const before = $draft.text.slice(0, caret);
           field?.insert(before && !/\s$/.test(before) ? " @" : "@");
           mentionClosed = false;
-        }}><Icon icon="at-sign" />{vb.t("Mencionar alguém")}</Button
-      ><Button
-        variant="menu"
-        role="menuitem"
-        onclick={(event) => {
-          if (!canInteract(event)) return;
-          close();
+        }}
+        onroom={() => {
           const before = $draft.text.slice(0, caret);
           field?.insert(before && !/\s$/.test(before) ? " #" : "#");
           mentionClosed = false;
-        }}><Icon icon="hash-02" />{vb.t("Mencionar sala")}</Button
-      ><Button
-        variant="menu"
-        role="menuitem"
-        onclick={(event) => {
-          if (!canInteract(event)) return;
-          close();
-          poll = true;
-        }}><Icon icon="bar-chart-square-02" />{vb.t("Criar votação")}</Button
-      >{/snippet}
+        }}
+        onpoll={() => (poll = true)}
+      />{/snippet}
   </ChatField>
   <input
     bind:this={fileInput}
@@ -871,5 +827,5 @@
           : vb.t("Não foi possível iniciar o ditado.")}
     </p>{/if}
   <OrphanDrafts {room} {drafts} {vb} />
-  <PollCreateDialog {entry} {vb} bind:open={poll} />
+  <PollCreateDialog form={entry} t={vb.t} bind:open={poll} />
 </section>

@@ -7,17 +7,16 @@
     contextPercent,
     contextSections,
     contextTone,
-    roomListenerCount,
   } from "./model";
   import { prettyModel } from "../chat/model";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import HoverCard from "../../lib/components/HoverCard.svelte";
   import { agentProvider } from "../../lib/components/agent";
   import Progress from "../../lib/studio/Progress.svelte";
+  import Badge from "../../lib/studio/Badge.svelte";
   import { cn } from "../../lib/studio/utils";
   let {
     presence,
-    self = false,
     email,
     t,
     name,
@@ -27,7 +26,6 @@
     large = false,
   }: {
     presence: Presence;
-    self?: boolean;
     email: string;
     t: (text: string, vars?: Record<string, string | number>) => string;
     name: (email: string) => string;
@@ -38,7 +36,6 @@
     /** The members pane: rows sized to sit under its 32px faces, lined up with the name. */
     large?: boolean;
   } = $props();
-  const listeners = $derived(self ? roomListenerCount(presence, email) : 0);
   const rows = $derived(agentRows(presence, email));
   // The Studio bar paints its current color: green, yellow from 60%, red from 80%.
   const METERS = {
@@ -57,16 +54,6 @@
   const narrow = new MediaQuery(MOBILE_QUERY);
 </script>
 
-{#if listeners > 1}<p
-    data-duplicate-listeners
-    role="status"
-    class="m-0 ml-7 px-2 text-xs text-warning"
-  >
-    {t(
-      "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.",
-      { n: listeners },
-    )}
-  </p>{/if}
 {#each rows as agent}
   {@const percent = agent.context
     ? contextPercent(agent.context.tokens, agent.context.window)
@@ -106,7 +93,15 @@
         </span><span class="min-w-0 flex-1 truncate"
           >{model(agent.who).replace(/^Claude\s+/i, "")}{agent.repo
             ? ` · ${agent.repo}`
-            : ""}</span
+            : ""}{#if agent.name || agent.role}
+            <!-- Its @name here (claude, claude-2, a role): how its human calls this one when they have two. -->
+            <Badge
+              size="sm"
+              variant="neutral"
+              data-agent-role={agent.role ?? undefined}
+              data-agent-name={agent.name ?? undefined}
+              >@{agent.name ?? agent.role}</Badge
+            >{/if}</span
         ><span class="shrink-0"
           >{agent.listening
             ? t("ouvindo")

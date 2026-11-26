@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--forward] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -152,6 +152,39 @@ try {
     await desk.screenshot({ path: join(out, "hover-1440.png") });
     shots.push("hover-1440.png");
   }
+  if (flag("thread")) {
+    // A message with a thread card and a reaction (Gimenes #5477): the reaction row keeps a gap under the card, and
+    // the 🙂 button shows only on hover, also when there are chips.
+    const source = desk
+      .locator("[data-chat-message]", { hasText: "Última mensagem curta" })
+      .first();
+    await source.hover();
+    await source.locator("[data-start-thread]").first().click();
+    // A new thread opens itself (?t=); its card shows in the main thread.
+    await desk.waitForURL(/[?&]t=/);
+    await desk.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+    await desk.locator("[data-thread-card]").first().waitFor();
+    const carded = desk
+      .locator("[data-chat-message]", {
+        has: desk.locator("[data-thread-card]"),
+      })
+      .first();
+    await carded.hover();
+    await carded.locator("[data-offer-react]").first().click();
+    await carded
+      .locator('[data-message-reactions] [aria-pressed="true"]')
+      .first()
+      .waitFor();
+    await desk.mouse.move(0, 0);
+    await desk.waitForTimeout(400);
+    await desk.screenshot({ path: join(out, "thread-react-1440.png") });
+    shots.push("thread-react-1440.png");
+    await carded.hover();
+    await desk.waitForTimeout(400);
+    await desk.screenshot({ path: join(out, "thread-react-hover-1440.png") });
+    shots.push("thread-react-hover-1440.png");
+    await desk.mouse.move(0, 0);
+  }
   if (flag("react")) {
     // The first reaction offered on hover, clicked: it should turn into a chip under the message.
     await target.hover();
@@ -217,6 +250,276 @@ try {
     await desk.waitForTimeout(400);
     await desk.screenshot({ path: join(out, "marks-1440.png") });
     shots.push("marks-1440.png");
+    // Text selected in the field: the line with the shortcuts shows above it.
+    await field.click();
+    await field.fill("Selecione um texto para formatar");
+    await field.evaluate((node: HTMLTextAreaElement) =>
+      node.setSelectionRange(10, 15),
+    );
+    await field.dispatchEvent("select");
+    await desk.locator("[data-format-hints]").waitFor();
+    await desk.waitForTimeout(300);
+    await desk.screenshot({ path: join(out, "hints-1440.png") });
+    shots.push("hints-1440.png");
+    await field.fill("");
+  }
+  if (flag("studio")) {
+    // Studio agents (Settings › Cloud): the deco Studio card before and after connecting, and an agent in the room.
+    // Needs `bun scripts/studio-mock.ts` and STUDIO_ORIGIN=http://127.0.0.1:8798 in .dev.vars.
+    const cloud = await browser.newPage({
+      viewport: { width: 1440, height: 900 },
+    });
+    const card = cloud.locator("[data-studio-connection]");
+    const shot = async (file: string) => {
+      await card.scrollIntoViewIfNeeded();
+      await cloud.mouse.move(0, 0);
+      await cloud.waitForTimeout(400);
+      await cloud.screenshot({ path: join(out, file) });
+      shots.push(file);
+    };
+    // A second run starts from "not connected" again.
+    await fetch(`${base}/api/studio`, {
+      method: "DELETE",
+      headers: { origin: base },
+    });
+    await cloud.goto(`${base}/settings?room=${room}#cloud`, {
+      waitUntil: "networkidle",
+    });
+    await card.waitFor();
+    await shot("studio-disconnected-1440.png");
+    await card.locator('a[href^="/api/studio/signin"]').click();
+    await cloud.locator("[data-studio-create]").waitFor();
+    await shot("studio-connected-1440.png");
+    // The organization is picked in its searchable list; its projects load right after.
+    await cloud.locator("[data-studio-org] button").click();
+    await cloud.getByRole("option", { name: "Example Org" }).click();
+    await cloud.locator("[data-studio-projects] button").waitFor();
+    await cloud.locator("[data-studio-create]").click();
+    await cloud
+      .locator("[data-sandbox-id]", { hasText: "org-example-agent" })
+      .waitFor();
+    await cloud.waitForTimeout(1500);
+    await shot("studio-agent-1440.png");
+    // The owner names the agent in the room: the mock must receive that one message.
+    await send(desk, "@org-example-agent liste as tarefas abertas.");
+    await desk.waitForTimeout(1500);
+    const sent = (
+      (await (
+        await fetch(
+          `${process.env.STUDIO_ORIGIN ?? "http://127.0.0.1:8798"}/_log`,
+        )
+      ).json()) as { path: string; body: unknown }[]
+    ).filter(
+      (call) =>
+        call.path.endsWith("/messages") &&
+        JSON.stringify(call.body).includes(`room_id ${room}`),
+    ).length;
+    if (sent !== 1)
+      throw new Error(`the Studio mock received ${sent} messages, not 1`);
+    // A project's agent: it takes the project's title in Studio as its name and @handle.
+    await cloud.locator("[data-studio-projects] button").click();
+    await cloud.getByRole("option", { name: "Example Store" }).click();
+    await cloud.locator("[data-studio-create]").click();
+    const project = cloud.locator("[data-sandbox-id]", {
+      hasText: "example-store",
+    });
+    await project.waitFor();
+    await cloud.waitForTimeout(1500);
+    await project.scrollIntoViewIfNeeded();
+    await cloud.screenshot({
+      path: join(out, "studio-project-agent-1440.png"),
+    });
+    shots.push("studio-project-agent-1440.png");
+    // The two confirmations: remove one agent from the room, remove the Studio connection.
+    const remove = /^(Remove|Remover)$/;
+    const dialog = cloud.getByRole("alertdialog").or(cloud.getByRole("dialog"));
+    await project.getByRole("button", { name: remove }).click();
+    await dialog.first().waitFor();
+    await cloud.waitForTimeout(400);
+    await cloud.screenshot({ path: join(out, "studio-remove-agent-1440.png") });
+    shots.push("studio-remove-agent-1440.png");
+    await cloud.keyboard.press("Escape");
+    await dialog.first().waitFor({ state: "hidden" });
+    await card.getByRole("button", { name: remove }).click();
+    await dialog.first().waitFor();
+    await cloud.waitForTimeout(400);
+    await cloud.screenshot({
+      path: join(out, "studio-remove-connection-1440.png"),
+    });
+    shots.push("studio-remove-connection-1440.png");
+    await cloud.keyboard.press("Escape");
+    await cloud.close();
+    const phone = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+    });
+    await phone.goto(`${base}/settings?room=${room}#cloud`, {
+      waitUntil: "networkidle",
+    });
+    await phone.locator("[data-studio-create]").waitFor();
+    await phone.locator("[data-studio-connection]").scrollIntoViewIfNeeded();
+    await phone.waitForTimeout(600);
+    await phone.screenshot({ path: join(out, "studio-390.png") });
+    shots.push("studio-390.png");
+    await phone.close();
+  }
+  if (flag("settings")) {
+    // Settings › Cloud agents: the section stays drawn while /api/me refreshes, and each state of the Studio
+    // pickers. The Studio reads go through the Worker with the person's grant, so the page's own routes are
+    // stubbed here with fake test organizations and projects: no Studio (or its mock) is needed.
+    const orgs = [
+      "Example Org",
+      "Exemplo Testes",
+      "Demo Org Alpha",
+      "Demo Org Beta",
+      "Fixture Labs",
+      "Sample Agency",
+      "Test Org Empty",
+      "Test Org Error",
+      "Test Org Slow",
+      "Placeholder Co",
+      "Org de Exemplo",
+      "Mock Studio Team",
+    ].map((title) => ({
+      slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      name: title,
+    }));
+    const projects = Array.from({ length: 24 }, (_, i) => ({
+      id: `vir_test_${i + 1}`,
+      title: [
+        "Example Store",
+        "Example Blog",
+        "Test Landing Page",
+        "Demo Checkout",
+        "Sample Docs",
+        "Fixture Dashboard",
+      ][i % 6]!.concat(i < 6 ? "" : ` ${Math.floor(i / 6) + 1}`),
+    }));
+    let release = () => {};
+    const stub = async (page: Page) => {
+      await page.route("**/api/books/*/sandboxes", (route) =>
+        route.request().method() === "GET"
+          ? route.fulfill({
+              json: {
+                connected: false,
+                claude: false,
+                studio: true,
+                studio_orgs: orgs,
+                sandboxes: [],
+              },
+            })
+          : route.fallback(),
+      );
+      await page.route("**/api/studio/orgs/*/projects", async (route) => {
+        const org = new URL(route.request().url()).pathname.split("/")[4];
+        if (org === "test-org-error")
+          return route.fulfill({
+            status: 502,
+            json: { error: "studio unavailable (test)" },
+          });
+        if (org === "test-org-slow")
+          await new Promise<void>((resolve) => (release = resolve));
+        return route.fulfill({
+          json: { projects: org === "test-org-empty" ? [] : projects },
+        });
+      });
+    };
+    for (const [width, height, tag] of [
+      [1440, 900, "1440"],
+      [390, 844, "390"],
+    ] as const) {
+      const page = await browser.newPage({
+        viewport: { width, height },
+        ...(width < 800 ? { isMobile: true, hasTouch: true } : {}),
+      });
+      await stub(page);
+      const studio = page.locator("[data-studio-connection]");
+      // Puts a part at the top of its scrolled page, under the phone's bar.
+      const top = (at: typeof studio) =>
+        at.evaluate((node) => {
+          node.scrollIntoView({ block: "start" });
+          let box = node.parentElement;
+          while (box && box.scrollHeight <= box.clientHeight)
+            box = box.parentElement;
+          (box ?? document.scrollingElement)?.scrollBy(0, -72);
+        });
+      const shot = async (file: string, at = studio) => {
+        await top(at);
+        await page.mouse.move(0, 0);
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: join(out, `${file}-${tag}.png`) });
+        shots.push(`${file}-${tag}.png`);
+      };
+      const closed = () =>
+        page.getByRole("option").first().waitFor({ state: "detached" });
+      const pick = async (org: string) => {
+        await page.locator("[data-studio-org] button").click();
+        await page.getByRole("option", { name: org, exact: true }).click();
+        await closed();
+      };
+      await page.goto(`${base}/settings?room=${room}#cloud`, {
+        waitUntil: "networkidle",
+      });
+      const section = page.locator("#cloud");
+      await studio.waitFor();
+      // The cloud agents section, then a /api/me refresh: it must keep the same panel and the typed text.
+      const field = page
+        .locator("[data-sandboxes] input[type=password]")
+        .first();
+      await field.fill("texto de teste");
+      await page.evaluate(() => {
+        const panel = document.querySelector("[data-sandboxes]");
+        (window as unknown as { panel: Element | null }).panel = panel;
+      });
+      // Opening a room in another tab makes this page read /api/me again.
+      const refreshed = page.waitForRequest(
+        (request) => new URL(request.url()).pathname === "/api/me",
+      );
+      const other = await browser.newPage();
+      await other.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+      await refreshed;
+      await page.waitForTimeout(1500);
+      await other.close();
+      const kept = await page.evaluate(
+        () =>
+          (window as unknown as { panel: Element | null }).panel ===
+          document.querySelector("[data-sandboxes]"),
+      );
+      if (!kept || (await field.inputValue()) !== "texto de teste")
+        throw new Error("the cloud agents panel was drawn again");
+      await field.fill("");
+      await field.blur();
+      await shot("cloud", section);
+      await shot("studio-org-closed");
+      await page.locator("[data-studio-org] button").click();
+      await page.keyboard.type("demo");
+      await page.getByRole("option", { name: "Demo Org Beta" }).waitFor();
+      await shot("studio-org-search");
+      await page.keyboard.press("Escape");
+      await closed();
+      await pick("Test Org Slow");
+      await page.locator('[data-studio-projects] [role="status"]').waitFor();
+      await shot("studio-projects-loading");
+      release();
+      await pick("Example Org");
+      // The card at the top of the page, so the list opens under the field and the organization stays in view.
+      await top(studio);
+      await page.locator("[data-studio-projects] button").click();
+      await page.getByRole("option", { name: "Fixture Dashboard 4" }).waitFor();
+      await shot("studio-projects");
+      await page.keyboard.press("Escape");
+      await closed();
+      await pick("Test Org Empty");
+      await page
+        .locator("[data-studio-projects]", {
+          hasText: /no projects|não tem projetos/,
+        })
+        .waitFor();
+      await shot("studio-projects-empty");
+      await pick("Test Org Error");
+      await page.locator('[data-studio-projects] [role="alert"]').waitFor();
+      await shot("studio-projects-error");
+      await page.close();
+    }
   }
   if (flag("link")) {
     // A copied link to an old message (Gimenes #4843): more than one window of messages after it, then the link opens
@@ -343,10 +646,10 @@ try {
     // Coming back to a room, and your last threads (Viktor), at 1440 and 390 px, with a video of each. Six threads
     // (A to F) from six messages, E pinned. Thread A holds a link to "Outra sala de teste" (a phone leaves a thread
     // only to the room's main or by a link), and that room holds a link to thread B and one to that message in A.
-    // Then, in a new tab: open A, leave, come back (A opens again); open B and C (C, B, A sit under the pinned E); open
-    // A again (no row moves); open D (it pushes A out of the three); follow the two links (they go where they say,
-    // not to the thread you left); click the room you are in (main). Each step fails the run when the app does
-    // something else.
+    // Then, in a new tab: open A, leave, come back (A opens again); open B and C, A again, then D. The sidebar keeps
+    // one order through all of it: the pinned E, then newest made first, F D C B A (Gimenes #5603). Follow the two
+    // links (they go where they say, not to the thread you left); click the room you are in (main). Each step fails
+    // the run when the app does something else.
     const other = await fetch(`${base}/api/books`, {
       method: "POST",
       headers: { "content-type": "application/json", origin: base },
@@ -514,15 +817,15 @@ try {
       await openThread(b);
       await openThread(c);
       await drawer();
-      await expectOrder([e, c, b, a, f, d], "recent threads");
+      await expectOrder([e, f, d, c, b, a], "after opening B and C");
       await shot("4-recent");
       await openThread(a);
       await drawer();
-      await expectOrder([e, c, b, a, f, d], "a recent thread opened again");
+      await expectOrder([e, f, d, c, b, a], "after opening A again");
       await shot("5-no-reorder");
       await openThread(d);
       await drawer();
-      await expectOrder([e, d, c, b, f, a], "a fourth thread");
+      await expectOrder([e, f, d, c, b, a], "after opening D");
       await shot("6-fourth");
       if (phone) await page.keyboard.press("Escape");
       await goRoom(second);
@@ -573,6 +876,90 @@ try {
     await phone.waitForTimeout(400);
     await phone.screenshot({ path: join(out, file) });
     shots.push(file);
+  }
+  if (flag("center")) {
+    // The user center with rows (Gimenes, step 4): a new version, an invite and a message request, faked in the
+    // page's answers (test data only), and notifications that this device never turned on.
+    const fake = async (page: Page) => {
+      // Headless Chromium answers "denied"; a device that never chose answers "default".
+      await page.addInitScript(() =>
+        Object.defineProperty(Notification, "permission", {
+          get: () => "default",
+        }),
+      );
+      // A version that is not the page's own: the app offers the new version.
+      await page.route(/\/api\/me(\?|$)/, async (route) => {
+        const response = await route.fetch();
+        const me = (await response.json()) as Record<string, unknown>;
+        await route.fulfill({
+          response,
+          json: {
+            ...me,
+            v: "screens-new",
+            invites: [
+              {
+                book_id: "zzzzzz",
+                title: "Viagem de teste",
+                icon: null,
+                inviter: "bia@example.test",
+                inviter_name: "Bia Teste",
+                inviter_avatar: null,
+                people: 3,
+                created_at: Date.now(),
+              },
+            ],
+            requests: [
+              {
+                email: "caio@example.test",
+                name: "Caio Teste",
+                avatar: null,
+                msg: "Oi! Posso falar com você?",
+              },
+            ],
+          },
+        });
+      });
+    };
+    for (const scheme of ["light", "dark"] as const) {
+      const context = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+        colorScheme: scheme,
+      });
+      const phone = await context.newPage();
+      await fake(phone);
+      await phone.goto(`${base}/`, { waitUntil: "networkidle" });
+      await phone.locator('[data-user-center="phone"]').waitFor();
+      await phone
+        .locator('[data-user-center="phone"] [data-view="update"]')
+        .waitFor();
+      await phone.waitForTimeout(400);
+      await phone.screenshot({
+        path: join(out, `center-chats-${scheme}-390.png`),
+      });
+      shots.push(`center-chats-${scheme}-390.png`);
+      await phone.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+      await phone.locator("[data-phone-back] [data-count]").waitFor();
+      await phone.waitForTimeout(400);
+      await phone.screenshot({
+        path: join(out, `center-room-${scheme}-390.png`),
+      });
+      shots.push(`center-room-${scheme}-390.png`);
+      await context.close();
+    }
+    // Desktop with the same rows: the sidebar's user center, as before.
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+    });
+    const wide = await context.newPage();
+    await fake(wide);
+    await wide.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+    await wide.locator("[data-user-center] [data-view='update']").waitFor();
+    await wide.waitForTimeout(400);
+    await wide.screenshot({ path: join(out, "center-room-1440.png") });
+    shots.push("center-room-1440.png");
+    await context.close();
   }
 } finally {
   await browser.close();

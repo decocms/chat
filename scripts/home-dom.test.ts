@@ -121,6 +121,7 @@ const { createRoomResources } =
   await import("../web/features/application/roomResources");
 const { createCallHub, setCallHub } = await import("../web/features/call/hub");
 import type { Room, RoomEvent } from "../shared/room";
+import type { OrgRoom } from "../shared/schemas";
 import type { CallApi } from "../web/features/call/callApi";
 import { CALL_THREAD } from "../shared/call";
 import type { RoomScopeBrowser } from "../web/features/room-scope/types";
@@ -510,15 +511,17 @@ test("Home waits and the Inbox share one avatar language: people circles, agents
   ];
   const expected = [
     ["person", ""],
-    ["agent", "✦"],
+    ["vibe", ""],
     ["agent", "✻"],
   ];
-  // Agent marks say so (data-avatar); any other Studio avatar is a person only when round.
+  // Agent marks say so (data-avatar), @vibe is its cube; any other Studio avatar is a person only when round.
   const shapes = (root: ParentNode) =>
     [...root.querySelectorAll("[data-avatar], [data-slot=avatar]")].map((el) =>
       el.getAttribute("data-avatar") === "agent"
         ? ["agent", el.textContent?.trim()]
-        : [el.classList.contains("rounded-full") ? "person" : "", ""],
+        : el.getAttribute("data-avatar") === "vibe"
+          ? ["vibe", ""]
+          : [el.classList.contains("rounded-full") ? "person" : "", ""],
     );
   const home = document.createElement("div");
   document.body.append(home);
@@ -583,7 +586,7 @@ test("Home waits and the Inbox share one avatar language: people circles, agents
   await flush();
   expect(shapes(home)).toEqual(expected);
   const dialog = document.querySelector('[role="dialog"]')!;
-  expect(shapes(dialog)).toEqual([...expected, ["agent", "✦"]]);
+  expect(shapes(dialog)).toEqual([...expected, ["vibe", ""]]);
 });
 test("global Inbox (/?inbox) rejects old connected account controls and closes on identity replacement", async () => {
   let resolves = 0;
@@ -856,6 +859,8 @@ const profileApi: AccountApi = {
   connect: async () => ({ ok: true as const }),
   dismiss: async () => ({ ok: true as const }),
   answerInvite: async () => ({ ok: true as const }),
+  orgRooms: async () => ({ domain: null, rooms: [] }),
+  joinOrg: async () => ({ ok: true as const, member: true as const }),
 };
 test("Home renders untrusted room metadata as text and passes exact room identity", async () => {
   const { personal, rooms, pwa, profile, creator } = await setup({
@@ -1004,6 +1009,61 @@ test("Home ask box is the room's chat box: emoji, + menu and dictation that keep
   box.querySelector<HTMLButtonElement>('[role="menuitem"]')!.click();
   await flush();
   expect(opened).toEqual([more]);
+});
+test("the ask's + menu is the composer's menu plus New room, and a picked file shows as the composer's card", async () => {
+  const { personal, rooms, pwa, profile, creator } = await setup();
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(Home, {
+      target,
+      props: {
+        pwa,
+        personal,
+        rooms,
+        profile,
+        creator,
+        onlanguage: () => {},
+        lang: "en",
+        ago: () => "now",
+        onnavigate: () => {},
+        onhome: () => {},
+        onarchived: () => {},
+        onnew: () => {},
+        onsettings: () => {},
+        onroommenu: () => {},
+        onsearch: () => {},
+      },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(component);
+    }),
+  );
+  await flush();
+  const box = target.querySelector<HTMLFormElement>("[data-chat-box]")!;
+  box.querySelector<HTMLButtonElement>("[data-composer-more]")!.click();
+  await flush();
+  expect(
+    [...box.querySelectorAll('[role="menuitem"]')].map((item) =>
+      item.textContent?.replace(/\s+/g, " ").trim(),
+    ),
+  ).toEqual([
+    "New room",
+    "Attach file or Cmd+V",
+    "Mention someone",
+    "Create poll",
+  ]);
+  const input = target.querySelector<HTMLInputElement>('input[type="file"]')!;
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [new File(["%PDF"], "plan.pdf", { type: "application/pdf" })],
+  });
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  await flush();
+  const card = target.querySelector("[data-composer-attachment]");
+  expect(card?.textContent).toContain("plan.pdf");
 });
 test("detached tile link/settings actions cannot navigate after canonical row replacement", async () => {
   const navigation: unknown[] = [],
@@ -1460,6 +1520,67 @@ test("Shift+F10 on a rail room opens the menu under it; a newer opening replaces
   expect(document.querySelector("[data-room-menu]")).toBeNull();
 });
 
+test("Leave room sits under Archive for a member, not for the owner or in a DM, and its confirm takes you out", async () => {
+  const left: string[] = [];
+  const dm = "dm00000000000000000bb1";
+  const { h, controller, code } = await pendingNavigation({
+    leave: async (id) => {
+      left.push(id);
+      return { ok: true };
+    },
+  });
+  h.canonical(
+    me({
+      books: [
+        room("aaaaaa", { owner: "other@test.com" }),
+        room("bbbbbb", { owner: "me@test.com" }),
+        room(dm, { dm: 1, owner: "other@test.com" }),
+      ],
+    }),
+  );
+  await h.services.personal.refresh();
+  await flush();
+  const items = async (id: string) => {
+    controller.openMenu(id, undefined, { x: 0, y: 0 });
+    await flush();
+    await waitForView(document, `[data-room-menu="${id}"]`);
+    return [
+      ...document
+        .querySelector(`[data-room-menu="${id}"]`)!
+        .querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ];
+  };
+  const names = (list: HTMLElement[]) =>
+    list.map((item) => item.textContent?.trim());
+  // The owner can't leave: no item.
+  expect(names(await items("bbbbbb"))).not.toContain("Leave room");
+  // A DM is for its two people: no item.
+  expect(names(await items(dm))).not.toContain("Leave room");
+  // A member: right under Archive, destructive like it.
+  const member = await items("aaaaaa");
+  expect(names(member).slice(-2)).toEqual(["Archive", "Leave room"]);
+  const leave = member.at(-1)!;
+  expect(leave.getAttribute("data-variant")).toBe("destructive");
+  leave.click();
+  await flush();
+  expect(get(controller.state).menu).toBeNull();
+  expect(get(controller.state).leaveId).toBe("aaaaaa");
+  code.resolve(NavigationDialogs);
+  await flush();
+  await waitForView(document, "[data-room-leave]");
+  const dialog = document.querySelector('[role="dialog"]')!;
+  expect(dialog.textContent).toContain("Leave this room?");
+  expect(dialog.textContent).toContain(
+    "You stop seeing the room and getting its notifications.",
+  );
+  const confirm = [
+    ...dialog.querySelectorAll<HTMLButtonElement>("button"),
+  ].find((button) => button.textContent?.trim() === "Leave")!;
+  confirm.click();
+  await flush();
+  expect(left).toEqual(["aaaaaa"]);
+});
+
 // The home Inbox (/?inbox, HomeInbox) with typed synthetic HTTP ports; no Worker claim.
 async function homeInbox(overrides: Partial<HomeApi> = {}) {
   const h = shellFixture(overrides);
@@ -1497,20 +1618,18 @@ test("home Inbox rejects connected old-opening task controls before DOM flush", 
   h.inbox.open();
   await flush();
   await waitForView(h.target, "[data-room-inbox] button");
-  // Your tasks are behind the Inbox's "Suas tarefas" chip; a row's first button opens it.
+  // Your tasks are in the desktop Home's "Tarefas" tab; a task row's open button opens it.
   const find = () => {
     h.target
       .querySelector<HTMLButtonElement>(
-        '[data-inbox-filter="task"][aria-pressed="false"]',
+        '[data-home-tab="tasks"][aria-selected="false"]',
       )
       ?.click();
     return [
-      ...h.target.querySelectorAll<HTMLElement>(
-        '[data-room-inbox-message][data-kind="task"]',
+      ...h.target.querySelectorAll<HTMLButtonElement>(
+        '[data-room-inbox-message][data-kind="task"] [data-inbox-open]',
       ),
-    ]
-      .find((node) => node.textContent?.includes(task.title))
-      ?.querySelector<HTMLButtonElement>("button");
+    ].find((node) => node.textContent?.includes(task.title));
   };
   for (let i = 0; i < 20 && !find(); i++) await flush();
   const old = find()!;
@@ -1527,7 +1646,13 @@ test("home Inbox rejects connected old-opening task controls before DOM flush", 
   const fresh = find()!;
   expect(!!fresh).toBe(true);
   expect(fresh !== old).toBe(true);
+  // A click opens the task's workspace beside the list: the Home stays; "Abrir na sala" leaves for the room.
   fresh.click();
+  await flush();
+  expect(h.href()).toBe(before);
+  const workspace = h.target.querySelector("[data-task-workspace]");
+  expect(!!workspace).toBe(true);
+  h.target.querySelector<HTMLButtonElement>("[data-task-open-room]")!.click();
   expect(h.href() !== before).toBe(true);
   expect(get(h.inbox.state).binding === null).toBe(true);
 });
@@ -1598,6 +1723,10 @@ test("home Inbox old connected question controls cannot act on a same-ID canonic
   h.target
     .querySelector<HTMLButtonElement>("[data-room-inbox-message] button")!
     .click();
+  await flush();
+  // A click opens the message's thread beside the list; "Abrir na sala" leaves for the room on it.
+  expect(h.href()).toBe(before);
+  h.target.querySelector<HTMLButtonElement>("[data-task-open-room]")!.click();
   expect(h.href() !== before).toBe(true);
 });
 
@@ -1723,6 +1852,92 @@ test("Pedidos: an invite's Entrar joins, a message request shows its first messa
   request.querySelector<HTMLButtonElement>('[aria-label="Decline"]')!.click();
   await flush();
   expect(answers).toEqual([["bia@test.com", false]]);
+});
+
+test("Company rooms: the rail's 2×2 grid opens a popover with the rooms you can join; Join joins, none shows the empty state; a phone gets a bottom sheet", async () => {
+  const { default: CompanyRooms } =
+    await import("../web/features/app-navigation/CompanyRooms.svelte");
+  const joined: string[] = [];
+  let opened = 0;
+  const farm: OrgRoom = {
+    id: "aaaaaa",
+    title: "Farm Rio Project",
+    icon: null,
+    people: 3,
+    opened_by: "gimenes@test.com",
+    opened_by_name: "Gimenes",
+  };
+  const open = async (rooms: OrgRoom[], phone = false) => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = flushSync(() =>
+      mount(CompanyRooms, {
+        target,
+        props: {
+          lang: "en",
+          rooms,
+          phone,
+          onjoin: async (room: string) => {
+            joined.push(room);
+          },
+          onopen: () => {
+            opened++;
+          },
+        },
+      }),
+    );
+    const close = () => {
+      flushSync(() => {
+        void unmount(component);
+      });
+      target.remove();
+    };
+    cleanups.push(close);
+    const button = target.querySelector<HTMLButtonElement>(
+      "[data-company-rooms-button]",
+    )!;
+    expect(button.getAttribute("aria-label")).toBe("Company rooms");
+    button.click();
+    await flush();
+    const panel = document.querySelector<HTMLElement>("[data-company-rooms]")!;
+    return { button, panel, close };
+  };
+  // Desktop: a popover beside the rail button, never a dialog.
+  const desk = await open([farm]);
+  expect(opened).toBe(1);
+  expect(desk.panel.dataset.slot).toBe("popover-content");
+  const row = desk.panel.querySelector<HTMLElement>(
+    '[data-company-room="aaaaaa"]',
+  )!;
+  expect(row.textContent).toContain("Farm Rio Project");
+  expect(row.textContent).toContain("Opened by Gimenes · 3 people");
+  [...row.querySelectorAll("button")]
+    .find((entry) => entry.textContent?.trim() === "Join")!
+    .click();
+  await flush();
+  expect(joined).toEqual(["aaaaaa"]);
+  expect(desk.button.getAttribute("aria-expanded")).toBe("false");
+  desk.close();
+  const empty = await open([]);
+  expect(
+    empty.panel
+      .querySelector("[data-company-rooms-empty]")!
+      .textContent?.trim(),
+  ).toBe("No company rooms to join right now.");
+  empty.close();
+  // A phone: the same list in a sheet from the bottom.
+  environment.happyDOM.setViewport({ width: 400, height: 800 });
+  cleanups.push(() =>
+    environment.happyDOM.setViewport({ width: 1024, height: 768 }),
+  );
+  await flush();
+  const phone = await open([farm], true);
+  expect(phone.panel.dataset.slot).toBe("sheet-content");
+  expect(phone.panel.getAttribute("role")).toBe("dialog");
+  expect(phone.panel.textContent).toContain("Company rooms");
+  expect(
+    phone.panel.querySelector('[data-company-room="aaaaaa"]')!.textContent,
+  ).toContain("Opened by Gimenes · 3 people");
 });
 
 test("a DM still loading draws your real DM list beside the placeholder chat; a room keeps its own skeleton", async () => {
@@ -2032,21 +2247,100 @@ test("a phone's list of conversations puts a new version first, as the desktop s
   );
   await flush();
   const list = () => target.querySelector('[data-home-layout="chats"]');
-  const update = () => list()?.querySelector('[data-view="update"]');
+  const center = () => list()?.querySelector('[data-user-center="phone"]');
+  const update = () => center()?.querySelector('[data-view="update"]');
+  const badge = () => list()?.querySelector("[data-home-bar] [data-count]");
   expect(list()).not.toBeNull();
-  expect(update()).toBeNull();
+  // Nothing open: no box and no number on your face.
+  expect(center()).toBeNull();
+  expect(badge()).toBeNull();
   personal.updateAvailable(true);
   await flush();
   expect(update()?.textContent).toContain("New version");
-  // First in the list: before the search field.
+  expect(badge()?.textContent).toBe("1");
+  expect(
+    list()!
+      .querySelector("[data-home-bar] [data-account-row]")!
+      .getAttribute("aria-label"),
+  ).toContain("1 notice for you");
+  // The phone's user center: under the search field.
   const search = list()!.querySelector("[data-home-search]")!;
   expect(
-    update()!.compareDocumentPosition(search) &
+    search.compareDocumentPosition(center()!) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   personal.updateAvailable(false);
   await flush();
-  expect(update()).toBeNull();
+  expect(center()).toBeNull();
+  expect(badge()).toBeNull();
+});
+
+test("a phone's invites and message requests are rows of its user center, once, with their count on your face (Gimenes, step 4)", async () => {
+  environment.happyDOM.setViewport({ width: 400, height: 800 });
+  cleanups.push(() =>
+    environment.happyDOM.setViewport({ width: 1024, height: 768 }),
+  );
+  const { personal, rooms, pwa, profile, creator } = await setup({
+    me: async () =>
+      me({
+        books: [room("aaaaaa")],
+        invites: [
+          {
+            book_id: "bbbbbb",
+            title: "Trip",
+            icon: null,
+            inviter: "ana@test.com",
+            inviter_name: "Ana",
+            inviter_avatar: null,
+            people: 3,
+            created_at: 1,
+          },
+        ],
+        requests: [
+          { email: "bia@test.com", name: "Bia", avatar: null, msg: "hi" },
+        ],
+      }),
+  });
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(Home, {
+      target,
+      props: {
+        pwa,
+        personal,
+        rooms,
+        profile,
+        creator,
+        lang: "en",
+        ago: () => "now",
+        onnavigate: () => {},
+        onhome: () => {},
+        onarchived: () => {},
+        onnew: () => {},
+        onsettings: () => {},
+        onroommenu: () => {},
+        onsearch: () => {},
+      },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(component);
+    }),
+  );
+  await flush();
+  const list = target.querySelector('[data-home-layout="chats"]')!;
+  const center = list.querySelector('[data-user-center="phone"]')!;
+  expect(center.querySelector('[data-request="room:bbbbbb"]')).not.toBeNull();
+  expect(
+    center.querySelector('[data-request="dm:bia@test.com"]'),
+  ).not.toBeNull();
+  // Not a second time over the list.
+  expect(list.querySelectorAll("[data-request]").length).toBe(2);
+  expect(list.querySelector("[data-home-bar] [data-count]")?.textContent).toBe(
+    "2",
+  );
 });
 
 test("the call's panel in another room goes back to the call's room with the stage open (Jonas, 2026-11-25)", async () => {
@@ -2094,4 +2388,57 @@ test("the call's panel in another room goes back to the call's room with the sta
   await flush();
   await flush();
   expect(h.target.querySelector("[data-call-stage]") !== null).toBe(true);
+});
+
+test("home Inbox keeps the item you answered open on the right after it leaves the list (PO #5569)", async () => {
+  const task = (id: string, title: string): InboxTask => ({
+    book_id: "aaaaaa",
+    room: "Room",
+    epic_id: `e${id}`,
+    epic: `Epic ${id}`,
+    task_id: id,
+    title,
+    status: "todo",
+    due: null,
+  });
+  const first = task("t1", "Answered task"),
+    second = task("t2", "Other task");
+  let tasks = [first, second];
+  const h = await homeInbox({
+    inbox: async () => ({ waits: [], mentions: [], tasks }),
+  });
+  h.inbox.open();
+  await flush();
+  await waitForView(h.target, "[data-room-inbox] button");
+  const row = (title: string) =>
+    [
+      ...h.target.querySelectorAll<HTMLButtonElement>(
+        '[data-room-inbox-message][data-kind="task"] [data-inbox-open]',
+      ),
+    ].find((node) => node.textContent?.includes(title));
+  for (let i = 0; i < 20 && !row(first.title); i++) {
+    h.target
+      .querySelector<HTMLButtonElement>(
+        '[data-home-tab="tasks"][aria-selected="false"]',
+      )
+      ?.click();
+    await flush();
+  }
+  row(first.title)!.click();
+  await flush();
+  const workspace = () =>
+    h.target.querySelector<HTMLElement>("[data-home-workspace]")!;
+  expect(workspace().dataset.item).toBe("t:aaaaaa:t1");
+  // The task is done in its room: the Inbox reads again and it leaves the list…
+  tasks = [second];
+  h.inbox.changed(get(h.inbox.state).binding!);
+  for (let i = 0; i < 20 && row(first.title); i++) await flush();
+  expect(!!row(first.title)).toBe(false);
+  // …but it stays open on the right, with nothing left to act on, until you pick another item.
+  expect(workspace().dataset.item).toBe("t:aaaaaa:t1");
+  expect(workspace().dataset.gone).toBe("true");
+  expect(!!h.target.querySelector("[data-task-workspace]")).toBe(true);
+  row(second.title)!.click();
+  await flush();
+  expect(workspace().dataset.item).toBe("t:aaaaaa:t2");
 });

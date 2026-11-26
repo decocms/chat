@@ -160,6 +160,8 @@ export async function storeFile(env: Env, bookId: string, email: string, type: s
     throw new Error(published.status === 403 ? "forbidden" : "file publication failed");
   }
   if (rem) return { ...meta, reminder: await bookStub(env, bookId).reminderFile(bookId, email, rem[1].trim(), text, meta.id) };
+  // agents/<role>.md with a role frontmatter defines a role in the room (shared/roles.ts); a sandbox's CLAUDE.md doesn't.
+  if (agentMd) await bookStub(env, bookId).roleFile(bookId, name, text);
   return meta;
 }
 
@@ -186,14 +188,14 @@ export const waitsFor = async (db: D1Database, email: string, bookId?: string) =
   (
     await db
       .prepare(
-        `SELECT w.book_id, b.title AS room, w.ref, w.thread, w.topic, w.author, u.name AS author_name, w.text, w.ts
+        `SELECT w.book_id, b.title AS room, w.ref, w.thread, w.topic, w.author, u.name AS author_name, w.text, w.ts, w.about
          FROM waits w JOIN members m ON m.book_id = w.book_id AND m.email = w.email JOIN books b ON b.id = w.book_id
          LEFT JOIN users u ON u.email = w.author
          WHERE w.email = ? AND m.archived_at IS NULL AND (?2 IS NULL OR w.book_id = ?2)
            AND NOT (w.ref LIKE 'a%' AND w.ts < ?3) AND NOT (${QUIET_THREAD_SQL}) ORDER BY w.ts DESC LIMIT 60`,
       )
       .bind(email, bookId ?? null, Date.now() - 15 * 60e3) // a hook question lives ≤630s; a row it left behind (killed) expires
-      .all<{ book_id: string; room: string; ref: string; thread: string; topic: string | null; author: string; author_name: string | null; text: string; ts: number }>()
+      .all<{ book_id: string; room: string; ref: string; thread: string; topic: string | null; author: string; author_name: string | null; text: string; ts: number; about: string | null }>()
   ).results;
 
 // Search across the person's rooms (⌘K and MCP search): the newest-opened 30 rooms, each asked in parallel
@@ -212,7 +214,7 @@ export async function searchRooms(env: Env, email: string, q: string, room?: str
   const per = await Promise.all(
     rooms.map(async (r) => {
       try {
-        const out = await bookStub(env, r.id).search(r.id, q, room ? 20 : 8);
+        const out = await bookStub(env, r.id).search(r.id, q, room ? 20 : 8, email);
         return { ...out, room: r };
       } catch {
         return { messages: [], epics: [], room: r, failed: true };

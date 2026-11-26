@@ -2549,8 +2549,9 @@ describe("chat", () => {
       reactions: { "👍": ["ana@test"] },
     };
     const bare = { ...message(10, "Nothing under it"), kind: null };
+    const last = { ...message(11, "The last one"), kind: null };
     const { target } = renderChat(
-      { ...fixture(), messages: [reacted, bare] },
+      { ...fixture(), messages: [reacted, bare, last] },
       {
         actions: {
           request: async (command: RoomCommand): Promise<CommandOutcome> => {
@@ -2579,8 +2580,8 @@ describe("chat", () => {
       expect(el.className).toContain("invisible");
       expect(el.className.split(/\s+/)).not.toContain("hidden");
     }
-    // The reaction row is in the flow, inside the message's own box (nothing floats over the next message), 24px high.
-    for (const id of [9, 10]) {
+    // A row with a reaction is in the flow, inside the message's own box, 24px high.
+    for (const id of [9]) {
       const row = target.querySelector<HTMLElement>(
         `#m${id} [data-reaction-row="${id}"]`,
       );
@@ -2599,6 +2600,21 @@ describe("chat", () => {
     expect(rowClasses(9)).not.toContain("hidden");
     expect(rowClasses(10)).toContain("hidden");
     expect(rowClasses(10)).toContain("pointer-fine:group-hover:flex");
+    // An empty row floats under its message on hover, so the hover moves no other message (Gui #5797).
+    expect(rowClasses(10)).toContain("absolute");
+    expect(rowClasses(10)).toContain("top-full");
+    // A click (the picker opens) makes its room under the message, animated; only that message has the space (Gui #5825).
+    const space = (id: number) =>
+      target.querySelector<HTMLElement>(`[data-reaction-space="${id}"]`);
+    expect(space(10)?.className).toContain(
+      "group-has-[[data-picking]]:grid-rows-[1fr]",
+    );
+    expect(space(9)).toBeNull();
+    expect(space(11)).toBeNull();
+    // The last message keeps the row's height, only invisible: opening it there grew the list at the bottom (Gui #5741).
+    expect(rowClasses(11)).not.toContain("hidden");
+    expect(rowClasses(11)).toContain("invisible");
+    expect(rowClasses(11)).toContain("pointer-fine:group-hover:visible");
     expect(target.querySelector("[data-reaction-bar]")).toBeNull();
     // 🙂 opens the picker in a popover next to it; the four quick ones stay where they were.
     const before = offered(10);
@@ -3078,8 +3094,8 @@ describe("chat", () => {
     const footer = target.querySelector<HTMLElement>(
       "#m1 [data-message-footer]",
     )!;
-    expect(footer.querySelectorAll("[data-reader-read]")).toHaveLength(5);
-    expect(footer.textContent).toContain("+2");
+    expect(footer.querySelectorAll("[data-reader-read]")).toHaveLength(3);
+    expect(footer.textContent).toContain("+4");
     expect(footer.querySelector("script") === null).toBe(true);
     expect(footer.textContent).toContain("<script>unsafe()</script>");
     const seen = footer.querySelector<HTMLButtonElement>(
@@ -4212,14 +4228,15 @@ describe("stable sidebar integration", () => {
   test("selected done epic remains in normal order, marked by its background, with a readable cue", async () => {
     const room = fixture();
     room.epics = [
-      { id: "a", title: "First", tasks: [] },
+      { id: "a", title: "First", tasks: [], created: 3 },
       {
         id: "b",
         title: "Done target",
         done: true,
         tasks: [],
+        created: 2,
       },
-      { id: "c", title: "Last", tasks: [] },
+      { id: "c", title: "Last", tasks: [], created: 1 },
     ];
     const h = sidebar(room, { thread: "b" });
     flushSync();
@@ -4457,8 +4474,14 @@ describe("stable sidebar integration", () => {
   test("the threads tabs are Mine, Open and Done; Mine lists your open threads and each empty tab says so", () => {
     const room = fixture();
     room.epics = [
-      { id: "e", title: "Epic", tasks: [], owner: "me@test" },
-      { id: "theirs", title: "Theirs", tasks: [], owner: "you@test" },
+      { id: "e", title: "Epic", tasks: [], owner: "me@test", created: 2 },
+      {
+        id: "theirs",
+        title: "Theirs",
+        tasks: [],
+        owner: "you@test",
+        created: 1,
+      },
       { id: "old", title: "Old", tasks: [], owner: "me@test", done: true },
     ];
     const listed = (rendered: ReturnType<typeof sidebar>) =>
@@ -7712,6 +7735,8 @@ describe("account", () => {
           return { ok: true as const };
         },
         answerInvite: async () => ({ ok: true as const }),
+        orgRooms: async () => ({ domain: null, rooms: [] }),
+        joinOrg: async () => ({ ok: true as const, member: true as const }),
       },
       time.clock,
     );
@@ -8086,6 +8111,69 @@ describe("agent settings and sandbox ownership", () => {
     );
     await Promise.resolve();
   }, 30_000);
+});
+
+test("cloud agents keep their panel while the account store updates (no remount, no new read)", async () => {
+  const { createAgentsApi } = await import("../web/features/agents/api");
+  const { createAgentsService } =
+    await import("../web/features/agents/service");
+  const { default: CloudSettingsHarness } =
+    await import("./cloud-settings-harness.svelte");
+  const reads: string[] = [];
+  const api = createAgentsApi(async (input) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname.endsWith("/sandboxes")) reads.push(url.pathname);
+    return Response.json(
+      url.pathname === "/api/me"
+        ? { email: "me@test" }
+        : { connected: false, claude: false, sandboxes: [] },
+    );
+  });
+  const agents = createAgentsService({ origin: "http://localhost", api });
+  const rooms = () => [
+    { id: "r1", title: "Room one" },
+    { id: "r2", title: "Room two" },
+  ];
+  const view = writable({ account: "me@test", rooms: rooms(), revision: 0 });
+  const target = document.createElement("div");
+  document.body.append(target);
+  const instance = flushSync(() =>
+    mount(CloudSettingsHarness, { target, props: { view, agents } }),
+  );
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    flushSync();
+    const panel = target.querySelector("[data-sandboxes]");
+    const field = target.querySelector<HTMLInputElement>(
+      'input[aria-label="Freestyle key"]',
+    );
+    expect(panel !== null && field !== null).toBe(true);
+    field!.value = "typed-while-it-updates";
+    field!.dispatchEvent(new Event("input", { bubbles: true }));
+    // A /api/me refresh: the same account and rooms in a new store value, and the rooms sorted again after a
+    // room was opened in another tab (the one opened last comes first).
+    for (let revision = 1; revision <= 6; revision++) {
+      view.set({
+        account: "me@test",
+        rooms: revision % 2 ? rooms().reverse() : rooms(),
+        revision,
+      });
+      flushSync();
+      await tick();
+    }
+    expect(target.querySelector("[data-sandboxes]") === panel).toBe(true);
+    expect(
+      target.querySelector<HTMLInputElement>(
+        'input[aria-label="Freestyle key"]',
+      )?.value,
+    ).toBe("typed-while-it-updates");
+    expect(reads).toEqual(["/api/books/r1/sandboxes"]);
+  } finally {
+    flushSync(() => {
+      void unmount(instance);
+    });
+    target.remove();
+  }
 });
 
 test("denied agent metadata can recover through explicit read-only retry", async () => {

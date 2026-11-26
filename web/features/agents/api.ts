@@ -15,6 +15,7 @@ import {
   SandboxesResult,
   SandboxSetupResult,
   SandboxTerminalResult,
+  StudioProjectsResult,
 } from "../../../shared/schemas";
 export class AgentsFailure extends Error {
   constructor(
@@ -104,10 +105,15 @@ export function createAgentsApi(fetcher?: FetchLike) {
       room.sandboxes
         .$get({ param: roomParam(id) }, { init: { signal, cache: "no-store" } })
         .then((response) => read(response, SandboxesResult)),
-    create: (id: string, name: string, signal?: AbortSignal) =>
+    create: (
+      id: string,
+      name: string,
+      signal?: AbortSignal,
+      studio?: { org: string; project?: string },
+    ) =>
       room.sandboxes
         .$post(
-          { param: roomParam(id), json: { name } },
+          { param: roomParam(id), json: studio ? { name, studio } : { name } },
           { init: { signal, cache: "no-store" } },
         )
         .then((response) => read(response, CreateSandboxResult)),
@@ -153,6 +159,18 @@ export function createAgentsApi(fetcher?: FetchLike) {
         .then((response) => read(response, OkResult)),
     removeKey: (signal?: AbortSignal) =>
       api.freestyle
+        .$delete({}, { init: { signal, cache: "no-store" } })
+        .then((response) => read(response, OkResult)),
+    /** The projects of one of your deco Studio organizations (the project picker of a Studio agent). */
+    studioProjects: (org: string, signal?: AbortSignal) =>
+      api.studio.orgs[":org"].projects
+        .$get(
+          { param: { org: encodeURIComponent(org) } },
+          { init: { signal, cache: "no-store" } },
+        )
+        .then((response) => read(response, StudioProjectsResult)),
+    removeStudio: (signal?: AbortSignal) =>
+      api.studio
         .$delete({}, { init: { signal, cache: "no-store" } })
         .then((response) => read(response, OkResult)),
     saveToken: (token: string, signal?: AbortSignal) =>

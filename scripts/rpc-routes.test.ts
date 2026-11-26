@@ -147,6 +147,9 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     pokeAgents: () => {},
     pokeListeners: () => {},
     requestAccess: async () => "asked",
+    roomOrg: async () => ({ domain: "example.com", org: null }),
+    setRoomOrg: async (_room, open) => ({ org: open ? "example.com" : null }),
+    orgRooms: async () => ({ domain: "example.com", rooms: [] }),
     decideRequest: async () => true,
     createRoom: async () => "room",
     startRoom: async () => ({ id: "room" }),
@@ -235,6 +238,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       },
       signout: async () => ({ ok: true }),
     },
+    studio: { disconnect: async () => {}, projects: async () => [] },
     checkFreestyleKey: async (key) =>
       key.startsWith("good") ? null : "401 unauthorized",
     grants: {
@@ -624,8 +628,9 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
     ["/api/books/room/archive", { archived: "no" }],
     ["/api/books/room/tint", { tint: 1 }],
     ["/api/rooms/order", { ids: [] }],
-    ["/api/waits/resolve", { book_id: "room", ref: "t1" }],
-    ["/api/waits/resolve-many", { items: [{ book_id: "room", ref: "t1" }] }],
+    ["/api/waits/resolve", { book_id: "room", ref: "x1" }],
+    ["/api/waits/resolve", { book_id: "room", ref: "d" }],
+    ["/api/waits/resolve-many", { items: [{ book_id: "room", ref: "x1" }] }],
     ["/api/waits/resolve-many", { items: [] }],
   ] as const)
     expect((await f.json(path, value)).status).toBe(400);
@@ -656,6 +661,27 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
     f.writes.find((write) => write.query.startsWith("DELETE FROM waits"))
       ?.values,
   ).toEqual(["room", "test@example.com"]);
+  // Anything in the Inbox can be acknowledged: a task in review (t) is a wait; a held @mention (d) leaves the digest.
+  const earlier = f.writes.length;
+  expect(
+    (await f.json("/api/waits/resolve", { book_id: "room", ref: "t9" })).status,
+  ).toBe(200);
+  expect(
+    (await f.json("/api/waits/resolve", { book_id: "room", ref: "d42" }))
+      .status,
+  ).toBe(200);
+  expect(
+    f.writes.slice(earlier).map((write) => [write.query, write.values]),
+  ).toEqual([
+    [
+      "DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?",
+      ["room", "t9", "test@example.com"],
+    ],
+    [
+      "DELETE FROM digest_items WHERE book_id = ? AND msg_id = ? AND email = ?",
+      ["room", 42, "test@example.com"],
+    ],
+  ]);
 });
 
 test("a forward sends counts only, from a member of the room", async () => {
@@ -2192,4 +2218,42 @@ test("the call routes are members-only, off without an SFU app, and say when the
     json({ session: "bad session!" }),
   );
   expect(malformed.status).toBe(400);
+});
+
+test("leave: a member takes themself out; the owner and a DM can't; tracked as book_left", async () => {
+  const removed: { room: string; who: string }[] = [];
+  const tracked: { name: string; dims?: Record<string, unknown> }[] = [];
+  const f = fixture({
+    // The real removeMember refuses the owner with a 400 (src/services.ts).
+    removeMember: async (room, who) => {
+      if (room === "owned")
+        return { error: "O dono não pode ser removido.", status: 400 };
+      removed.push({ room, who });
+      return null;
+    },
+    track: (name, dims) => void tracked.push({ name, dims }),
+  });
+  const left = await f.json("/api/books/room/leave", {});
+  expect(left.status).toBe(200);
+  expect(await left.json()).toEqual({ ok: true });
+  expect(removed).toEqual([{ room: "room", who: "test@example.com" }]);
+  expect(tracked).toEqual([{ name: "book_left", dims: { book: "room" } }]);
+  const owner = await f.json("/api/books/owned/leave", {});
+  expect(owner.status).toBe(400);
+  expect(await owner.json()).toEqual({
+    error: "O dono não pode ser removido.",
+  });
+  const dm = await f.json("/api/books/dm000000000000000000aa/leave", {});
+  expect(dm.status).toBe(400);
+  expect(removed).toHaveLength(1);
+  expect(tracked).toHaveLength(1);
+  const outsider = fixture({
+    isMember: async () => false,
+    removeMember: async (room, who) => {
+      removed.push({ room, who });
+      return null;
+    },
+  });
+  expect((await outsider.json("/api/books/room/leave", {})).status).toBe(403);
+  expect(removed).toHaveLength(1);
 });

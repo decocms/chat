@@ -7,6 +7,8 @@ import { gate, routerOn, routerStats } from "./router";
 import { FEEDBACK_ACTIONS, FEEDBACK_READINGS } from "./routerActions";
 import { ownSession } from "./ownSession";
 import { isDmId } from "./dm";
+import { ROLE_NAME } from "../shared/roles";
+import { selfIn } from "./agentNames";
 import {
   bumpStat,
   isLaunchCard,
@@ -23,7 +25,7 @@ import {
 } from "./mcpconn";
 import { agentMessageFromWire } from "./bookMessages";
 import { signedInTo } from "./mcpauth";
-import { ASK_OPENER } from "./book";
+import { ASK_OPENER } from "./privateAsk";
 import { cardOf } from "./card";
 import { LISTEN_FRESH, markListening, poke } from "./person";
 import {
@@ -1286,7 +1288,7 @@ export const unreadRooms = (
 ) =>
   db
     .prepare(
-      `SELECT b.id, b.title, coalesce(b.last_msg_id, 0) - coalesce(c.last_id, 0) AS n
+      `SELECT b.id, b.title, coalesce(b.last_msg_id, 0) - coalesce(c.last_id, 0) AS n, coalesce(c.last_id, 0) AS last_id, b.roles
        FROM members m JOIN books b ON b.id = m.book_id
        LEFT JOIN agents ag ON ag.id = ?1
        LEFT JOIN agent_reads c ON c.agent = ?1 AND c.book_id = b.id
@@ -1295,7 +1297,7 @@ export const unreadRooms = (
          AND ${DELIVERS} = ${muted ? 0 : 1} LIMIT 20`,
     )
     .bind(...(only ? [agent, email, since, only] : [agent, email, since]))
-    .all<{ id: string; title: string; n: number }>();
+    .all<{ id: string; title: string; n: number; last_id: number; roles: string | null }>();
 
 /**
  * Each connected agent (one MCP session of one person's Claude) has its own read cursor, so two Claudes of the
@@ -1366,7 +1368,7 @@ export async function receipt(env: Env, me: Me, bookId: string) {
     });
 }
 
-export type Me = AgentProps & { agent: string };
+export type Me = AgentProps & { agent: string; role?: string | null };
 // Tools a room-scoped (sandbox) grant can't call: they reach other rooms, the person's machine or their sandboxes.
 const ROOM_SCOPED_DENY = new Set([
   "claude_rooms",
@@ -1492,6 +1494,26 @@ async function call(
               )
             )
               keep.push(b);
+            else
+              await db
+                .prepare(
+                  `UPDATE agent_reads SET last_id = (SELECT coalesce(last_msg_id, 0) FROM books WHERE id = ?) WHERE agent = ? AND book_id = ?`,
+                )
+                .bind(b.id, me.agent, b.id)
+                .run();
+          }
+          r.results = keep;
+        }
+        // Roles (shared/roles.ts): a role agent wakes only for what is for its role, the Primary skips its side's @role
+        // messages. Only rooms with roles (books.roles) or a role agent ask the room's DO; the rest stay one D1 query.
+        // Agent names (src/agentNames.ts): with two agents of one person in a room, only the Primary wakes for what
+        // calls no one, and @claude-2 wakes only claude-2.
+        if (r.results.length) {
+          const keep = [];
+          for (const b of r.results) {
+            const self = me.sandbox ? undefined : await selfIn(db, me, b.id);
+            if (!me.role && !b.roles && (!self || (self.primary && !self.others.length))) keep.push(b);
+            else if (b.last_id === 0 || (await bookStub(env, b.id).roleWake(b.id, b.last_id, me.email, me.role ?? null, self))) keep.push(b);
             else
               await db
                 .prepare(
@@ -2171,10 +2193,14 @@ async function call(
           .bind(me.email, id)
           .all<{ name: string }>()
       ).results.map((r) => r.name);
+      // Its @name here and whether it is its human's Primary (src/agentNames.ts); a sandbox is named by its sandbox.
+      const self = me.sandbox ? null : await selfIn(db, me, id);
       const out = await bookStub(env, id).agentRead(id, seen, me.email, {
-        agents: sbx,
-        me: me.sandbox,
+        agents: [...sbx, ...(self ? [self.name, ...self.others] : [])],
+        me: me.sandbox ?? self?.name,
         docOf: str(a.epic_id) || undefined,
+        role: me.role ?? null,
+        primary: self ? self.primary : undefined,
       });
       // all: true is a look back (state, ids, the doc): it doesn't mark anything read. Otherwise a lookup made while
       // working swallowed messages that had just arrived: they were never "new" and listen didn't wake for them.
@@ -2189,6 +2215,17 @@ async function call(
       return {
         room_id: id,
         url: `${origin}/b/${id}`,
+        ...(self
+          ? {
+              you_are: {
+                name: `@${self.name}`,
+                primary: self.primary,
+                note: self.primary
+                  ? "Your human's messages that call no agent by @name are for you."
+                  : `Your human has another agent here that gets their messages; you act only on the ones that say @${self.name}.`,
+              },
+            }
+          : {}),
         ...out,
         messages: out.messages.map(agentMessageFromWire),
       };
@@ -2959,6 +2996,8 @@ async function ownMachine(db: D1Database, mid: string, email: string) {
     .first<string>("email");
   return owner && owner !== email ? ownSession(mid, email, "m_") : mid;
 }
+/** agent → the role this isolate last recorded for it (x-vibebook-role). */
+const agentRole = new Map<string, string | null>();
 /** agent|machine → when this isolate last recorded that agent's machine (x-vibebook-machine). */
 const machineSeen = new Map<string, number>();
 const lastWrite = new Map<string, number>();
@@ -3134,7 +3173,16 @@ export async function handleAgentMcp(
         .run()
         .catch(() => {}),
     );
-  const me: Me = { ...props, agent: agentId };
+  // Its role in the rooms (vibebook listen --role, x-vibebook-role; shared/roles.ts): none = the Primary. Written when it
+  // changes (cached per isolate like the machine), so the People list can show the chip.
+  const roleHdr = (request.headers.get("x-vibebook-role") ?? "").trim().toLowerCase();
+  const role = ROLE_NAME.test(roleHdr) ? roleHdr : null;
+  if (agentRole.get(agentId) !== role) {
+    if (agentRole.size > 20_000) agentRole.clear();
+    agentRole.set(agentId, role);
+    ctx.waitUntil(env.DB.prepare(`UPDATE agents SET role = ? WHERE id = ? AND coalesce(role, '') != coalesce(?, '')`).bind(role, agentId, role).run().catch(() => {}));
+  }
+  const me: Me = { ...props, agent: agentId, role };
   // The CLI reads its Claude Code session's transcript and sends "tokens/window" (x-vibebook-context): the room shows
   // how full each Claude's context is. Anything else is ignored.
   const cx = request.headers

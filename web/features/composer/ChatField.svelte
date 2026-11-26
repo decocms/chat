@@ -15,7 +15,11 @@
   } from "./speech";
   import { createDictationController } from "./dictation";
   import type { FireCaptureFactory } from "./fireAudio";
-  import { markdownPaste, markdownShortcut } from "./markdownShortcuts";
+  import {
+    markdownPaste,
+    markdownShortcut,
+    shortcutHints,
+  } from "./markdownShortcuts";
   import { insertAt, mentionKey, mentionSegments } from "./model";
   import EmojiPicker from "./EmojiPicker.svelte";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
@@ -56,6 +60,7 @@
     inside,
     above,
     ready = undefined,
+    dock = false,
     speechFactory,
     captureFactory,
     transcribe,
@@ -110,6 +115,9 @@
     above?: Snippet;
     /** There is something to send: the send button shows (on phones it takes the mic's place). Defaults to text in the field. */
     ready?: boolean;
+    /** The phone home's docked ask (HomePanel): 40px controls with 22px glyphs, a 48px row, and no empty mic
+     *  slot when this browser cannot dictate. */
+    dock?: boolean;
     speechFactory?: SpeechFactory | null;
     captureFactory?: FireCaptureFactory | null;
     transcribe?: (audio: Blob, signal: AbortSignal) => Promise<string>;
@@ -144,6 +152,8 @@
     seen = untrack(() => value),
     counted = 0,
     mirror = $state<HTMLElement | null>(null),
+    // The field has the focus: the shortcut hints show only while you select text in it.
+    focused = $state(false),
     // Where the last typed character went: Backspace right there edits a hand-typed mention letter by letter.
     typedAt = -1;
   // What the textarea holds: the text with each room/thread link as a token the mirror draws as its chip.
@@ -210,8 +220,10 @@
   const styled = $derived(parts.some((part) => part.kind !== "text"));
   // The highlight layer and the textarea share these classes (type, padding), so the mirror's
   // text wraps exactly where the field's does.
+  // The formatting shortcuts, shown while you select text: nobody found them with no hint (#484).
+  const HINTS = shortcutHints();
   const FIELD_TYPE =
-    "px-1.5 py-1.5 text-[15px] pointer-coarse:text-[16px] leading-5 [scrollbar-gutter:stable]";
+    "px-1.5 py-1.5 text-[15px] pointer-coarse:text-[16px] leading-5 max-md:text-[17px] max-md:pointer-coarse:text-[17px] max-md:leading-6 [scrollbar-gutter:stable]";
   function mentionKeydown(event: KeyboardEvent) {
     if (
       (!mention && !view.tokens.length) ||
@@ -530,6 +542,8 @@
     "text-muted-foreground hover:bg-secondary-hover hover:text-foreground";
   const SLOT =
     "transition-[opacity,scale,visibility] duration-150 ease-[var(--vb-ease-out-cubic)]";
+  const GLYPH = $derived(dock ? 22 : 16);
+  const CONTROL = $derived(dock ? "size-10" : "");
 </script>
 
 <!-- One filled field (#3692): the + on the left, emoji and the mic on the right, the reply and the
@@ -553,7 +567,12 @@
   }}
 >
   {@render above?.()}
-  <div class={["flex items-end gap-0.5", COMPOSER_ROW]}>
+  <div
+    class={[
+      "flex items-end gap-0.5",
+      dock ? "min-h-12 px-1 py-1" : COMPOSER_ROW,
+    ]}
+  >
     {#if dictating}<IconButton
         label={t("Descartar ditado")}
         size="icon"
@@ -570,6 +589,7 @@
         size="icon"
         class={cn(
           FIELD_ICON,
+          CONTROL,
           "aria-expanded:bg-secondary-hover aria-expanded:text-foreground",
         )}
         bind:ref={more}
@@ -590,7 +610,7 @@
           if (!ok()) return;
           if (menuOpen) menuOpen = false;
           else void openMenu(event.detail === 0);
-        }}><Icon icon="plus" size={16} /></IconButton
+        }}><Icon icon="plus" size={GLYPH} /></IconButton
       >
       {#if menuOpen && menu}<div
           bind:this={menuNode}
@@ -610,6 +630,16 @@
         ></span>{clock}</span
       >{/if}
     <div class="relative flex min-w-0 flex-1">
+      <!-- Desktop with a mouse only: a phone has no ⌘ or Ctrl keys. -->
+      {#if focused && caret !== selectionEnd && !off}<div
+          data-format-hints
+          class="pointer-events-none absolute bottom-full left-0 z-10 mb-2 hidden items-center gap-3 rounded-lg border border-border bg-popover px-2 py-1 text-xs whitespace-nowrap text-muted-foreground shadow-sm transition-opacity duration-150 starting:opacity-0 md:pointer-fine:flex"
+        >
+          {#each HINTS as hint (hint.keys)}<span
+              ><span class="font-medium text-foreground">{hint.keys}</span>
+              {t(hint.label)}</span
+            >{/each}
+        </div>{/if}
       {#if mention || links}<div
           bind:this={mirror}
           aria-hidden="true"
@@ -710,7 +740,9 @@
         onpaste={(event) => {
           if (ok()) markdownPaste(event);
         }}
+        onfocus={() => (focused = true)}
         onblur={() => {
+          focused = false;
           if (!waiting) speech.cancel();
           onblurfield?.();
         }}
@@ -725,14 +757,14 @@
     <IconButton
       label={t("Emoji")}
       size="icon"
-      class={cn(FIELD_ICON, dictating && "hidden")}
+      class={cn(FIELD_ICON, CONTROL, dictating && "hidden")}
       disabled={off}
       onclick={() => {
         if (!ok()) return;
         speech.cancel();
         readCaret();
         emoji = true;
-      }}><Icon icon="face-smile" size={16} /></IconButton
+      }}><Icon icon="face-smile" size={GLYPH} /></IconButton
     >
     <!-- Phones: the mic and send share one cell (#3821). While you dictate the mic is the stop button. -->
     <div
@@ -748,6 +780,7 @@
           aria-pressed={dictating}
           class={cn(
             SLOT,
+            CONTROL,
             "max-md:group-data-[swap=true]:invisible max-md:group-data-[swap=true]:scale-75 max-md:group-data-[swap=true]:opacity-0",
             dictating
               ? "bg-destructive text-destructive-foreground hover:bg-destructive/85 hover:text-destructive-foreground"
@@ -765,7 +798,7 @@
           }}
           >{#if refining}<Spinner size="xs" />{:else}<Icon
               icon={dictating ? "stop-square" : "microphone-01"}
-              size={16}
+              size={GLYPH}
             />{/if}</IconButton
         >{/if}
       <IconButton
@@ -777,7 +810,10 @@
         aria-busy={pending || undefined}
         class={cn(
           SLOT,
+          CONTROL,
           "rounded-full max-md:group-data-[swap=false]:invisible max-md:group-data-[swap=false]:scale-75 max-md:group-data-[swap=false]:opacity-0",
+          // No mic to share the cell with: an empty field has no send either, and no gap where it was.
+          dock && !speech.supported && "max-md:group-data-[swap=false]:hidden",
         )}
         disabled={off || busy || sendDisabled}
         onmousedown={(event) => event.preventDefault()}
@@ -789,7 +825,7 @@
         }}
         >{#if pending}<Spinner size="xs" />{:else}<Icon
             icon="arrow-up"
-            size={16}
+            size={GLYPH}
           />{/if}</IconButton
       >
     </div>

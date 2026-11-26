@@ -37,6 +37,7 @@ import {
   type RefreshConnectionResult,
   type CreateSandboxResult,
   type SandboxesResult,
+  type StudioProjectsResult,
   type SandboxSetupResult,
   type SandboxTerminalResult,
   AgentLimits,
@@ -94,6 +95,9 @@ import {
   TINTS,
   TintBody,
   ForwardedBody,
+  RoomOrgBody,
+  type RoomOrgResult,
+  type OrgRoomsResult,
   type UploadFileResult,
   type LoginContext,
   LoginContextQuery,
@@ -130,7 +134,7 @@ export interface ApiServices {
   callLeave(roomId: string, session: string): Promise<void>;
   /** A DM's call rings me: I say no (the ring stops; the caller stays in the call). */
   callDecline(roomId: string): Promise<void>;
-  humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
+  humanPost(roomId: string, text: string, thread: string, clientId?: string, extra?: { routed?: boolean; files?: string[]; poll?: PostMessageBody["poll"] }): Promise<PostMessageResult>;
   /** One page of a thread (GET /api/books/:id/messages). The route checks membership first. */
   roomMessages(roomId: string, query: MessagesQuery): Promise<MessagesPage>;
   /** The room's snapshot, the socket's `state` (GET /api/books/:id/room). The route checks membership first. */
@@ -182,6 +186,12 @@ export interface ApiServices {
   pokeFocus(roomId: string): void;
   /** Ask to join a room: unknown room, already a member, over the rate limit, or asked (the owner is told once). */
   requestAccess(roomId: string): Promise<"not_found" | "member" | "limited" | "asked">;
+  /** Your company domain and the domain the room is open to (src/orgRooms.ts); the route checks membership. */
+  roomOrg(roomId: string): Promise<RoomOrgResult>;
+  /** Open the room to your company domain, or close it; the route checks membership. */
+  setRoomOrg(roomId: string, open: boolean): Promise<"dm" | "no_domain" | { org: string | null }>;
+  /** The rooms open to your company domain where you are not a member yet (the home's "Da sua empresa"). */
+  orgRooms(): Promise<OrgRoomsResult>;
   /** A member approves (invites) or denies a pending request; false = no such pending request. */
   decideRequest(roomId: string, email: string, ok: boolean): Promise<boolean>;
   createRoom(title?: string): Promise<string>;
@@ -197,13 +207,19 @@ export interface ApiServices {
   saveSecret(table: "freestyle_keys" | "claude_tokens", value: string): Promise<void>;
   /** Ask freestyle whether this API key works: null = it does, else freestyle's reason. */
   checkFreestyleKey(key: string): Promise<string | null>;
+  /** The person's deco Studio connection (Studio agents, src/studioSandbox.ts). */
+  studio: {
+    disconnect(): Promise<void>;
+    /** The projects of one of the person's Studio organizations. null = Studio is not connected. Throws Studio's error. */
+    projects(org: string): Promise<StudioProjectsResult["projects"] | null>;
+  };
   /** How recent a listener's last call must be to count as listening (ms). */
   listenFresh: number;
   /** The signed-in person's own sandboxes (by id + email); room membership is checked by the route. */
   sandboxes: {
     list(roomId: string): Promise<SandboxesResult>;
     /** Throws an Error whose message is user-facing. */
-    create(roomId: string, name: string): Promise<{ id: string; vm_id: string; name: string }>;
+    create(roomId: string, name: string, studio?: { org: string; project?: string }): Promise<{ id: string; vm_id: string; name: string }>;
     /** null = done; "not_found"; else freestyle's error. */
     power(sid: string, act: "pause" | "start"): Promise<string | null>;
     /** Throws freestyle's error. */
@@ -301,8 +317,8 @@ const roomPosts = new Hono<ApiCtx>()
     async (c) => {
       const svc = c.get("svc"), id = c.req.param("id");
       if (!(await svc.isMember(id))) return c.json({ ok: false as const, error: "forbidden" } satisfies PostMessageResult, 403);
-      const { text, thread, client_id } = c.req.valid("json");
-      const out = await svc.humanPost(id, text, thread || "main", client_id);
+      const { text, thread, client_id, routed, files, poll } = c.req.valid("json");
+      const out = await svc.humanPost(id, text, thread || "main", client_id, { routed, files, poll });
       if (!out.ok) return c.json({ ok: false as const, error: out.error } satisfies PostMessageResult, 400);
       svc.track("home_route_sent", { book: id, epic: out.thread !== "main" });
       return c.json({ ok: true as const, id: out.id, thread: out.thread } satisfies PostMessageResult, 200);
@@ -360,19 +376,23 @@ export const api = roomPosts
     svc.track("push_test", { sent, device: endpoint ? 1 : 0 });
     return c.json({ ok: true as const, sent } satisfies PushTestResult, 200);
   })
-  // ✓ on a wait: "I answered elsewhere / not for me" (asks only).
+  // ✓ on anything in the Inbox: "seen, nothing to do" (a wait, or a held @mention as d<message id>). A task in review
+  // comes back when its room's board changes (Book.epicsChanged) while it is still in review.
   .post("/api/waits/resolve", body(ResolveWaitBody), async (c) => {
     const { book_id, ref } = c.req.valid("json"), svc = c.get("svc");
-    await svc.sql(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, book_id, ref, c.get("email"));
+    if (ref.startsWith("d")) await svc.sql(`DELETE FROM digest_items WHERE book_id = ? AND msg_id = ? AND email = ?`, book_id, Number(ref.slice(1)), c.get("email"));
+    else await svc.sql(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, book_id, ref, c.get("email"));
     svc.pokeMe(); // your other tabs and devices
-    svc.waitCleared(book_id, ref);
+    if (!ref.startsWith("d")) svc.waitCleared(book_id, ref);
     svc.track("wait_resolved", { book: book_id });
     return c.json(ok, 200);
   })
   // "Resolve all" in the Inbox: many asks in one request, each scoped to the signed-in person.
   .post("/api/waits/resolve-many", body(ResolveWaitsBody), async (c) => {
     const { items } = c.req.valid("json"), svc = c.get("svc"), email = c.get("email");
-    await svc.sqlBatch(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, items.map((item) => [item.book_id, item.ref, email]));
+    const held = items.filter((item) => item.ref.startsWith("d")), waits = items.filter((item) => !item.ref.startsWith("d"));
+    if (waits.length) await svc.sqlBatch(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, waits.map((item) => [item.book_id, item.ref, email]));
+    if (held.length) await svc.sqlBatch(`DELETE FROM digest_items WHERE book_id = ? AND msg_id = ? AND email = ?`, held.map((item) => [item.book_id, Number(item.ref.slice(1)), email]));
     svc.pokeMe();
     svc.track("wait_resolved", { n: items.length, many: 1 });
     return c.json(ok, 200);
@@ -410,6 +430,28 @@ export const api = roomPosts
     svc.track("messages_forwarded", { book: id, n: b.n, files: b.files, to: b.to, thread: b.thread, range: b.range });
     return c.json(ok, 200);
   })
+  // "Aberta pra @<domain>" in People: a member opens the room to their company email domain, or closes it.
+  .get("/api/books/:id/org", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    return c.json((await svc.roomOrg(id)) satisfies RoomOrgResult, 200);
+  })
+  .post("/api/books/:id/org", body(RoomOrgBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    const { open } = c.req.valid("json");
+    const r = await svc.setRoomOrg(id, open);
+    if (r === "dm") return c.json({ error: svc.en ? "A direct message can't open." : "Uma conversa direta não abre." } satisfies ErrorBody, 400);
+    if (r === "no_domain") return c.json({ error: svc.en ? "Sign in with a company email to open a room." : "Entre com um email da empresa pra abrir a sala." } satisfies ErrorBody, 400);
+    svc.track("room_org", { book: id, open });
+    return c.json((await svc.roomOrg(id)) satisfies RoomOrgResult, 200);
+  })
+  // The home's "Da sua empresa": rooms open to your domain that you did not join. Not in /api/me (cached per person).
+  .get("/api/org/rooms", async (c) => {
+    const svc = c.get("svc"), out = await svc.orgRooms();
+    if (out.rooms.length) svc.track("org_rooms_listed", { n: out.rooms.length });
+    return c.json(out satisfies OrgRoomsResult, 200);
+  })
   // Archive is per person; archived: false restores.
   .post("/api/books/:id/archive", body(ArchiveBody), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
@@ -417,6 +459,18 @@ export const api = roomPosts
     const { archived } = c.req.valid("json");
     await svc.sql(`UPDATE members SET archived_at = ? WHERE book_id = ? AND email = ?`, archived === false ? null : Date.now(), id, c.get("email"));
     svc.track(archived === false ? "book_restored" : "book_archived", { book: id });
+    return c.json(ok, 200);
+  })
+  // "Sair da sala" in a room's menu: you take yourself out, with the same rules as removing someone (the owner stays,
+  // a DM is for its two people). To come back, someone invites you again.
+  .post("/api/books/:id/leave", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    if (isDmId(id)) return c.json({ error: "a DM is only for its two people" } satisfies ErrorBody, 400);
+    const no = await svc.removeMember(id, c.get("email"));
+    if (no?.status === 400) return c.json({ error: no.error } satisfies ErrorBody, 400);
+    if (no) return c.json({ error: no.error } satisfies ErrorBody, 403);
+    svc.track("book_left", { book: id });
     return c.json(ok, 200);
   })
   // "Mark as read" in a room's menu: everything in the room up to now, for you only.
@@ -530,8 +584,9 @@ export const roomApi = accountApi
       await svc.sql(`DELETE FROM machine_rooms WHERE book_id = ? AND machine_id IN (SELECT id FROM machines WHERE email = ?)`, id, email);
       for (const m of sbIds) await svc.sql(`INSERT OR REPLACE INTO machine_rooms (machine_id, book_id, on_) VALUES (?, ?, ?)`, m, id, v);
       await svc.sql(
-        `INSERT OR REPLACE INTO agent_rooms (agent, book_id, delivery)
-         SELECT a.id, ?1, ?3 FROM agents a JOIN agent_reads r ON r.agent = a.id AND r.book_id = ?1 WHERE a.email = ?2 AND a.machine_id IS NULL`,
+        `INSERT INTO agent_rooms (agent, book_id, delivery)
+         SELECT a.id, ?1, ?3 FROM agents a JOIN agent_reads r ON r.agent = a.id AND r.book_id = ?1 WHERE a.email = ?2 AND a.machine_id IS NULL
+         ON CONFLICT(agent, book_id) DO UPDATE SET delivery = excluded.delivery`,
         id, email, v,
       );
     } else if (machine) {
@@ -542,7 +597,8 @@ export const roomApi = accountApi
       const mine = await svc.sqlAll(`SELECT machine_id FROM agents WHERE id = ? AND email = ?`, agent, email);
       if (!mine.length) return c.json({ error: "not your agent" } satisfies ErrorBody, 404);
       if ((mine[0] as { machine_id: string | null }).machine_id) return c.json({ error: "this agent follows its machine's switch" } satisfies ErrorBody, 400);
-      await svc.sql(`INSERT OR REPLACE INTO agent_rooms (agent, book_id, delivery) VALUES (?, ?, ?)`, agent, id, v);
+      // An upsert: the row also keeps the agent's @name in the room (src/agentNames.ts).
+      await svc.sql(`INSERT INTO agent_rooms (agent, book_id, delivery) VALUES (?, ?, ?) ON CONFLICT(agent, book_id) DO UPDATE SET delivery = excluded.delivery`, agent, id, v);
     } else return c.json({ error: "say which: machine, agent or all" } satisfies ErrorBody, 400);
     svc.pokeAgents(id);
     if (on) svc.pokeListeners(id);
@@ -757,6 +813,24 @@ export const keysApi = homeApi
     await c.get("svc").sql(`DELETE FROM freestyle_keys WHERE email = ?`, c.get("email"));
     return c.json(ok, 200);
   })
+  // The person's deco Studio connection (Studio agents). Connecting is a browser sign-in: GET /api/studio/signin.
+  .delete("/api/studio", async (c) => {
+    await c.get("svc").studio.disconnect();
+    return c.json(ok, 200);
+  })
+  // The projects of one Studio organization: the picker lists them, so nobody types a project id.
+  .get("/api/studio/orgs/:org/projects", async (c) => {
+    const svc = c.get("svc"), org = c.req.param("org");
+    if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(org)) return c.json({ error: svc.en ? "Pick a Studio organization." : "Escolha uma organização do Studio." } satisfies ErrorBody, 400);
+    try {
+      const projects = await svc.studio.projects(org);
+      if (projects === null) return c.json({ error: svc.en ? "Connect your deco Studio account first." : "Conecte sua conta do deco Studio primeiro." } satisfies ErrorBody, 409);
+      svc.track("studio_projects_listed");
+      return c.json({ projects } satisfies StudioProjectsResult, 200);
+    } catch {
+      return c.json({ error: svc.en ? "Studio did not answer with the projects. Try again." : "O Studio não respondeu com os projetos. Tente de novo." } satisfies ErrorBody, 502);
+    }
+  })
   // The person's Claude subscription token (from `claude setup-token` in their own terminal): sandboxes start logged in.
   .post("/api/claude-token", body(ClaudeTokenBody), async (c) => {
     const svc = c.get("svc");
@@ -792,7 +866,7 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     // another room) shows as "seen …", not as "no agent here yet" with the setup. Not every Claude of yours listening
     // anywhere: with herdr that's one per room, and every room listed all of them (Gui #3100, 17 rows).
     svc.sqlAll(
-      `SELECT ag.id, ag.client, ag.machine_id, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, lb.title AS listen_title, ${DELIVERS} AS delivers
+      `SELECT ag.id, ag.client, ag.machine_id, ag.role, dr.name, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, lb.title AS listen_title, ${DELIVERS} AS delivers
        FROM agents ag JOIN members m ON m.email = ag.email AND m.book_id = ?1
        LEFT JOIN agent_reads r ON r.agent = ag.id AND r.book_id = ?1
        LEFT JOIN books lb ON lb.id = ag.listen_room
@@ -846,6 +920,8 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
         seen_at: a.seen_at,
         listening: !!a.listening_at && now - a.listening_at < svc.listenFresh && (a.listen_room === id || !a.listen_room),
         all_rooms: !a.listen_room,
+        role: a.role ?? null,
+        name: a.name ?? null,
         // How full its context was at its last call (only from the CLI inside Claude Code); older than 1h = unknown.
         context: a.ctx_tokens != null && a.ctx_window && now - (a.ctx_at ?? 0) < 3600_000 ? { tokens: a.ctx_tokens, window: a.ctx_window, at: a.ctx_at, limits: limitsOf(a.ctx_limits) } : null,
         // Yours also say which room each one listens to: the herdr tab is named after it (Gui #3120), clearer than
@@ -886,7 +962,8 @@ export const sandboxApi = agentsApi
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
     try {
-      const r = await svc.sandboxes.create(id, c.req.valid("json").name ?? "");
+      const input = c.req.valid("json");
+      const r = await svc.sandboxes.create(id, input.name ?? "", input.studio);
       return c.json({ ok: true as const, ...r } satisfies CreateSandboxResult, 200);
     } catch (e) {
       return c.json(failed(e), 400);

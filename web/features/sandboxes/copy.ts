@@ -75,6 +75,33 @@ const pt = {
   copy: "Copiar",
   copyFailed: "Não deu para copiar. Selecione e copie o texto.",
   copied: "Copiado",
+  studio: "deco Studio",
+  studioConnect: "Conectar",
+  studioHelp:
+    "Um agent de projeto ou da organização no deco Studio, plugado nesta sala. Ele roda no Studio quando você o chama com @nome.",
+  studioOrg: "Organização",
+  studioOrgPick: "Escolha uma organização",
+  studioOrgSearch: "Buscar organização…",
+  studioOrgNone: "Nenhuma organização com esse nome.",
+  studioProject: "Projeto",
+  studioProjectSearch: "Buscar projeto…",
+  studioProjectNone: "Nenhum projeto com esse nome.",
+  studioOrgAgent: "Agent da organização",
+  studioProjectsLoading: "Carregando os projetos…",
+  studioProjectsFailed: "Não deu para listar os projetos desta organização.",
+  studioProjectsEmpty:
+    "Esta organização não tem projetos. O agent será o da organização.",
+  retry: "Tentar de novo",
+  studioCreate: "Criar agent do Studio",
+  studioAgent: "agent do Studio",
+  studioReady: "pronto: chame com @",
+  studioPreparing: "preparando",
+  studioNoOrgs: "Não deu para listar suas organizações do Studio.",
+  removeStudioBody:
+    "Seus agents do Studio nesta e em outras salas param de receber mensagens até você conectar de novo.",
+  removeStudioAgentTitle: "Remover agent do Studio?",
+  removeStudioAgentBody:
+    "O agent sai desta sala. A conversa dele continua no Studio.",
 } as const;
 export type SandboxCopyKey = keyof typeof pt;
 const en: Record<SandboxCopyKey, string> = {
@@ -155,6 +182,33 @@ const en: Record<SandboxCopyKey, string> = {
   copy: "Copy",
   copyFailed: "Could not copy. Select and copy the text.",
   copied: "Copied",
+  studio: "deco Studio",
+  studioConnect: "Connect",
+  studioHelp:
+    "A project's or an organization's agent in deco Studio, plugged into this room. It runs in Studio when you call it with @name.",
+  studioOrg: "Organization",
+  studioOrgPick: "Choose an organization",
+  studioOrgSearch: "Search organizations…",
+  studioOrgNone: "No organization with that name.",
+  studioProject: "Project",
+  studioProjectSearch: "Search projects…",
+  studioProjectNone: "No project with that name.",
+  studioOrgAgent: "Organization's agent",
+  studioProjectsLoading: "Loading the projects…",
+  studioProjectsFailed: "Could not list the projects of this organization.",
+  studioProjectsEmpty:
+    "This organization has no projects. The agent will be the organization's.",
+  retry: "Try again",
+  studioCreate: "Create Studio agent",
+  studioAgent: "Studio agent",
+  studioReady: "ready: call it with @",
+  studioPreparing: "preparing",
+  studioNoOrgs: "Could not list your Studio organizations.",
+  removeStudioBody:
+    "Your Studio agents in this and other rooms stop receiving messages until you connect again.",
+  removeStudioAgentTitle: "Remove Studio agent?",
+  removeStudioAgentBody:
+    "The agent leaves this room. Its conversation stays in Studio.",
 };
 export const sandboxText = (lang: SandboxLocale, key: SandboxCopyKey): string =>
   (lang === "en" ? en : pt)[key];

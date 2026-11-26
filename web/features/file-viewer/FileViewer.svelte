@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
+  import { derived, get } from "svelte/store";
   import type { FileViewer } from "./session";
   import type { RichActions } from "../rich-text/types";
   import RichContent from "../rich-text/RichContent.svelte";
@@ -13,7 +14,7 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import ViewerMedia from "./ViewerMedia.svelte";
   import VersionPicker from "./VersionPicker.svelte";
-  import { csvData, externalFileURL, fileURL } from "./model";
+  import { csvData, externalFileURL, fileURL, viewerKind } from "./model";
   import { viewerText } from "./copy";
   let {
     controller,
@@ -32,7 +33,15 @@
     onselect?(id: string): void;
     onclose?(): void;
   } = $props();
-  const view = untrack(() => controller.state);
+  const live = untrack(() => controller.state);
+  /** While the dialog animates out, it keeps the file it showed: closing resets the session at once, and the
+   *  dialog would empty and take the large viewer's place (top left) as it goes (Gimenes #5629). Inline, the live state. */
+  let last = untrack(() => get(live));
+  const view = derived(live, (value) =>
+    value.open || untrack(() => inline)
+      ? (last = value)
+      : { ...last, open: false, closingUnconfirmed: value.closingUnconfirmed },
+  );
   const close = () => (onclose ? onclose() : controller.closeUser());
   const text = (key: Parameters<typeof viewerText>[1]) => viewerText(lang, key);
   let csvPage = $state(0);
@@ -57,6 +66,75 @@
     void $view.content?.operation;
     csvPage = 0;
   });
+  /** An image opens in the design system's own small dialog, sized to the image (Gimenes #5599); other files keep the large viewer. Known from the file's metadata, so the size does not jump when the content arrives. */
+  const image = $derived(
+    ($view.file
+      ? viewerKind($view.file.type, $view.file.name)
+      : $view.content?.kind) === "image",
+  );
+  const locale = $derived(lang === "en" ? "en" : "pt-BR");
+  const sent = $derived.by(() => {
+    const file = $view.file;
+    if (!file) return "";
+    const who = $view.room?.names?.[file.author] ?? file.author.split("@")[0];
+    const when = new Date(file.ts).toLocaleString(locale, {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+    return `${who} · ${when}`;
+  });
+  const size = $derived.by(() => {
+    const bytes = $view.file?.size;
+    if (!bytes) return "";
+    const mega = bytes >= 1_000_000;
+    return new Intl.NumberFormat(locale, {
+      style: "unit",
+      unit: mega ? "megabyte" : "kilobyte",
+      maximumFractionDigits: 1,
+    }).format(bytes / (mega ? 1_000_000 : 1_000));
+  });
+  let content = $state<HTMLElement | null>(null);
+  /** A file opens once its kind is known, and an image once it has loaded (or after 700 ms), so the dialog grows in at
+   *  its own size, not from a loading line (Gimenes #5629). The browser's cache then draws the viewer's own <img> at once. */
+  let decoded = $state("");
+  let waited = $state(false);
+  const opening = $derived(
+    !inline && $view.open ? ($view.target?.id ?? "") : "",
+  );
+  $effect(() => {
+    if (!opening) return;
+    waited = false;
+    const timer = setTimeout(() => (waited = true), 700);
+    return () => clearTimeout(timer);
+  });
+  const imageURL = $derived(
+    $view.content?.kind === "image" ? $view.content.url : "",
+  );
+  $effect(() => {
+    const url = imageURL;
+    if (!url || untrack(() => decoded) === url) return;
+    let current = true;
+    const probe = new Image();
+    probe.onload = probe.onerror = () => {
+      if (current) decoded = url;
+    };
+    probe.src = url;
+    return () => {
+      current = false;
+    };
+  });
+  /** Until the file's kind is known, the dialog would open as the large viewer for a frame. */
+  const known = $derived(
+    !!$view.file || !!$view.content || $view.phase === "error",
+  );
+  const shown = $derived(
+    $view.open &&
+      (waited ||
+        (known &&
+          (!image ||
+            $view.phase === "error" ||
+            (!!imageURL && decoded === imageURL)))),
+  );
   const pinned = $derived(
     $view.room?.pins?.some(
       (pin) => pin.kind === "file" && pin.ref === $view.target?.id,
@@ -266,17 +344,27 @@
 {/snippet}
 {#if inline}{@render preview()}{:else}
   <Dialog
-    open={$view.open}
+    open={shown}
     onOpenChange={(open) => {
       if (!open) close();
     }}
   >
     <DialogContent
-      class="inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto md:max-w-none font-sans text-sm text-foreground"
+      bind:ref={content}
+      data-image-preview={image || undefined}
+      class={image
+        ? "flex max-h-[90dvh] w-full max-w-[90vw] flex-col gap-3 overflow-auto p-4 md:max-w-xl font-sans text-sm text-foreground"
+        : "inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto md:max-w-none font-sans text-sm text-foreground"}
+      closeButtonClassName={image ? "top-4 right-4" : undefined}
       closeLabel={text("close")}
       preventScroll={false}
       preventBodyPointerEvents={false}
       preventOverflowTextSelection={false}
+      onOpenAutoFocus={(event) => {
+        // The dialog itself, not its first button: that button's tooltip would open and take the first Esc (Gimenes #5585).
+        event.preventDefault();
+        content?.focus();
+      }}
       onCloseAutoFocus={(event) => {
         const target = controller.returnFocus();
         if (target?.isConnected) {
@@ -292,6 +380,11 @@
         {@render tools()}
       </DialogHeader>
       {@render preview()}
+      {#if image && sent}<p
+          class="m-0 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground"
+        >
+          <span>{sent}</span>{#if size}<span>{size}</span>{/if}
+        </p>{/if}
     </DialogContent>
   </Dialog>{/if}
 

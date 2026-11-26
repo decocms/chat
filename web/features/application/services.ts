@@ -276,6 +276,13 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         await accountApi.dismiss(email, AbortSignal.timeout(15_000));
         personal.invalidate();
       },
+      orgRooms: (signal) => accountApi.orgRooms(signal),
+      joinOrg: async (room) => {
+        // Not let in (the room closed meanwhile): it went as a request, and the room's page says so.
+        await accountApi.joinOrg(room, AbortSignal.timeout(15_000));
+        personal.invalidate();
+        navigate(`/b/${room}`);
+      },
     },
     browser.clock,
   );

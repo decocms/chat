@@ -1,3 +1,5 @@
+import type { Readable } from "svelte/store";
+import type { OrgRoom } from "../../../shared/schemas";
 import type { PwaService } from "../pwa/service";
 import type { PersonalSession } from "./personal";
 import type { RoomsSession } from "../rooms/session";
@@ -5,6 +7,7 @@ import type { HomeLanguage } from "./copy";
 import type { RoomTarget } from "./model";
 import type { AccountSession } from "../account/session";
 import type { NewRoomSession } from "./session";
+import type { ApplicationInbox } from "../application/inbox";
 export type HomeBridge = {
   pwa: PwaService;
   personal: PersonalSession;
@@ -25,6 +28,8 @@ export type HomeBridge = {
   ) => void;
   onsearch: () => void;
   oninbox?: (trigger?: HTMLElement) => void;
+  /** The application's Inbox, held open by the page on a phone's `/`: its tabs are the list's chips. */
+  inbox?: ApplicationInbox;
   /** Answers a room invite: the phone's home shows invites over its list. */
   onjoin?: (room: string, yes: boolean) => Promise<void>;
   /** Answers a message request: the phone's home shows them over its list. */
@@ -32,4 +37,10 @@ export type HomeBridge = {
   /** The phone's `+` opens a DM: resolves with its id, or nothing when it went as a message request. */
   onconnect?: (email: string, text?: string) => Promise<string | undefined>;
   ondismiss?: (email: string) => Promise<void>;
+  /** Rooms open to your company domain that you did not join: the phone's bar opens them (2×2 grid), never in the list. */
+  company?: Readable<readonly OrgRoom[]>;
+  /** Joins a room open to your company and opens it. */
+  oncompany?: (room: string) => Promise<void>;
+  /** Reads the company's rooms again when their dialog opens. */
+  oncompanyopen?: () => void;
 };

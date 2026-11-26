@@ -8,6 +8,7 @@ import type { Env } from "./index";
 import { bookStub } from "./rooms";
 import { RouterStats } from "../shared/schemas";
 import { rule } from "./router-rule";
+import { handlesOf } from "../shared/roles";
 import { jev, own } from "./router-jev";
 
 /**
@@ -95,8 +96,24 @@ export async function gate(env: Env, me: { email: string; agent: string }, bookI
   const input = await stub.routerInput(bookId, since, me.email);
   if (!input.messages.length) return true;
   let wake = false, routed = 0;
+  // Your agents' @names here (src/agentNames.ts, roles, sandboxes): read only when one of your messages has an @.
+  let own: Set<string> | undefined;
+  const ownNames = async () =>
+    (own ??= new Set(
+      (
+        await db
+          .prepare(
+            `SELECT ar.name FROM agent_rooms ar JOIN agents a ON a.id = ar.agent WHERE a.email = ?1 AND ar.book_id = ?2 AND ar.name IS NOT NULL
+             UNION SELECT name FROM sandboxes WHERE email = ?1 AND book_id = ?2`,
+          )
+          .bind(me.email, bookId)
+          .all<{ name: string }>()
+      ).results.map((r) => r.name),
+    ));
   for (const m of input.messages) {
-    const fixed = rule(m, me.email);
+    const at = m.author === me.email && !m.agent ? handlesOf(m.text) : [];
+    const names = at.length ? await ownNames() : undefined;
+    const fixed = rule({ ...m, to_own_agent: !!names && at.some((h) => names.has(h)) }, me.email);
     if (fixed === "skip") continue;
     const known = await db.prepare(`SELECT decision FROM router_log WHERE book_id = ? AND msg_id = ? AND email = ?`).bind(bookId, m.id, me.email).first<{ decision: Decision }>();
     if (known) {

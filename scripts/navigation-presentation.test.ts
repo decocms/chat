@@ -263,3 +263,45 @@ test("a room moved one place leaves the DMs out of the saved order", async () =>
     personal.dispose();
   }
 });
+
+test("leaving the open room goes home once the server takes you out; leaving another room stays put", async () => {
+  const timer = manualClock();
+  let canonical = me({ books: [room("aaaaaa"), room("bbbbbb")] });
+  const left: string[] = [];
+  const personal = createPersonalSession(
+    homeApi({
+      me: async () => canonical,
+      leave: async (id) => {
+        left.push(id);
+        canonical = me({
+          books: canonical.books.filter((book) => book.id !== id),
+        });
+        return { ok: true };
+      },
+    }),
+    { clock: timer.clock },
+  );
+  await personal.refresh();
+  const rooms = createRoomsSession(personal, timer.clock);
+  let homes = 0;
+  const controller = createAppNavigationSession(
+    personal,
+    rooms,
+    { navigate() {}, home: () => void homes++, archived() {} },
+    timer.clock,
+  );
+  controller.syncPath("https://vibebook.test/b/aaaaaa");
+  controller.askLeave("bbbbbb");
+  expect(get(controller.state).leaveId).toBe("bbbbbb");
+  await controller.confirmLeave();
+  expect(homes).toBe(0);
+  controller.askLeave("aaaaaa");
+  await controller.confirmLeave();
+  expect(left).toEqual(["bbbbbb", "aaaaaa"]);
+  expect(homes).toBe(1);
+  await settle();
+  expect(get(personal.state).me?.books.map((book) => book.id)).toEqual([]);
+  controller.dispose();
+  rooms.dispose();
+  personal.dispose();
+});

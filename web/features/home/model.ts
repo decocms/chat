@@ -209,6 +209,21 @@ export const unread = (room: RoomSummary, seen = 0) =>
     : room.last_agent_id > Math.max(room.read_id, seen)
       ? "agent"
       : null;
+/** How many messages came since you read the room, for a phone's chat row: room ids count up, so the newest
+ *  person's message less the last one you read (agent lines in between count too). "dot": only an agent wrote. */
+export const unreadCount = (
+  room: RoomSummary,
+  seen = 0,
+): number | "dot" | null => {
+  const kind = unread(room, seen);
+  return kind === "human"
+    ? Math.max(1, room.last_human_id - Math.max(room.read_id, seen))
+    : kind === "agent"
+      ? "dot"
+      : null;
+};
+/** An ask of you by a person (m<msg>): it @s you, or a person asked you something. */
+export const asksYou = (wait: Wait) => wait.ref.startsWith("m");
 /** What your home knows about someone: a person from your rooms, a connection, who wrote to you, or a DM's other side. */
 const known = (me: MeResult | null, email: string) => [
   ...(me?.people ?? []).filter((person) => person.email === email),

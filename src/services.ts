@@ -19,12 +19,14 @@ import { track } from "./track";
 import { callAnswer, callClose, callJoin, callsOn, callTracks, startRecorder } from "./calls";
 import { pushTo } from "./webpush";
 import { checkFreestyleKey, sandboxOps, saveKey } from "./sandbox";
+import { studioProjects, studioSignOut } from "./studioSandbox";
 import { connOps } from "./mcpconn";
 import { consentContext, grantOps } from "./connect";
 import { routerStats } from "./router";
 import { setHandle, setProfilePublic } from "./profile";
 import { aiSpend, infraMonitor } from "./reports";
 import { resolveLink } from "./linkTarget";
+import { orgRooms, requestAccess, roomOrg, setRoomOrg } from "./orgRooms";
 
 // The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
 let appVersion: string | undefined;
@@ -63,7 +65,7 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
   // One round trip's worth: the reads run together.
   const [books, friends, requests, sent, invites, people, me, waits, colleagues] = await Promise.all([
     db.prepare(
-      `SELECT b.id, b.title, b.folder, b.summary, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
+      `SELECT b.id, b.title, b.folder, b.summary, b.owner, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
          coalesce(r.last_id, 0) AS read_id, b.last_by, b.last_text, b.last_agent,
          (SELECT u.name FROM users u WHERE u.email = b.last_by) AS last_by_name,
          (SELECT count(*) FROM sandboxes s WHERE s.book_id = b.id AND s.state = 'running') AS sandboxes_running,
@@ -172,8 +174,8 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     callClose: (roomId, session, mids, names) => callClose(env, roomId, email, session, mids, names),
     callLeave: (roomId, session) => bookStub(env, roomId).callLeave(email, session),
     callDecline: (roomId) => bookStub(env, roomId).callDecline(roomId, email),
-    humanPost: (roomId, text, thread, clientId) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId }),
-    roomMessages: (roomId, query) => bookStub(env, roomId).roomMessages(roomId, query),
+    humanPost: (roomId, text, thread, clientId, extra) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId, ...extra }),
+    roomMessages: (roomId, query) => bookStub(env, roomId).roomMessages(roomId, query, email),
     roomState: (roomId, query) => bookStub(env, roomId).roomState(roomId, email, query),
     linkTarget: (roomId, query) =>
       resolveLink(
@@ -278,19 +280,29 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     pokeAgents: (roomId) => ctx.waitUntil(poke(env, [email], { t: "agents", book: roomId })),
     pokeListeners: (roomId) => ctx.waitUntil(poke(env, [email], { t: "me", book: roomId })),
     pokeFocus: (roomId) => ctx.waitUntil(poke(env, [email], { t: "focus", book: roomId })),
-    requestAccess: async (roomId) => {
-      // A DM can't be asked into (src/dm.ts): to anyone outside it, it doesn't exist.
-      if (isDmId(roomId) || !(await env.DB.prepare(`SELECT 1 FROM books WHERE id = ?`).bind(roomId).first())) return "not_found";
-      if (await isMember(env.DB, roomId, email)) return "member";
-      if (!(await env.LOGIN_LIMIT.limit({ key: `ask:${email}` })).success) return "limited";
-      const r = await env.DB.prepare(`INSERT OR IGNORE INTO access_requests (book_id, email, ts) VALUES (?, ?, ?)`).bind(roomId, email, Date.now()).run();
-      if (r.meta.changes) {
-        const name = (await env.DB.prepare(`SELECT name FROM users WHERE email = ?`).bind(email).first<{ name: string | null }>())?.name ?? undefined;
-        await bookStub(env, roomId).fetch(`https://book/access-requested?book=${roomId}`, { method: "POST", body: JSON.stringify({ who: email, name }) });
-        ctx.waitUntil(track(env, "access_requested", { user: email, dims: { book: roomId } }));
-      }
-      return "asked";
-    },
+    requestAccess: (roomId) =>
+      requestAccess(
+        {
+          db: env.DB,
+          isMember: (id) => isMember(env.DB, id, email),
+          // A room open to your company: in at once, like an accepted invite; your home's list drops it.
+          join: async (id) => {
+            await joinRoom(env, id, email);
+            ctx.waitUntil(poke(env, [email], { t: "me" }));
+          },
+          allowAsk: async () => (await env.LOGIN_LIMIT.limit({ key: `ask:${email}` })).success,
+          told: async (id) => {
+            const name = (await env.DB.prepare(`SELECT name FROM users WHERE email = ?`).bind(email).first<{ name: string | null }>())?.name ?? undefined;
+            await bookStub(env, id).fetch(`https://book/access-requested?book=${id}`, { method: "POST", body: JSON.stringify({ who: email, name }) });
+          },
+          track: (name, id) => ctx.waitUntil(track(env, name, { user: email, dims: { book: id } })),
+        },
+        roomId,
+        email,
+      ),
+    roomOrg: (roomId) => roomOrg(env.DB, roomId, email),
+    setRoomOrg: (roomId, open) => setRoomOrg(env.DB, roomId, email, open),
+    orgRooms: () => orgRooms(env.DB, email),
     decideRequest: async (roomId, who, approve) => {
       if (isDmId(roomId)) return false;
       const req = await env.DB.prepare(`SELECT email FROM access_requests WHERE book_id = ? AND email = ? AND denied = 0`).bind(roomId, who).first<{ email: string }>();
@@ -328,6 +340,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     allowSecretTry: async (key) => (await env.LOGIN_LIMIT.limit({ key })).success,
     saveSecret: (table, value) => saveKey(env, email, value, table),
     checkFreestyleKey: (key) => checkFreestyleKey(env, key),
+    studio: { disconnect: () => studioSignOut(env, email), projects: (org) => studioProjects(env, new URL(req0.url).origin, email, org) },
     listenFresh: LISTEN_FRESH,
     sandboxes: sandboxOps(env, ctx, email, new URL(req0.url).origin, en),
     me: () => meFor(env, ctx, email, req0),

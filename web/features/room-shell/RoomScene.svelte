@@ -552,10 +552,6 @@
       />{/if}{/snippet}
   {#snippet attention()}{#if $view}
       <div>
-        <!-- Desktop has it in the user center (the sidebar's foot); a phone, here until its own user center. -->
-        <div class="md:hidden">
-          <NotifyOffer owner={services.pwa} lang={services.language} />
-        </div>
         <!-- Phones: the top bar has no space for the controls of the view (docs/design.md). -->
         {#if callIdle}<div class="flex justify-end px-4 pt-2 md:hidden">
             {@render callControls()}

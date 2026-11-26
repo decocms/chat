@@ -1,5 +1,6 @@
 import { client } from "../../lib/client/api";
 import { createRoomApi, type FetchLike } from "../../app/transport";
+import { mediaType } from "../composer/model";
 import {
   AgentGrantsResult,
   InboxResult,
@@ -7,6 +8,7 @@ import {
   ErrorBody,
   MeResult,
   OkResult,
+  type PostMessageBody,
   RoomIconResult,
   RouteResult,
   SearchResult,
@@ -70,15 +72,35 @@ export function createHomeApi(fetcher?: FetchLike) {
       api.books.start
         .$post({ json: { text } }, { init: { signal } })
         .then((response) => read(response, StartRoomResult)),
-    post: (id: string, text: string, thread: string, clientId?: string) =>
+    /** `extra`: sent from the ask box (routed), with files already uploaded to this room and a poll after it. */
+    post: (
+      id: string,
+      text: string,
+      thread: string,
+      clientId?: string,
+      extra: Pick<PostMessageBody, "routed" | "files" | "poll"> = {},
+    ) =>
       createRoomApi(id, fetcher).postMessage({
         text,
         thread,
         client_id: clientId,
+        ...(extra.routed ? { routed: true } : {}),
+        ...(extra.files?.length ? { files: extra.files } : {}),
+        ...(extra.poll ? { poll: extra.poll } : {}),
       }),
+    /** One file into a room, as the room's composer uploads it (POST /api/books/:id/files). */
+    upload: (id: string, file: File, signal?: AbortSignal) =>
+      createRoomApi(id, (url, init) =>
+        (fetcher ?? fetch)(url, { ...init, signal }),
+      ).uploadFile({ name: file.name, type: mediaType(file.type), body: file }),
     archive: (id: string, archived: boolean, signal?: AbortSignal) =>
       room.archive
         .$post({ param: param(id), json: { archived } }, { init: { signal } })
+        .then((response) => read(response, OkResult)),
+    /** "Sair da sala": you take yourself out of the room (POST /api/books/:id/leave). */
+    leave: (id: string, signal?: AbortSignal) =>
+      room.leave
+        .$post({ param: param(id) }, { init: { signal } })
         .then((response) => read(response, OkResult)),
     read: (id: string, signal?: AbortSignal) =>
       room.read

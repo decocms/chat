@@ -3,6 +3,8 @@
   import { get } from "svelte/store";
   import type { Snippet } from "svelte";
   import type { BrowserApplicationServices } from "./browser";
+  import { studioType } from "../../lib/components/type";
+  import type { ComposerDrafts } from "../composer/drafts";
   import type {
     ApplicationRoomPresentation,
     ApplicationShellEffects,
@@ -38,10 +40,13 @@
   import { callHub } from "../call/hub";
   let {
     services,
+    drafts,
     roomSnippet,
     effects = createApplicationShellEffects(window, document),
   }: {
     services: BrowserApplicationServices;
+    /** The rooms' composer drafts: the Home's task workspace writes in the same ones. */
+    drafts: ComposerDrafts;
     roomSnippet: Snippet<[ApplicationRoomPresentation]>;
     effects?: ApplicationShellEffects;
   } = $props();
@@ -129,11 +134,17 @@
       (!!$application.route.inbox ||
         (!phone.current && ($personal.me?.books.length ?? 1) > 0)),
   );
+  // A phone's `/`: the list of conversations with the Inbox's tabs as chips over it (HomePanel). The page holds
+  // the Inbox open for their counts, as the desktop Home does; no Inbox sheet opens over it.
+  const phoneHome = $derived(
+    $application.route.kind === "home" && phone.current && !homeInbox,
+  );
+  const pageInbox = $derived(homeInbox || phoneHome);
   const accountView = untrack(() => services.account.state);
   // The page owns the Inbox while it's open: a route change closes it (inbox.ts), this opens it again.
   $effect(() => {
     if (
-      homeInbox &&
+      pageInbox &&
       !$application.sessionDenied &&
       $personal.me &&
       !$inboxView.binding
@@ -147,7 +158,7 @@
       else if ($application.route.kind === "home") void homeModule.ensure();
       if ($application.route.kind === "archived") void archivedModule.ensure();
       if ($application.route.kind === "settings") void accountModule.ensure();
-      if ($inboxView.binding && !$inboxView.binding.roomScope && !homeInbox)
+      if ($inboxView.binding && !$inboxView.binding.roomScope && !pageInbox)
         void inboxModule.ensure();
     }
   });
@@ -236,6 +247,7 @@
     oninbox: (trigger) => {
       if (current()) openInbox(trigger);
     },
+    inbox,
     onsearch: () => {
       if (current()) services.navigation.openSearch();
     },
@@ -243,6 +255,9 @@
     onanswer: services.navigation.callbacks.answerRequest,
     onconnect: services.navigation.callbacks.connect,
     ondismiss: services.navigation.callbacks.dismiss,
+    company: services.navigation.company,
+    oncompany: services.navigation.joinCompany,
+    oncompanyopen: services.navigation.refreshCompany,
   });
   onMount(() => {
     effects.documentLanguage(services.language);
@@ -296,7 +311,10 @@
             ? "md:grid-cols-[68px_273px_minmax(0,1fr)]"
             : "md:grid-cols-[68px_minmax(0,1fr)]",
         ],
-    "group/shell bg-background font-sans text-sm leading-6 text-foreground",
+    "group/shell bg-background text-sm leading-6 text-foreground",
+    // Inter as the rail and a room's sidebar set it (cv08: the capital I with its bars): the Home and Settings too,
+    // so "Inbox" reads the same on the Home as in a room (PO #5601).
+    studioType,
     // Scrollbars stay invisible until you point at (or focus into) what scrolls, like the classic app: with a
     // mouse attached, macOS otherwise draws a full track on every scroller (Gui #2893).
     "[&_*]:[scrollbar-color:transparent_transparent] [&_*:hover]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent] [&_*:focus-within]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent]",
@@ -380,6 +398,7 @@
       {#if homeInbox}{#if HomeInbox}<HomeInbox
             owner={inbox}
             {services}
+            {drafts}
           />{:else}<DeferredRouteStatus
             phase={$homeInboxModuleView.phase}
             lang={services.language}
@@ -452,7 +471,7 @@
           {@render roomSnippet({ services })}
         </div>{/if}
     </div>
-    {#if $inboxView.binding && !$inboxView.binding.roomScope && !homeInbox}{#key $inboxView.binding}<Snapshot
+    {#if $inboxView.binding && !$inboxView.binding.roomScope && !pageInbox}{#key $inboxView.binding}<Snapshot
           value={$inboxView.binding}
         >
           {#snippet children(binding)}

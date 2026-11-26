@@ -5,17 +5,29 @@
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
   import { settingsHref } from "../account/settings";
+  import Count from "../../lib/components/Count.svelte";
   /**
    * You: a row in the user center (a room's sidebar, the home's), or just your face
    * (`row={false}`, a phone's top bar, with your name as a tooltip). It opens
-   * your settings page; the shell follows `data-nav` links in place.
+   * your settings page; the shell follows `data-nav` links in place. `badge`:
+   * the phone's Chats bar puts the count of its user center rows on your face.
    */
   let {
     me,
     row = true,
     current = false,
-  }: { me: MeResult; row?: boolean; current?: boolean } = $props();
+    badge,
+  }: {
+    me: MeResult;
+    row?: boolean;
+    current?: boolean;
+    /** Only with `row={false}`: the number, and the words that say it. */
+    badge?: { count: number; label: string };
+  } = $props();
   const label = $derived(me.name || me.email);
+  const name = $derived(
+    badge?.count && !row ? `${label} · ${badge.label}` : label,
+  );
 </script>
 
 {#snippet link(props: Record<string, unknown>)}
@@ -24,7 +36,7 @@
     href={settingsHref()}
     data-nav
     data-account-row
-    aria-label={label}
+    aria-label={name}
     aria-current={current ? "page" : undefined}
     class={row
       ? "flex h-11 w-full min-w-0 items-center gap-2.5 rounded-lg px-2.5 text-left font-sans text-sm text-sidebar-foreground no-underline transition-colors hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
@@ -45,7 +57,15 @@
         ></span
       >{:else}
       <!-- 32px in a 40px target: 16px read as a dot beside the bar's 20px glyphs (Gimenes #3716). -->
-      <PersonAvatar email={me.email} version={me.avatar} size="sm" />{/if}
+      <PersonAvatar
+        email={me.email}
+        version={me.avatar}
+        size="sm"
+      />{#if badge?.count}<Count
+          value={badge.count}
+          label={badge.label}
+          class="pointer-events-none absolute -top-0.5 -right-1 ring-2 ring-background"
+        />{/if}{/if}
   </a>
 {/snippet}
 

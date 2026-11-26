@@ -46,7 +46,7 @@ function d1(db: Database) {
 function fixture() {
   const room = new Database(":memory:"),
     db = new Database(":memory:");
-  db.exec(`CREATE TABLE waits (book_id TEXT, ref TEXT, email TEXT, thread TEXT, topic TEXT, author TEXT, text TEXT, ts INTEGER, PRIMARY KEY (book_id, ref, email));
+  db.exec(`CREATE TABLE waits (book_id TEXT, ref TEXT, email TEXT, thread TEXT, topic TEXT, author TEXT, text TEXT, ts INTEGER, about TEXT, PRIMARY KEY (book_id, ref, email));
     CREATE TABLE human_reads (email TEXT, book_id TEXT, last_id INTEGER, PRIMARY KEY (email, book_id));
     CREATE TABLE digest_items (email TEXT, book_id TEXT, msg_id INTEGER, thread TEXT, author TEXT, text TEXT, ts INTEGER, PRIMARY KEY (email, book_id, msg_id));
     CREATE TABLE events (name TEXT, path TEXT, visitor TEXT, country TEXT, user TEXT, dims TEXT, ts INTEGER);`);
@@ -168,7 +168,11 @@ function quiet(f: ReturnType<typeof fixture>) {
 test("your own Claude's reply is a number for you until you read it", async () => {
   const f = fixture();
   quiet(f);
-  const r = await f.book.agentPost("room01", voce, "Pronto: o gráfico está no doc. Quer que eu publique?");
+  const r = await f.book.agentPost(
+    "room01",
+    voce,
+    "Pronto: o gráfico está no doc. Quer que eu publique?",
+  );
   if (!("id" in r) || typeof r.id !== "number") throw Error(JSON.stringify(r));
   await settle();
   expect(f.refs()).toEqual([`m${r.id}`]);
@@ -198,7 +202,11 @@ test("no number when you have the room open, or already read past it", async () 
 test("someone else's Claude talking makes no number for you", async () => {
   const f = fixture();
   quiet(f);
-  const r = await f.book.agentPost("room01", other, "Terminei a migração, você pode revisar?");
+  const r = await f.book.agentPost(
+    "room01",
+    other,
+    "Terminei a migração, você pode revisar?",
+  );
   if (!("id" in r) || typeof r.id !== "number") throw Error(JSON.stringify(r));
   await settle();
   expect(f.refs()).toEqual([]); // its "você" is its own human
@@ -208,7 +216,18 @@ test("someone else's Claude talking makes no number for you", async () => {
 test("your Claude's question with buttons stays an a<id> in the Inbox, not a second m<id>", async () => {
   const f = fixture();
   quiet(f);
-  const r = await f.book.agentPost("room01", voce, "❓ Seu Claude pergunta: qual cor?", "main", [], "", false, false, undefined, { options: ["azul", "verde"], multi: false });
+  const r = await f.book.agentPost(
+    "room01",
+    voce,
+    "❓ Seu Claude pergunta: qual cor?",
+    "main",
+    [],
+    "",
+    false,
+    false,
+    undefined,
+    { options: ["azul", "verde"], multi: false },
+  );
   if (!("id" in r) || typeof r.id !== "number") throw Error(JSON.stringify(r));
   await settle();
   expect(f.refs()).toEqual([`a${r.id}`]);
@@ -221,5 +240,34 @@ test("a person's @mention still makes a number for whoever is not looking, clear
   await f.book.markRead([other], 40); // the author's read point moves, not yours
   expect(f.refs()).toEqual(["m40"]);
   await f.book.markRead([voce], 40);
+  expect(f.refs()).toEqual([]);
+});
+
+test("the Home Inbox's look at an item (peek) is not being here: what arrives stays a number for you", async () => {
+  const f = fixture();
+  quiet(f);
+  const tab = { readyState: WebSocket.OPEN, tags: [other] },
+    look = { readyState: WebSocket.OPEN, tags: [voce, "peek"] };
+  const ctx = (f.book as unknown as { ctx: Record<string, unknown> }).ctx;
+  ctx.getWebSockets = () => [tab, look];
+  ctx.getTags = (ws: { tags: string[] }) => ws.tags;
+  expect(f.book.online()).toEqual([other]);
+  // Your own Claude speaks while you only look at the thread from the Inbox: it still waits on you.
+  const r = await f.book.agentPost("room01", voce, "Feito, dá uma olhada?");
+  if (!("id" in r) || typeof r.id !== "number") throw Error(JSON.stringify(r));
+  await settle();
+  expect(f.refs()).toEqual([`m${r.id}`]);
+});
+
+test("answering from the Home Inbox reads your post but keeps the room's other asks (PO #5569)", async () => {
+  const f = fixture();
+  for (const ref of ["m5", "m6", "m7"]) f.wait(ref);
+  // You are not in the room (you answer from the Inbox's look at it): your read point moves, the asks stay.
+  f.book.online = () => [];
+  await f.book.readOnPost(voce, true, 8);
+  expect(f.refs()).toEqual(["m5", "m6", "m7"]);
+  // With the room open, posting reads it as before.
+  f.book.online = () => [voce];
+  await f.book.readOnPost(voce, true, 8);
   expect(f.refs()).toEqual([]);
 });

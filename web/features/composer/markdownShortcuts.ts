@@ -291,6 +291,23 @@ const apple =
   typeof navigator !== "undefined" &&
   /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
+/** The shortcuts that the field shows while you select text, as this computer writes the keys. `label` is the
+ *  Portuguese copy: the field passes it through `t()`. */
+export function shortcutHints(
+  mac = apple,
+): ReadonlyArray<{ keys: string; label: string }> {
+  const mod = mac ? "⌘" : "Ctrl+",
+    shift = mac ? "⇧" : "Shift+";
+  return [
+    { keys: `${mod}B`, label: "Negrito" },
+    { keys: `${mod}I`, label: "Itálico" },
+    { keys: `${mod}U`, label: "Sublinhado" },
+    { keys: `${mod}${shift}X`, label: "Riscado" },
+    { keys: `${mod}E`, label: "Código" },
+    { keys: `${mod}${shift}K`, label: "Link" },
+  ];
+}
+
 /** The shortcut that a key press asks for, or null. On a Mac only ⌘ counts: Ctrl+B and Ctrl+E move the caret there. */
 export function shortcutFor(
   event: Pick<

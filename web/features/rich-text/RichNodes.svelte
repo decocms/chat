@@ -76,8 +76,10 @@
     if (tag === "p") return "my-2 font-sans tracking-normal leading-6";
     if (tag === "pre")
       return "my-3 max-w-full overflow-x-auto whitespace-pre rounded-control bg-muted p-3 font-mono text-xs leading-5 focus-visible:outline-2 focus-visible:outline-ring";
+    // Inline code has a background, as in Slack and Discord: a monospace font alone is hard to see. In a code block the
+    // `pre` already has the background.
     if (tag === "code" || tag === "kbd" || tag === "samp")
-      return "font-mono text-xs";
+      return "rounded-sm bg-muted px-1 py-0.5 font-mono text-xs in-[pre]:rounded-none in-[pre]:bg-transparent in-[pre]:p-0";
     if (tag === "blockquote")
       return "my-3 border-l-2 border-border pl-3 text-muted-foreground";
     if (tag === "ul") return "my-2 list-disc space-y-1 pl-5";

@@ -54,3 +54,11 @@ export function store(key: string, enabled: boolean) {
     return false;
   }
 }
+/** The install offer of a phone (InstallCard): not installed yet, not closed, a touch screen. */
+export function installOffer(view: {
+  standalone: boolean;
+  dismissed: boolean;
+  coarse: boolean;
+}) {
+  return !view.standalone && !view.dismissed && view.coarse;
+}

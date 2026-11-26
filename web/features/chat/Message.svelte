@@ -28,6 +28,7 @@
     type MessageFooter as Footer,
   } from "./model";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import VibeCube from "../home/VibeCube.svelte";
   import { AGENT_NAMES, agentProvider } from "../../lib/components/agent";
   import Badge from "../../lib/studio/Badge.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
@@ -54,6 +55,7 @@
     actions,
     footer,
     onpick,
+    last = false,
   }: {
     message: ChatMessage;
     previous?: ChatMessage;
@@ -65,6 +67,8 @@
     footer?: Footer;
     /** Selection mode of "Encaminhar": a click (Shift for a range) or a tap on this message. */
     onpick?: (id: number, shift: boolean) => void;
+    /** The last message of the room or thread: its empty reaction row keeps its height (Gui #5741). */
+    last?: boolean;
   } = $props();
   // Selection mode (forward, like WhatsApp): a column of checkboxes at the left, the message moves to the right, and a
   // click anywhere on the message picks it. Links, files and buttons in it do nothing meanwhile.
@@ -300,8 +304,8 @@
   onclickcapture={pickClick}
   class={[
     continuous
-      ? "group relative rounded-control pt-0.5 pr-3 pb-0 font-sans text-[0.875rem] text-foreground transition-[color,background-color,padding-left] duration-150 motion-reduce:transition-none pointer-fine:hover:bg-accent/55"
-      : "group relative mt-1 rounded-control pt-1 pr-3 pb-0 font-sans text-[0.875rem] text-foreground transition-[color,background-color,padding-left] duration-150 motion-reduce:transition-none pointer-fine:hover:bg-accent/55",
+      ? "group relative rounded-control pt-0.5 pr-3 pb-0 font-sans text-[0.875rem] text-foreground max-md:text-[1.0625rem] transition-[color,background-color,padding-left] duration-150 motion-reduce:transition-none pointer-fine:hover:bg-accent/55"
+      : "group relative mt-1 rounded-control pt-1 pr-3 pb-0 font-sans text-[0.875rem] text-foreground max-md:text-[1.0625rem] transition-[color,background-color,padding-left] duration-150 motion-reduce:transition-none pointer-fine:hover:bg-accent/55",
     // The checkbox column: 32px more at the left while selection mode is on.
     selecting ? "pl-11 select-none" : "pl-3",
     pickable ? "cursor-pointer" : "",
@@ -343,11 +347,9 @@
         aria-hidden="true"
         class="pointer-events-none absolute top-1/2 -bottom-1 left-[19px] w-[29px] rounded-tl-md border-t-2 border-l-2 border-solid border-r-0 border-b-0 border-muted-foreground/35"
       ></span>
-      {#if quote}{#if quote.author === "ai"}<span
-            aria-hidden="true"
-            class="flex size-4 shrink-0 items-center justify-center text-[0.6875rem] select-none"
-            >✦</span
-          >{:else}<PersonAvatar
+      {#if quote}{#if quote.author === "ai"}<VibeCube
+            size="2xs"
+          />{:else}<PersonAvatar
             size="2xs"
             email={quote.author}
             version={vb.avatarVersion(quote.author)}
@@ -377,8 +379,7 @@
         ].join(" ")}
       />{/if}
     <div data-message-avatar class={MESSAGE_AVATAR}>
-      {#if !continuous}{#if m.author === "ai"}<AgentMark
-            mark="✦"
+      {#if !continuous}{#if m.author === "ai"}<VibeCube
             size="base"
             class="text-base"
           />{:else if m.kind === "agent"}<!-- As in the classic app: the agent's tile, with the person it speaks for in the corner. -->
@@ -414,15 +415,15 @@
           >{vb.hhmm(m.ts)}</time
         >{/if}
     </div>
-    <div data-message-body class="min-w-0 flex-1 space-y-1">
+    <div data-message-body class="relative min-w-0 flex-1 space-y-1">
       {#if !continuous}<div
           data-message-head
-          class="-mb-0.5 flex min-h-5 flex-wrap items-center gap-x-2 text-xs text-muted-foreground"
+          class="-mb-0.5 flex min-h-5 flex-wrap items-center gap-x-2 text-xs text-muted-foreground max-md:text-sm"
         >
           <span
             class={[
               // The name is as big as the message under it; only the weight differs.
-              "text-[0.875rem] leading-5 font-semibold",
+              "text-[0.875rem] leading-5 font-semibold max-md:text-[1.0625rem] max-md:leading-6",
               m.kind === "agent"
                 ? AGENT_NAMES[agentProvider(m.via)]
                 : "text-foreground",
@@ -557,10 +558,18 @@
           data-reaction-row={m.id}
           class={[
             "-mt-1 flex min-h-6 flex-wrap items-center justify-between gap-x-3 select-none",
-            // Nothing in the row yet: it opens only on hover (or focus, or while the picker is open), so adjacent
-            // messages stay together and the hover makes the room (Gui #5347). Phones react from the long press.
+            // Right under a thread card it keeps a gap instead of pulling up into it (Gimenes #5477).
+            "[[data-thread-card]+&]:mt-1.5",
+            // Nothing in the row yet: it shows only on hover (or focus, or while the picker is open), so adjacent
+            // messages stay together (Gui #5347). It floats over the space under the message instead of opening
+            // room there, so the hover moves no other message (Gui #5797). Phones react from the long press.
+            // The last message keeps that height, only hidden: nothing is under it to float over (Gui #5741).
             bare &&
-              "hidden pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex has-[[data-picking]]:flex",
+              !last &&
+              "absolute inset-x-0 top-full z-10 hidden bg-background pb-2.5 pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex has-[[data-picking]]:flex",
+            bare &&
+              last &&
+              "invisible pointer-coarse:hidden pointer-fine:group-hover:visible pointer-fine:group-has-focus-visible:visible has-[[data-picking]]:visible",
           ]}
         >
           {#if reactable}<MessageReactions
@@ -575,6 +584,16 @@
         </div>{/if}
     </div>
   </div>
+  <!-- The floating row covers the next message on hover; a click on it (the picker opens) makes its room: this
+       grows to the row's 20px and the next message slides down (Gui #5825). A reaction then puts the row in the
+       flow with the same height, so nothing jumps. -->
+  {#if !origin && !editing && reactable && bare && !last}<div
+      aria-hidden="true"
+      data-reaction-space={m.id}
+      class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-out group-has-[[data-picking]]:grid-rows-[1fr] motion-reduce:transition-none"
+    >
+      <div class="min-h-0 overflow-hidden"><div class="h-5"></div></div>
+    </div>{/if}
   {#if editing || selecting}<!-- No toolbar while the text is a box, or while messages are picked. -->{:else if toolbar}<MessageActions
       bind:this={actionController}
       bind:sheet

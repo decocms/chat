@@ -1252,6 +1252,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/global-inbox-rail · The Inbox is one global button under the logo
+
 - Agent: claude-opus-5-5
 - Context: The human approved the artifact "Inbox global" (#3837) and asked for four slots on the rail: the logo and the Inbox (only when something waits), a line, DMs, a line, rooms, then search and +. The artifact also said that the Inbox loses "Esta sala / Todas as salas", and that the Home and room sidebars lose their Inbox items.
 - Decision:
@@ -1300,6 +1301,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-status-no-live · An epic has no "No ar" status
+
 - Agent: claude-opus-5-5
 - Context: The human said that "live" can mean different things and asked for a single "done" state (#3877).
 - Decision:
@@ -1313,6 +1315,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-no-rocket · The epic list has no deploy icon
+
 - Agent: claude-opus-5-5
 - Context: After "No ar" was removed (#3877), the human asked to also remove the rocket in the epic list (#3882).
 - Decision:
@@ -1339,6 +1342,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · fix/loading-title-left · A phone's Home loads with the list's bar
+
 - Agent: claude-opus-5-5
 - Context: The human said that a loading state still does not show the title on the left (#3878). On a phone, Home loaded with the desk layout (the cube and a centred headline bar) and then jumped to the list with "deco.chat" on the left. The room loading bar was already on the left (#302).
 - Decision:
@@ -1350,6 +1354,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/search-in-title · The room search stands where "Sala principal" was
+
 - Agent: claude-opus-5-5
 - Context: The human asked to move the room search to where the desktop bar says "Main thread", with the placeholder "Search in <room name>" (#3902). An epic's thread shows the epic's title and status pill in that place.
 - Decision:
@@ -1363,6 +1368,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · fix/composer-skeleton · The composer and its loading state share one shape
+
 - Agent: claude-opus-5-5
 - Context: The human said that the composer does not match its loading state. They asked for a taller composer, the composer's fill on the loading state, and code that tells a developer to change both together (#3905). The composer was 44px with `bg-muted`. The loading state was 56px with the input colour, other corners, a shadow, other margins and an extra 8px.
 - Decision:
@@ -1377,6 +1383,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-row-slot · The epic row: one slot at the end, and task progress as a bar
+
 - Agent: claude-opus-5-5
 - Context: The human asked for the epic's status at the end of its row, a number in its place when there is something new, and the x/y task count as a bar under the title (gray at 0 done, green after) (#3899, #3904). Then they said to change only the UI, not how the app tracks read messages (#3915).
 - Decision:
@@ -1389,6 +1396,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-row-slot · A touch screen has no actions menu on the epic's row
+
 - Agent: claude-opus-5-5
 - Context: On a phone, the `...` menu on each epic row was always visible, because a touch screen has no hover. The human said to remove it and to keep the actions only inside the epic (#3924). Inside the epic, the phone sheet had only the status menu. The row menu also pinned the epic, moved a pinned epic up or down, and picked its owner.
 - Decision:
@@ -1402,6 +1410,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-row-no-menu · The epic list has no actions menu on desktop either
+
 - Agent: claude-opus-5-5
 - Context: The human asked to remove the `...` from the epic list on desktop too (#3933). The row menu pinned the epic, moved a pinned epic up or down, and picked its owner.
 - Decision:
@@ -1414,6 +1423,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · fix/room-skeleton-pane · A loading room opens its pane as the room will, and its skeleton matches today's room
+
 - Agent: claude-opus-5-5
 - Context: The human said that the room's loading state shows the side pane open when it is closed. They asked to connect the loading state to the pane's real value, to make the code tell a developer to change both together, and to update the skeletons to match today's messages and bars (#3938).
 - Decision:
@@ -1428,6 +1438,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/home-waits-inline · The phone home opens the rest of what waits on you in place
+
 - Agent: claude-opus-5-5
 - Context: The human asked that "See all 5 in the Inbox" on the phone home show the rest inline, as WhatsApp does (#3942).
 - Decision: The button opens all the waits in the same list and reads "Ver todas as {n}" / "See all {n}". When open, it reads "Mostrar menos" / "Show less" and closes the list to 3 again. The list does not remember open or closed between visits. The Inbox stays one tap away through the icon in the top bar.
@@ -1437,6 +1448,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/chat-copy-transcript · A copy across messages reads as WhatsApp's
+
 - Agent: claude-opus-5-5
 - Context: The human said that a copy of many messages brings emoji and pieces of the UI. They asked for a copy like WhatsApp's: the name, the time and the message (#3955).
 - Decision:
@@ -1450,6 +1462,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/desktop-home-inbox · On a desktop, the Home is the Caixa de entrada
+
 - Agent: claude-opus-5-5
 - Context: The human chose option 2 of the mockup (#3967): on a desktop the logo opens the Caixa de entrada, with the search in the top bar as a room has it. The phone keeps its list.
 - Decision:
@@ -1466,6 +1479,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-status-after-title · The epic's status follows its title; its menu has no owner picker
+
 - Agent: claude-opus-5-5
 - Context: The human asked to put the epic's status right after the epic's title in the room, and to remove the owner selector from the status menu (#3975).
 - Decision:
@@ -1477,6 +1491,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/rail-hold-to-sort · Rooms on the rail move by press and hold, not by the browser's drag
+
 - Agent: claude-opus-5-5
 - Context: The human asked to rearrange the rooms in the sidebar by click and hold. They said that the gesture today shows a strange drop in the UI (#3978). The rail used the browser's drag and drop: a ghost of the link and a dashed box on the room under it.
 - Decision:
@@ -1491,6 +1506,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: superseded by "The rail sorts with dnd-kit, as one flat list" (feat/rail-dnd-kit)
 
 ### 2026-11-23 · feat/rail-dnd-kit · The rail sorts with dnd-kit, as one flat list
+
 - Agent: claude-opus-5-5
 - Context: Gimenes #3997: the rail's hold-to-sort was still poor on desktop. He wanted a preview of what is dragged, like dnd-kit, and asked to use dnd-kit where the product drags things.
 - Decision:
@@ -1504,6 +1520,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: superseded by "The rail and the thread list sort with @dnd-kit/svelte" (refactor/dnd-kit-svelte)
 
 ### 2026-11-23 · feat/no-task-board · The task board leaves the product; the room's name is the main thread
+
 - Agent: claude-opus-5-5
 - Context: Gimenes #3989 (items 1 and 2): remove the task board from the sidebar and the product. Move the main thread's button up to the room's name, and remove the room's message count. Simplify the data fetching if possible.
 - Decision:
@@ -1517,6 +1534,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/threads-four-states · Epics show as threads, with 4 states and 2 tabs
+
 - Agent: claude-opus-5-5
 - Context: Gimenes #3989 (items 3 and 4), with the defaults he approved in #3993.
 - Decision:
@@ -1529,6 +1547,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · refactor/dnd-kit-svelte · The rail and the thread list sort with @dnd-kit/svelte
+
 - Agent: claude-opus-5-5
 - Context: Gimenes #4020 asked to use @dnd-kit/svelte instead of @dnd-kit/dom, and to make the code simpler.
 - Decision:
@@ -1545,6 +1564,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · fix/idempotent-send · One send makes one message (client_id)
+
 - Agent: claude-opus-5-5
 - Context: People saw the same message two times. A send that became "not confirmed" was sent again, and the server stored it again. The human approved the design and a new column in `messages`. Three reviews then asked for the changes below.
 - Decision:
@@ -1566,6 +1586,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/thread-origin · Each thread starts from a message in the main thread
+
 - Agent: claude-opus-5-5
 - Context: Gimenes (#4123, #4126) asked for "Criar thread" on a message, as in Discord. Threads do not nest. A thread from a message in another thread gets a message in the main thread that links it. "Nova thread" in the sidebar also writes a message in the main thread. These points are not from a human:
 - Decision:
@@ -1789,7 +1810,6 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit and deploy the recorder again. To stop recording at once, remove `CALL_RECORD_ROOMS` from the chat's secrets.
 - Status: open
 
-
 ### 2026-11-24 · danielfurt/app-composer-draft · An MCP app can put a draft in the composer
 
 - Agent: Claude Opus 5.5
@@ -1911,7 +1931,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: One `ContextMenu` per row (like the pins); keep the dialog and add a menu beside it; send the person to the room and open its People panel for "Invite people".
 - Risk: low. The same mutations as the dialog, from a different surface.
 - Undo: Revert this commit.
-||||||| parent of 7a68e433 (feat(cli): Codex wakes from the room through codex queue; the plugin works in Codex; herdr installs the plugin (1.7.9))
+  ||||||| parent of 7a68e433 (feat(cli): Codex wakes from the room through codex queue; the plugin works in Codex; herdr installs the plugin (1.7.9))
 
 ### 2026-11-25 · viktor/codex-setup · Codex listens through codex queue
 
@@ -2027,7 +2047,6 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit and deploy the recorder again. The shares that were made stay.
 - Status: open
 
-
 ### 2026-11-25 · JonasJesus42/grain-workspace-playlist · The recordings reach the workspace through a playlist
 
 - Agent: Claude Opus 5.5
@@ -2037,7 +2056,6 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A failure leaves the recording where it was, shared with the people of the call. A workspace token (not personal) cannot make the playlist: the log says so.
 - Undo: Revert this commit. The playlist stays in Grain.
 - Status: open
-
 
 ### 2026-11-25 · fix/answer-opens-call · The call keeps a socket of its own to its room
 
@@ -2068,6 +2086,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-25 · viktor/copy-selection · A copy takes only the selected text
+
 - Agent: claude-opus-5-5
 - Context: The human said that when they select a part of a message and copy it, the full message is copied. The cause: a selection that ends past a message's text (in its footer or body, which is easy with the mouse) went to the transcript copy of 2026-11-23, which writes each full message.
 - Decision:
@@ -2079,6 +2098,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Let the browser copy each selection (the names, marks and reaction chips come back, Gimenes #3955). Keep the full text for each message that the selection takes in (the bug).
 - Risk: low. A partly selected Markdown message gives its shown text, not its Markdown source.
 - Undo: Revert this commit.
+
+### 2026-11-25 · fix/thread-order · The sidebar lists threads by when they were made, newest first
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#5603): on desktop, a thread goes up when he clicks it. The order must never change: sort by `created_at` in Mine, Open and Done. He did not say newest or oldest first. This replaces "recent threads first" (viktor/stable-room-nav, below). A room still reopens the thread you left.
+- Decision: Pinned threads stay on top, in their shared order. Then all threads, in the three tabs, by when they were made, newest first. A visit or a new message does not move a row. The server sends each epic's `created` (its `ts`, set once, when it is made). Without it (an older server), the order is the reverse of the server's.
+- Other options: Oldest first (a new thread would be at the bottom, after "Ver mais"). Keep the 3 recent threads on top (Gimenes asked that a click never moves a row). Keep Done by its last message.
+- Risk: low. Only the order of the sidebar's rows changes.
+- Undo: Revert the commit.
+- Status: open
 
 ### 2026-11-25 · viktor/stable-room-nav · A room reopens your thread; recent threads first
 
@@ -2168,3 +2197,217 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A socket without `lite` works as before, and each failure goes back to it.
 - Undo: Revert this commit. Old apps and the CLI never send `lite`.
 - Status: open
+
+### 2026-11-25 · fix/reaction-row-gap · The reaction row keeps a gap under a thread card; 🙂 only on hover
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#5477) and Valls (#5478): the reactions sat glued to a thread card, and the 🙂 (more emoji) button stayed visible whenever a message had a reaction, at the end of the hidden quick reactions.
+- Decision: Right after a thread card the row gets `mt-1.5` instead of pulling up 4px. The 🙂 button is hover-only like the quick reactions, also with chips, and is hidden on touch screens, which react from the long press.
+- Other options: Show 🙂 with chips only on phones (no hover there); the long press already offers every emoji.
+- Risk: low. A mouse user reaches more emoji by hovering the message, as with a message without chips.
+- Undo: Revert this commit.
+
+### 2026-11-25 · feat/tray-app · Menu bar app release: runners, pins and tools
+
+- Agent: claude-opus-5-5
+- Context: Gimenes approved a release workflow for the menu bar app (`tray/`) on macos-14, macos-13, windows-latest and ubuntu-22.04, with a herdr SHA-256 in the workflow. GitHub retired macos-13 and macos-14 (November 2026).
+- Decision:
+  - The workflow runs on `macos-15` (arm64) and `macos-15-intel` (x64). Windows and Linux are as requested.
+  - The herdr version and the SHA-256 of each file are in `scripts/tray-bins.ts`, not in the YAML. The workflow and a local build run the same script, so there is one pin.
+  - The workflow runs the Tauri CLI with `bunx @tauri-apps/cli@2.12.6`. It is not a dev dependency, because only the release and a local bundle need it.
+  - Windows ships herdr: herdr 0.9.5 has a Windows build (`herdr-windows-x86_64.zip`). Its `conpty/` folder and its notices go into the bundle (`tray/tauri.windows.conf.json`).
+  - Release files have fixed names (`deco.chat-<os>-<arch>.<ext>`) and a `SHA256SUMS.txt`. The release notes are in Portuguese and English.
+  - The `.app` also gets the Tauri ad-hoc signature (`signingIdentity: "-"`), so the `.dmg` contains a signed app. `tray/Info.plist` sets `LSUIElement` (no Dock icon).
+- Other options: The runners in the request (they do not start). Pins in the YAML (a second copy for local builds). `@tauri-apps/cli` in `package.json` (each `bun install` gets it). Windows without herdr (herdr exists for Windows).
+- Risk: low. Nobody ran the workflow yet.
+- Undo: Change the matrix, or move the pins into the YAML.
+- Status: open
+
+### 2026-11-25 · feat/tray-app · setup.sh installs the app, and opens it instead of herdr
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked for `public/setup.sh` to install the app from the newest `tray-v*` release, with a LaunchAgent on macOS and a systemd user service on Linux. He did not say how to find the release, what to do before the first release, or what the script opens at the end.
+- Decision:
+  - The script finds the newest `tray-v*` tag with the GitHub API (no token). If there is no release, or no file for the CPU, it prints "skipped" and continues. `VIBEBOOK_NO_TRAY=1` skips the step.
+  - It is step 6/6, after the login, so the app starts signed in.
+  - On macOS, before it replaces the app, it stops the LaunchAgent and the old app, its core and its runner (`pkill -f …/Contents/MacOS/vibebook`). It does not stop herdr, because the Claudes run in it.
+  - On Linux, the service has `KillMode=process`, so a restart does not stop herdr. Without FUSE 2 it sets `APPIMAGE_EXTRACT_AND_RUN=1`. The tray test is a `org.kde.StatusNotifierWatcher` name on the user D-Bus and a display. The service without a tray runs the CLI from step 1 (`vibebook watch`).
+  - When the app (or the service) is installed, the script does not open herdr at the end. It says that the app keeps herdr running and that `herdr` shows the Claudes.
+- Other options: `releases/latest` (another release type in the repo can become "latest"). Fail when there is no release (the script breaks until the first tag). Open herdr also (its tab starts a second runner, which stops at once).
+- Risk: medium. The macOS and Linux paths were tested only in parts (see the pull request).
+- Undo: Revert the step in `public/setup.sh`.
+- Status: open
+
+### 2026-11-25 · feat/tray-app · vibebook watch: menu words and runner restart
+
+- Agent: claude-opus-5-5
+- Context: The spike's `vibebook watch` and `vibebook tray` had Portuguese menu words only, and the runner ran once. AGENTS.md rule 6 asks for Portuguese and English.
+- Decision:
+  - The menu words are in Portuguese or English, from `VIBEBOOK_LANG`, `LC_ALL`, `LC_MESSAGES`, `LANG`, then the macOS `AppleLocale`, then `Intl`. The first label in the app before the core answers is "deco.chat…" (no words to translate).
+  - With `--menu`, when the runner stops, `watch` starts it again after 15 seconds. Without this, a runner that lost the lock to the herdr tab never ran again after the tab closed.
+  - `watch` passes `--agent` to the runner, uses the PATH separator of the system, hides console windows on Windows (`windowsHide`, and `CREATE_NO_WINDOW` in `tray/src/main.rs`), and knows the Windows path of a compiled Bun program (`B:\~BUN\`).
+  - The CLI version is 1.7.10 (no tag pushed).
+- Other options: Portuguese only (against rule 6). Run the runner once, as in the spike.
+- Risk: low. A runner that always fails starts again each 15 seconds and logs each time.
+- Undo: Revert the `watch` and `tray` cases in `cli/vibebook.ts`.
+- Status: open
+
+### 2026-11-25 · feat/stop-hook-listen · A Claude cannot end its turn with its listen stopped
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#5522): agents, his too, stopped listening after a wake (the listen is one-shot) and ignored his messages until he asked in the terminal (missed_message #5520, #5521).
+- Decision: the plugin gets a Stop hook (`claude-plugin/hooks/stop-listen.mjs`). When the newest `vibebook listen` of this Claude Code session (its pid file in `~/.vibebook`, the CLI's agent id for the session) is no longer running, the hook blocks the stop once and tells the Claude to read the room and start the listen again. A session that never listened, a listen that still runs, a pid file older than a day and a second stop in a row (`stop_hook_active`) are left alone.
+- Other options: a listen that never exits (the background task's end is what wakes Claude Code, so it would wake nobody); a stronger rule in the skill (agents already had it and skipped it); a CLI change (needs a CLI release).
+- Risk: low. A Claude that was told to stop listening gets the reminder once per turn until its pid file is a day old.
+- Undo: Revert this commit and publish the plugin.
+- Status: open
+
+### 2026-11-25 · fix/agent-asks-out-of-chat · A Claude's ⏸/❓ hook question is only its human's, on the server too
+
+- Agent: Claude Opus 5.5
+- Context: PO: the permission and question asks the plugin's hooks post ("⏸ Seu Claude pede permissão: **Bash** `<command>`…") reached every member: paths and commands of one person's terminal in everyone's timeline. The app hid them only on the client.
+- Decision: `messages.private_to` (src/privateAsk.ts) = the ask's author, also on that author's answer ("Aprovar") to it; backfilled once per room for existing ones. Every read that leaves the Book for a viewer filters `private_to IS NULL OR private_to = viewer`: the room open and resume, pages, read_room, quotes, search. Live events about such a message go to the owner's tabs only. A private message does not move the room's last id (no unread, no listener wake, no mention mail) and the router, @vibe and the agent streak ignore it. Its human still sees the ask with its buttons in the chat and in the Inbox; the hook reads the answer as before (answerTo).
+- Other options: Not storing the ask as a message (a side table): the answer flow, closeAsk and the app's buttons all build on the message row, a bigger change for the same result. Reusing `for_who`: it means a reminder for one person, and other readers rely on that.
+- Risk: low. A read that forgets the filter shows the ask to others again (the client still hides it).
+- Undo: Revert this commit; the column stays and is ignored.
+  ||||||| parent of 538950aa (feat(agents): plug a deco Studio agent into a room)
+
+### 2026-11-25 · feat/studio-sandbox-agents · Studio agents: how a room reaches deco Studio
+
+- Agent: claude-fable-5-2
+- Context: Viktor asked that an agent of a Studio project or organization can be plugged into a room as a freestyle sandbox is. He selected the design where the server keeps a Studio credential and sends the messages (an exception to rule 1 of `AGENTS.md`), and asked to use the Studio OAuth sign-in and not a pasted API key. He did not say the details below.
+- Decision:
+  - The Studio grant is kept by the code that MCP connections already use (`src/mcpauth.ts`, table `mcp_grants`), for the resource `<studio>/mcp`. There is no new secret table. `startAuth` got an optional `scope`, because Studio gives a refresh token only for `offline_access`.
+  - A Studio agent is a row in `sandboxes` with `provider = 'studio'` (new columns `provider`, `target`). `vm_id` keeps the Studio chat ID. Thus the `@name` routing, the room login and the limit of 3 per room are the same as for a freestyle sandbox.
+  - Nothing listens in the Studio sandbox. When a person posts a message that names one of their own Studio agents, the `Book` sends that message to the Studio chat (`wakeStudioAgents`). The run answers in the room with the vibebook CLI.
+  - The setup installs the vibebook CLI with `npm install --prefix ~/.npm-global` each time. The CLI is not put in the Studio sandbox image: the CLI changes often and that image is updated by hand. The sandbox user cannot write the global npm prefix.
+  - Viktor asked that the agent has its Studio name in the room. A project's agent gets the project's title as its name and `@handle` (`@example-store`). The agent of an organization has the same title in every organization in Studio, so it gets the organization's name, and the handle `@<org>-agent`.
+  - The MCP tools for agents (`sandboxes`, `sandbox_exec`, `sandbox_power`) see only freestyle sandboxes.
+  - "Remover" on a Studio agent removes it from the room and revokes its room login. The Studio chat stays in Studio.
+- Other options: A pasted Studio API key in a new table (one more secret for the person to manage). A `vibebook listen` that stays on in the Studio sandbox (it stops when the sandbox stops). The runner on the person's computer sends the messages (it needs that computer on). A provider interface for sandboxes (larger change; there are two providers).
+- Risk: medium. deco.chat now starts work in Studio with the access of a person. The limit is that only the owner of the agent can start a run, and only with a message that names the agent.
+- Undo: Revert the commit. Delete the rows `provider = 'studio'` in `sandboxes` and the rows of `mcp_grants` whose `resource` is the Studio URL. The columns `provider` and `target` can stay.
+- Status: open
+
+### 2026-11-25 · viktor/settings-cloud-studio · Cloud agents: stable panel, Studio pickers with projects
+
+- Agent: claude-opus-5-5
+- Context: Viktor said that Settings › Cloud agents drew itself again while he used it, and asked for a searchable organization picker that lists the organization's projects right after, so that nobody types a project ID. He did not say the details below.
+- Decision:
+  - The cause of the redraw: `CloudSettings` made its cloud scope in an `$effect` that read the `account` prop. The parent passes it as `$view.binding.account`, a getter that reads the whole account store, so each update of that store (each `/api/me` refresh) made a new scope, which redrew `SandboxPanel` and read the sandboxes again. The effect now reads `$derived` values only. Also, the room that is shown stays while it is in the list. Before, the default room followed "the room you opened last", which changes when a room opens in another tab.
+  - The projects are read like the organizations: by the Worker, with the Studio grant that the person already gave (`GET /api/studio/orgs/:org/projects`, Studio tool `COLLECTION_VIRTUAL_MCP_LIST`, active projects only, sorted by title, 500 at most). This is a read of the same kind as the organizations and the project title, which the Studio agent feature already does. `README.md` (Security model) now names these reads. The exception text in `AGENTS.md` (rule 1) still says "It makes no other call to Studio": a human must decide if that text changes.
+  - The two pickers are the existing `Combobox` (`web/lib/studio/`). Its search matches each typed word in the name, without case or accents (`nameMatch`), not its fuzzy default, which matches scattered letters.
+  - With one organization, it is picked at once. With more, the picker starts empty, so that the server does not read the projects of an organization that the person did not choose.
+  - The project picker starts on "Agent da organização" (the organization's agent). "Criar agent do Studio" is disabled while the projects load and when the read failed. It does not silently fall back to the organization's agent. The error has "Tentar de novo".
+  - The organizations still come with the sandbox read, as before. Their read error still shows as "Não deu para listar suas organizações do Studio".
+- Other options: Fix the redraw in the parent only (`AccountSettings`), which leaves the same trap for the next parent. Read the projects in the browser (the browser has no Studio token). A `Select` with a second text field for search (two controls for one task). A list of radio rows for the projects (long with dozens of projects).
+- Risk: low. If Studio changes or removes `COLLECTION_VIRTUAL_MCP_LIST`, the project picker shows its error and no Studio agent can be made until this read is fixed.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-25 · feat/agent-roles · Every agent has an @name in the room; one Primary per person
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#5472, #5506, #5547): with two agents of his in a room, both woke for the same message (duplicate PRs #481/#482, #490/#492), and there was no way to call one of them. Gui's roles POC (#290) already had `@role` and a Primary.
+- Decision: An agent without a role is named after its client (`claude`, `codex`); the second of the same person in the room is `claude-2`. The name is kept per agent and room (`agent_rooms.name`) and freed after 3 days unused. Only the Primary (the active agent without a role with the lowest name) gets its human's messages that name no agent; `@claude-2` wakes only claude-2, and the router wakes it with a fixed rule (no model). `agent`, `claude(-N)` and `codex(-N)` can't be a person's @handle.
+- Other options: client + repo (`@claude-chat`, the first proposal), dropped as long; one decision per person with both agents waking, which is the duplicate we had.
+- Risk: medium. A second agent no longer acts on messages without @: a person who relied on two agents doing the same thing must now call the second by name. `wait_for_messages` reads two more D1 rows per room with news.
+- Undo: Revert the commit; `agent_rooms.name` stays unused.
+- Status: open
+
+### 2026-11-25 · feat/user-center-mobile · The phone's user center and its count
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked for step 4 of the user center: on a phone, the desktop's rows at the top of the Chats list, a count on your avatar, and no other place for these rows. He did not say where the count goes in a room, where your face is not in the bar.
+- Decision:
+  - The Chats list draws `UserCenter phone` under the search: `UpdateRow`, `InstallCard row`, `NotifyOffer row`, `Requests center`. The box is drawn only when `userCenterCount` (`web/features/user-center/count.ts`) is more than 0.
+  - The count is on your face in the Chats bar (`AccountRow badge`). The face still opens Settings, because the rows are on the same screen.
+  - In a room and in a DM, the count is on ←, not on a face: ← goes to the Chats list, and a room's bar shows the other people, not you. A tap on ← opens the rows. A DM's face still opens Settings.
+  - The number is the app's one notification count (`Count`), as on the rail's cube. `count.ts` is new so that the bar and the list count the same rows. `InstallCard` gets a `row` variant, as `NotifyOffer` has. No new component.
+  - The room's notifications strip and the `NotifyOffer` strip variant are removed. The Chats list no longer draws `Requests variant="list"`. A phone with no conversation yet (the desk home) keeps the install card and the notifications card: it has no Chats list.
+  - On a touch screen (`hover:none`), the × of the notifications, install and request rows is always visible. This also changes a desktop with a touch screen and no mouse.
+  - The count includes the install offer.
+  - There is no `track()` event: the browser app has no event path (see the entries above). The actions in the rows are the existing ones.
+- Other options: the count on your face in the drawer and in a DM's bar, with a tap that opens Chats in place of Settings (two meanings for one face). Your face added to a room's bar (no space next to the people). A new card component for the phone (the desktop box can do it).
+- Risk: low.
+- Undo: Revert this commit.
+
+### 2026-11-25 · feat/org-rooms · Rooms open to your company: the open choices
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes approved "rooms open to your company" (a switch in People, a "Da sua empresa" list on the home, join without a request). He did not say where the rules live, how the home gets the list, or how the rows look.
+- Decision:
+  - The rules are in a new file `src/orgRooms.ts` with only D1 (`requestAccess` moved there with ports), because `src/services.ts` and `src/rooms.ts` import `cloudflare:workers` and do not load in `bun test`.
+  - The home list is a second section of the existing `Requests.svelte` ("Da sua empresa"), with the same rows and only "Entrar" (no ×). No new component. The navigation controller reads `/api/org/rooms` again each time `/api/me` changes.
+  - After the rebase on the user center (#512), the rows go where the invites and requests now go: in the user center (the desktop sidebar, a room's sidebar and the phone's Chats list), with no section title, as the other user center rows. They do not add to the user center count, because nobody waits for your answer. The old places (the DM list and the top of the Chats list) no longer exist.
+  - The row shows the room's marble, not its icon, because `/api/books/:id/icon` is for members only.
+  - The People switch uses the `users-01` icon (no building icon is in the sprite), and a short line under it says who can see the room.
+  - An index `books_org` on `books (org)`, so that the home's query does not read all the rooms.
+  - `track()` events: `room_org` (switch), `org_room_joined` (join), and `org_rooms_listed` (the home gets a list that is not empty).
+  - "Ask for access" on a room link also lets in a person with the same domain (the existing page opens the room on `member: true`). Its label stays "Pedir acesso".
+- Other options: A new `OrgRooms.svelte` (duplicates the rows). The list in `/api/me` (cached per person, so it goes stale). A tests-only copy of the rules (the tests do not test the real code).
+- Risk: low
+- Undo: Revert the commit. The columns `org` and `org_by` stay in D1 and are not used.
+- Status: open
+
+### 2026-11-25 · feat/tray-agents · The menu bar app shows only you, the deco.chat update, Open and Quit
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes, after Pedro's beta: keep the room switches in the web app (#5573). The update is for deco.chat itself, the app and the CLI, not for the agents (#5602). No "Ligar nas salas…" (#5636). Then the menu shows only: the signed-in email, check for updates or the update button with the version, open deco.chat, quit (#5638). Then (#5640): "check for updates", and after the check "up to date" with the version; he asked for the most canonical way. He did not say how to update the CLI.
+- Decision: One update line, as in other macOS apps (Sparkle): "Procurar atualizações", with no check before the click. A click checks the app (newest `tray-v*`) and the `vibebook` CLI on `PATH` (newest `vibebook.dev` on npm), then shows "Atualizado · <version>" or "Instalar atualização · <new version>". The install updates the CLI first (`npm i -g vibebook.dev@latest` when npm installed it, else `vibebook update`), then runs `setup.sh` again for the app (Windows: the release page). The list of agents is gone.
+- Other options: Check every hour and show the install line by itself (Gimenes asked for check, then the result). Two lines, one for the app and one for the CLI (one click is simpler, and both are deco.chat). Tauri's updater for the app (it needs a signing key secret). A version line apart from the update line (Gimenes asked for four items).
+- Risk: low. A click runs the CLI's update and `setup.sh` with the person's rights.
+- Undo: Revert the commit and release the app again.
+- Status: open
+
+### 2026-11-26 · fix/hover-no-cls · A message that grows under the pointer does not pull the chat to the bottom
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#5740, #5741): the hover moves the layout on a message with an image and on the last message without "seen". He did not say how to fix it. Measured on local development: with the chat at the bottom, a hover on any message opened its reaction row (20 px), the chat followed the bottom, and every message above moved up 20 px. A tall image then left the pointer.
+- Decision:
+  - The chat's `ResizeObserver` (`web/features/chat-viewport/surface.ts`) ignores a resize when every resized element is under the pointer (`:hover`) and is not the scroller. The row then opens below the message, and nothing above it moves.
+  - The last message of the room or thread keeps its empty reaction row's height, `invisible` instead of `hidden`, so its hover grows nothing. On a phone (`pointer-coarse`) it stays `hidden`.
+  - Readers and agents that passed move to the last message of a run from the same person (the same rule as `continues()`), one face per person. Statuses stay on their message.
+- Other options: Overlay the row on hover (Gui #5347 asked that the hover make room). Keep the scroll position in `growth()` only for hover (the observer has the entries; `growth()` does not).
+- Risk: low. A message that streams while the pointer is on it does not follow the bottom until the pointer leaves it.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-26 · feat/composer-format-hints · Shortcut hints show while you select text
+
+- Agent: claude-opus-5-5
+- Context: Pedro selected "A and C" of the proposal in the room (thread "PR #484", message #5759): inline code gets a background, and the composer shows the formatting shortcuts. Nobody found the shortcuts of #484 with no hint. The proposal said "the tooltip of the composer", but the composer has no tooltip.
+- Decision:
+  - A line with six shortcuts (bold, italic, underline, strikethrough, code, link) shows above the field while you select text in it. The keys are written as the computer writes them (`⌘⇧K` on a Mac, `Ctrl+Shift+K` on other computers). It shows only on desktop with a mouse (`md:pointer-fine:`): a phone has no ⌘ or Ctrl keys. It does not take clicks.
+  - The code block and the quote are not in the line, to keep it on one row. They are in `markdownShortcuts.ts` and in the docs.
+  - Inline code in a message has `bg-muted`, `rounded-sm` and a small padding. In a code block (`pre`) the `code` has no background, because the `pre` has one.
+  - No new `track()` event: the browser has no route for one, and the `message` event already has `marks: true` (#484). The hint works if that number goes up.
+- Other options: A button with a menu of shortcuts (a new control in a full row). A hint in the placeholder (it goes away when you type). A toolbar of buttons on selection, as in Discord (more work, and clicks).
+- Risk: low. The line can cover the last line of the chat while you select text.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-26 · feat/leave-room · Leave a room from its menu
+
+- Agent: claude-opus-5-5
+- Context: Valls asked for "Sair da sala" in the room menu, under Archive, with a confirm. The owner and DMs do not get it. Before this, nobody could leave a room.
+- Decision:
+  - The server has a new route, `POST /api/books/:id/leave`. It calls `removeMember` on the person who sends it, with the same rules: the owner gets a 400, and a DM gets a 400. It sends the event `book_left`. The People panel still does not let you remove yourself.
+  - `/api/me` now gives each room its `owner` (`MeBook.owner`, optional). The menu shows the item only when `owner` is known and is not you. A cached `/api/me` from before this change has no `owner`, so the item is hidden until the next read.
+  - The confirm is a `TitledDialog` in `AppNavigationDialogs`, like Archive (a new `leave` dialog kind). After the server says yes, the room leaves the list in the same way as after Archive. If it was the open room, the app goes home, because you can no longer see the room. Archive does not navigate: an archived room stays open to you.
+  - Phones use the same `RoomMenu` (long press), so they get the item too.
+- Other options: A boolean `can_leave` in `/api/me` instead of `owner`. A confirm in the menu itself. Using `DELETE /members/:email` with your own email (the People panel blocks that on purpose).
+- Risk: low. Leaving cannot be undone by you: someone has to invite you again. The confirm says so.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-26 · fix/hover-overlay · The empty reaction row floats under its message on hover
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#5797): "fix the CLS, not the layout which isnt broken". The empty reaction row opened on hover and pushed every message below it down by 20 px (Leandro, Valls #5786).
+- Decision: An empty reaction row that is not on the last message is `absolute`, under the message body, with the page background, as wide as the message body. It shows on hover as before, and it takes no space. The last message keeps its `invisible` row (#5741).
+- Other options: A fixed 24 px row on every message (#443). That changes the layout, and Gui #5347 asked that adjacent messages stay together.
+- Risk: The row covers the start of the next message's first line while the pointer is on the message. #438 dropped a floating pill for that reason.
+- Undo: Revert the commit.
+- Status: open
+- Update (fix/react-opens-space, Gui #5825): a click on the floating row (the picker opens) makes its room. A spacer after the message grows from 0 to 20 px with the `grid-rows` transition, and the next message slides down. When a reaction is given, the row goes into the flow with the same 20 px, so nothing jumps. Esc closes the space again. A quick reaction (👍) without the picker puts the row in the flow at once, without the animation.

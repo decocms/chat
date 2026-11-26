@@ -17,6 +17,7 @@ import { track as trackEvent } from "./track";
 // - Pause keeps memory and processes (freestyle bills only disk while paused); start resumes them.
 import type { Env } from "./index";
 import { bookStub, storeFile } from "./rooms";
+import { OrgSlug, StudioTarget, startStudioChat, studioAgentTitle, studioAuth, studioConnected, studioExec, studioOrgs, studioSetupCommand } from "./studioSandbox";
 
 let API = "https://api.freestyle.sh"; // FREESTYLE_API overrides it in local dev (a mock)
 const enc = new TextEncoder();
@@ -170,7 +171,7 @@ touch "$HOME/.vibebook-setup-done"
 const RUN_SETUP = "(setsid nohup bash /tmp/vibebook-setup.sh </dev/null >/dev/null 2>&1 &) ; sleep 1; echo started";
 /** Authorizes this sandbox's vibebook CLI for its person, server-side (no browser): a public client with the code page
  * as redirect, a grant completed for them, and the code + PKCE verifier written to the VM for the CLI to redeem. */
-async function writeVibebookLogin(env: Env, key: string, email: string, vmId: string, origin: string, sandbox: string, room: string) {
+export async function vibebookLogin(env: Env, email: string, origin: string, sandbox: string, room: string) {
   const oauth = env.OAUTH_PROVIDER;
   const redirect = `${origin}/oauth/code`;
   const client = await oauth.createClient({ clientName: "vibebook sandbox", redirectUris: [redirect], tokenEndpointAuthMethod: "none", grantTypes: ["authorization_code", "refresh_token"], responseTypes: ["code"] });
@@ -187,7 +188,10 @@ async function writeVibebookLogin(env: Env, key: string, email: string, vmId: st
   });
   const code = new URL(redirectTo).searchParams.get("code");
   if (!code) throw new Error("could not authorize the sandbox's vibebook login");
-  await fs(key, "PUT", `/v5/vms/${vmId}/fs/write`, { path: "/tmp/vibebook-login.json", content: JSON.stringify({ origin, client_id: client.clientId, code, verifier, redirect }), mode: 384 });
+  return JSON.stringify({ origin, client_id: client.clientId, code, verifier, redirect });
+}
+async function writeVibebookLogin(env: Env, key: string, email: string, vmId: string, origin: string, sandbox: string, room: string) {
+  await fs(key, "PUT", `/v5/vms/${vmId}/fs/write`, { path: "/tmp/vibebook-login.json", content: await vibebookLogin(env, email, origin, sandbox, room), mode: 384 });
 }
 /** Hands the person's Claude token to the VM (if they connected one), as a 0600 file the setup moves into $HOME. */
 async function writeClaudeEnv(env: Env, key: string, email: string, vmId: string) {
@@ -211,7 +215,8 @@ export async function agentFile(env: Env, bookId: string, email: string, name: s
 
 /** A new sandbox for this person in this room (the app's Criar sandbox, MCP sandbox_create). Throws a user-facing Error
  *  (in English when `en`: the app passes its person's language, agents get the Portuguese). */
-export async function createSandbox(env: Env, email: string, bookId: string, rawName: string, origin: string, en = false) {
+export async function createSandbox(env: Env, email: string, bookId: string, rawName: string, origin: string, en = false, studio?: { org: string; project?: string }) {
+  if (studio) return createStudioAgent(env, email, bookId, rawName, origin, en, studio);
   useEnv(env);
   const k = await loadKey(env, email).catch(() => null);
   if (!k) throw new Error(en ? "Connect your freestyle.sh account first." : "Conecte sua conta do freestyle.sh primeiro.");
@@ -237,11 +242,57 @@ export async function createSandbox(env: Env, email: string, bookId: string, raw
   return { id: sid, vm_id: vm.id, name };
 }
 
+const STUDIO_READY = "if [ -f ~/.vibebook-setup-done ]; then echo done; elif [ -f ~/vibebook-setup.log ]; then tail -n 2 ~/vibebook-setup.log | cut -c1-160; else echo nolog; fi";
+const studioRow = (raw: Record<string, unknown>) => (raw.provider === "studio" ? StudioTarget.safeParse((() => { try { return JSON.parse(String(raw.target ?? "")); } catch { return null; } })()) : null);
+/** A Studio agent in this room (src/studioSandbox.ts): a new Studio chat with its sandbox, the vibebook CLI installed
+ *  there with a login for this room only. `vm_id` keeps the Studio chat id; nothing runs between messages. */
+async function createStudioAgent(env: Env, email: string, bookId: string, rawName: string, origin: string, en: boolean, o: { org: string; project?: string }) {
+  const org = OrgSlug.safeParse(o.org);
+  if (!org.success) throw new Error(en ? "Pick a Studio organization." : "Escolha uma organização do Studio.");
+  const auth = await studioAuth(env, origin, email, org.data);
+  if (!auth) throw new Error(en ? "Connect your deco Studio account first." : "Conecte sua conta do deco Studio primeiro.");
+  const n = await env.DB.prepare(`SELECT count(*) AS n FROM sandboxes WHERE book_id = ? AND email = ?`).bind(bookId, email).first<{ n: number }>();
+  if ((n?.n ?? 0) >= MAX_PER_ROOM) throw new Error(en ? `At most ${MAX_PER_ROOM} sandboxes of yours per room.` : `No máximo ${MAX_PER_ROOM} sandboxes seus por sala.`);
+  // It is called in the room as it is called in Studio: a project's agent by the project's title, the organization's
+  // own agent by the organization (every organization's agent has the same title in Studio).
+  const project = o.project?.trim() || undefined;
+  const projectTitle = project ? await studioAgentTitle(env, auth, project) : null;
+  if (project && !projectTitle) throw new Error(en ? "Studio has no agent with that ID in this organization." : "O Studio não tem agent com esse ID nesta organização.");
+  const orgName = project ? null : (await studioOrgs(env, origin, email).catch(() => null))?.find((x) => x.slug === org.data)?.name;
+  const title = projectTitle ?? orgName ?? org.data; // no language in it: the card says "agent do Studio" next to it
+  const name = slug(rawName || projectTitle || `${org.data}-agent`);
+  const taken = await env.DB.prepare(`SELECT 1 FROM sandboxes WHERE book_id = ? AND email = ? AND name = ?`).bind(bookId, email, name).first();
+  if (taken) throw new Error(en ? `You already have an agent called ${name} in this room.` : `Você já tem um agent chamado ${name} nesta sala.`);
+  const chat = await startStudioChat(env, auth, project);
+  await studioExec(env, auth, chat.threadId, chat.target, studioSetupCommand({ roomId: bookId, login: await vibebookLogin(env, email, origin, name, bookId) }), 30);
+  const sid = crypto.randomUUID().slice(0, 8);
+  await env.DB.prepare(`INSERT INTO sandboxes (id, email, book_id, name, vm_id, identity_id, ready, created_at, state, checked_at, provider, target) VALUES (?, ?, ?, ?, ?, NULL, 0, ?, 'studio', ?, 'studio', ?)`)
+    .bind(sid, email, bookId, name, chat.threadId, Date.now(), Date.now(), JSON.stringify({ ...chat.target, title })).run();
+  return { id: sid, vm_id: chat.threadId, name };
+}
+/** The Studio agents of this person that a message of theirs names (`@<name>`), with what is needed to reach them. */
+export async function studioAgentsIn(env: Env, bookId: string, email: string) {
+  const rows = (await env.DB.prepare(`SELECT id, name, vm_id, target FROM sandboxes WHERE book_id = ? AND email = ? AND provider = 'studio'`).bind(bookId, email).all<{ id: string; name: string; vm_id: string; target: string }>()).results;
+  return rows.flatMap((r) => { const t = studioRow({ provider: "studio", target: r.target }); return t?.success && r.name && r.vm_id ? [{ id: r.id, name: r.name, threadId: r.vm_id, target: t.data }] : []; });
+}
+
 /** Runs the setup again from the room's current agents/<name>.md, in the foreground (up to ~4.5 min): fresh vibebook
  * login and Claude token, a syntax check, the setup, and Claude restarted in tmux. Returns the log's last lines. */
 export async function redoSetup(env: Env, email: string, sid: string, origin: string, en = false) {
   useEnv(env);
   const r = sandboxSetup(await env.DB.prepare(`SELECT * FROM sandboxes WHERE id = ? AND email = ?`).bind(sid, email).first());
+  const st = r && studioRow(r.raw);
+  if (r && st) {
+    // A Studio agent: the CLI again (its newest version) and a fresh room login, in the foreground.
+    const auth = st.success ? await studioAuth(env, origin, email, st.data.org) : null;
+    if (!st.success || !auth) throw new Error("not found");
+    await studioExec(env, auth, r.vm_id, st.data, studioSetupCommand({ roomId: r.book_id, login: await vibebookLogin(env, email, origin, r.name, r.book_id) }), 30);
+    const x = await studioExec(env, auth, r.vm_id, st.data, `for i in $(seq 1 45); do [ -f ~/.vibebook-setup-done ] && break; sleep 2; done; test -f ~/.vibebook-setup-done && echo READY; tail -n 15 ~/vibebook-setup.log 2>/dev/null | cut -c1-200`, 110);
+    const out = redact(`${x.stdout}${x.stderr}`.trim());
+    const ready = /^READY$/m.test(out);
+    await env.DB.prepare(`UPDATE sandboxes SET ready = ? WHERE id = ?`).bind(ready ? 1 : 0, r.id).run();
+    return { ok: ready, log: out.slice(-2500), error: ready ? undefined : en ? "the setup didn't finish: see the log on the card" : "o setup não terminou: veja o log no card" };
+  }
   const k = await loadKey(env, email).catch(() => null);
   if (!r || !k) throw new Error("not found");
   const vm = await fs(k, "GET", `/v5/vms/${r.vm_id}`, undefined, FsVm);
@@ -275,11 +326,28 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
   return {
     async list(roomId: string) {
       const rows = (await env.DB.prepare(`SELECT * FROM sandboxes WHERE book_id = ? AND email = ? ORDER BY created_at`).bind(roomId, email).all()).results.flatMap(raw => { try { const row = sandboxTarget(raw); return row ? [row] : []; } catch { console.error("sandbox row has invalid target"); return []; } });
-      const k = rows.length ? await key() : null;
+      const k = rows.some((r) => r.raw.provider !== "studio") ? await key() : null;
       const sandboxes = await Promise.all(rows.map(async (r) => {
         let state = "unknown", error: string | undefined, log: string | undefined;
         let metrics = sandboxMetrics(r.raw);
         let providerFailed = false;
+        const st = studioRow(r.raw);
+        if (st) {
+          // A Studio agent has no VM of ours to price or pause: ready or not, and why not.
+          try {
+            const auth = st.success ? await studioAuth(env, origin, email, st.data.org) : null;
+            if (!st.success || !auth) throw new Error(en ? "Studio disconnected" : "Studio desconectado");
+            if (!r.ready) {
+              const o = await studioExec(env, auth, r.vm_id, st.data, STUDIO_READY, 20);
+              const out = o.stdout.trim();
+              if (out === "done") { r.ready = true; await env.DB.prepare(`UPDATE sandboxes SET ready = 1 WHERE id = ?`).bind(r.id).run(); }
+              else log = out === "nolog" ? (en ? "the setup didn't start (no log)" : "o setup não começou (sem log)") : out.split("\n").pop() || o.stderr.slice(0, 160);
+            }
+          } catch (e) {
+            error = e instanceof Error ? e.message : String(e);
+          }
+          return { id: r.id, name: r.name, vm_id: r.vm_id, ready: !!r.ready, state: "studio", provider: "studio" as const, ...(st.success && st.data.title ? { title: st.data.title } : {}), ...(error ? { error } : {}), ...(log ? { log } : {}), created_at: r.created_at, rate: 0, cost: 0 };
+        }
         try {
           if (!k) throw new Error(en ? "freestyle disconnected" : "freestyle desconectado");
           const vm = await fs(k, "GET", `/v5/vms/${r.vm_id}`, undefined, FsVm);
@@ -311,18 +379,21 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
         env.DB.prepare(`SELECT 1 FROM freestyle_keys WHERE email = ?`).bind(email).first(),
         env.DB.prepare(`SELECT 1 FROM claude_tokens WHERE email = ?`).bind(email).first(),
       ]);
-      return SandboxesResult.parse({ connected: !!fsKey, claude: !!claude, sandboxes });
+      // The organizations fill the "Criar agent do Studio" picker. A grant that ended reads as not connected.
+      const orgs = (await studioConnected(env, email).catch(() => false)) ? await studioOrgs(env, origin, email).catch(() => []) : null;
+      return SandboxesResult.parse({ connected: !!fsKey, claude: !!claude, studio: orgs !== null, studio_orgs: orgs ?? [], sandboxes });
     },
     /** Throws an Error whose message is user-facing (no key, the room's limit, freestyle's refusal). */
-    async create(roomId: string, name: string) {
-      const r = await createSandbox(env, email, roomId, name, origin, en);
-      track("sandbox_created", roomId);
+    async create(roomId: string, name: string, studio?: { org: string; project?: string }) {
+      const r = await createSandbox(env, email, roomId, name, origin, en, studio);
+      track(studio ? "studio_agent_created" : "sandbox_created", roomId);
       ctx.waitUntil(roomChanged(env, roomId));
       return r;
     },
     /** null = done; "not_found" = no such sandbox of yours (or no key); else freestyle's error. */
     async power(sid: string, act: "pause" | "start"): Promise<string | null> {
       const r = await mine(sid), k = await key();
+      if (r?.raw.provider === "studio") return en ? "A Studio agent has nothing to pause: it runs only when a message arrives." : "Um agent do Studio não tem o que pausar: ele só roda quando chega mensagem.";
       if (!r || !k) return "not_found";
       try { await fs(k, "POST", `/v5/vms/${r.vm_id}/${act}`); } catch (e) { return caughtMessage(e); }
       await env.DB.prepare(`UPDATE sandboxes SET state = ? WHERE id = ?`).bind(act === "pause" ? "paused" : "running", r.id).run(); // the rail's ☁ follows at once
@@ -335,9 +406,11 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
     async remove(sid: string) {
       const r = await mine(sid), k = await key();
       if (!r) return false;
-      if (k) await fs(k, "DELETE", `/v5/vms/${r.vm_id}`).catch((e) => { if (!/ 404:/.test(e.message)) throw e; });
+      // A Studio agent: the Studio chat stays in Studio (its history is the person's); only the room's side goes.
+      const vm = r.raw.provider === "studio" ? null : k;
+      if (vm) await fs(vm, "DELETE", `/v5/vms/${r.vm_id}`).catch((e) => { if (!/ 404:/.test(e.message)) throw e; });
       const ident = z.nullable(z.string().check(z.minLength(1))).safeParse(r.raw.identity_id ?? null);
-      if (k && ident.success && ident.data) await fs(k, "DELETE", `/v5/identities/${ident.data}`).catch(() => {});
+      if (vm && ident.success && ident.data) await fs(vm, "DELETE", `/v5/identities/${ident.data}`).catch(() => {});
       await env.DB.prepare(`DELETE FROM sandboxes WHERE id = ?`).bind(r.id).run();
       if (r.book_id) ctx.waitUntil(roomChanged(env, r.book_id));
       // Its Claude goes too: the vibebook grants made for it are revoked and it leaves "Conectados" (its folder = its name).
@@ -358,7 +431,7 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
      *  null = no such sandbox of yours (or no key); throws freestyle's error. */
     async terminal(sid: string) {
       const r = await mine(sid), k = await key();
-      if (!r || !k) return null;
+      if (!r || !k || r.raw.provider === "studio") return null; // a Studio agent's terminal is its Studio chat
       let ident = sandboxIdentity(r.raw);
       const vm = await fs(k, "GET", `/v5/vms/${r.vm_id}`, undefined, FsVm);
       if (vm.state !== "running" && vm.state !== "starting") await fs(k, "POST", `/v5/vms/${r.vm_id}/start`);
@@ -384,7 +457,7 @@ export async function agentSandboxes(env: Env, email: string) {
   useEnv(env);
   const k = await loadKey(env, email).catch(() => null);
   if (!k) return { connected: false, sandboxes: [], note: "your human hasn't connected freestyle.sh (Agents → Na nuvem in a room)" };
-  const rows = (await env.DB.prepare(`SELECT * FROM sandboxes WHERE email = ? ORDER BY created_at`).bind(email).all()).results.flatMap(raw => { try { const row = sandboxTarget(raw); return row ? [row] : []; } catch { console.error("sandbox row has invalid target"); return []; } });
+  const rows = (await env.DB.prepare(`SELECT * FROM sandboxes WHERE email = ? AND provider IS NULL ORDER BY created_at`).bind(email).all()).results.flatMap(raw => { try { const row = sandboxTarget(raw); return row ? [row] : []; } catch { console.error("sandbox row has invalid target"); return []; } });
   const out = await Promise.all(rows.map(async (r) => {
     try {
       const vm = await fs(k, "GET", `/v5/vms/${r.vm_id}`, undefined, FsVm);
@@ -397,7 +470,7 @@ export async function agentSandboxes(env: Env, email: string) {
 }
 export async function agentSandboxPower(env: Env, email: string, sid: string, action: "pause" | "start") {
   useEnv(env);
-  const r = sandboxTarget(await env.DB.prepare(`SELECT * FROM sandboxes WHERE id = ? AND email = ?`).bind(sid, email).first());
+  const r = sandboxTarget(await env.DB.prepare(`SELECT * FROM sandboxes WHERE id = ? AND email = ? AND provider IS NULL`).bind(sid, email).first());
   if (!r) throw new Error(`no sandbox ${sid} of your human's (call sandboxes)`);
   const k = await loadKey(env, email).catch(() => null);
   if (!k) throw new Error("your human's freestyle.sh isn't connected");
@@ -408,7 +481,7 @@ export async function agentSandboxPower(env: Env, email: string, sid: string, ac
 }
 export async function agentSandboxExec(env: Env, email: string, sid: string, command: string, timeoutS = 60) {
   useEnv(env);
-  const r = sandboxTarget(await env.DB.prepare(`SELECT * FROM sandboxes WHERE id = ? AND email = ?`).bind(sid, email).first());
+  const r = sandboxTarget(await env.DB.prepare(`SELECT * FROM sandboxes WHERE id = ? AND email = ? AND provider IS NULL`).bind(sid, email).first());
   if (!r) throw new Error(`no sandbox ${sid} of your human's (call sandboxes)`);
   const k = await loadKey(env, email).catch(() => null);
   if (!k) throw new Error("your human's freestyle.sh isn't connected");

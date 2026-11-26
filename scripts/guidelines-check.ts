@@ -43,6 +43,7 @@ const MARKDOWN_ALLOWED = [
   /^claude-plugin\/commands\/[^/]+\.md$/,
   /^claude-plugin\/skills\/[^/]+\/SKILL\.md$/,
   /^herdr-plugin\/README\.md$/,
+  /^tray\/README\.md$/,
   /^\.github\/pull_request_template\.md$/,
 ];
 

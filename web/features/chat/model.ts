@@ -217,6 +217,26 @@ export function messageFooters(
       continue;
     at(message.id).readers.push({ receipt, read: receipt.read >= message.id });
   }
+  // One "seen" per run of messages from the same person (Gui #5742): readers and the agents that passed move to the
+  // last message of the run, one face per person. Statuses (doing, done) stay on the message they are about.
+  for (let i = 0; i < list.length - 1; i++) {
+    const from = footers.get(list[i].id);
+    if (!from || !continues(list[i], list[i + 1])) continue;
+    const to = at(list[i + 1].id),
+      last = list[i + 1].id;
+    const has = (who: string, email: string) =>
+      to.readers.some(
+        (r) => r.receipt.who === who && r.receipt.email === email,
+      ) || to.passed.some((p) => p.ack.who === who && p.ack.email === email);
+    for (const r of from.readers)
+      if (!has(r.receipt.who, r.receipt.email))
+        to.readers.push({ receipt: r.receipt, read: r.receipt.read >= last });
+    for (const p of from.passed)
+      if (!has(p.ack.who, p.ack.email)) to.passed.push(p);
+    from.readers = [];
+    from.passed = [];
+    if (!from.statuses.length) footers.delete(list[i].id);
+  }
   for (const footer of footers.values())
     footer.readers.sort((a, b) => Number(b.read) - Number(a.read));
   return footers;

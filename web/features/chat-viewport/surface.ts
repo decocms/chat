@@ -79,7 +79,19 @@ export function createChatSurface(element: HTMLElement): ChatSurface {
       const resized = () => {
         if (active && element.isConnected) growth();
       };
-      const resize = new ResizeObserver(resized);
+      // A message under the pointer grows because its hover opened the reaction row: following the bottom then
+      // moved the whole conversation up under the pointer, and a tall image left the hover and came back in a loop
+      // (Gui #5740). The room opens below it instead.
+      // ponytail: a message that streams while hovered does not follow the bottom until the pointer leaves it.
+      const resize = new ResizeObserver((entries) => {
+        if (
+          !entries.every(
+            (entry) =>
+              entry.target !== element && entry.target.matches(":hover"),
+          )
+        )
+          resized();
+      });
       const observe = () => {
         resize.disconnect();
         resize.observe(element);

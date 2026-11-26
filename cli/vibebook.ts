@@ -4,13 +4,13 @@
 // Built into public/cli.mjs (bun run build:cli); on npm as vibebook.dev (npm i -g vibebook.dev), or installed by https://chat.decocms.com/install.sh.
 import { execFileSync, execSync, spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, delimiter, dirname, join } from "node:path";
 import { scanTranscripts } from "./backfill";
 
-const VERSION = "1.7.9";
+const VERSION = "1.7.12";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -437,13 +437,32 @@ function machineHeaders(): Record<string, string> {
   }
 }
 
+/** This Claude's role in the room (--role or VIBEBOOK_ROLE; shared/roles.ts): it wakes only for what is for that
+ *  role. None = the Primary. Remembered per agent (~/.vibebook/roles.json), so a plain `vibebook call` from the same
+ *  Claude keeps it; `--role primary` (or "") clears it. */
+const ROLES = join(HOME, "roles.json");
+function roleHeaders(agent: string): Record<string, string> {
+  const given = flag("role") ?? process.env.VIBEBOOK_ROLE;
+  const all = readJson<Record<string, string>>(ROLES, {});
+  let r = (given ?? all[agent] ?? "").trim().toLowerCase();
+  if (r === "primary") r = "";
+  if (given !== undefined && (all[agent] ?? "") !== r) {
+    if (r) all[agent] = r;
+    else delete all[agent];
+    try {
+      writePrivate(ROLES, all);
+    } catch {}
+  }
+  return /^[a-z0-9][a-z0-9_-]{0,30}$/.test(r) ? { "x-vibebook-role": r } : {};
+}
+
 // ---- MCP over the CLI's session ----
 let rpcId = 0;
 async function rpc(method: string, params: unknown, agent: string): Promise<any> {
   const s = await session();
   const r = await fetch(`${s.origin}/mcp`, {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${s.access_token}`, "mcp-session-id": agent, ...myContext(), ...machineHeaders() },
+    headers: { "content-type": "application/json", authorization: `Bearer ${s.access_token}`, "mcp-session-id": agent, ...myContext(), ...machineHeaders(), ...roleHeaders(agent) },
     body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
   });
   if (r.status === 401) return die("Session rejected. Ask your human to run, in their own terminal: vibebook login");
@@ -522,6 +541,23 @@ function pluginVersion() {
     return "";
   }
 }
+/** What a running Claude cannot pick up without a restart: the plugin's hooks (hooks.json and the scripts beside it).
+ *  A release that only changes skill or rule text no longer restarts anyone: each restart rang herdr's sound on every
+ *  Claude of the machine, one after the other (Gui #5539). "" when the plugin or its hooks are not found. */
+function pluginHooks() {
+  try {
+    const j = JSON.parse(readFileSync(join(homedir(), ".claude", "plugins", "installed_plugins.json"), "utf8"));
+    const dir = join(String((j.plugins ?? j)["vibebook@vibebook"]?.[0]?.installPath ?? ""), "hooks");
+    const h = createHash("sha256");
+    for (const f of readdirSync(dir).sort()) h.update(f).update(readFileSync(join(dir, f)));
+    return `hooks:${h.digest("hex").slice(0, 16)}`;
+  } catch {
+    return "";
+  }
+}
+/** When the runner last closed a Claude to reopen it on new hooks: one at a time, RESTART_GAP_MS apart. */
+let lastPluginRestart = 0;
+const RESTART_GAP_MS = 3 * 60_000;
 type Pane = { pane_id: string; workspace_id: string; tab_id: string; cwd: string; foreground_cwd?: string; agent?: string; agent_status?: string; agent_session?: { value?: string } };
 const herdr = (...args: string[]) => JSON.parse(execFileSync("herdr", args, { stdio: ["ignore", "pipe", "pipe"] }).toString()).result;
 const PROJECTS = join(homedir(), "Projects");
@@ -871,7 +907,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
       if (inWs.length && !inWs.some((x) => x.agent === RUN_AGENT) && Date.now() - (e.prompted_at ?? 0) > 2 * 60_000) {
         e.prompted_at = Date.now();
         e.listening = true;
-        e.plugin_v = pluginVersion();
+        e.plugin_v = pluginHooks();
         const updating = !!e.restarting_at;
         delete e.deaf_since;
         delete e.restarting_at;
@@ -889,7 +925,9 @@ async function herdrSync(agent: string, tools: Tool[]) {
       }
       // Plugin updated since this Claude opened: once it's free, end it with /exit (its session kept) and the branch
       // above reopens it with --resume on the next pass. Never while it works or waits on a prompt.
-      const pv = RUN_AGENT === "claude" ? pluginVersion() : ""; // Codex: no Claude Code plugin to restart on
+      const pv = RUN_AGENT === "claude" ? pluginHooks() : ""; // Codex: no Claude Code plugin to restart on
+      // A room recorded by an older CLI (a version, not a hooks stamp): take the current hooks as its own, no restart.
+      if (pv && e.plugin_v && !e.plugin_v.startsWith("hooks:")) e.plugin_v = pv;
       const live0 = inWs.find((x) => x.agent === RUN_AGENT);
       // /exit with its listener running asks "Background work is running": option 1 (exit and stop tasks) is selected.
       // Only that dialog gets an Enter (checked by its text), never a permission prompt.
@@ -905,7 +943,10 @@ async function herdrSync(agent: string, tools: Tool[]) {
         e.plugin_v = pv;
         log("warn", "plugin", `${title}: could not restart its Claude on the new plugin; it updates when it reopens`, { room });
       }
-      if (pv && live0 && e.plugin_v !== pv && !e.restarting_at && (live0.agent_status === "idle" || live0.agent_status === "done") && live0.agent_session?.value) {
+      // One Claude at a time, RESTART_GAP_MS apart, and none while another is still reopening.
+      const another = Object.entries(map).some(([r, x]) => r !== room && x.restarting_at);
+      if (pv && live0 && e.plugin_v !== pv && !e.restarting_at && !another && Date.now() - lastPluginRestart > RESTART_GAP_MS && (live0.agent_status === "idle" || live0.agent_status === "done") && live0.agent_session?.value) {
+        lastPluginRestart = Date.now();
         e.session = live0.agent_session.value;
         e.restarting_at = Date.now();
         e.prompted_at = 0; // reopen on the next pass, no grace
@@ -970,7 +1011,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
     const args = ["agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--"];
     if (e.session) args.push("--resume", e.session);
     e.listening = true; // started with /vibebook:listen as its first prompt
-    e.plugin_v = pluginVersion();
+    e.plugin_v = pluginHooks();
     e.prompted_at = Date.now();
     writePrivate(HERDR_FILE, map); // the workspace exists now: never open a second one if the start below fails
     try {
@@ -1147,6 +1188,81 @@ function herdrOrder(order: string[], map: Record<string, HerdrRoom>) {
   log("info", "herdr", `reordered ${desired.length - i} workspace(s): rooms in your vibebook order, then the rest`);
 }
 
+/** The words of the menu bar app's menu, in the language of this computer (VIBEBOOK_LANG, LC_ALL, LANG; on macOS the
+ *  system locale, because an app opened from Finder gets no LANG). Portuguese for "pt*", else English. */
+function trayWords() {
+  let lang = process.env.VIBEBOOK_LANG || process.env.LC_ALL || process.env.LC_MESSAGES || process.env.LANG || "";
+  if (!lang && process.platform === "darwin") {
+    try { lang = execFileSync("defaults", ["read", "-g", "AppleLocale"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }); } catch {}
+  }
+  if (!lang) lang = Intl.DateTimeFormat().resolvedOptions().locale;
+  return /^pt/i.test(lang.trim())
+    ? { login: "Entrar no deco.chat…", quit: "Sair", open: "Abrir o deco.chat", offline: "Sem conexão", check: "Procurar atualizações", checking: "Procurando atualizações…", upToDate: "Atualizado", install: "Instalar atualização", updating: "Atualizando o deco.chat…", failed: "O deco.chat não atualizou. Tentar de novo" }
+    : { login: "Sign in to deco.chat…", quit: "Quit", open: "Open deco.chat", offline: "Offline", check: "Check for updates", checking: "Checking for updates…", upToDate: "Up to date", install: "Install update", updating: "Updating deco.chat…", failed: "deco.chat did not update. Try again" };
+}
+
+/** True when version a is older than b (x.y.z; a missing part is 0). */
+const olderVersion = (a: string, b: string) => {
+  const x = a.split(".").map(Number), y = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) < (y[i] ?? 0);
+  return false;
+};
+/** The newest version of an npm package, or "" (offline, or no such package). */
+async function npmLatest(pkg: string): Promise<string> {
+  try {
+    const r = await fetch(`https://registry.npmjs.org/${pkg}/latest`, { signal: AbortSignal.timeout(5000) });
+    return r.ok ? String(((await r.json()) as { version?: unknown }).version ?? "") : "";
+  } catch { return ""; }
+}
+/** The newest tray-v* release of the menu bar app, as "x.y.z", or "". */
+async function trayLatest(): Promise<string> {
+  try {
+    const r = await fetch("https://api.github.com/repos/decocms/chat/releases?per_page=50", { signal: AbortSignal.timeout(5000), headers: { accept: "application/vnd.github+json" } });
+    if (!r.ok) return "";
+    const tag = ((await r.json()) as { tag_name?: string; draft?: boolean; prerelease?: boolean }[]).find((x) => !x.draft && !x.prerelease && /^tray-v\d/.test(x.tag_name ?? ""))?.tag_name;
+    return tag?.slice("tray-v".length) ?? "";
+  } catch { return ""; }
+}
+/** How to update the vibebook CLI that the room Claudes use (not the one inside the app): npm when npm installed it
+ *  (its real path is in the vibebook.dev package), else its own `update` (install.sh's ~/.vibebook/cli.mjs). */
+function cliUpdate(bin: string): string[] | undefined {
+  let real = bin;
+  try { real = realpathSync(bin); } catch {}
+  const path = real.replace(/\\/g, "/");
+  if (!path.includes("/node_modules/vibebook.dev/")) return [bin, "update"];
+  // The package manager that installed it: npm would install a second copy that PATH does not reach.
+  if (path.includes("/.bun/install/global/")) {
+    const bun = findAgent("bun");
+    return bun ? [bun, "add", "-g", "vibebook.dev@latest"] : undefined;
+  }
+  const npm = findAgent("npm");
+  return npm ? [npm, "i", "-g", "vibebook.dev@latest"] : undefined;
+}
+/** Where CLIs install besides PATH: an app started at login (LaunchAgent, systemd) has a short PATH. */
+const agentDirs = () => {
+  const h = homedir();
+  return [
+    ...(process.env.PATH ?? "").split(process.platform === "win32" ? ";" : ":"),
+    join(h, ".local", "bin"), join(h, ".claude", "local"), join(h, ".bun", "bin"), join(h, ".npm-global", "bin"),
+    join(h, ".vibebook", "bin"), "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin",
+  ].filter(Boolean);
+};
+function findAgent(cmd: string): string | undefined {
+  const names = process.platform === "win32" ? [`${cmd}.exe`, `${cmd}.cmd`] : [cmd];
+  for (const d of agentDirs()) for (const n of names) if (existsSync(join(d, n))) return join(d, n);
+  return undefined;
+}
+/** A command's version from `<cmd> --version`, or "". Async and up to 8 s. */
+function agentVersion(bin: string): Promise<string> {
+  return new Promise((done) => {
+    const child = spawn(bin, ["--version"], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    let out = "";
+    const stop = setTimeout(() => child.kill(), 8000);
+    child.stdout?.on("data", (d) => (out += String(d)));
+    child.on("error", () => { clearTimeout(stop); done(""); });
+    child.on("close", () => { clearTimeout(stop); done(/\d+\.\d+(\.\d+)?/.exec(out)?.[0] ?? ""); });
+  });
+}
 const HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for you and your Claude).
 
   vibebook login                 connect this machine (opens the browser; once per machine)
@@ -1167,11 +1283,15 @@ const HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for yo
   vibebook herdr --agent codex   open Codex instead of Claude Code in each room (or VIBEBOOK_AGENT=codex); works with --app
                                  --verbose also logs each pass, the room-list cache and what the hub hears
                                  (activity per room, reconnects); --json prints the log lines as NDJSON
+  vibebook watch [--menu]        everything this computer needs in one process: starts herdr with no window (herdr
+                                 server) when it isn't running, and runs vibebook herdr; with --menu it is also the
+                                 core of the deco.chat menu bar app (tray/), which runs it
+  vibebook tray                  only the menu bar app's core: JSON lines on stdin and stdout
   vibebook statusline [command]  as Claude Code's statusLine: keeps the session's context window and plan
                                  limits for the room, then runs your own statusline command (if any) with the same input
   vibebook update                install the latest version
 
-Options: --model "Claude Opus 5.5" (or VIBEBOOK_MODEL) names the agent in the room; --origin for a local server.`;
+Options: --model "Claude Opus 5.5" (or VIBEBOOK_MODEL) names the agent in the room; --role <name> (or VIBEBOOK_ROLE) makes it that role (a room file agents/<name>.md); --origin for a local server.`;
 
 // ---- The hub: one WebSocket per machine for every listening Claude ----
 
@@ -1479,6 +1599,141 @@ async function main() {
           await new Promise((r) => setTimeout(r, 15_000));
         }
       }
+    }
+    case "watch": {
+      // One process for this machine (Gimenes #5054, #5117): herdr with no window (`herdr server`) when none runs,
+      // the herdr runner beside it, and with --menu the menu bar app's core (below). The app ships its own herdr
+      // binary: VIBEBOOK_HERDR_DIR goes first on PATH, so every `herdr` call here and in the runner uses it.
+      if (process.env.VIBEBOOK_HERDR_DIR) process.env.PATH = `${process.env.VIBEBOOK_HERDR_DIR}${delimiter}${process.env.PATH ?? ""}`;
+      // `herdr status server` exits 0 also when no server runs: read its status line.
+      const up = () => { try { return /^status: running$/m.test(execFileSync("herdr", ["status", "server"], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).toString()); } catch { return false; } };
+      if (!up()) {
+        try {
+          spawn("herdr", ["server"], { detached: true, stdio: "ignore", env: process.env, windowsHide: true }).unref();
+        } catch (e) {
+          return die(`could not start herdr: ${String((e as Error).message ?? e)}`);
+        }
+        for (let i = 0; i < 50 && !up(); i++) await new Promise((r) => setTimeout(r, 200));
+        if (!up()) return die("herdr server did not start. Is herdr installed? https://herdr.dev");
+        log("info", "watch", "started herdr server (no window)");
+      }
+      // The runner as a child: it ends with us (Sair in the menu, or a signal).
+      // Compiled (bun build --compile), argv[1] is the bundled script (/$bunfs/… on macOS and Linux, B:\~BUN\… on
+      // Windows), which the binary adds by itself.
+      const self = /^(\/\$bunfs\/|[A-Za-z]:[\\/]~BUN[\\/])/.test(process.argv[1] ?? "") ? [] : process.argv.slice(1, 2);
+      const args = [...self, "herdr", ...(flag("agent") ? ["--agent", String(flag("agent"))] : [])];
+      const start = () => spawn(process.execPath, args, { stdio: ["ignore", "ignore", "inherit"], env: process.env, windowsHide: true });
+      let runner = start();
+      process.on("exit", () => { try { runner.kill(); } catch {} });
+      process.on("SIGTERM", () => process.exit(0));
+      process.on("SIGINT", () => process.exit(0));
+      if (!flags.menu) {
+        await new Promise<void>((r) => runner.on("exit", () => r()));
+        return;
+      }
+      // The app stays open for days: when the runner ends (another runner held the lock, as the herdr tab's, and then
+      // closed; or it crashed), start it again after 15 s. A second runner exits at once, so this never doubles it.
+      const again = () => runner.on("exit", () => setTimeout(() => { runner = start(); again(); }, 15_000).unref());
+      again();
+    }
+    // falls through: --menu
+    case "tray": {
+      // The core of the menu bar app (tray/, Gimenes #4428, #4521): the shell only draws. Out: one JSON line per menu,
+      // {"menu":[{id,label,checked?,enabled?}|{"sep":true}],"icon":"on"|"off"}. In: one JSON line per click, {"click":id}.
+      // Four things (Gimenes #5638): who is signed in, one line for updates of deco.chat itself (the app and the vibebook
+      // CLI, Gimenes #5602) with its version, "Abrir o deco.chat" (the room switches are in the web app) and "Sair".
+      // Opening the Claudes stays with `vibebook herdr`.
+      const out = (m: unknown) => process.stdout.write(`${JSON.stringify(m)}\n`);
+      const tr = trayWords();
+      const appVersion = process.env.VIBEBOOK_TRAY_VERSION?.match(/^\d+\.\d+\.\d+$/)?.[0] ?? "";
+      // The newest app release, and the CLI on PATH (the one the room Claudes run) with the newest on npm.
+      const deco = { appLatest: "", cli: "", cliVersion: "", cliLatest: "", state: "" as "" | "checking" | "checked" | "updating" | "failed" };
+      // On "Procurar atualizações", and again after an update.
+      const scan = async () => {
+        deco.cli = findAgent("vibebook") ?? "";
+        await Promise.all([
+          appVersion ? trayLatest().then((v) => (deco.appLatest = v)) : Promise.resolve(),
+          deco.cli ? agentVersion(deco.cli).then((v) => (deco.cliVersion = v)) : Promise.resolve(),
+          deco.cli ? npmLatest("vibebook.dev").then((v) => (deco.cliLatest = v)) : Promise.resolve(),
+        ]);
+      };
+      const appBehind = () => !!(appVersion && deco.appLatest && olderVersion(appVersion, deco.appLatest));
+      const cliBehind = () => !!(deco.cliVersion && deco.cliLatest && olderVersion(deco.cliVersion, deco.cliLatest) && cliUpdate(deco.cli));
+      const draw = () => {
+        const who = loggedInAs(readJson<Session | null>(SESSION, null));
+        if (!who) return out({ icon: "off", menu: [{ id: "login", label: tr.login }, { sep: true }, { id: "quit", label: tr.quit }] });
+        const newest = [appBehind() && `deco.chat ${deco.appLatest}`, cliBehind() && `CLI ${deco.cliLatest}`].filter(Boolean).join(" · ");
+        // As macOS apps do (Sparkle): "Procurar atualizações"; a click checks, then "Instalar atualização · <version>"
+        // or "Atualizado · <version>" (Gimenes #5640). Nothing is checked before the click.
+        const item =
+          deco.state === "updating" ? { id: "update", label: tr.updating, enabled: false }
+          : deco.state === "checking" ? { id: "check", label: tr.checking, enabled: false }
+          : deco.state === "failed" ? { id: "update", label: tr.failed }
+          : deco.state === "checked" && newest ? { id: "update", label: `${tr.install} · ${newest}` }
+          : deco.state === "checked" ? { id: "check", label: [tr.upToDate, appVersion || (deco.cliVersion && `CLI ${deco.cliVersion}`)].filter(Boolean).join(" · ") }
+          : { id: "check", label: tr.check };
+        out({
+          icon: "on",
+          menu: [
+            { id: "who", label: who, enabled: false },
+            { sep: true },
+            item,
+            { id: "open", label: tr.open },
+            { sep: true },
+            { id: "quit", label: tr.quit },
+          ],
+        });
+      };
+      const check = async () => {
+        deco.state = "checking";
+        draw();
+        await scan();
+        deco.state = "checked";
+        draw();
+      };
+      // The update: the CLI first (npm, or its own `update`), then the app (setup.sh again: it replaces this app and
+      // starts the new one, tray/README.md). Windows: the app's release page.
+      const update = async (origin: string) => {
+        deco.state = "updating";
+        draw();
+        const run = (cmd: string, args: string[]) =>
+          new Promise<boolean>((done) => {
+            const child = spawn(cmd, args, { stdio: "ignore", windowsHide: true });
+            child.on("error", () => done(false));
+            child.on("exit", (code) => done(code === 0));
+          });
+        const cli = cliBehind() ? cliUpdate(deco.cli) : undefined;
+        const ok = cli ? await run(cli[0]!, cli.slice(1)) : true;
+        if (ok && appBehind()) {
+          if (process.platform === "win32") openBrowser(`https://github.com/decocms/chat/releases/tag/tray-v${deco.appLatest}`);
+          else spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], { stdio: "ignore", detached: true }).unref();
+        }
+        await scan();
+        // Still behind after the install: say so (and offer it again), not the same Install line.
+        deco.state = ok && !(cli && cliBehind()) ? "checked" : "failed";
+        draw();
+      };
+      draw();
+      const timer = setInterval(() => draw(), 15_000);
+      let buf = "";
+      process.stdin.setEncoding("utf8");
+      process.stdin.on("data", async (chunk: string) => {
+        buf += chunk;
+        for (let i = buf.indexOf("\n"); i >= 0; i = buf.indexOf("\n")) {
+          const line = buf.slice(0, i).trim();
+          buf = buf.slice(i + 1);
+          let click = "";
+          try { click = String((JSON.parse(line) as { click?: unknown }).click ?? ""); } catch { continue; }
+          const origin = readJson<Session | null>(SESSION, null)?.origin ?? DEFAULT_ORIGIN;
+          if (click === "quit") { clearInterval(timer); process.exit(0); }
+          if (click === "open") { openBrowser(origin); continue; }
+          if (click === "login") { await login(DEFAULT_ORIGIN).catch(() => {}); draw(); continue; }
+          if (click === "update" && deco.state !== "updating") void update(origin);
+          if (click === "check" && deco.state !== "checking") void check();
+        }
+      });
+      process.stdin.on("end", () => process.exit(0));
+      return new Promise<void>(() => {});
     }
     case "herdr": {
       const appMode = !!flags.app;

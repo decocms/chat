@@ -101,6 +101,8 @@ function fixture(
     removeKey: async () => ({ ok: true }),
     saveToken: async () => ({ ok: true }),
     removeToken: async () => ({ ok: true }),
+    removeStudio: async () => ({ ok: true }),
+    studioProjects: async () => ({ projects: [] }),
   };
   const visits = createRoomVisits(null);
   const services = createApplicationServices({
@@ -182,6 +184,8 @@ function fixture(
       connect: async () => ({ ok: true as const }),
       dismiss: async () => ({ ok: true as const }),
       answerInvite: async () => ({ ok: true as const }),
+      orgRooms: async () => ({ domain: null, rooms: [] }),
+      joinOrg: async () => ({ ok: true as const, member: true as const }),
     },
     onIdentityReset: () => {
       identityResets++;

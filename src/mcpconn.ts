@@ -1,3 +1,4 @@
+import { studioSignIn } from "./studioSandbox";
 import { ConnectionDeleteIdentity, connectionRow, type StoredConnection } from "./connectionRows";
 import { Connection, ConnectionsResult } from "../shared/schemas";
 // MCP connections and apps (Nov 2026, F1 of "MCP apps no vibebook"): a room links remote MCP servers (Rituals,
@@ -267,6 +268,15 @@ export function mountConnections(app: Hono<Ctx>, deps: { isMember: (db: D1Databa
       return c.redirect(await startAuth(c.env, w.origin, { email: w.email, book: x.book_id, cid: x.id, resource: x.url, back: `/b/${x.book_id}#app:${x.id}` }));
     } catch { return authPage(c.env, c.req.raw, "connection-error", { status: 400, connectionFailure: "failed" }); }
   });
+  // Connect deco Studio (Studio agents, src/studioSandbox.ts): the same per-person OAuth, for Studio itself. `back`
+  // is a path of ours (the Cloud settings); the callback below finds no connection for it and only redirects.
+  app.get("/api/studio/signin", async (c) => {
+    if (!(await c.env.LOGIN_LIMIT.limit({ key: `mcpauth:${c.get("email")}` })).success) return authPage(c.env, c.req.raw, "connection-error", { status: 429, connectionFailure: "rate" });
+    const back = c.req.query("back") ?? "";
+    try {
+      return c.redirect(await studioSignIn(c.env, new URL(c.req.url).origin, c.get("email"), /^\/(?!\/)[\w\-./#?=&:%]*$/.test(back) ? back : "/"));
+    } catch { return authPage(c.env, c.req.raw, "connection-error", { status: 400, connectionFailure: "failed" }); }
+  });
   app.get("/api/mcp-oauth/callback", async (c) => {
     const q = c.req.query();
     try {
@@ -279,7 +289,7 @@ export function mountConnections(app: Hono<Ctx>, deps: { isMember: (db: D1Databa
         const tools = await listTools(c.env, x, { email: w.email, room: s.book_id, origin: w.origin }).catch(() => null);
         if (tools) { await c.env.DB.prepare(`UPDATE mcp_connections SET tools = ? WHERE id = ?`).bind(JSON.stringify(tools), x.id).run(); await bookStub(c.env, s.book_id).connsChanged(); }
       }
-      c.executionCtx.waitUntil(deps.track(c.env, "mcp_signed_in", { user: w.email, dims: { book: s.book_id, host: new URL(s.resource).host } }));
+      c.executionCtx.waitUntil(deps.track(c.env, s.conn_id === "studio" ? "studio_connected" : "mcp_signed_in", { user: w.email, dims: { book: s.book_id, host: new URL(s.resource).host } }));
       return c.redirect(s.back);
     } catch { return authPage(c.env, c.req.raw, "connection-error", { status: 400, connectionFailure: "failed" }); }
   });

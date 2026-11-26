@@ -114,8 +114,10 @@ export const EpicSchema = z.object({
   status: maybe(z.enum(EPIC_STATUSES)),
   // An epic that answers a question (start_thread answer: true or answerIntent, Gui #2767).
   answer: opt(bool),
-  /** When its thread last spoke (or it was made): the sidebar sorts by it. */
+  /** When its thread last spoke (or it was made). */
   last: opt(num),
+  /** When it was made: the sidebar sorts by it, newest first, and a click or a new message never moves it (Gimenes #5603). */
+  created: opt(num),
   /** Pinned to the top of the sidebar (shared). */
   pinned: opt(bool),
 });

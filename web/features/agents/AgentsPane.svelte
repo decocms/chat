@@ -197,7 +197,6 @@
         class="m-0 font-sans text-base font-semibold tracking-normal"
         >{text("connected")}</Heading
       ><AgentPresenceRows
-        self
         presence={{ agents: presence.mine, sandboxes: [] }}
         email={owner.account}
         t={vb.t}

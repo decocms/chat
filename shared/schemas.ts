@@ -3,12 +3,32 @@
 import * as z from "zod/mini";
 import { ClientIdSchema } from "./commands";
 import { AckSchema, MessageSchema } from "./room";
+import {
+  MESSAGE_FILE_LIMIT,
+  POLL_MAX_OPTIONS,
+  POLL_OPTION_LIMIT,
+  POLL_QUESTION_LIMIT,
+} from "./composition";
 
 export const PostMessageBody = z.object({
   text: z.string(),
   thread: z.optional(z.string()),
   // The send's random id, the same on each retry: the server answers a retry with the first message (Book.byClientId).
   client_id: z.optional(ClientIdSchema),
+  /** Sent from the Home's ask box (the router): a later answer by someone else comes back to the Home (r<msg> waits). */
+  routed: z.optional(z.boolean()),
+  /** Files already uploaded to this room (POST /api/books/:id/files) that go with the message. */
+  files: z.optional(z.array(z.string()).check(z.maxLength(MESSAGE_FILE_LIMIT))),
+  /** A poll posted with the message, after it (the composer's poll.create, over HTTP). */
+  poll: z.optional(
+    z.object({
+      question: z.string().check(z.maxLength(POLL_QUESTION_LIMIT)),
+      options: z
+        .array(z.string().check(z.maxLength(POLL_OPTION_LIMIT)))
+        .check(z.maxLength(POLL_MAX_OPTIONS)),
+      multi: z.optional(z.boolean()),
+    }),
+  ),
 });
 export type PostMessageBody = z.infer<typeof PostMessageBody>;
 
@@ -69,9 +89,10 @@ export const PushUnsubscribeBody = z.object({
 });
 export const ResolveWaitBody = z.object({
   book_id: z.string().check(z.minLength(1)),
-  ref: z.string().check(z.startsWith("m")),
+  /** A wait (m, a, b, r a message; t a task in review) or, as d<message id>, a held @mention (digest_items). */
+  ref: z.string().check(z.regex(/^(?:[mabrd]\d+|t[\w-]+)$/)),
 });
-/** Many asks at once (the Inbox's "Resolve all"): asks only, at most 200. */
+/** Many at once (the Inbox's "Resolve all"), each as ResolveWaitBody: at most 200. */
 export const ResolveWaitsBody = z.object({
   items: z.array(ResolveWaitBody).check(z.minLength(1), z.maxLength(200)),
 });
@@ -165,6 +186,29 @@ export const AccessRequestResult = z.object({
   member: z.optional(z.literal(true)),
 });
 export type AccessRequestResult = z.infer<typeof AccessRequestResult>;
+/** A room open to your company (src/orgRooms.ts): `domain` is yours (null for a free provider), `org` the room's
+ *  (null = private). */
+export const RoomOrgResult = z.object({
+  domain: z.nullable(z.string()),
+  org: z.nullable(z.string()),
+});
+export type RoomOrgResult = z.infer<typeof RoomOrgResult>;
+export const RoomOrgBody = z.object({ open: z.boolean() });
+/** The cover of a room open to your company that you did not join: never its content. */
+export const OrgRoom = z.object({
+  id: z.string(),
+  title: z.string(),
+  icon: z.nullable(z.number()),
+  people: z.number(),
+  opened_by: z.nullable(z.string()),
+  opened_by_name: z.nullable(z.string()),
+});
+export type OrgRoom = z.infer<typeof OrgRoom>;
+export const OrgRoomsResult = z.object({
+  domain: z.nullable(z.string()),
+  rooms: z.array(OrgRoom),
+});
+export type OrgRoomsResult = z.infer<typeof OrgRoomsResult>;
 export const DecideRequestBody = z.object({
   email: z.string(),
   ok: z.boolean(),
@@ -313,6 +357,10 @@ export const RoomAgent = z.object({
   delivery: z.optional(z.boolean()),
   /** Only on your own agents: the title of the room it listens to (null = all rooms or none). */
   room: z.optional(str),
+  /** Its role in the room (vibebook listen --role, shared/roles.ts); null = the Primary. */
+  role: z.optional(str),
+  /** Its @name in the room (src/agentNames.ts): claude, claude-2, codex or its role. */
+  name: z.optional(str),
 });
 /** Your machines (src/delivery.ts): computers running `vibebook herdr` and your sandboxes in this room. */
 export const RoomMachine = z.object({
@@ -366,14 +414,34 @@ export const SandboxCard = z.object({
   rate: z.number(),
   cost: z.number(),
   cost_unknown: z.optional(z.boolean()),
+  /** "studio" = a deco Studio agent (src/studioSandbox.ts): no VM to pause, price or open a terminal on. */
+  provider: z.optional(z.literal("studio")),
+  /** A Studio agent's name in Studio (a project's title, or the organization's agent); `name` is its @handle. */
+  title: z.optional(z.string()),
 });
 export const SandboxesResult = z.object({
   connected: z.boolean(),
   claude: z.boolean(),
+  /** The person connected their deco Studio account, and the organizations they can make a Studio agent from. */
+  studio: z.optional(z.boolean()),
+  studio_orgs: z.optional(
+    z.array(z.object({ slug: z.string(), name: z.string() })),
+  ),
   sandboxes: z.array(SandboxCard),
 });
 export type SandboxesResult = z.infer<typeof SandboxesResult>;
-export const CreateSandboxBody = z.object({ name: z.optional(z.string()) });
+/** The projects of one deco Studio organization, for the project picker of "Criar agent do Studio". */
+export const StudioProjectsResult = z.object({
+  projects: z.array(z.object({ id: z.string(), title: z.string() })),
+});
+export type StudioProjectsResult = z.infer<typeof StudioProjectsResult>;
+export const CreateSandboxBody = z.object({
+  name: z.optional(z.string()),
+  /** A Studio agent instead of a freestyle sandbox: the organization, and a project's agent id (none = the organization's agent). */
+  studio: z.optional(
+    z.object({ org: z.string(), project: z.optional(z.string()) }),
+  ),
+});
 export const CreateSandboxResult = z.object({
   ok: z.literal(true),
   id: z.string(),
@@ -511,6 +579,8 @@ export const MeBook = z.object({
   sandboxes_running: z.number(),
   /** The room's members' emails, comma-separated (D1 group_concat). */
   members: str,
+  /** Who made the room: they can't leave it, so its menu has no "Sair da sala" for them. */
+  owner: z.optional(str),
   /** 1 = a direct-message room (src/dm.ts): listed with your DMs, not with the rooms. */
   dm: z.optional(num),
   /** A DM's other person's name and picture version (null in rooms and your own DM): your other lists may not know them. */
@@ -590,7 +660,9 @@ export const MeWait = z.object({
   book_id: z.string(),
   room: z.string(),
   /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you, e<epic> an open thread
-   *  you own (text status|done/total, author "ai" once @vibe called you about it: shared/threadWait.ts). */
+   *  you own (text status|done/total, author "ai" once @vibe called you about it: shared/threadWait.ts), r<msg> an
+   *  answer to what you sent from the Home's ask box (msg = your request; text = the answer, about = your request).
+   *  An a<msg> wait's about is the question's choices (the message's JSON: {options, multi}). */
   ref: z.string(),
   thread: z.string(),
   topic: str,
@@ -598,6 +670,7 @@ export const MeWait = z.object({
   author_name: str,
   text: z.string(),
   ts: z.number(),
+  about: z.optional(str),
 });
 export const MeData = z.object({
   email: z.string(),

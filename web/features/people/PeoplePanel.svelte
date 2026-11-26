@@ -8,7 +8,13 @@
     peopleModel,
     type PeopleRoom,
   } from "./model";
-  import { createPeopleRequest, type PeopleRequest } from "./api";
+  import {
+    createPeopleRequest,
+    createRoomOrgApi,
+    type PeopleRequest,
+  } from "./api";
+  import { corporateDomain, isDmId } from "../../../shared/dm";
+  import Switch from "../../lib/studio/Switch.svelte";
   import { createPeopleSession } from "./session";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   import InlineAdd from "../../lib/components/InlineAdd.svelte";
@@ -50,6 +56,44 @@
     members?: boolean;
   } = $props();
   const session = untrack(() => createPeopleSession(room.id));
+  /** "Aberta pra @<domain>": a member with a company email opens the room to that domain (never a DM). */
+  const orgApi = untrack(() => createRoomOrgApi(room.id));
+  const domain = $derived(
+    isDmId(room.id) || !room.members.includes(room.me)
+      ? null
+      : corporateDomain(room.me),
+  );
+  let org = $state<string | null>(null),
+    orgLoaded = $state(false),
+    orgBusy = $state(false),
+    orgError = $state("");
+  $effect(() => {
+    if (!domain) return;
+    const abort = new AbortController();
+    orgApi.get(abort.signal).then(
+      (result) => {
+        org = result.org;
+        orgLoaded = true;
+      },
+      () => {},
+    );
+    return () => abort.abort();
+  });
+  async function setOrg(open: boolean) {
+    if (orgBusy) return;
+    orgBusy = true;
+    orgError = "";
+    const before = org;
+    org = open ? domain : null;
+    try {
+      org = (await orgApi.set(open)).org;
+    } catch (error) {
+      org = before;
+      orgError = error instanceof Error ? error.message : String(error);
+    } finally {
+      orgBusy = false;
+    }
+  }
   const http = untrack(() => createPeopleRequest(room.id));
   const view = session.state;
   const model = $derived(peopleModel(room, friends));
@@ -205,6 +249,38 @@
     >
   </form>
 {/snippet}
+{#snippet openToCompany()}{#if domain}<div
+      data-room-org={org ? "open" : "private"}
+      class={cn("px-2", members ? "mb-4" : "pt-3")}
+    >
+      <label class="flex min-h-9 cursor-pointer items-center gap-2">
+        <Icon
+          icon="users-01"
+          size={16}
+          class="shrink-0 text-muted-foreground"
+        />
+        <span class="min-w-0 flex-1 truncate"
+          >{vb.t("Aberta pra @{domain}", { domain })}</span
+        >
+        <Switch
+          checked={!!org}
+          disabled={orgBusy || !orgLoaded}
+          aria-busy={orgBusy || undefined}
+          onCheckedChange={(open) => void setOrg(open)}
+        />
+      </label>
+      <p class="m-0 text-xs text-muted-foreground">
+        {org
+          ? vb.t(
+              "Quem entra com email @{domain} vê o título e as pessoas, e entra sem pedir.",
+              { domain },
+            )
+          : vb.t("Só quem você convida entra.")}
+      </p>
+      {#if orgError}<p role="alert" class="m-0 text-xs text-destructive">
+          {orgError}
+        </p>{/if}
+    </div>{/if}{/snippet}
 {#snippet outcomes()}
   {#each Object.entries($view.pending) as [email]}{#if $view.issues[email] !== "unconfirmed"}<p
         role="status"
@@ -294,9 +370,6 @@
         >{:else}<span
           class={cn("min-w-0 flex-1 truncate", members && "text-[0.9375rem]")}
           title={email}>{label(email)}</span
-        >{/if}{#if members && label(email) !== email}<span
-          data-person-email
-          class="truncate text-xs leading-4 text-muted-foreground">{email}</span
         >{/if}</span
     >
     {#if pending}
@@ -402,7 +475,7 @@
         ><Icon icon="user-plus-01" size={16} />{vb.t(
           "Convidar pessoas",
         )}</Button
-      >{/if}{@render inviteForm()}{:else}
+      >{/if}{@render inviteForm()}{@render openToCompany()}{:else}
     <SectionHeader title={vb.t("Pessoas e agents")}>
       {#snippet action()}{#if !inviting}<IconButton
             size="icon-xs"
@@ -454,7 +527,7 @@
       >
       <span class="min-w-0 truncate">{vb.t("Convidar alguém pra sala")}</span>
     </button>{/if}
-  {#if !members}{@render inviteForm()}{/if}
+  {#if !members}{@render inviteForm()}{@render openToCompany()}{/if}
   {@render outcomes()}
 </section>
 <ConfirmDialog

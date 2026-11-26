@@ -99,7 +99,11 @@ test("receipts target exact latest eligible message, suppress matching acks, ded
   expect(r.acks[0].status).toBe("doing");
 });
 test("expired doing statuses become task-owner waiting or idle while blocked notes remain data", () => {
-  const r = room([message(1), message(2), message(3)]);
+  const r = room([
+    message(1),
+    message(2),
+    { ...message(3), author: "other@test" },
+  ]);
   r.epics = [
     {
       id: "e",
@@ -361,4 +365,28 @@ test("chat zone is the viewer's UTC offset, empty for invalid dates", () => {
   expect(chatTime("en-US", Date.UTC(2026, 10, 19, 20, 58))).not.toMatch(
     /AM|PM/,
   );
+});
+
+test("a run of messages from one person has one seen, on its last message (Gui #5742)", () => {
+  const other = { ...message(4), author: "other@test" };
+  const r = room([message(1), message(2), message(3), other]);
+  r.receipts = [
+    { email: "a@test", who: "A", read: 1, delivered: 1, ts: 1 },
+    { email: "b@test", who: "B", read: 3, delivered: 3, ts: 1 },
+  ];
+  r.acks = [
+    { msg_id: 1, email: "agent@test", who: "Codex", status: "idle", ts: 1 },
+    { msg_id: 2, email: "agent@test", who: "Codex", status: "idle", ts: 1 },
+    { msg_id: 2, email: "c@test", who: "Claude", status: "done", ts: 1 },
+  ];
+  const footers = messageFooters(r, "main", 10);
+  expect(footers.has(1)).toBe(false);
+  expect(footers.get(2)?.readers).toEqual([]);
+  expect(footers.get(2)?.statuses.map((s) => s.kind)).toEqual(["done"]);
+  const last = footers.get(3)!;
+  expect(last.readers.map((x) => [x.receipt.who, x.read])).toEqual([
+    ["B", true],
+    ["A", false],
+  ]);
+  expect(last.passed.map((p) => p.ack.who)).toEqual(["Codex"]);
 });

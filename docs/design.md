@@ -28,6 +28,15 @@ The user center (`web/features/user-center/`, `UserCenter`) is the box at the bo
 - A notice row goes away when the person does its action.
 - Do not put a notice about a room in the user center. For example, a request to join a room stays in the room.
 
+### The user center on phones
+
+1. The Chats list (`HomePanel`) shows the same box under the search field (`UserCenter phone`). It has only the notices: the new version, "Instalar no celular" (`InstallCard row`), the notifications (`NotifyOffer row`), then the invites and the message requests (`Requests center`).
+2. The box is not there when it has no row.
+3. Your face in the Chats bar shows the number of rows (`Count`).
+4. A room has no notice over its chat. In a room, ← shows the number, because ← goes back to the Chats list.
+5. On a touch screen, the × of a row is always visible.
+6. Draw the phone's box only on a phone (`MOBILE_QUERY`, `$geometry.mobile`), not with `md:hidden`.
+
 ## The top bar
 
 The top bar has one row on desktop. Its parts are in this order:
@@ -46,7 +55,7 @@ The separator divides two scopes. On its left, the controls change the view in t
 
 The phone layout is A2 (Gimenes #4309, #4331):
 
-1. ← goes back to the home. The title (thread, then room) with ▾ opens the drawer with the threads.
+1. ← goes back to the home. It shows the number of user center rows (see "The user center on phones"). The title (thread, then room) with ▾ opens the drawer with the threads.
 2. At the end of the bar, a room shows the avatars of the other people, online first: two faces, then "+N". A tap opens People. A DM shows your account there.
 3. Under the bar, a strip is always there: Doc, Arquivos, Decisões, Lembretes (`phoneStripPanes`). A DM has no Doc. A tap opens that pane in the doc sheet. While the sheet is open, the sheet's own tab row takes the strip's place.
 4. The drawer's tab row keeps only Apps and Agents (`phoneDrawerPanes`).

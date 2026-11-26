@@ -132,18 +132,14 @@ describe("epic navigation model", () => {
       ["other", false],
     ]);
   });
-  test("done view orders by last message, then reverse canonical index", () => {
+  test("done view orders by when each was made, newest first", () => {
     const records = [
       epic("open"),
-      epic("a", null, true),
-      epic("b", null, true),
-      epic("c", null, true),
+      { ...epic("a", null, true), created: 30 },
+      { ...epic("b", null, true), created: 10 },
+      { ...epic("c", null, true), created: 20 },
     ];
-    expect(
-      doneEpics(records, [
-        { id: 8, thread: "a", author: "me", ts: 0, text: "activity" },
-      ]).map((row) => row.id),
-    ).toEqual(["a", "c", "b"]);
+    expect(doneEpics(records).map((row) => row.id)).toEqual(["a", "c", "b"]);
   });
   test("reordering changes sibling positions only and preserves all room IDs and parents", () => {
     const records = [
@@ -306,7 +302,7 @@ describe("room-owned navigation session", () => {
   });
 });
 
-test("sidebar epics: pinned first in their order, then newest activity first", () => {
+test("sidebar epics: pinned first in their order, then newest made first; activity and visits never move them (Gimenes #5603)", () => {
   const epic = (id: string, extra: Partial<Epic> = {}): Epic => ({
     id,
     title: id,
@@ -314,18 +310,17 @@ test("sidebar epics: pinned first in their order, then newest activity first", (
     ...extra,
   });
   const epics = [
-    epic("old", { last: 10 }),
-    epic("pinB", { pinned: true, last: 1 }),
-    epic("new", { last: 30 }),
-    epic("pinA", { pinned: true, last: 50 }),
-    epic("live", { last: 5 }),
+    epic("old", { created: 10, last: 90 }),
+    epic("pinB", { pinned: true, created: 1 }),
+    epic("new", { created: 30, last: 30 }),
+    epic("pinA", { pinned: true, created: 50 }),
+    epic("mid", { created: 20, last: 40 }),
   ];
-  const messages = [{ thread: "live", ts: 40 }] as Message[];
-  expect(sidebarEpics(epics, messages).map((e) => e.id)).toEqual([
+  expect(sidebarEpics(epics).map((e) => e.id)).toEqual([
     "pinB",
     "pinA",
-    "live",
     "new",
+    "mid",
     "old",
   ]);
 });
@@ -414,11 +409,12 @@ describe("thread tabs: Mine, Open, Done", () => {
       owned("child", "ana@example.test", { parent: "other" }),
       owned("other", "bia@example.test"),
     ];
-    const open = sidebarEpics(activeEpics(epics, "seen"), []);
+    const open = sidebarEpics(activeEpics(epics, "seen"));
+    // Without created, newest first is the reverse of the server's order.
     expect(mineEpics(open, "ana@example.test").map((row) => row.id)).toEqual([
-      "open",
-      "seen",
       "child",
+      "seen",
+      "open",
     ]);
   });
   test("the tab stays per room on the device; Open when nothing or something unknown is stored", () => {
@@ -460,25 +456,6 @@ describe("thread tabs: Mine, Open, Done", () => {
     setNavigationView(session, "done");
     expect(get(session.state).view).toBe("done");
   });
-});
-
-test("sidebar epics: your last threads go first after the pinned ones", () => {
-  const epic = (id: string, extra: Partial<Epic> = {}): Epic => ({
-    id,
-    title: id,
-    tasks: [],
-    ...extra,
-  });
-  const epics = [
-    epic("old", { last: 10 }),
-    epic("pin", { pinned: true, last: 1 }),
-    epic("new", { last: 30 }),
-    epic("mine", { last: 2 }),
-    epic("gone", { last: 3 }),
-  ];
-  expect(
-    sidebarEpics(epics, [], ["mine", "old", "deleted"]).map((e) => e.id),
-  ).toEqual(["pin", "mine", "old", "new", "gone"]);
 });
 
 test("room visits: the room reopens the thread you left, and the recent three keep their order", async () => {
