@@ -2368,3 +2368,4 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: The row covers the start of the next message's first line while the pointer is on the message. #438 dropped a floating pill for that reason.
 - Undo: Revert the commit.
 - Status: open
+- Update (fix/react-opens-space, Gui #5825): a click on the floating row (the picker opens) makes its room. A spacer after the message grows from 0 to 20 px with the `grid-rows` transition, and the next message slides down. When a reaction is given, the row goes into the flow with the same 20 px, so nothing jumps. Esc closes the space again. A quick reaction (👍) without the picker puts the row in the flow at once, without the animation.

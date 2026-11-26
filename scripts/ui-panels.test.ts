@@ -2603,6 +2603,14 @@ describe("chat", () => {
     // An empty row floats under its message on hover, so the hover moves no other message (Gui #5797).
     expect(rowClasses(10)).toContain("absolute");
     expect(rowClasses(10)).toContain("top-full");
+    // A click (the picker opens) makes its room under the message, animated; only that message has the space (Gui #5825).
+    const space = (id: number) =>
+      target.querySelector<HTMLElement>(`[data-reaction-space="${id}"]`);
+    expect(space(10)?.className).toContain(
+      "group-has-[[data-picking]]:grid-rows-[1fr]",
+    );
+    expect(space(9)).toBeNull();
+    expect(space(11)).toBeNull();
     // The last message keeps the row's height, only invisible: opening it there grew the list at the bottom (Gui #5741).
     expect(rowClasses(11)).not.toContain("hidden");
     expect(rowClasses(11)).toContain("invisible");
