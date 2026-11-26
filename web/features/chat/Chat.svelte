@@ -246,7 +246,6 @@
             {actions}
             footer={footers.get(message.id)}
             onpick={(id, shift) => clickForward(pickable, id, shift)}
-            last={i === rows.length - 1}
           />{/if}{/each}
     {:else if !workers.length}<p
         data-chat-empty
