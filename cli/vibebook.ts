@@ -753,6 +753,8 @@ const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catc
  *  VERSION is newer; a running listen sees the file change and exits ("a CLI foi atualizada"), so its Claude starts the
  *  new one. From npm it only notes the newer version; listen prints one line a day suggesting the update. Never throws. */
 const UPDATE = join(HOME, "update.json");
+/** The menu bar app's update in progress ({to: version, at}): the new app reads it once to say "Atualizado". */
+const APP_UPDATED = join(HOME, "app-updated.json");
 const newer = (a: string, b: string) => { const x = a.split(".").map(Number), y = b.split(".").map(Number); for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0); return false; };
 async function autoUpdate() {
   try {
@@ -1199,8 +1201,8 @@ function trayWords() {
   }
   if (!lang) lang = Intl.DateTimeFormat().resolvedOptions().locale;
   return /^pt/i.test(lang.trim())
-    ? { login: "Entrar no deco.chat…", quit: "Sair", open: "Abrir o deco.chat", offline: "Sem conexão", check: "Procurar atualizações", checking: "Procurando atualizações…", upToDate: "Atualizado", install: "Instalar atualização", updating: "Atualizando o deco.chat…", failed: "O deco.chat não atualizou. Tentar de novo" }
-    : { login: "Sign in to deco.chat…", quit: "Quit", open: "Open deco.chat", offline: "Offline", check: "Check for updates", checking: "Checking for updates…", upToDate: "Up to date", install: "Install update", updating: "Updating deco.chat…", failed: "deco.chat did not update. Try again" };
+    ? { login: "Entrar no deco.chat…", quit: "Sair", open: "Abrir o deco.chat", offline: "Sem conexão", check: "Procurar atualizações", checking: "Procurando atualizações…", upToDate: "Atualizado", install: "Instalar atualização", updating: "Instalando atualização…", failed: "O deco.chat não atualizou. Tentar de novo" }
+    : { login: "Sign in to deco.chat…", quit: "Quit", open: "Open deco.chat", offline: "Offline", check: "Check for updates", checking: "Checking for updates…", upToDate: "Up to date", install: "Install update", updating: "Installing update…", failed: "deco.chat did not update. Try again" };
 }
 
 /** True when version a is older than b (x.y.z; a missing part is 0). */
@@ -1649,7 +1651,19 @@ async function main() {
       const tr = trayWords();
       const appVersion = process.env.VIBEBOOK_TRAY_VERSION?.match(/^\d+\.\d+\.\d+$/)?.[0] ?? "";
       // The newest app release, and the CLI on PATH (the one the room Claudes run) with the newest on npm.
-      const deco = { appLatest: "", cli: "", cliVersion: "", cliLatest: "", state: "" as "" | "checking" | "checked" | "updating" | "failed" };
+      const deco = { appLatest: "", cli: "", cliVersion: "", cliLatest: "", installed: "", state: "" as "" | "checking" | "checked" | "updating" | "failed" };
+      // "Atualizado · <version>" stays 30 s, then the line is "Procurar atualizações" again (Gimenes #5958): a click
+      // checks again and shows "Atualizado" or "Instalar atualização".
+      let rest: ReturnType<typeof setTimeout> | undefined;
+      const restSoon = () => {
+        clearTimeout(rest);
+        rest = setTimeout(() => {
+          if (deco.state !== "checked") return;
+          deco.state = "";
+          deco.installed = "";
+          draw();
+        }, 30_000);
+      };
       // On "Procurar atualizações", and again after an update.
       const scan = async () => {
         deco.cli = findAgent("vibebook") ?? "";
@@ -1672,7 +1686,7 @@ async function main() {
           : deco.state === "checking" ? { id: "check", label: tr.checking, enabled: false }
           : deco.state === "failed" ? { id: "update", label: tr.failed }
           : deco.state === "checked" && newest ? { id: "update", label: `${tr.install} · ${newest}` }
-          : deco.state === "checked" ? { id: "check", label: [tr.upToDate, appVersion || (deco.cliVersion && `CLI ${deco.cliVersion}`)].filter(Boolean).join(" · ") }
+          : deco.state === "checked" ? { id: "check", label: [tr.upToDate, deco.installed || appVersion || (deco.cliVersion && `CLI ${deco.cliVersion}`)].filter(Boolean).join(" · ") }
           : { id: "check", label: tr.check };
         out({
           icon: "on",
@@ -1691,11 +1705,17 @@ async function main() {
         draw();
         await scan();
         deco.state = "checked";
+        deco.installed = "";
         draw();
+        // An up-to-date line goes back to "Procurar atualizações"; an install line stays until clicked.
+        if (!appBehind() && !cliBehind()) restSoon();
       };
       // The update: the CLI first (npm, or its own `update`), then the app (setup.sh again: it replaces this app and
       // starts the new one, tray/README.md). Windows: the app's release page.
       const update = async (origin: string) => {
+        clearTimeout(rest);
+        // What this install brings, for "Atualizado · <version>" after it.
+        const bringing = [appBehind() && `deco.chat ${deco.appLatest}`, cliBehind() && `CLI ${deco.cliLatest}`].filter(Boolean).join(" · ");
         deco.state = "updating";
         draw();
         const run = (cmd: string, args: string[]) =>
@@ -1708,13 +1728,36 @@ async function main() {
         const ok = cli ? await run(cli[0]!, cli.slice(1)) : true;
         if (ok && appBehind()) {
           if (process.platform === "win32") openBrowser(`https://github.com/decocms/chat/releases/tag/tray-v${deco.appLatest}`);
-          else spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], { stdio: "ignore", detached: true }).unref();
+          else {
+            // setup.sh replaces this app and starts the new one, which shows "Atualizado · <version>" (APP_UPDATED).
+            // Until then the line stays "Instalando atualização…"; if no new app came in 5 min, check again.
+            writePrivate(APP_UPDATED, { to: deco.appLatest, at: Date.now() });
+            spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], { stdio: "ignore", detached: true }).unref();
+            setTimeout(() => void check(), 5 * 60_000);
+            return;
+          }
         }
         await scan();
         // Still behind after the install: say so (and offer it again), not the same Install line.
         deco.state = ok && !(cli && cliBehind()) ? "checked" : "failed";
+        if (deco.state === "checked") {
+          deco.installed = bringing;
+          restSoon();
+        }
         draw();
       };
+      // Started by an update of this app: "Atualizado · deco.chat <version>" for 30 s.
+      {
+        const was = readJson<{ to?: string; at?: number }>(APP_UPDATED, {});
+        if (was.to) {
+          try { unlinkSync(APP_UPDATED); } catch {}
+          if (was.to === appVersion && Date.now() - (was.at ?? 0) < 15 * 60_000) {
+            deco.state = "checked";
+            deco.installed = `deco.chat ${appVersion}`;
+            restSoon();
+          }
+        }
+      }
       draw();
       const timer = setInterval(() => draw(), 15_000);
       let buf = "";
