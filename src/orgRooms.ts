@@ -1,7 +1,8 @@
-// Rooms open to your company: a member can open a room to their company email domain (shared/dm.ts corporateDomain).
+// Rooms open to your company: a member can open a room to their company email domain (shared/org.ts corporateDomain).
 // Then anyone signed in with that domain sees its title and people on the home ("Da sua empresa") and joins it with
 // one click, like an accepted invite. A DM never opens. Only D1 here, so the rules run in bun tests.
-import { corporateDomain, isDmId } from "../shared/dm";
+import { isDmId } from "../shared/dm";
+import { corporateDomain } from "../shared/org";
 import type { OrgRoom } from "../shared/schemas";
 
 /** The room is open to your domain, and is not a DM: asking to join it makes you a member at once. */

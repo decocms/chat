@@ -23,7 +23,8 @@ const key = (secret: string) => {
   return k;
 };
 
-import { corporateDomain, isDmId, MUTUAL, pairKey } from "../shared/dm";
+import { isDmId, MUTUAL, pairKey } from "../shared/dm";
+import { corporateDomain } from "../shared/org";
 export { isDmId, pairKey };
 
 /** The DM room id for two people (the same whichever asks); `dmId(env, me, me)` is your own. */
@@ -89,7 +90,7 @@ export async function dmTitle(
 
 /** Who you can DM without asking: yourself, a connection (you accepted each other's message), anyone you share a
  *  room with (both joined: an invite you haven't answered doesn't count), or a colleague: someone with an account and
- *  your company email domain (not a free provider, shared/dm.ts). Everyone else gets a message request. */
+ *  your company email domain (not a free provider, shared/org.ts). Everyone else gets a message request. */
 export async function canDm(db: D1Database, a: string, b: string) {
   a = a.toLowerCase();
   b = b.toLowerCase();

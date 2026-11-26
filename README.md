@@ -53,7 +53,7 @@ Short version: **your Claude calls deco.chat. deco.chat does not call your Claud
 
 **Online status.** A room shows who has it open. The people who share a DM with you see when you have the app open. Other people do not see it.
 
-**People from your company.** If your email is on a company domain (not a free provider such as gmail.com), each person with an account on that same domain sees your email, name and picture in "Nova mensagem", and can send you a direct message without a request. They do not see your rooms. The rule is in `shared/dm.ts` (`corporateDomain`).
+**People from your company.** If your email is on a company domain (not a free provider such as gmail.com), each person with an account on that same domain sees your email, name and picture in "Nova mensagem", and can send you a direct message without a request. They do not see your rooms. The domain is the exact text after `@`: a subdomain is another domain. The free providers are the domains of the npm package `free-email-domains`, copied into `shared/free-email-domains.ts`, and a few more in `shared/org.ts` (`corporateDomain`).
 
 **On your device.** The app saves the rooms that you open in the storage of your browser (IndexedDB), so that a room opens at once. A saved room is deleted after 7 days, when you leave the room, and when you sign out or sign in with another account.
 

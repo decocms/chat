@@ -2320,3 +2320,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The line can cover the last line of the chat while you select text.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · feat/dm-whole-org · Free providers from the npm list, server only
+
+- Agent: Claude Opus 5.5
+- Context: PR #388 had the same feature as #451 (colleagues by company email domain), and #451 merged first. In the review of #388, Gimenes (#4480) asked that the list of free and public providers comes from a known and maintained npm package, copied into the repository and not added as a dependency. This entry changes only the list and where the rule runs. The entry "Colleagues by company email domain" (2026-11-25) gives the rest of the rule.
+- Decision:
+  - The list is a copy of the npm package `free-email-domains` (microlinkhq, MIT, version 1.16.16, 35106 domains) in `shared/free-email-domains.ts`. `bun scripts/update-free-email-domains.ts [version]` writes it again. We selected it over `email-providers` (ISC, 8760 domains) because it has more domains and gets more releases.
+  - Three providers of the first list are not in the package (`globo.com`, `r7.com`, `hey.com`). They stay in `MORE_FREE_DOMAINS` in `shared/org.ts`, so no provider of the first list becomes a company.
+  - `corporateDomain` moves from `shared/dm.ts` to `shared/org.ts`, and only the Worker imports it: the list is about 600 KB, too large for the browser bundle. The browser reads your domain from the server: People uses `domain` from `/api/books/:id/org`, and the home's "Da sua empresa" always asks `/api/org/rooms`, which gives an empty list to a free provider. A test fails when a file in `web/` imports the list.
+  - The domain is the exact text after `@`, in lower case. A subdomain is another domain. The SQL gets the domain as a bound value.
+- Other options: Keep the list of 31 providers of #451. Ship the list to the browser too (about 600 KB more). Keep a short list in the browser for the UI and the full list on the server (the two can disagree: a button that the server refuses).
+- Risk: medium. A person at a free provider now makes one more request (`/api/org/rooms`, empty) when `/api/me` changes. A large and open domain that is not in the list (a university such as `usp.br`, an ISP) still shows its people to each other, as in #451. `deco.cx` and `decocms.com` are two domains, so their people are not colleagues of each other.
+- Undo: Revert this commit.
+- Status: open

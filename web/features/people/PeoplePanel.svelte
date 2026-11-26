@@ -13,7 +13,7 @@
     createRoomOrgApi,
     type PeopleRequest,
   } from "./api";
-  import { corporateDomain, isDmId } from "../../../shared/dm";
+  import { isDmId } from "../../../shared/dm";
   import Switch from "../../lib/studio/Switch.svelte";
   import { createPeopleSession } from "./session";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
@@ -58,20 +58,22 @@
   const session = untrack(() => createPeopleSession(room.id));
   /** "Aberta pra @<domain>": a member with a company email opens the room to that domain (never a DM). */
   const orgApi = untrack(() => createRoomOrgApi(room.id));
-  const domain = $derived(
-    isDmId(room.id) || !room.members.includes(room.me)
-      ? null
-      : corporateDomain(room.me),
-  );
-  let org = $state<string | null>(null),
+  const canOpen = $derived(!isDmId(room.id) && room.members.includes(room.me));
+  /** Your company domain, from the server (shared/org.ts): null for a free provider, or before the answer. */
+  let domain = $state<string | null>(null),
+    org = $state<string | null>(null),
     orgLoaded = $state(false),
     orgBusy = $state(false),
     orgError = $state("");
   $effect(() => {
-    if (!domain) return;
+    if (!canOpen) {
+      domain = null;
+      return;
+    }
     const abort = new AbortController();
     orgApi.get(abort.signal).then(
       (result) => {
+        domain = result.domain;
         org = result.org;
         orgLoaded = true;
       },

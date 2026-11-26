@@ -8,7 +8,6 @@ import { orderedRooms, roomsOnly } from "../home/model";
 import { createNewRoomSession } from "../home/session";
 import { createSearchSession } from "./search";
 import { authClock, type AuthClock } from "../auth/owner";
-import { corporateDomain } from "../../../shared/dm";
 import type { OrgRoom, OrgRoomsResult } from "../../../shared/schemas";
 export type AppNavigationCallbacks = {
   navigate: (target: RoomTarget) => void;
@@ -80,6 +79,7 @@ export function createAppNavigationSession(
     close();
   });
   // "Da sua empresa": read again each time /api/me changes (a room joined, opened or closed pokes it), never cached.
+  // The server knows your company domain (shared/org.ts): a free provider gets an empty list.
   const company = writable<readonly OrgRoom[]>([]);
   let companyMe: unknown = null,
     companyLoad: AbortController | null = null;
@@ -88,7 +88,6 @@ export function createAppNavigationSession(
     if (!load || !value.me || value.me === companyMe) return;
     companyMe = value.me;
     companyLoad?.abort();
-    if (!corporateDomain(value.me.email)) return company.set([]);
     const abort = (companyLoad = new AbortController());
     // A failed read keeps the list as it was; it never reaches the personal store's other readers.
     Promise.resolve(abort.signal)
