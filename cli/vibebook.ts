@@ -1260,8 +1260,8 @@ function trayWords() {
   }
   if (!lang) lang = Intl.DateTimeFormat().resolvedOptions().locale;
   return /^pt/i.test(lang.trim())
-    ? { login: "Entrar no deco.chat…", quit: "Sair", open: "Abrir o deco.chat", offline: "Sem conexão", check: "Procurar atualizações", checking: "Procurando atualizações…", upToDate: "Atualizado", install: "Instalar atualização", updating: "Instalando atualização…", failed: "O deco.chat não atualizou. Tentar de novo" }
-    : { login: "Sign in to deco.chat…", quit: "Quit", open: "Open deco.chat", offline: "Offline", check: "Check for updates", checking: "Checking for updates…", upToDate: "Up to date", install: "Install update", updating: "Installing update…", failed: "deco.chat did not update. Try again" };
+    ? { login: "Entrar no deco.chat…", quit: "Sair", open: "Abrir o deco.chat", offline: "Sem conexão", check: "Procurar atualizações", checking: "Procurando atualizações…", upToDate: "Atualizado", install: "Instalar atualização", updating: "Instalando atualização…", failed: "O deco.chat não atualizou. Tentar de novo", relaunch: "Reabrir para concluir a atualização" }
+    : { login: "Sign in to deco.chat…", quit: "Quit", open: "Open deco.chat", offline: "Offline", check: "Check for updates", checking: "Checking for updates…", upToDate: "Up to date", install: "Install update", updating: "Installing update…", failed: "deco.chat did not update. Try again", relaunch: "Reopen to finish the update" };
 }
 
 /** True when version a is older than b (x.y.z; a missing part is 0). */
@@ -1732,6 +1732,16 @@ async function main() {
           deco.cli ? npmLatest("vibebook.dev").then((v) => (deco.cliLatest = v)) : Promise.resolve(),
         ]);
       };
+      // macOS: the app bundle this core runs from. A newer version there than the running app means an install
+      // replaced the files but this app still runs (Gimenes #6029): only a reopen finishes it.
+      const bundle = process.platform === "darwin" ? process.execPath.match(/^(.*\.app)\/Contents\/MacOS\/[^/]+$/)?.[1] ?? "" : "";
+      const onDisk = () => {
+        if (!bundle || !appVersion) return "";
+        try {
+          const v = readFileSync(join(bundle, "Contents", "Info.plist"), "utf8").match(/<key>CFBundleShortVersionString<\/key>\s*<string>(\d+\.\d+\.\d+)<\/string>/)?.[1] ?? "";
+          return v && olderVersion(appVersion, v) ? v : "";
+        } catch { return ""; }
+      };
       const appBehind = () => !!(appVersion && deco.appLatest && olderVersion(appVersion, deco.appLatest));
       const cliBehind = () => !!(deco.cliVersion && deco.cliLatest && olderVersion(deco.cliVersion, deco.cliLatest) && cliUpdate(deco.cli));
       const draw = () => {
@@ -1740,8 +1750,10 @@ async function main() {
         const newest = [appBehind() && `deco.chat ${deco.appLatest}`, cliBehind() && `CLI ${deco.cliLatest}`].filter(Boolean).join(" · ");
         // As macOS apps do (Sparkle): "Procurar atualizações"; a click checks, then "Instalar atualização · <version>"
         // or "Atualizado · <version>" (Gimenes #5640). Nothing is checked before the click.
+        const waiting = deco.state === "updating" ? "" : onDisk();
         const item =
-          deco.state === "updating" ? { id: "update", label: tr.updating, enabled: false }
+          waiting ? { id: "relaunch", label: `${tr.relaunch} · deco.chat ${waiting}` }
+          : deco.state === "updating" ? { id: "update", label: tr.updating, enabled: false }
           : deco.state === "checking" ? { id: "check", label: tr.checking, enabled: false }
           : deco.state === "failed" ? { id: "update", label: tr.failed }
           : deco.state === "checked" && newest ? { id: "update", label: `${tr.install} · ${newest}` }
@@ -1834,6 +1846,12 @@ async function main() {
           if (click === "quit") { clearInterval(timer); process.exit(0); }
           if (click === "open") { openBrowser(origin); continue; }
           if (click === "login") { await login(DEFAULT_ORIGIN).catch(() => {}); draw(); continue; }
+          if (click === "relaunch" && bundle) {
+            // The shell quits when this core ends; the new app opens a moment later.
+            spawn("sh", ["-c", `sleep 1; open ${JSON.stringify(bundle)}`], { stdio: "ignore", detached: true }).unref();
+            clearInterval(timer);
+            process.exit(0);
+          }
           if (click === "update" && deco.state !== "updating") void update(origin);
           if (click === "check" && deco.state !== "checking") void check();
         }

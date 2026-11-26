@@ -77,6 +77,11 @@ tray_mac() {
   launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
   pkill -f "$APP/Contents/MacOS/vibebook" 2>/dev/null || true
   i=0; while pgrep -f "$APP/Contents/MacOS/vibebook" >/dev/null 2>&1 && [ $i -lt 20 ]; do sleep 0.5; i=$((i + 1)); done
+  # Still running after 10 s: force it. Else `open` below only brings back the old app (Gimenes #6029).
+  if pgrep -f "$APP/Contents/MacOS/vibebook" >/dev/null 2>&1; then
+    pkill -9 -f "$APP/Contents/MacOS/vibebook" 2>/dev/null || true
+    sleep 1
+  fi
   mkdir -p "$HOME/Applications" "$HOME/Library/LaunchAgents"
   rm -rf "$APP"
   mv "$TMP/deco.chat.app" "$APP"
