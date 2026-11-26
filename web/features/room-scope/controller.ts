@@ -13,7 +13,12 @@ import type {
   ApplicationRoomIntent,
   ApplicationRoomScope,
 } from "../application/types";
-import { createChatViewport, type KeepChat } from "../chat-viewport/controller";
+import {
+  CHAT_WINDOW,
+  CHAT_WINDOW_PHONE,
+  createChatViewport,
+  type KeepChat,
+} from "../chat-viewport/controller";
 import { createChatSurface } from "../chat-viewport/surface";
 import { createChatPresentation } from "../chat-viewport/presentation";
 import { createVoiceApi, VoiceFailure } from "../composer/voiceApi";
@@ -226,6 +231,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   const clock = browser.clock;
   const viewport = createChatViewport({
     current,
+    size: () => (browser.phone?.() ? CHAT_WINDOW_PHONE : CHAT_WINDOW),
     send,
     render: (value) => project(value),
     selectThread: (thread) => {

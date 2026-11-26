@@ -61,6 +61,8 @@ export type RoomScopeBrowser = {
   storage: Pick<Storage, "getItem" | "setItem"> | null;
   fetcher: FetchLike;
   iosStandalone: boolean;
+  /** The phone layout (MOBILE_QUERY), read when a room or a thread opens. */
+  phone?(): boolean;
   visible(): boolean;
   listenVisibility(callback: () => void): () => void;
   openExternal(url: string): void;

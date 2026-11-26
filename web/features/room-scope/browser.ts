@@ -1,6 +1,7 @@
 import { resetChatTime } from "../chat/time";
 import type { RoomScopeBrowser } from "./types";
 import { cssHex } from "../../lib/ui/cssColor";
+import { MOBILE_QUERY } from "../../lib/breakpoints";
 /** Only browser bindings; visual geometry/viewport/pointer ownership belongs to
  * RoomLayout, and this adapter does not query or build application DOM. */
 export function createRoomScopeBrowser(
@@ -27,6 +28,7 @@ export function createRoomScopeBrowser(
     storage,
     fetcher: win.fetch.bind(win),
     iosStandalone: standalone && ios,
+    phone: () => win.matchMedia(MOBILE_QUERY).matches,
     visible: () => doc.visibilityState === "visible",
     listenVisibility(callback) {
       const resumed = () => {

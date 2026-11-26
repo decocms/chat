@@ -4,6 +4,8 @@ import type { RoomCommand } from "../../../shared/commands";
 import { visibleChatMessages } from "../chat/privacy";
 
 export const CHAT_WINDOW = 60,
+  /** A phone shows 3-5 messages: it draws 20 (enough to fill the screen with short messages), and more as the person scrolls up (Gimenes #6050). */
+  CHAT_WINDOW_PHONE = 20,
   MESSAGE_SEARCH_PAGES = 15,
   /** How long a jump to a message owns the scroll: long enough for a smooth scroll to land. */
   JUMP_SETTLE_MS = 900;
@@ -31,14 +33,17 @@ export function createChatViewport(options: {
   notice(kind: "searching" | "missing" | "offline"): void;
   schedule?: (callback: () => void, milliseconds: number) => unknown;
   cancel?: (timer: unknown) => void;
+  /** How many messages the chat draws at first, and adds per scroll-back step. */
+  size?: () => number;
 }) {
+  const size = options.size ?? (() => CHAT_WINDOW);
   let active = true,
     room: Room | null = null,
     thread = "main",
     connectionGeneration = -1,
     scope = 0,
     live = false,
-    count = CHAT_WINDOW,
+    count = size(),
     pinned = true,
     windowEnd: number | null = null;
   const reads = new Map<string, { fill: boolean; timer: unknown | null }>(),
@@ -270,7 +275,7 @@ export function createChatViewport(options: {
         scope++;
         detach();
         if (changed) {
-          count = CHAT_WINDOW;
+          count = size();
           pinned = true;
           windowEnd = null;
         }
@@ -331,7 +336,7 @@ export function createChatViewport(options: {
     loadOlder() {
       if (!current() || thread.startsWith("pre:") || reads.has(thread)) return;
       if (room && endOf(visibleMessages()) > count) {
-        count += CHAT_WINDOW;
+        count += size();
         options.render(true);
         return;
       }
@@ -462,7 +467,7 @@ export function createChatViewport(options: {
       done.clear();
       filled.clear();
       failedReads.clear();
-      count = CHAT_WINDOW;
+      count = size();
       live = false;
       pinned = true;
     },
