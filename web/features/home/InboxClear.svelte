@@ -67,7 +67,7 @@
   class={cn(
     "flex w-full flex-col",
     layout === "desk"
-      ? "max-w-[560px] gap-10 px-8 pt-36 pb-12"
+      ? "max-w-[560px] gap-8 px-8 pt-36 pb-12"
       : "items-center gap-6 px-4 pt-8 pb-4",
   )}
 >
@@ -75,7 +75,7 @@
     class={cn(
       "flex",
       layout === "desk"
-        ? "items-center gap-4"
+        ? "items-center gap-4 pb-2"
         : "flex-col items-center gap-3 text-center",
       enter(0),
     )}
@@ -131,10 +131,15 @@
         enter(from),
       )}
     >
+      <!-- The live dot: the app's online colour (PresenceDot), always solid; a ring grows and fades behind it. -->
       {#if id === "now"}<span
           aria-hidden="true"
-          class="size-1.5 shrink-0 animate-pulse rounded-full bg-success motion-reduce:animate-none"
-        ></span>{/if}{label}
+          class="relative flex size-2 shrink-0"
+          ><span
+            class="absolute inset-0 animate-ping rounded-full bg-brand motion-reduce:hidden"
+          ></span><span class="relative size-2 rounded-full bg-brand"
+          ></span></span
+        >{/if}{label}
     </h3>
     <!-- Rows hang into the gutter (-mx-2) so their avatars sit on the header's and the label's left edge. -->
     <ul class="-mx-2 my-0 list-none p-0">
