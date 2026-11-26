@@ -1010,7 +1010,7 @@ test("Home ask box is the room's chat box: emoji, + menu and dictation that keep
   await flush();
   expect(opened).toEqual([more]);
 });
-test("the ask's + menu is the composer's menu plus New room, and a picked file shows as the composer's card", async () => {
+test("the ask's + menu is New room and Attach file (no mention or poll outside a room), and a picked file shows as the composer's card", async () => {
   const { personal, rooms, pwa, profile, creator } = await setup();
   const target = document.createElement("div");
   document.body.append(target);
@@ -1049,12 +1049,7 @@ test("the ask's + menu is the composer's menu plus New room, and a picked file s
     [...box.querySelectorAll('[role="menuitem"]')].map((item) =>
       item.textContent?.replace(/\s+/g, " ").trim(),
     ),
-  ).toEqual([
-    "New room",
-    "Attach file or Cmd+V",
-    "Mention someone",
-    "Create poll",
-  ]);
+  ).toEqual(["New room", "Attach file or Cmd+V"]);
   const input = target.querySelector<HTMLInputElement>('input[type="file"]')!;
   Object.defineProperty(input, "files", {
     configurable: true,
