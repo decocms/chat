@@ -370,9 +370,6 @@
         >{:else}<span
           class={cn("min-w-0 flex-1 truncate", members && "text-[0.9375rem]")}
           title={email}>{label(email)}</span
-        >{/if}{#if members && label(email) !== email}<span
-          data-person-email
-          class="truncate text-xs leading-4 text-muted-foreground">{email}</span
         >{/if}</span
     >
     {#if pending}
