@@ -280,8 +280,8 @@
         <!-- Messages as Message.svelte draws them: a 40px avatar, the name and time, the text (room-shell/shape.ts). -->
         <div aria-hidden="true" class="flex flex-col gap-1 pb-4">
           {#each [["w-24", "w-3/5", "w-2/5"], ["w-32", "w-4/5", ""], ["w-20", "w-1/2", ""]] as [name, body, more] (name)}
-            <!-- pb-6: the reaction row every message keeps under it. -->
-            <div class="px-3 pt-1 pb-6">
+            <!-- mt-3 pt-1: a message group's gap (chat/Message.svelte). -->
+            <div class="mt-3 px-3 pt-1">
               <div class={MESSAGE_ROW}>
                 <div class={MESSAGE_AVATAR}>
                   <Skeleton class="size-10 rounded-full" />

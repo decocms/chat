@@ -2568,6 +2568,32 @@ describe("chat", () => {
       owner.dispose();
     }
   }, 30_000);
+  test("spacing comes from the layout: a group starts 16px down whatever sits under the message above, a run 6px", () => {
+    // 1 and 2: one agent's run (2 has a reaction). 3: someone else, a new group right after a row. 4: a reply from
+    // the same agent (its own group). 5: a new group after a message with nothing under it.
+    const { target } = renderChat({
+      ...fixture(),
+      messages: [
+        message(1, "First line of a run"),
+        { ...message(2, "Second, liked"), reactions: { "👍": ["ana@test"] } },
+        { ...message(3, "Someone else"), author: "ana@test", kind: null },
+        { ...message(4, "A reply"), reply_to: 3 },
+        { ...message(5, "Back to a person"), author: "ana@test", kind: null },
+      ],
+    });
+    const article = (id: number) =>
+      target.querySelector<HTMLElement>(`#m${id}`)!.classList;
+    expect(article(2).contains("pt-1.5")).toBe(true);
+    expect(article(2).contains("mt-3")).toBe(false);
+    for (const id of [1, 3, 4, 5]) {
+      expect(article(id).contains("mt-3")).toBe(true);
+      expect(article(id).contains("pt-1")).toBe(true);
+    }
+    // Nothing under a bare message holds space: no empty row and no spacer.
+    expect(target.querySelector('[data-reaction-row="1"]')).toBeNull();
+    expect(target.querySelector('[data-reaction-row="2"]')).not.toBeNull();
+    expect(target.querySelector('[data-reaction-row="4"]')).toBeNull();
+  });
   test("quick reactions sit in the hover toolbar with reply, yours pressed (plus any other you gave), and nothing opens under a message on hover", async () => {
     const sent: RoomCommand[] = [];
     const theirs = {

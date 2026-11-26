@@ -297,9 +297,12 @@
   onfocusin={selecting ? undefined : showToolbar}
   onclickcapture={pickClick}
   class={[
+    // Spacing is the layout's, not the rows': a new group (avatar and name) starts 16px (mt-3 + pt-1) below the
+    // previous message's last line, its text or the row of reactions and seen under it; a follow-up in a run, 6px
+    // (pt-1.5), less than the 8px between paragraphs of one message, so a run still reads as one person (Valls).
     continuous
-      ? "group relative rounded-control pt-0.5 pr-3 pb-0 font-sans text-[0.875rem] text-foreground max-md:text-[1.0625rem] transition-[color,background-color,padding-left] duration-150 motion-reduce:transition-none pointer-fine:hover:bg-accent/55"
-      : "group relative mt-1 rounded-control pt-1 pr-3 pb-0 font-sans text-[0.875rem] text-foreground max-md:text-[1.0625rem] transition-[color,background-color,padding-left] duration-150 motion-reduce:transition-none pointer-fine:hover:bg-accent/55",
+      ? "group relative rounded-control pt-1.5 pr-3 pb-0 font-sans text-[0.875rem] text-foreground max-md:text-[1.0625rem] transition-[color,background-color,padding-left] duration-150 motion-reduce:transition-none pointer-fine:hover:bg-accent/55"
+      : "group relative mt-3 rounded-control pt-1 pr-3 pb-0 font-sans text-[0.875rem] text-foreground max-md:text-[1.0625rem] transition-[color,background-color,padding-left] duration-150 motion-reduce:transition-none pointer-fine:hover:bg-accent/55",
     // The checkbox column: 32px more at the left while selection mode is on.
     selecting ? "pl-11 select-none" : "pl-3",
     pickable ? "cursor-pointer" : "",
