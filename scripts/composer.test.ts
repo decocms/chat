@@ -25,6 +25,7 @@ import {
 import {
   linkEdit,
   shortcutFor,
+  shortcutHints,
   toggleCodeBlock,
   toggleMark,
   asUrl,
@@ -1212,4 +1213,39 @@ test("your Claudes in the room are picked by their @name, once each", () => {
     ["claude", "seu agent nesta sala"],
     ["claude-2", "seu agent nesta sala"],
   ]);
+});
+
+test("the field's shortcut hints write the keys as each computer does, and match what the keys do", () => {
+  const mac = shortcutHints(true),
+    pc = shortcutHints(false);
+  expect(mac.map((hint) => hint.keys)).toEqual([
+    "⌘B",
+    "⌘I",
+    "⌘U",
+    "⌘⇧X",
+    "⌘E",
+    "⌘⇧K",
+  ]);
+  expect(pc.map((hint) => hint.keys)).toEqual([
+    "Ctrl+B",
+    "Ctrl+I",
+    "Ctrl+U",
+    "Ctrl+Shift+X",
+    "Ctrl+E",
+    "Ctrl+Shift+K",
+  ]);
+  // Each hint is a shortcut that the field really has.
+  for (const hint of mac) {
+    const shift = hint.keys.includes("⇧");
+    const letter = hint.keys.at(-1)!.toLowerCase();
+    const press = {
+      key: letter,
+      code: "",
+      metaKey: true,
+      ctrlKey: false,
+      altKey: false,
+      shiftKey: shift,
+    };
+    expect(shortcutFor(press, true)).not.toBeNull();
+  }
 });

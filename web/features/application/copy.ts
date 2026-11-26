@@ -114,6 +114,10 @@ const EN: Readonly<Record<string, string>> = {
   "O ditado foi interrompido. Seu rascunho foi mantido.":
     "Dictation stopped. Your draft was kept.",
   "Ditar mensagem": "Dictate message",
+  Negrito: "Bold",
+  Itálico: "Italic",
+  Sublinhado: "Underline",
+  Riscado: "Strikethrough",
   "Parar de ditar": "Stop dictating",
   "Descartar ditado": "Discard dictation",
   "Segure pra ditar (ou segure o espaço)": "Hold to dictate (or hold Space)",

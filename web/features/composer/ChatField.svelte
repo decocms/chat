@@ -15,7 +15,11 @@
   } from "./speech";
   import { createDictationController } from "./dictation";
   import type { FireCaptureFactory } from "./fireAudio";
-  import { markdownPaste, markdownShortcut } from "./markdownShortcuts";
+  import {
+    markdownPaste,
+    markdownShortcut,
+    shortcutHints,
+  } from "./markdownShortcuts";
   import { insertAt, mentionKey, mentionSegments } from "./model";
   import EmojiPicker from "./EmojiPicker.svelte";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
@@ -148,6 +152,8 @@
     seen = untrack(() => value),
     counted = 0,
     mirror = $state<HTMLElement | null>(null),
+    // The field has the focus: the shortcut hints show only while you select text in it.
+    focused = $state(false),
     // Where the last typed character went: Backspace right there edits a hand-typed mention letter by letter.
     typedAt = -1;
   // What the textarea holds: the text with each room/thread link as a token the mirror draws as its chip.
@@ -214,6 +220,8 @@
   const styled = $derived(parts.some((part) => part.kind !== "text"));
   // The highlight layer and the textarea share these classes (type, padding), so the mirror's
   // text wraps exactly where the field's does.
+  // The formatting shortcuts, shown while you select text: nobody found them with no hint (#484).
+  const HINTS = shortcutHints();
   const FIELD_TYPE =
     "px-1.5 py-1.5 text-[15px] pointer-coarse:text-[16px] leading-5 max-md:text-[17px] max-md:pointer-coarse:text-[17px] max-md:leading-6 [scrollbar-gutter:stable]";
   function mentionKeydown(event: KeyboardEvent) {
@@ -622,6 +630,16 @@
         ></span>{clock}</span
       >{/if}
     <div class="relative flex min-w-0 flex-1">
+      <!-- Desktop with a mouse only: a phone has no ⌘ or Ctrl keys. -->
+      {#if focused && caret !== selectionEnd && !off}<div
+          data-format-hints
+          class="pointer-events-none absolute bottom-full left-0 z-10 mb-2 hidden items-center gap-3 rounded-lg border border-border bg-popover px-2 py-1 text-xs whitespace-nowrap text-muted-foreground shadow-sm transition-opacity duration-150 starting:opacity-0 md:pointer-fine:flex"
+        >
+          {#each HINTS as hint (hint.keys)}<span
+              ><span class="font-medium text-foreground">{hint.keys}</span>
+              {t(hint.label)}</span
+            >{/each}
+        </div>{/if}
       {#if mention || links}<div
           bind:this={mirror}
           aria-hidden="true"
@@ -722,7 +740,9 @@
         onpaste={(event) => {
           if (ok()) markdownPaste(event);
         }}
+        onfocus={() => (focused = true)}
         onblur={() => {
+          focused = false;
           if (!waiting) speech.cancel();
           onblurfield?.();
         }}
