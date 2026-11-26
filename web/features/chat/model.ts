@@ -15,11 +15,15 @@ export const prettyModel = (value: string) =>
     (_, family: string, a: string, b: string) =>
       `Claude ${family[0].toUpperCase()}${family.slice(1)} ${a}.${b}`,
   );
+/** The message is drawn as a follow-up of the previous one (no avatar, no name). A reply always starts its own group:
+ *  the "seen" merge (messageFooters) uses this same rule, or a run of agent replies, each with its own name, lost the
+ *  row under each one and the groups sat glued together. */
 export const continues = (
   previous: ChatMessage | undefined,
   current: ChatMessage,
 ) =>
   !!previous &&
+  !current.reply_to &&
   previous.author === current.author &&
   (previous.kind || null) === (current.kind || null) &&
   (previous.tag || null) === (current.tag || null) &&
