@@ -3,12 +3,13 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--audio] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { $ } from "bun";
+import { galleryPath, serveBuiltGallery } from "./browser-static-gallery";
 
 const base = process.env.SCREENS_ORIGIN ?? "http://127.0.0.1:8797";
 const args = process.argv.slice(2);
@@ -959,6 +960,113 @@ try {
     await wide.screenshot({ path: join(out, "center-room-1440.png") });
     shots.push("center-room-1440.png");
     await context.close();
+  }
+  if (flag("audio")) {
+    // The call's microphone and audio output, in the "Mais opções" menu of the stage. A real call needs the SFU,
+    // so this opens the call's gallery fixture (web/dev/gallery/CallFixture.svelte, built into dist-gallery/) with
+    // test devices in place of enumerateDevices. `output: false` is a browser without setSinkId (Safari, Firefox).
+    await $`bun run build:gallery`.quiet();
+    const gallery = await serveBuiltGallery("dist-gallery");
+    const fixture = `${gallery.base}${galleryPath}?probe=call&n=3&speaking=2`;
+    const devices = (page: Page, output: boolean) =>
+      page.addInitScript(
+        ({ output }) => {
+          const list = [
+            ["audioinput", "default", "Padrão - Microfone integrado", "g0"],
+            ["audioinput", "mic-built-in", "Microfone integrado", "g0"],
+            ["audioinput", "mic-headset", "Headset USB de teste", "g1"],
+            ["audioinput", "mic-webcam", "Microfone da webcam de teste", "g2"],
+            ["audiooutput", "default", "Padrão - Alto-falantes", "g0"],
+            ["audiooutput", "out-built-in", "Alto-falantes integrados", "g0"],
+            ["audiooutput", "out-headset", "Headset USB de teste", "g1"],
+            ["audiooutput", "out-display", "Monitor HDMI de teste", "g3"],
+          ].map(([kind, deviceId, label, groupId]) => ({
+            kind,
+            deviceId,
+            label,
+            groupId,
+          }));
+          navigator.mediaDevices.enumerateDevices = async () =>
+            list as unknown as MediaDeviceInfo[];
+          if (!output)
+            delete (HTMLMediaElement.prototype as Partial<HTMLMediaElement>)
+              .setSinkId;
+        },
+        { output },
+      );
+    const openMenu = async (page: Page) => {
+      await page.locator("[data-call-more]").click();
+      await page.locator("[data-call-mics]").waitFor();
+      await page.waitForTimeout(400);
+    };
+    const checked = (page: Page, list: string, id: string) =>
+      page
+        .locator(
+          `[data-call-${list}] [data-call-device="${id}"][data-state="checked"]`,
+        )
+        .waitFor();
+    try {
+      const context = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+      });
+      const wide = await context.newPage();
+      await devices(wide, true);
+      await wide.goto(fixture, { waitUntil: "networkidle" });
+      await openMenu(wide);
+      await checked(wide, "mics", "system");
+      await checked(wide, "speakers", "system");
+      await wide.screenshot({ path: join(out, "audio-menu-1440.png") });
+      shots.push("audio-menu-1440.png");
+      // Choose the headset for the two; each choice closes the menu.
+      await wide
+        .locator('[data-call-mics] [data-call-device="mic-headset"]')
+        .click();
+      await openMenu(wide);
+      await wide
+        .locator('[data-call-speakers] [data-call-device="out-headset"]')
+        .click();
+      // The choice stays on this device: after a reload the menu still has it.
+      await wide.reload({ waitUntil: "networkidle" });
+      await openMenu(wide);
+      await checked(wide, "mics", "mic-headset");
+      await checked(wide, "speakers", "out-headset");
+      await wide.screenshot({ path: join(out, "audio-chosen-1440.png") });
+      shots.push("audio-chosen-1440.png");
+      await context.close();
+
+      const plain = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+      });
+      const noSink = await plain.newPage();
+      await devices(noSink, false);
+      await noSink.goto(fixture, { waitUntil: "networkidle" });
+      await openMenu(noSink);
+      if (await noSink.locator("[data-call-speakers]").count())
+        throw new Error("the output list shows without setSinkId");
+      await noSink.screenshot({ path: join(out, "audio-no-output-1440.png") });
+      shots.push("audio-no-output-1440.png");
+      await plain.close();
+
+      const small = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      const phone = await small.newPage();
+      await devices(phone, true);
+      await phone.goto(`${fixture}&phone=1`, { waitUntil: "networkidle" });
+      await openMenu(phone);
+      const box = await phone
+        .locator('[data-slot="dropdown-menu-content"]')
+        .boundingBox();
+      if (!box || box.x < 0 || box.x + box.width > 390)
+        throw new Error("the menu does not fit the phone's width");
+      await phone.screenshot({ path: join(out, "audio-menu-390.png") });
+      shots.push("audio-menu-390.png");
+      await small.close();
+    } finally {
+      gallery.server.stop(true);
+    }
   }
 } finally {
   await browser.close();
