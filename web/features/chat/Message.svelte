@@ -379,7 +379,7 @@
           >{vb.hhmm(m.ts)}</time
         >{/if}
     </div>
-    <div data-message-body class="min-w-0 flex-1 space-y-1">
+    <div data-message-body class="relative min-w-0 flex-1 space-y-1">
       {#if !continuous}<div
           data-message-head
           class="-mb-0.5 flex min-h-5 flex-wrap items-center gap-x-2 text-xs text-muted-foreground max-md:text-sm"
@@ -524,13 +524,13 @@
             "-mt-1 flex min-h-6 flex-wrap items-center justify-between gap-x-3 select-none",
             // Right under a thread card it keeps a gap instead of pulling up into it (Gimenes #5477).
             "[[data-thread-card]+&]:mt-1.5",
-            // Nothing in the row yet: it opens only on hover (or focus, or while the picker is open), so adjacent
-            // messages stay together and the hover makes the room (Gui #5347). Phones react from the long press.
-            // The last message keeps that height, only hidden: opening it on hover there grows the list at the
-            // bottom, and the whole conversation jumps up (Gui #5741).
+            // Nothing in the row yet: it shows only on hover (or focus, or while the picker is open), so adjacent
+            // messages stay together (Gui #5347). It floats over the space under the message instead of opening
+            // room there, so the hover moves no other message (Gui #5797). Phones react from the long press.
+            // The last message keeps that height, only hidden: nothing is under it to float over (Gui #5741).
             bare &&
               !last &&
-              "hidden pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex has-[[data-picking]]:flex",
+              "absolute inset-x-0 top-full z-10 hidden bg-background pb-2.5 pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex has-[[data-picking]]:flex",
             bare &&
               last &&
               "invisible pointer-coarse:hidden pointer-fine:group-hover:visible pointer-fine:group-has-focus-visible:visible has-[[data-picking]]:visible",
