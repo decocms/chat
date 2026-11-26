@@ -2580,8 +2580,8 @@ describe("chat", () => {
       expect(el.className).toContain("invisible");
       expect(el.className.split(/\s+/)).not.toContain("hidden");
     }
-    // The reaction row is in the flow, inside the message's own box (nothing floats over the next message), 24px high.
-    for (const id of [9, 10]) {
+    // A row with a reaction is in the flow, inside the message's own box, 24px high.
+    for (const id of [9]) {
       const row = target.querySelector<HTMLElement>(
         `#m${id} [data-reaction-row="${id}"]`,
       );
@@ -2600,6 +2600,9 @@ describe("chat", () => {
     expect(rowClasses(9)).not.toContain("hidden");
     expect(rowClasses(10)).toContain("hidden");
     expect(rowClasses(10)).toContain("pointer-fine:group-hover:flex");
+    // An empty row floats under its message on hover, so the hover moves no other message (Gui #5797).
+    expect(rowClasses(10)).toContain("absolute");
+    expect(rowClasses(10)).toContain("top-full");
     // The last message keeps the row's height, only invisible: opening it there grew the list at the bottom (Gui #5741).
     expect(rowClasses(11)).not.toContain("hidden");
     expect(rowClasses(11)).toContain("invisible");

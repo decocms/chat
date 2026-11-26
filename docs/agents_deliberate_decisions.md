@@ -1252,6 +1252,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/global-inbox-rail · The Inbox is one global button under the logo
+
 - Agent: claude-opus-5-5
 - Context: The human approved the artifact "Inbox global" (#3837) and asked for four slots on the rail: the logo and the Inbox (only when something waits), a line, DMs, a line, rooms, then search and +. The artifact also said that the Inbox loses "Esta sala / Todas as salas", and that the Home and room sidebars lose their Inbox items.
 - Decision:
@@ -1300,6 +1301,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-status-no-live · An epic has no "No ar" status
+
 - Agent: claude-opus-5-5
 - Context: The human said that "live" can mean different things and asked for a single "done" state (#3877).
 - Decision:
@@ -1313,6 +1315,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-no-rocket · The epic list has no deploy icon
+
 - Agent: claude-opus-5-5
 - Context: After "No ar" was removed (#3877), the human asked to also remove the rocket in the epic list (#3882).
 - Decision:
@@ -1339,6 +1342,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · fix/loading-title-left · A phone's Home loads with the list's bar
+
 - Agent: claude-opus-5-5
 - Context: The human said that a loading state still does not show the title on the left (#3878). On a phone, Home loaded with the desk layout (the cube and a centred headline bar) and then jumped to the list with "deco.chat" on the left. The room loading bar was already on the left (#302).
 - Decision:
@@ -1350,6 +1354,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/search-in-title · The room search stands where "Sala principal" was
+
 - Agent: claude-opus-5-5
 - Context: The human asked to move the room search to where the desktop bar says "Main thread", with the placeholder "Search in <room name>" (#3902). An epic's thread shows the epic's title and status pill in that place.
 - Decision:
@@ -1363,6 +1368,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · fix/composer-skeleton · The composer and its loading state share one shape
+
 - Agent: claude-opus-5-5
 - Context: The human said that the composer does not match its loading state. They asked for a taller composer, the composer's fill on the loading state, and code that tells a developer to change both together (#3905). The composer was 44px with `bg-muted`. The loading state was 56px with the input colour, other corners, a shadow, other margins and an extra 8px.
 - Decision:
@@ -1377,6 +1383,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-row-slot · The epic row: one slot at the end, and task progress as a bar
+
 - Agent: claude-opus-5-5
 - Context: The human asked for the epic's status at the end of its row, a number in its place when there is something new, and the x/y task count as a bar under the title (gray at 0 done, green after) (#3899, #3904). Then they said to change only the UI, not how the app tracks read messages (#3915).
 - Decision:
@@ -1389,6 +1396,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-row-slot · A touch screen has no actions menu on the epic's row
+
 - Agent: claude-opus-5-5
 - Context: On a phone, the `...` menu on each epic row was always visible, because a touch screen has no hover. The human said to remove it and to keep the actions only inside the epic (#3924). Inside the epic, the phone sheet had only the status menu. The row menu also pinned the epic, moved a pinned epic up or down, and picked its owner.
 - Decision:
@@ -1402,6 +1410,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-row-no-menu · The epic list has no actions menu on desktop either
+
 - Agent: claude-opus-5-5
 - Context: The human asked to remove the `...` from the epic list on desktop too (#3933). The row menu pinned the epic, moved a pinned epic up or down, and picked its owner.
 - Decision:
@@ -1414,6 +1423,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · fix/room-skeleton-pane · A loading room opens its pane as the room will, and its skeleton matches today's room
+
 - Agent: claude-opus-5-5
 - Context: The human said that the room's loading state shows the side pane open when it is closed. They asked to connect the loading state to the pane's real value, to make the code tell a developer to change both together, and to update the skeletons to match today's messages and bars (#3938).
 - Decision:
@@ -1428,6 +1438,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/home-waits-inline · The phone home opens the rest of what waits on you in place
+
 - Agent: claude-opus-5-5
 - Context: The human asked that "See all 5 in the Inbox" on the phone home show the rest inline, as WhatsApp does (#3942).
 - Decision: The button opens all the waits in the same list and reads "Ver todas as {n}" / "See all {n}". When open, it reads "Mostrar menos" / "Show less" and closes the list to 3 again. The list does not remember open or closed between visits. The Inbox stays one tap away through the icon in the top bar.
@@ -1437,6 +1448,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/chat-copy-transcript · A copy across messages reads as WhatsApp's
+
 - Agent: claude-opus-5-5
 - Context: The human said that a copy of many messages brings emoji and pieces of the UI. They asked for a copy like WhatsApp's: the name, the time and the message (#3955).
 - Decision:
@@ -1450,6 +1462,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/desktop-home-inbox · On a desktop, the Home is the Caixa de entrada
+
 - Agent: claude-opus-5-5
 - Context: The human chose option 2 of the mockup (#3967): on a desktop the logo opens the Caixa de entrada, with the search in the top bar as a room has it. The phone keeps its list.
 - Decision:
@@ -1466,6 +1479,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/epic-status-after-title · The epic's status follows its title; its menu has no owner picker
+
 - Agent: claude-opus-5-5
 - Context: The human asked to put the epic's status right after the epic's title in the room, and to remove the owner selector from the status menu (#3975).
 - Decision:
@@ -1477,6 +1491,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/rail-hold-to-sort · Rooms on the rail move by press and hold, not by the browser's drag
+
 - Agent: claude-opus-5-5
 - Context: The human asked to rearrange the rooms in the sidebar by click and hold. They said that the gesture today shows a strange drop in the UI (#3978). The rail used the browser's drag and drop: a ghost of the link and a dashed box on the room under it.
 - Decision:
@@ -1491,6 +1506,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: superseded by "The rail sorts with dnd-kit, as one flat list" (feat/rail-dnd-kit)
 
 ### 2026-11-23 · feat/rail-dnd-kit · The rail sorts with dnd-kit, as one flat list
+
 - Agent: claude-opus-5-5
 - Context: Gimenes #3997: the rail's hold-to-sort was still poor on desktop. He wanted a preview of what is dragged, like dnd-kit, and asked to use dnd-kit where the product drags things.
 - Decision:
@@ -1504,6 +1520,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: superseded by "The rail and the thread list sort with @dnd-kit/svelte" (refactor/dnd-kit-svelte)
 
 ### 2026-11-23 · feat/no-task-board · The task board leaves the product; the room's name is the main thread
+
 - Agent: claude-opus-5-5
 - Context: Gimenes #3989 (items 1 and 2): remove the task board from the sidebar and the product. Move the main thread's button up to the room's name, and remove the room's message count. Simplify the data fetching if possible.
 - Decision:
@@ -1517,6 +1534,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/threads-four-states · Epics show as threads, with 4 states and 2 tabs
+
 - Agent: claude-opus-5-5
 - Context: Gimenes #3989 (items 3 and 4), with the defaults he approved in #3993.
 - Decision:
@@ -1529,6 +1547,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · refactor/dnd-kit-svelte · The rail and the thread list sort with @dnd-kit/svelte
+
 - Agent: claude-opus-5-5
 - Context: Gimenes #4020 asked to use @dnd-kit/svelte instead of @dnd-kit/dom, and to make the code simpler.
 - Decision:
@@ -1545,6 +1564,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · fix/idempotent-send · One send makes one message (client_id)
+
 - Agent: claude-opus-5-5
 - Context: People saw the same message two times. A send that became "not confirmed" was sent again, and the server stored it again. The human approved the design and a new column in `messages`. Three reviews then asked for the changes below.
 - Decision:
@@ -1566,6 +1586,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/thread-origin · Each thread starts from a message in the main thread
+
 - Agent: claude-opus-5-5
 - Context: Gimenes (#4123, #4126) asked for "Criar thread" on a message, as in Discord. Threads do not nest. A thread from a message in another thread gets a message in the main thread that links it. "Nova thread" in the sidebar also writes a message in the main thread. These points are not from a human:
 - Decision:
@@ -1789,7 +1810,6 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit and deploy the recorder again. To stop recording at once, remove `CALL_RECORD_ROOMS` from the chat's secrets.
 - Status: open
 
-
 ### 2026-11-24 · danielfurt/app-composer-draft · An MCP app can put a draft in the composer
 
 - Agent: Claude Opus 5.5
@@ -1911,7 +1931,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: One `ContextMenu` per row (like the pins); keep the dialog and add a menu beside it; send the person to the room and open its People panel for "Invite people".
 - Risk: low. The same mutations as the dialog, from a different surface.
 - Undo: Revert this commit.
-||||||| parent of 7a68e433 (feat(cli): Codex wakes from the room through codex queue; the plugin works in Codex; herdr installs the plugin (1.7.9))
+  ||||||| parent of 7a68e433 (feat(cli): Codex wakes from the room through codex queue; the plugin works in Codex; herdr installs the plugin (1.7.9))
 
 ### 2026-11-25 · viktor/codex-setup · Codex listens through codex queue
 
@@ -2027,7 +2047,6 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit and deploy the recorder again. The shares that were made stay.
 - Status: open
 
-
 ### 2026-11-25 · JonasJesus42/grain-workspace-playlist · The recordings reach the workspace through a playlist
 
 - Agent: Claude Opus 5.5
@@ -2037,7 +2056,6 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A failure leaves the recording where it was, shared with the people of the call. A workspace token (not personal) cannot make the playlist: the log says so.
 - Undo: Revert this commit. The playlist stays in Grain.
 - Status: open
-
 
 ### 2026-11-25 · fix/answer-opens-call · The call keeps a socket of its own to its room
 
@@ -2068,6 +2086,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-25 · viktor/copy-selection · A copy takes only the selected text
+
 - Agent: claude-opus-5-5
 - Context: The human said that when they select a part of a message and copy it, the full message is copied. The cause: a selection that ends past a message's text (in its footer or body, which is easy with the mouse) went to the transcript copy of 2026-11-23, which writes each full message.
 - Decision:
@@ -2138,6 +2157,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-25 · fix/reaction-row-gap · The reaction row keeps a gap under a thread card; 🙂 only on hover
+
 - Agent: Claude Opus 5.5
 - Context: Gimenes (#5477) and Valls (#5478): the reactions sat glued to a thread card, and the 🙂 (more emoji) button stayed visible whenever a message had a reaction, at the end of the hidden quick reactions.
 - Decision: Right after a thread card the row gets `mt-1.5` instead of pulling up 4px. The 🙂 button is hover-only like the quick reactions, also with chips, and is hidden on touch screens, which react from the long press.
@@ -2201,13 +2221,14 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-25 · fix/agent-asks-out-of-chat · A Claude's ⏸/❓ hook question is only its human's, on the server too
+
 - Agent: Claude Opus 5.5
 - Context: PO: the permission and question asks the plugin's hooks post ("⏸ Seu Claude pede permissão: **Bash** `<command>`…") reached every member: paths and commands of one person's terminal in everyone's timeline. The app hid them only on the client.
 - Decision: `messages.private_to` (src/privateAsk.ts) = the ask's author, also on that author's answer ("Aprovar") to it; backfilled once per room for existing ones. Every read that leaves the Book for a viewer filters `private_to IS NULL OR private_to = viewer`: the room open and resume, pages, read_room, quotes, search. Live events about such a message go to the owner's tabs only. A private message does not move the room's last id (no unread, no listener wake, no mention mail) and the router, @vibe and the agent streak ignore it. Its human still sees the ask with its buttons in the chat and in the Inbox; the hook reads the answer as before (answerTo).
 - Other options: Not storing the ask as a message (a side table): the answer flow, closeAsk and the app's buttons all build on the message row, a bigger change for the same result. Reusing `for_who`: it means a reminder for one person, and other readers rely on that.
 - Risk: low. A read that forgets the filter shows the ask to others again (the client still hides it).
 - Undo: Revert this commit; the column stays and is ignored.
-||||||| parent of 538950aa (feat(agents): plug a deco Studio agent into a room)
+  ||||||| parent of 538950aa (feat(agents): plug a deco Studio agent into a room)
 
 ### 2026-11-25 · feat/studio-sandbox-agents · Studio agents: how a room reaches deco Studio
 
@@ -2243,6 +2264,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-25 · feat/agent-roles · Every agent has an @name in the room; one Primary per person
+
 - Agent: Claude Opus 5.5
 - Context: Gimenes (#5472, #5506, #5547): with two agents of his in a room, both woke for the same message (duplicate PRs #481/#482, #490/#492), and there was no way to call one of them. Gui's roles POC (#290) already had `@role` and a Primary.
 - Decision: An agent without a role is named after its client (`claude`, `codex`); the second of the same person in the room is `claude-2`. The name is kept per agent and room (`agent_rooms.name`) and freed after 3 days unused. Only the Primary (the active agent without a role with the lowest name) gets its human's messages that name no agent; `@claude-2` wakes only claude-2, and the router wakes it with a fixed rule (no model). `agent`, `claude(-N)` and `codex(-N)` can't be a person's @handle.
@@ -2287,6 +2309,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-25 · feat/tray-agents · The menu bar app shows only you, the deco.chat update, Open and Quit
+
 - Agent: Claude Opus 5.5
 - Context: Gimenes, after Pedro's beta: keep the room switches in the web app (#5573). The update is for deco.chat itself, the app and the CLI, not for the agents (#5602). No "Ligar nas salas…" (#5636). Then the menu shows only: the signed-in email, check for updates or the update button with the version, open deco.chat, quit (#5638). Then (#5640): "check for updates", and after the check "up to date" with the version; he asked for the most canonical way. He did not say how to update the CLI.
 - Decision: One update line, as in other macOS apps (Sparkle): "Procurar atualizações", with no check before the click. A click checks the app (newest `tray-v*`) and the `vibebook` CLI on `PATH` (newest `vibebook.dev` on npm), then shows "Atualizado · <version>" or "Instalar atualização · <new version>". The install updates the CLI first (`npm i -g vibebook.dev@latest` when npm installed it, else `vibebook update`), then runs `setup.sh` again for the app (Windows: the release page). The list of agents is gone.
@@ -2296,6 +2319,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-26 · fix/hover-no-cls · A message that grows under the pointer does not pull the chat to the bottom
+
 - Agent: Claude Opus 5.5
 - Context: Gui (#5740, #5741): the hover moves the layout on a message with an image and on the last message without "seen". He did not say how to fix it. Measured on local development: with the chat at the bottom, a hover on any message opened its reaction row (20 px), the chat followed the bottom, and every message above moved up 20 px. A tall image then left the pointer.
 - Decision:
@@ -2332,5 +2356,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - Phones use the same `RoomMenu` (long press), so they get the item too.
 - Other options: A boolean `can_leave` in `/api/me` instead of `owner`. A confirm in the menu itself. Using `DELETE /members/:email` with your own email (the People panel blocks that on purpose).
 - Risk: low. Leaving cannot be undone by you: someone has to invite you again. The confirm says so.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-26 · fix/hover-overlay · The empty reaction row floats under its message on hover
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#5797): "fix the CLS, not the layout which isnt broken". The empty reaction row opened on hover and pushed every message below it down by 20 px (Leandro, Valls #5786).
+- Decision: An empty reaction row that is not on the last message is `absolute`, under the message body, with the page background, only as wide as its buttons. It shows on hover as before, and it takes no space. The last message keeps its `invisible` row (#5741).
+- Other options: A fixed 24 px row on every message (#443). That changes the layout, and Gui #5347 asked that adjacent messages stay together.
+- Risk: The row covers the start of the next message's first line while the pointer is on the message. #438 dropped a floating pill for that reason.
 - Undo: Revert the commit.
 - Status: open
