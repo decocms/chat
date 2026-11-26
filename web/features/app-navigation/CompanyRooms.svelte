@@ -90,10 +90,10 @@
           room.opened_by_name || room.opened_by || ""}
         <li
           data-company-room={room.id}
-          class="flex min-h-12 min-w-0 items-center gap-3 rounded-lg px-2 py-1.5"
+          class="flex min-h-14 min-w-0 items-center gap-3 rounded-lg px-2 py-2.5"
         >
           <RoomAvatar
-            size={mobile.current ? "md" : "sm"}
+            size="sm"
             title={room.title}
             {lang}
             surface="background"
