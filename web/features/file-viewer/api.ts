@@ -141,3 +141,22 @@ export function createFileReadApi(fetcher: FetchLike = fetch) {
   };
 }
 export type FileReadApi = ReturnType<typeof createFileReadApi>;
+/** All of a file's bytes ("Encaminhar" puts a copy of each file in the composer of another room). */
+export async function readFileBlob(
+  target: FileTarget,
+  signal: AbortSignal,
+  fetcher: FetchLike = fetch,
+) {
+  const response = await fetcher(fileURL(target), {
+    headers: { accept: "application/octet-stream" },
+    credentials: "same-origin",
+    signal,
+  });
+  try {
+    accepted(response);
+  } catch (error) {
+    await response.body?.cancel().catch(() => {});
+    throw error;
+  }
+  return response.blob();
+}

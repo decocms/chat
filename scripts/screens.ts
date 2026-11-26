@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -862,6 +862,7 @@ try {
       }
     }
   }
+  if (flag("forward")) await forwardScreens(browser, shots);
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
     ["/", "home-390.png"],
@@ -996,4 +997,239 @@ if (flag("publish")) {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/**
+ * "Encaminhar" (forward, --forward): every state at 1440 and 390 px, and a video of the desktop flow. Two test people
+ * talk in a new room (Bruno joins with the dev_as cookie), Ana's message has an image, and the room has a thread.
+ * The forward goes to a second new room, "Sala destino", whose composer gets the package; nothing is sent.
+ * Then "Copiar" in the bar, at both widths: the bar with Copiar, and the room's "Copiado" after the copy. The run
+ * fails if the clipboard does not hold the package.
+ */
+async function forwardScreens(
+  browser: import("playwright").Browser,
+  shots: string[],
+) {
+  const json = (email?: string) => ({
+    "content-type": "application/json",
+    origin: base,
+    ...(email ? { cookie: `dev_as=${encodeURIComponent(email)}` } : {}),
+  });
+  const post = async (path: string, body: unknown, email?: string) => {
+    const response = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: json(email),
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`${path}: ${response.status}`);
+    return (await response.json()) as { id?: string };
+  };
+  const bruno = "bruno@example.test";
+  await post("/api/me", { name: "Ana Souza" });
+  const { id: source } = await post("/api/books", {
+    title: "Evento de fim de ano",
+  });
+  const { id: target } = await post("/api/books", { title: "Sala destino" });
+  await post(`/api/books/${source}/members`, { email: bruno });
+  await post("/api/me", { name: "Bruno Lima" }, bruno);
+  await post(`/api/books/${source}/invite`, { yes: true }, bruno);
+  const say = (text: string, email?: string) =>
+    post(`/api/books/${source}/post`, { text, thread: "main" }, email);
+  await say(
+    "Pessoal, fechei o orçamento do evento: R$ 12 mil no total.",
+    bruno,
+  );
+  await say("Ótimo! Dá pra dividir em duas parcelas?");
+  await say("Dá sim. A primeira agora e a segunda depois do evento.", bruno);
+  const row = (page: Page, text: string) =>
+    page.locator("[data-chat-message]", { hasText: text }).first();
+
+  // Desktop, with a video of the whole flow.
+  const video = join(out, "video");
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    // Desktop in Portuguese, the phone in English: both languages of each text.
+    locale: "pt-BR",
+    recordVideo: { dir: video, size: { width: 1440, height: 900 } },
+    permissions: ["clipboard-read", "clipboard-write"],
+  });
+  const desk = await context.newPage();
+  await desk.goto(`${base}/b/${source}`, { waitUntil: "networkidle" });
+  // Ana's message with an image (drawn here: test data only).
+  const image = await desk.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 480;
+    canvas.height = 270;
+    const g = canvas.getContext("2d")!;
+    g.fillStyle = "#e8f5d0";
+    g.fillRect(0, 0, 480, 270);
+    g.fillStyle = "#1f2a10";
+    g.font = "bold 32px sans-serif";
+    g.fillText("Plano do evento", 32, 70);
+    g.font = "24px sans-serif";
+    g.fillText("1ª parcela: dezembro", 32, 140);
+    g.fillText("2ª parcela: janeiro", 32, 190);
+    return canvas.toDataURL("image/png").split(",")[1]!;
+  });
+  await desk.locator('[data-composer] input[type="file"]').setInputFiles({
+    name: "plano-do-evento.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(image, "base64"),
+  });
+  // Sent only once the upload ends (the composer refuses a send with a file on its way).
+  await desk.waitForTimeout(1500);
+  await send(desk, "Segue o plano com as datas.");
+  await say("Perfeito, vou mandar pro financeiro hoje.", bruno);
+  await say("Combinado. Obrigada, Bruno!");
+  await row(desk, "Combinado. Obrigada").waitFor();
+  // A thread in the room, so the picker lists one under "Nesta sala".
+  await row(desk, "Dá sim. A primeira").hover();
+  await row(desk, "Dá sim. A primeira").locator("[data-start-thread]").click();
+  await desk.waitForURL(/[?&]t=/);
+  await desk.goto(`${base}/b/${source}`, { waitUntil: "networkidle" });
+  await row(desk, "Combinado. Obrigada").waitFor();
+  await desk.mouse.move(0, 0);
+  const shot = async (page: Page, file: string) => {
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(out, file) });
+    shots.push(file);
+  };
+  await shot(desk, "forward-room-1440.png");
+  await row(desk, "fechei o orçamento").hover();
+  await shot(desk, "forward-hover-1440.png");
+  await row(desk, "fechei o orçamento").locator("[data-forward]").click();
+  await desk.locator("[data-forward-bar] [role=toolbar]").waitFor();
+  await desk.mouse.move(0, 0);
+  await shot(desk, "forward-one-1440.png");
+  await row(desk, "Dá sim. A primeira").click();
+  await row(desk, "Segue o plano").click();
+  await desk.mouse.move(0, 0);
+  await shot(desk, "forward-several-1440.png");
+  await row(desk, "Combinado. Obrigada").click({ modifiers: ["Shift"] });
+  await desk.mouse.move(0, 0);
+  await shot(desk, "forward-range-1440.png");
+  await desk.locator("[data-forward-open]").click();
+  await desk.locator("[data-forward-picker]").waitFor();
+  await shot(desk, "forward-picker-1440.png");
+  await desk.keyboard.type("destino");
+  await shot(desk, "forward-picker-search-1440.png");
+  await desk.locator(`[data-forward-target="${target}:main"]`).click();
+  await desk.waitForURL(new RegExp(`/b/${target}`));
+  const filled = async (page: Page) => {
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll("[data-composer] textarea")].some((box) =>
+        /^(Encaminhado de|Forwarded from) /.test(
+          (box as HTMLTextAreaElement).value,
+        ),
+      ),
+    );
+    // The image is uploaded again into this room: its chip settles when the upload ends.
+    await page.waitForTimeout(2000);
+  };
+
+  await filled(desk);
+  await shot(desk, "forward-composer-1440.png");
+  // Only the person sends it (Enter): how the forward reads in the destination room.
+  await desk.locator("[data-composer] textarea").first().press("End");
+  await desk.keyboard.press("Enter");
+  await row(desk, "Encaminhado de").waitFor();
+  await desk.mouse.move(0, 0);
+  await shot(desk, "forward-sent-1440.png");
+  // "Copiar": back in the source room, three messages to the clipboard.
+  const copied = async (page: Page, pt: boolean) => {
+    await page
+      .locator("aside[role=status]", { hasText: pt ? "Copiado" : "Copied" })
+      .waitFor();
+    await page.locator("[data-forward-bar]").waitFor({ state: "detached" });
+    const text = await page.evaluate(() => navigator.clipboard.readText());
+    const head = pt ? "Encaminhado de Evento de fim de ano" : "Forwarded from";
+    const file = pt ? "> Anexo: plano-do-evento.png" : "> Attachment:";
+    if (!text.startsWith(head) || !text.includes(file))
+      throw new Error(`Copiar: the clipboard holds ${JSON.stringify(text)}`);
+  };
+  await desk.goto(`${base}/b/${source}`, { waitUntil: "networkidle" });
+  await row(desk, "Combinado. Obrigada").waitFor();
+  await row(desk, "fechei o orçamento").hover();
+  await row(desk, "fechei o orçamento").locator("[data-forward]").click();
+  await desk.locator("[data-forward-bar] [role=toolbar]").waitFor();
+  await row(desk, "Dá sim. A primeira").click();
+  await row(desk, "Segue o plano").click();
+  await desk.locator("[data-forward-copy]").hover();
+  await shot(desk, "forward-copy-1440.png");
+  await desk.locator("[data-forward-copy]").click();
+  await copied(desk, true);
+  await desk.mouse.move(0, 0);
+  await shot(desk, "forward-copied-1440.png");
+  await context.close();
+  const recorded = await desk.video()?.path();
+  if (recorded) {
+    await cp(recorded, join(out, "forward-1440.webm"));
+    await rm(video, { recursive: true, force: true });
+    videos.push("forward-1440.webm");
+  }
+
+  // Phone: hold a message for its sheet, then taps (Shift+tap for the range).
+  const phone = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  await phone.goto(`${base}/b/${source}`, { waitUntil: "networkidle" });
+  await row(phone, "Combinado. Obrigada").waitFor();
+  await shot(phone, "forward-room-390.png");
+  const held = row(phone, "fechei o orçamento");
+  const box = (await held.boundingBox())!;
+  const cdp = await phone.context().newCDPSession(phone);
+  const point = [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }];
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: point,
+  });
+  await phone.waitForTimeout(700);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await phone.locator("[data-sheet-forward]").waitFor();
+  await shot(phone, "forward-sheet-390.png");
+  await phone.locator("[data-sheet-forward]").tap();
+  await phone.locator("[data-forward-bar] [role=toolbar]").waitFor();
+  await shot(phone, "forward-one-390.png");
+  await row(phone, "Dá sim. A primeira").tap();
+  await row(phone, "Segue o plano").tap();
+  await shot(phone, "forward-several-390.png");
+  await row(phone, "Combinado. Obrigada").tap({ modifiers: ["Shift"] });
+  await shot(phone, "forward-range-390.png");
+  await phone.locator("[data-forward-open]").tap();
+  await phone.locator("[data-forward-picker]").waitFor();
+  await shot(phone, "forward-picker-390.png");
+  // Filtered, as on desktop: a dev database with many test rooms lists the new one past the first rooms.
+  await phone.keyboard.type("destino");
+  await phone.locator(`[data-forward-target="${target}:main"]`).tap();
+  await phone.waitForURL(new RegExp(`/b/${target}`));
+  await filled(phone);
+  await shot(phone, "forward-composer-390.png");
+  // "Copiar" on the phone: the bar shows its icon only.
+  await phone.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await phone.goto(`${base}/b/${source}`, { waitUntil: "networkidle" });
+  await row(phone, "Combinado. Obrigada").waitFor();
+  const again = (await row(phone, "fechei o orçamento").boundingBox())!;
+  const at = [{ x: again.x + again.width / 2, y: again.y + again.height / 2 }];
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: at,
+  });
+  await phone.waitForTimeout(700);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await phone.locator("[data-sheet-forward]").tap();
+  await phone.locator("[data-forward-bar] [role=toolbar]").waitFor();
+  await row(phone, "Dá sim. A primeira").tap();
+  await row(phone, "Segue o plano").tap();
+  await shot(phone, "forward-copy-390.png");
+  await phone.locator("[data-forward-copy]").tap();
+  await copied(phone, false);
+  await shot(phone, "forward-copied-390.png");
 }

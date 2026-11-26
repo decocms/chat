@@ -104,6 +104,7 @@ While a person is in the room's call, the call takes the view (`CallStage`, the 
 1. An action on one item stays on the item. Example: Reply, Open and Resolve on an Inbox row.
 2. A filter for a part of the list stays at the top of the view. Example: the Inbox chips (Pedidos, Revisões, Menções).
 3. An action on the selected items stays in a bar above the list. That bar shows only when you select an item.
+   - In the chat, the bar of the selected messages ("Encaminhar", `ForwardBar`) takes the composer's place. A bar above the chat covers or moves the messages, because the chat keeps its scroll at the bottom. Its "Copiar" ends selection mode and the room notice says "Copiado".
 4. The close button of a view stays in the view.
 
 ## Lists

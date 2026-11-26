@@ -684,6 +684,55 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
   ]);
 });
 
+test("a forward sends counts only, from a member of the room", async () => {
+  const events: { name: string; dims?: Record<string, unknown> }[] = [];
+  const track: ApiServices["track"] = (name, dims) => {
+    events.push({ name, dims });
+  };
+  const body = { n: 3, files: 1, to: "room", thread: true, range: true };
+  const f = fixture({ track });
+  expect((await f.json("/api/books/room/forwarded", body)).status).toBe(200);
+  expect(events).toEqual([
+    {
+      name: "messages_forwarded",
+      dims: {
+        book: "room",
+        n: 3,
+        files: 1,
+        to: "room",
+        thread: true,
+        range: true,
+      },
+    },
+  ]);
+  for (const bad of [
+    { ...body, n: 0 },
+    { ...body, n: 1.5 },
+    { ...body, to: "elsewhere" },
+    { ...body, text: "the forwarded words" },
+  ])
+    expect((await f.json("/api/books/room/forwarded", bad)).status).toBe(
+      "text" in bad ? 200 : 400,
+    );
+  // "Copiar" counts as a forward to the clipboard.
+  expect(
+    (
+      await f.json("/api/books/room/forwarded", {
+        ...body,
+        to: "clipboard",
+        thread: false,
+      })
+    ).status,
+  ).toBe(200);
+  expect(events.at(-1)?.dims?.to).toBe("clipboard");
+  const outsider = fixture({ isMember: async () => false, track });
+  expect((await outsider.json("/api/books/room/forwarded", body)).status).toBe(
+    403,
+  );
+  // The text never reaches the event.
+  expect(JSON.stringify(events)).not.toContain("forwarded words");
+});
+
 test("freestyle key and Claude token: validated, checked, sealed, never echoed back", async () => {
   const f = fixture();
   const status = await f.app.request("/api/freestyle");

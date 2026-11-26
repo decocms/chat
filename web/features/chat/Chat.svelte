@@ -24,6 +24,14 @@
   import { productionStatuses } from "./production";
   import { startedThread, THREAD_UNDO_MS } from "./threadUndo";
   import Icon from "../../lib/studio/Icon.svelte";
+  import ForwardPicker from "../forward/ForwardPicker.svelte";
+  import { forwardable } from "../forward/model";
+  import {
+    clickForward,
+    forwardPicking,
+    forwardSelection,
+    stopForward,
+  } from "../forward/selection";
   let {
     room,
     thread,
@@ -44,6 +52,40 @@
     return () => clearInterval(timer);
   });
   const rows = $derived(foldMessages(list));
+  // "Encaminhar" (forward): selection mode of this thread, the messages it can pick (oldest first), and the picker.
+  const selection = $derived(
+    $forwardSelection?.room === room.id && $forwardSelection.thread === thread
+      ? $forwardSelection
+      : null,
+  );
+  const pickable = $derived(rows.filter(forwardable));
+  const picked = $derived(
+    selection
+      ? selection.ids.flatMap((id) => {
+          const message =
+            pickable.find((item) => item.id === id) ?? selection.messages[id];
+          return message ? [message] : [];
+        })
+      : [],
+  );
+  // Another room or thread (or a room without forward) ends selection mode.
+  $effect(() => {
+    if ($forwardSelection && (!selection || !actions.forward)) stopForward();
+  });
+  onMount(() => () => {
+    if ($forwardSelection?.room === room.id) stopForward();
+  });
+  function leaveSelection(event: KeyboardEvent) {
+    if (
+      event.key !== "Escape" ||
+      event.defaultPrevented ||
+      !selection ||
+      $forwardPicking
+    )
+      return;
+    event.preventDefault();
+    stopForward();
+  }
   const footers = $derived(messageFooters(room, thread, now));
   const workers = $derived(threadWorkers(room, thread, now));
   const epic = $derived(room.epics.find((e) => e.id === thread));
@@ -131,6 +173,7 @@
   }
 </script>
 
+<svelte:window onkeydown={leaveSelection} />
 {#key room.id + ":" + thread}
   <section
     data-chat-timeline
@@ -202,6 +245,7 @@
             {room}
             {actions}
             footer={footers.get(message.id)}
+            onpick={(id, shift) => clickForward(pickable, id, shift)}
             last={i === rows.length - 1}
           />{/if}{/each}
     {:else if !workers.length}<p
@@ -321,3 +365,12 @@
       </div>{/if}
   </section>
 {/key}
+<!-- The bar of selection mode is in the composer's place (RoomScene); its Encaminhar opens this picker. -->
+{#if actions.forward && (selection || $forwardPicking)}<ForwardPicker
+    bind:open={$forwardPicking}
+    port={actions.forward}
+    messages={picked}
+    ranged={selection?.ranged ?? false}
+    {vb}
+    ondone={stopForward}
+  />{/if}

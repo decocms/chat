@@ -99,6 +99,16 @@ export const ResolveWaitsBody = z.object({
 export const RoomOrderBody = z.object({ ids: z.array(z.unknown()) });
 export const TintBody = z.object({ tint: z.optional(z.nullable(z.string())) });
 export const ArchiveBody = z.object({ archived: z.optional(z.boolean()) });
+/** "Encaminhar" (web/features/forward): how many messages and files went, and where. Only counts, never the text.
+ *  `clipboard`: "Copiar" put them in the clipboard (no destination thread). The Worker writes it as the
+ *  `messages_forwarded` event of the room they came from. */
+export const ForwardedBody = z.object({
+  n: z.int().check(z.minimum(1), z.maximum(1000)),
+  files: z.int().check(z.minimum(0), z.maximum(1000)),
+  to: z.enum(["same", "room", "dm", "clipboard"]),
+  thread: z.boolean(),
+  range: z.boolean(),
+});
 
 export const OkResult = z.object({ ok: z.literal(true) });
 export type OkResult = z.infer<typeof OkResult>;

@@ -5,6 +5,7 @@ import type {
   RichNavigation,
 } from "../features/rich-text/types";
 import type { AppLink } from "../features/rich-text/appLinks";
+import type { ForwardPort } from "../features/forward/types";
 export type ChatMessage = Message & { runs?: number[]; group?: ChatMessage[] };
 /** Formatting data only; all message presentation is done by components. */
 export type ChatBridge = {
@@ -58,6 +59,8 @@ export type ChatActions = {
   openFile: (file: Attachment) => void;
   openSideFile?: (file: Attachment) => void;
   sideFileName?: string;
+  /** "Encaminhar" (forward): none where messages cannot be forwarded. */
+  forward?: ForwardPort;
 };
 
 /** Real Chat props are also used by source-only tooling tests, which do not compile Svelte declarations. */
