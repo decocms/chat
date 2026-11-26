@@ -854,6 +854,7 @@ var alive = (pid) => {
   }
 };
 var UPDATE = join2(HOME, "update.json");
+var APP_UPDATED = join2(HOME, "app-updated.json");
 var newer = (a, b) => {
   const x = a.split(".").map(Number), y = b.split(".").map(Number);
   for (let i = 0;i < 3; i++)
@@ -1300,7 +1301,7 @@ function trayWords() {
   }
   if (!lang)
     lang = Intl.DateTimeFormat().resolvedOptions().locale;
-  return /^pt/i.test(lang.trim()) ? { login: "Entrar no deco.chat…", quit: "Sair", open: "Abrir o deco.chat", offline: "Sem conexão", check: "Procurar atualizações", checking: "Procurando atualizações…", upToDate: "Atualizado", install: "Instalar atualização", updating: "Atualizando o deco.chat…", failed: "O deco.chat não atualizou. Tentar de novo" } : { login: "Sign in to deco.chat…", quit: "Quit", open: "Open deco.chat", offline: "Offline", check: "Check for updates", checking: "Checking for updates…", upToDate: "Up to date", install: "Install update", updating: "Updating deco.chat…", failed: "deco.chat did not update. Try again" };
+  return /^pt/i.test(lang.trim()) ? { login: "Entrar no deco.chat…", quit: "Sair", open: "Abrir o deco.chat", offline: "Sem conexão", check: "Procurar atualizações", checking: "Procurando atualizações…", upToDate: "Atualizado", install: "Instalar atualização", updating: "Instalando atualização…", failed: "O deco.chat não atualizou. Tentar de novo" } : { login: "Sign in to deco.chat…", quit: "Quit", open: "Open deco.chat", offline: "Offline", check: "Check for updates", checking: "Checking for updates…", upToDate: "Up to date", install: "Install update", updating: "Installing update…", failed: "deco.chat did not update. Try again" };
 }
 var olderVersion = (a, b) => {
   const x = a.split(".").map(Number), y = b.split(".").map(Number);
@@ -1913,7 +1914,18 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
 `);
       const tr = trayWords();
       const appVersion = process.env.VIBEBOOK_TRAY_VERSION?.match(/^\d+\.\d+\.\d+$/)?.[0] ?? "";
-      const deco = { appLatest: "", cli: "", cliVersion: "", cliLatest: "", state: "" };
+      const deco = { appLatest: "", cli: "", cliVersion: "", cliLatest: "", installed: "", state: "" };
+      let rest;
+      const restSoon = () => {
+        clearTimeout(rest);
+        rest = setTimeout(() => {
+          if (deco.state !== "checked")
+            return;
+          deco.state = "";
+          deco.installed = "";
+          draw();
+        }, 30000);
+      };
       const scan = async () => {
         deco.cli = findAgent("vibebook") ?? "";
         await Promise.all([
@@ -1929,7 +1941,7 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
         if (!who)
           return out({ icon: "off", menu: [{ id: "login", label: tr.login }, { sep: true }, { id: "quit", label: tr.quit }] });
         const newest = [appBehind() && `deco.chat ${deco.appLatest}`, cliBehind() && `CLI ${deco.cliLatest}`].filter(Boolean).join(" · ");
-        const item = deco.state === "updating" ? { id: "update", label: tr.updating, enabled: false } : deco.state === "checking" ? { id: "check", label: tr.checking, enabled: false } : deco.state === "failed" ? { id: "update", label: tr.failed } : deco.state === "checked" && newest ? { id: "update", label: `${tr.install} · ${newest}` } : deco.state === "checked" ? { id: "check", label: [tr.upToDate, appVersion || deco.cliVersion && `CLI ${deco.cliVersion}`].filter(Boolean).join(" · ") } : { id: "check", label: tr.check };
+        const item = deco.state === "updating" ? { id: "update", label: tr.updating, enabled: false } : deco.state === "checking" ? { id: "check", label: tr.checking, enabled: false } : deco.state === "failed" ? { id: "update", label: tr.failed } : deco.state === "checked" && newest ? { id: "update", label: `${tr.install} · ${newest}` } : deco.state === "checked" ? { id: "check", label: [tr.upToDate, deco.installed || appVersion || deco.cliVersion && `CLI ${deco.cliVersion}`].filter(Boolean).join(" · ") } : { id: "check", label: tr.check };
         out({
           icon: "on",
           menu: [
@@ -1947,9 +1959,14 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
         draw();
         await scan();
         deco.state = "checked";
+        deco.installed = "";
         draw();
+        if (!appBehind() && !cliBehind())
+          restSoon();
       };
       const update = async (origin) => {
+        clearTimeout(rest);
+        const bringing = [appBehind() && `deco.chat ${deco.appLatest}`, cliBehind() && `CLI ${deco.cliLatest}`].filter(Boolean).join(" · ");
         deco.state = "updating";
         draw();
         const run = (cmd, args) => new Promise((done) => {
@@ -1962,13 +1979,34 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
         if (ok && appBehind()) {
           if (process.platform === "win32")
             openBrowser(`https://github.com/decocms/chat/releases/tag/tray-v${deco.appLatest}`);
-          else
+          else {
+            writePrivate(APP_UPDATED, { to: deco.appLatest, at: Date.now() });
             spawn("sh", ["-c", `curl -fsSL ${origin}/setup.sh | sh`], { stdio: "ignore", detached: true }).unref();
+            setTimeout(() => void check(), 5 * 60000);
+            return;
+          }
         }
         await scan();
         deco.state = ok && !(cli && cliBehind()) ? "checked" : "failed";
+        if (deco.state === "checked") {
+          deco.installed = bringing;
+          restSoon();
+        }
         draw();
       };
+      {
+        const was = readJson(APP_UPDATED, {});
+        if (was.to) {
+          try {
+            unlinkSync(APP_UPDATED);
+          } catch {}
+          if (was.to === appVersion && Date.now() - (was.at ?? 0) < 15 * 60000) {
+            deco.state = "checked";
+            deco.installed = `deco.chat ${appVersion}`;
+            restSoon();
+          }
+        }
+      }
       draw();
       const timer = setInterval(() => draw(), 15000);
       let buf = "";

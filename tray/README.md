@@ -22,8 +22,8 @@ The menu has one update line, for deco.chat itself: the app and the `vibebook` C
 
 1. The line is "Procurar atualizações". Nothing is checked before a click.
 2. A click shows "Procurando atualizações…" and reads the newest `tray-v*` release (`api.github.com`), the newest `vibebook.dev` (`registry.npmjs.org`) and `vibebook --version`.
-3. Then the line is "Atualizado · <version>" (a click checks again), or "Instalar atualização · <new version>".
-4. "Instalar atualização" updates the CLI first: `npm i -g vibebook.dev@latest` if npm installed it, else `vibebook update`. Then, if the app is old, it runs `setup.sh` again, which replaces the app (Windows: it opens the release page).
+3. Then the line is "Atualizado · <version>" for 30 seconds, then "Procurar atualizações" again. Or it is "Instalar atualização · <new version>", which stays until a click.
+4. "Instalar atualização" shows "Instalando atualização…". It updates the CLI first: `npm i -g vibebook.dev@latest` if npm installed it, else `vibebook update`. Then, if the app is old, it runs `setup.sh` again, which replaces the app (Windows: it opens the release page). The new app shows "Atualizado · deco.chat <version>" for 30 seconds (from `~/.vibebook/app-updated.json`). If no new app starts in 5 minutes, the line checks again.
 
 Nothing runs without a click.
 
