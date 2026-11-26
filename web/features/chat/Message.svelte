@@ -195,7 +195,7 @@
     };
   }
   // A reply always opens with its own header (and the quote line above it), like Discord.
-  const continuous = $derived(!m.reply_to && continues(previous, m));
+  const continuous = $derived(continues(previous, m));
   const kind = $derived(messageKind(m));
   // Reactions go on people's and agents' messages, not on @vibe notices, issues or reminders.
   const reactable = $derived(

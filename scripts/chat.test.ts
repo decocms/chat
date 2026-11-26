@@ -71,6 +71,8 @@ test("chat folds only adjacent matching reminders/issues and never mutates canon
   expect(continues(message(1), message(2))).toBe(true);
   expect(continues({ ...message(1), poll: "p" }, message(2))).toBe(false);
   expect(continues(message(1), { ...message(2), kind: "agent" })).toBe(false);
+  // A reply starts its own group (avatar and name), even right after the same author.
+  expect(continues(message(1), { ...message(2), reply_to: 1 })).toBe(false);
 });
 test("receipts target exact latest eligible message, suppress matching acks, deduplicate newest status and exclude dismissed", () => {
   const r = room([
@@ -389,4 +391,28 @@ test("a run of messages from one person has one seen, on its last message (Gui #
     ["A", false],
   ]);
   expect(last.passed.map((p) => p.ack.who)).toEqual(["Codex"]);
+});
+
+test("agent replies in a row are separate groups: each keeps its own seen row, so the groups keep their gap", () => {
+  const agent = (id: number, reply_to?: number): Message => ({
+    ...message(id),
+    author: "me@test",
+    kind: "agent",
+    via: "claude-opus-5-5",
+    ...(reply_to ? { reply_to } : {}),
+  });
+  // 2, 3 and 4 answer the previous message (drawn as three groups); 5 follows 4 with no reply (one run with 4).
+  const r = room([message(1), agent(2, 1), agent(3, 2), agent(4, 3), agent(5)]);
+  r.acks = [2, 3, 4, 5].map((msg_id) => ({
+    msg_id,
+    email: "other@test",
+    who: "Codex",
+    status: "idle" as const,
+    ts: 1,
+  }));
+  const footers = messageFooters(r, "main", 10);
+  for (const id of [2, 3])
+    expect(footers.get(id)?.passed.map((p) => p.ack.who)).toEqual(["Codex"]);
+  expect(footers.has(4)).toBe(false);
+  expect(footers.get(5)?.passed.map((p) => p.ack.who)).toEqual(["Codex"]);
 });
