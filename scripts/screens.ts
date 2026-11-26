@@ -4,7 +4,7 @@
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
 //   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--name <folder>]
-import { chromium, type Page } from "playwright";
+import { chromium, type Locator, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -52,6 +52,13 @@ async function send(page: Page, text: string) {
     .waitFor();
 }
 
+/** A message action from its hover bar, or from its ⋯ menu when the bar does not keep it (Valls). */
+async function act(message: Locator, attr: string) {
+  const inBar = message.locator(`[data-message-toolbar] [${attr}]`).first();
+  if (await inBar.count()) return inBar.click();
+  await message.locator("[data-more-actions]").first().click();
+  await message.page().locator(`[data-message-menu] [${attr}]`).first().click();
+}
 /** Room commands over the room's own socket (JSON-RPC, shared/jsonRpc.ts), from the page: it has the session. */
 async function commands(page: Page, room: string, list: object[]) {
   await page.evaluate(
@@ -160,7 +167,7 @@ try {
       .locator("[data-chat-message]", { hasText: "Última mensagem curta" })
       .first();
     await source.hover();
-    await source.locator("[data-start-thread]").first().click();
+    await act(source, "data-start-thread");
     // A new thread opens itself (?t=); its card shows in the main thread.
     await desk.waitForURL(/[?&]t=/);
     await desk.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
@@ -171,7 +178,10 @@ try {
       })
       .first();
     await carded.hover();
-    await carded.locator("[data-offer-react]").first().click();
+    await carded
+      .locator("[data-message-toolbar] [data-quick-react]")
+      .first()
+      .click();
     await carded
       .locator('[data-message-reactions] [aria-pressed="true"]')
       .first()
@@ -187,9 +197,12 @@ try {
     await desk.mouse.move(0, 0);
   }
   if (flag("react")) {
-    // The first reaction offered on hover, clicked: it should turn into a chip under the message.
+    // The first quick reaction of the hover toolbar, clicked: it should turn into a chip under the message.
     await target.hover();
-    await target.locator("[data-offer-react]").first().click();
+    await target
+      .locator("[data-message-toolbar] [data-quick-react]")
+      .first()
+      .click();
     await target
       .locator('[data-message-reactions] [aria-pressed="true"]')
       .first()
@@ -682,7 +695,7 @@ try {
         .locator("[data-chat-message]", { hasText: subject })
         .first();
       await message.hover();
-      await message.locator("[data-start-thread]").click();
+      await act(message, "data-start-thread");
       await desk.waitForURL(/[?&]t=/);
       threads.push(new URL(desk.url()).searchParams.get("t")!);
       if (threads.length > 1) continue;
@@ -1193,7 +1206,7 @@ async function forwardScreens(
   await row(desk, "Combinado. Obrigada").waitFor();
   // A thread in the room, so the picker lists one under "Nesta sala".
   await row(desk, "Dá sim. A primeira").hover();
-  await row(desk, "Dá sim. A primeira").locator("[data-start-thread]").click();
+  await act(row(desk, "Dá sim. A primeira"), "data-start-thread");
   await desk.waitForURL(/[?&]t=/);
   await desk.goto(`${base}/b/${source}`, { waitUntil: "networkidle" });
   await row(desk, "Combinado. Obrigada").waitFor();
@@ -1287,6 +1300,8 @@ async function forwardScreens(
   await row(phone, "Combinado. Obrigada").waitFor();
   await shot(phone, "forward-room-390.png");
   const held = row(phone, "fechei o orçamento");
+  // It can sit above the fold at 390 px: a touch off screen holds nothing.
+  await held.scrollIntoViewIfNeeded();
   const box = (await held.boundingBox())!;
   const cdp = await phone.context().newCDPSession(phone);
   const point = [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }];
@@ -1322,6 +1337,7 @@ async function forwardScreens(
   await phone.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await phone.goto(`${base}/b/${source}`, { waitUntil: "networkidle" });
   await row(phone, "Combinado. Obrigada").waitFor();
+  await row(phone, "fechei o orçamento").scrollIntoViewIfNeeded();
   const again = (await row(phone, "fechei o orçamento").boundingBox())!;
   const at = [{ x: again.x + again.width / 2, y: again.y + again.height / 2 }];
   await cdp.send("Input.dispatchTouchEvent", {

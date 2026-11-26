@@ -1042,6 +1042,7 @@ const EN: Readonly<Record<string, string>> = {
   "Copiar texto": "Copy text",
   "Reagir a esta mensagem": "React to this message",
   "Reagir com {emoji}": "React with {emoji}",
+  "Tirar sua reação {emoji}": "Remove your {emoji} reaction",
   "{n} itens": "{n} items",
   "Claude de {who}": "{who}'s Claude",
   "{names} e mais {n}": "{names} and {n} more",

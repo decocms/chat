@@ -2427,8 +2427,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The screens use the call's gallery fixture with test devices, because a real call needs the SFU credentials.
 - Other options: Submenus. A device dialog like "Câmera e desfoque". Forget the choice when the device goes away. Send the chime to the chosen output too.
 - Risk: low. With many devices the menu is long; it scrolls.
+
+### 2026-11-26 · feat/reactions-in-hover-bar · The quick reactions are back in the hover toolbar, with reply
+
+- Agent: Claude Opus 5.5
+- Context: Valls: the floating reaction row (fix/hover-overlay, fix/react-opens-space) hid the message below it, and reply and the emoji were far apart. He asked for the quick reactions in the hover toolbar again, with your own shown as pressed.
+- Decision:
+  - The hover toolbar (`MessageActions`, `floating`) starts with three quick reactions (`TOOLBAR_REACTIONS`: 👍 ❤️ 😂), then every other emoji you gave the message, then 🙂 (the full picker), a divider, and the actions. An emoji you gave is `aria-pressed` and uses the own-chip style (`OWN_REACTION`, shared with the chip). A click takes it back.
+  - The reaction row under a message exists only when it has chips or acks. No empty row on hover, no floating row, no spacer, and no `invisible` row on the last message (#5741): the hover grows nothing, so it needs none. The `ResizeObserver` rule and "one seen per run" from fix/hover-no-cls stay.
+  - The 🙂 next to the chips (hover only, Gimenes #5477) stays. Phones keep the long-press sheet.
+- Other options: Keep the reaction row on hover and fix what it covers (Gui #5797, #5825). The toolbar already floats over the space above the message, as in Slack and Discord.
+- Risk: low. The toolbar is wider by four buttons, plus one per extra reaction of yours.
 - Undo: Revert the commit.
 - Status: open
+- Update (Valls): the bar keeps only the main actions, the rest go in a ⋯ menu (`DropdownMenu`, like Discord's message menu). On your message the bar has edit, forward and thread; on someone else's, reply, forward and copy. The menu has every other action, then delete in red after a divider. The bar is 36 px high with 4 px padding, so every 28 px item (and the pressed ring) sits centred with the same space above and below. The bar stays shown while its menu is open.
 
 ### 2026-11-26 · viktor/room-search-people · Room search by person, and the empty pane
 

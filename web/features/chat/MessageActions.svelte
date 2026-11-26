@@ -22,8 +22,16 @@
   import SheetContent from "../../lib/studio/SheetContent.svelte";
   import SheetTitle from "../../lib/studio/SheetTitle.svelte";
   import type { MessageVersion } from "../../../shared/room";
-  import { QUICK_REACTIONS } from "./reactions";
+  import { OWN_REACTION, QUICK_REACTIONS, toolbarReactions } from "./reactions";
   import { startEditing } from "./editing";
+  import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
+  import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
+  import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
+  import DropdownMenuSeparator from "../../lib/studio/DropdownMenuSeparator.svelte";
+  import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
+  import { studioType } from "../../lib/components/type";
+  /** Every item of the hover bar: one round 28px button, centred on the bar's axis. */
+  const BAR_ITEM = "rounded-full text-muted-foreground hover:text-foreground";
   let {
     message,
     roomId,
@@ -101,12 +109,111 @@
   }
   const mine = (emoji: string) =>
     !!me && (message.reactions?.[emoji] ?? []).includes(me);
-  // The full emoji picker, past the four quick ones (like Discord's and Slack's "add reaction").
+  // The full emoji picker, past the quick ones (like Discord's and Slack's "add reaction").
   let picking = $state(false);
   function react(emoji: string) {
     if (!active) return;
     void actions.request({ t: "react", id: message.id, emoji });
   }
+  type Action = {
+    key:
+      | "reply"
+      | "thread"
+      | "forward"
+      | "text"
+      | "link"
+      | "edit"
+      | "history"
+      | "delete";
+    icon: IconName;
+    label: string;
+    data: Record<string, string | number | undefined>;
+    run: () => void;
+  };
+  /** Every action this message has, in the menu's order. */
+  const all = $derived.by((): Action[] => {
+    const list: (Action | false)[] = [
+      {
+        key: "reply",
+        icon: "reverse-left",
+        label: vb.t("Responder"),
+        data: { "data-reply": message.id },
+        run: () => actions.reply(message.id),
+      },
+      !!onthread && {
+        key: "thread",
+        icon: "git-branch-01",
+        label: threadOpen ? vb.t("Abrir thread") : vb.t("Criar thread"),
+        data: threadOpen
+          ? { "data-open-thread": message.id }
+          : { "data-start-thread": message.id },
+        run: () => onthread?.(),
+      },
+      !!onforward && {
+        key: "forward",
+        icon: "share-06",
+        label: vb.t("Encaminhar"),
+        data: { "data-forward": message.id },
+        run: () => onforward?.(),
+      },
+      {
+        key: "text",
+        icon: copied === "text" ? "check" : "copy-01",
+        label: copied === "text" ? vb.t("Copiado") : vb.t("Copiar texto"),
+        data: { "data-copy": message.id },
+        run: () => void copy(),
+      },
+      showLink && {
+        key: "link",
+        icon: copied === "link" ? "check" : "link-01",
+        label: copied === "link" ? vb.t("Copiado") : vb.t("Copiar link"),
+        data: { "data-copylink": message.id },
+        run: () => void copy(true),
+      },
+      canEdit && {
+        key: "edit",
+        icon: "pencil-01",
+        label: vb.t("Editar mensagem"),
+        data: { "data-edit-message": message.id },
+        run: edit,
+      },
+      history !== undefined && {
+        key: "history",
+        icon: "clock",
+        label: vb.t("Ver histórico da mensagem"),
+        data: { "data-message-history": message.id },
+        run: openHistory,
+      },
+      canDelete && {
+        key: "delete",
+        icon: "trash-01",
+        label: vb.t("Apagar mensagem"),
+        data: { "data-delete-message": message.id },
+        run: () => {
+          error = "";
+          deleting = true;
+        },
+      },
+    ];
+    return list.filter((a): a is Action => !!a);
+  });
+  // Yours: edit, forward, thread. Someone else's: reply, forward, copy (Valls).
+  const BAR_KEYS = $derived<Action["key"][]>(
+    !!me && message.author === me
+      ? ["edit", "forward", "thread"]
+      : ["reply", "forward", "text"],
+  );
+  const barActions = $derived(
+    BAR_KEYS.flatMap((key) => all.filter((a) => a.key === key)),
+  );
+  /** The rest, in the menu's order, then delete alone at the bottom, in red, after a divider (Gimenes #4591). */
+  const menuGroups = $derived(
+    [
+      all.filter((a) => a.key !== "delete" && !BAR_KEYS.includes(a.key)),
+      all.filter((a) => a.key === "delete"),
+    ].filter((group) => group.length),
+  );
+  let menuOpen = $state(false);
   let issue = $state<"empty" | "clipboard" | null>(null),
     copied = $state<"text" | "link" | null>(null),
     retryLink = $state(false);
@@ -158,117 +265,184 @@
     class={cn(
       "flex items-center gap-0.5",
       floating &&
-        "pointer-events-none absolute -top-2.5 right-3 z-10 in-data-continuous:-top-7.5 origin-top-right translate-y-0.5 scale-[.98] rounded-full bg-card p-0.5 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,translate,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:translate-y-0 group-has-focus-visible:scale-100 group-has-focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:hidden",
+        "pointer-events-none absolute -top-3 right-3 z-10 in-data-continuous:-top-8 origin-top-right translate-y-0.5 scale-[.98] rounded-full bg-card p-1 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,translate,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:translate-y-0 group-has-focus-visible:scale-100 group-has-focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:hidden",
+      floating &&
+        menuOpen &&
+        "pointer-events-auto translate-y-0 scale-100 opacity-100",
     )}
   >
     <TooltipProvider>
-      <!-- The hover bar has no reactions (Gui #4716, #4726): they are offered in the reaction row under the message. -->
-      {#if canReact && !floating}{#each QUICK_REACTIONS as emoji (emoji)}<IconButton
-            label={vb.t("Reagir com {emoji}", { emoji })}
+      <!-- Reactions sit with the actions, at the top (Valls): the three quick ones, then any other you gave, each
+           pressed when it is yours (a click takes it back), then 🙂 for every emoji. Inline: the quick eight. -->
+      {#if canReact}{#each floating ? toolbarReactions(message.reactions, me) : QUICK_REACTIONS as emoji (emoji)}<IconButton
+            label={mine(emoji)
+              ? vb.t("Tirar sua reação {emoji}", { emoji })
+              : vb.t("Reagir com {emoji}", { emoji })}
             data-quick-react={emoji}
             aria-pressed={mine(emoji)}
-            class={cn("text-base leading-none", mine(emoji) && "bg-accent")}
+            class={cn(
+              "text-base leading-none",
+              floating
+                ? "rounded-full border border-solid border-transparent"
+                : mine(emoji) && "bg-accent",
+              floating && mine(emoji) && OWN_REACTION,
+            )}
             onclick={() => react(emoji)}>{emoji}</IconButton
           >{/each}
+        {#if floating}<IconButton
+            label={vb.t("Mais reações")}
+            data-more-reactions={message.id}
+            class="rounded-full text-muted-foreground hover:text-foreground"
+            onclick={() => (picking = true)}
+            ><Icon icon="face-smile" size={16} /></IconButton
+          >{/if}
         <div
           aria-hidden="true"
           class="mx-0.5 h-4 w-px shrink-0 bg-border"
         ></div>{/if}
-      <IconButton
-        label={vb.t("Responder a esta mensagem")}
-        data-reply={message.id}
-        class={floating
-          ? "rounded-full text-muted-foreground hover:text-foreground"
-          : ""}
-        onclick={() => {
-          if (active) actions.reply(message.id);
-        }}><Icon icon="reverse-left" size={16} /></IconButton
-      >
-      {#if onthread}<IconButton
-          label={threadOpen ? vb.t("Abrir thread") : vb.t("Criar thread")}
-          data-start-thread={threadOpen ? undefined : message.id}
-          data-open-thread={threadOpen ? message.id : undefined}
+      {#if floating}<!-- Only the main actions in the bar (Valls): on your message edit, forward, thread; on someone
+           else's reply, forward, copy. Every other action is in ⋯, like Discord's message menu. -->
+        {#each barActions as action (action.key)}<IconButton
+            label={action.label}
+            {...action.data}
+            class={BAR_ITEM}
+            onclick={() => {
+              if (active) action.run();
+            }}><Icon icon={action.icon} size={16} /></IconButton
+          >{/each}
+        {#if menuGroups.length}<DropdownMenu bind:open={menuOpen}>
+            <DropdownMenuTrigger>
+              {#snippet child({ props })}<IconButton
+                  {...props}
+                  label={copied && !barActions.some((a) => a.key === copied)
+                    ? vb.t("Copiado")
+                    : vb.t("Mais ações")}
+                  data-more-actions={message.id}
+                  class={cn(BAR_ITEM, "data-[state=open]:bg-accent")}
+                  ><Icon
+                    icon={copied && !barActions.some((a) => a.key === copied)
+                      ? "check"
+                      : "dots-horizontal"}
+                    size={16}
+                  /></IconButton
+                >{/snippet}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={6}
+              data-message-menu={message.id}
+              class={cn(studioType, "w-56")}
+            >
+              {#each menuGroups as group, i (group[0].key)}{#if i}<DropdownMenuSeparator
+                  />{/if}{#each group as action (action.key)}<DropdownMenuItem
+                    {...action.data}
+                    variant={action.key === "delete"
+                      ? "destructive"
+                      : "default"}
+                    onSelect={() => {
+                      if (active) action.run();
+                    }}
+                    ><Icon icon={action.icon} />{action.label}</DropdownMenuItem
+                  >{/each}{/each}
+            </DropdownMenuContent>
+          </DropdownMenu>{/if}
+      {:else}
+        <IconButton
+          label={vb.t("Responder a esta mensagem")}
+          data-reply={message.id}
           class={floating
             ? "rounded-full text-muted-foreground hover:text-foreground"
             : ""}
           onclick={() => {
-            if (active) onthread?.();
-          }}><Icon icon="git-branch-01" size={16} /></IconButton
-        >{/if}
-      {#if onforward}<IconButton
-          label={vb.t("Encaminhar")}
-          data-forward={message.id}
-          class={floating
-            ? "rounded-full text-muted-foreground hover:text-foreground"
-            : ""}
-          onclick={() => {
-            if (active) onforward?.();
-          }}><Icon icon="share-06" size={16} /></IconButton
-        >{/if}
-      <IconButton
-        label={copied === "text"
-          ? vb.t("Copiado")
-          : vb.t("Copiar o texto desta mensagem")}
-        data-copy={message.id}
-        class={floating
-          ? "rounded-full text-muted-foreground hover:text-foreground"
-          : ""}
-        onclick={() => {
-          void copy();
-        }}
-        ><Icon
-          icon={copied === "text" ? "check" : "copy-01"}
-          size={16}
-        /></IconButton
-      >
-      {#if canEdit}<IconButton
-          label={vb.t("Editar mensagem")}
-          data-edit-message={message.id}
-          class={floating
-            ? "rounded-full text-muted-foreground hover:text-foreground"
-            : ""}
-          onclick={edit}><Icon icon="pencil-01" size={16} /></IconButton
-        >{/if}
-      {#if history !== undefined}<IconButton
-          label={vb.t("Ver histórico da mensagem")}
-          data-message-history={message.id}
-          class={floating
-            ? "rounded-full text-muted-foreground hover:text-foreground"
-            : ""}
-          onclick={openHistory}><Icon icon="clock" size={16} /></IconButton
-        >{/if}
-      {#if showLink}<IconButton
-          label={copied === "link"
+            if (active) actions.reply(message.id);
+          }}><Icon icon="reverse-left" size={16} /></IconButton
+        >
+        {#if onthread}<IconButton
+            label={threadOpen ? vb.t("Abrir thread") : vb.t("Criar thread")}
+            data-start-thread={threadOpen ? undefined : message.id}
+            data-open-thread={threadOpen ? message.id : undefined}
+            class={floating
+              ? "rounded-full text-muted-foreground hover:text-foreground"
+              : ""}
+            onclick={() => {
+              if (active) onthread?.();
+            }}><Icon icon="git-branch-01" size={16} /></IconButton
+          >{/if}
+        {#if onforward}<IconButton
+            label={vb.t("Encaminhar")}
+            data-forward={message.id}
+            class={floating
+              ? "rounded-full text-muted-foreground hover:text-foreground"
+              : ""}
+            onclick={() => {
+              if (active) onforward?.();
+            }}><Icon icon="share-06" size={16} /></IconButton
+          >{/if}
+        <IconButton
+          label={copied === "text"
             ? vb.t("Copiado")
-            : vb.t("Copiar o link desta mensagem")}
-          data-copylink={message.id}
+            : vb.t("Copiar o texto desta mensagem")}
+          data-copy={message.id}
           class={floating
             ? "rounded-full text-muted-foreground hover:text-foreground"
             : ""}
           onclick={() => {
-            void copy(true);
+            void copy();
           }}
           ><Icon
-            icon={copied === "link" ? "check" : "link-01"}
+            icon={copied === "text" ? "check" : "copy-01"}
             size={16}
           /></IconButton
-        >{/if}
-      <!-- Delete is last, red, after a divider: far from the actions people click often (Gimenes #4591). -->
-      {#if canDelete}<div
-          aria-hidden="true"
-          class="mx-0.5 h-4 w-px shrink-0 bg-border"
-        ></div>
-        <IconButton
-          label={vb.t("Apagar mensagem")}
-          data-delete-message={message.id}
-          class={floating
-            ? "rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-            : "text-destructive hover:text-destructive"}
-          onclick={() => {
-            error = "";
-            deleting = true;
-          }}><Icon icon="trash-01" size={16} /></IconButton
-        >{/if}
+        >
+        {#if canEdit}<IconButton
+            label={vb.t("Editar mensagem")}
+            data-edit-message={message.id}
+            class={floating
+              ? "rounded-full text-muted-foreground hover:text-foreground"
+              : ""}
+            onclick={edit}><Icon icon="pencil-01" size={16} /></IconButton
+          >{/if}
+        {#if history !== undefined}<IconButton
+            label={vb.t("Ver histórico da mensagem")}
+            data-message-history={message.id}
+            class={floating
+              ? "rounded-full text-muted-foreground hover:text-foreground"
+              : ""}
+            onclick={openHistory}><Icon icon="clock" size={16} /></IconButton
+          >{/if}
+        {#if showLink}<IconButton
+            label={copied === "link"
+              ? vb.t("Copiado")
+              : vb.t("Copiar o link desta mensagem")}
+            data-copylink={message.id}
+            class={floating
+              ? "rounded-full text-muted-foreground hover:text-foreground"
+              : ""}
+            onclick={() => {
+              void copy(true);
+            }}
+            ><Icon
+              icon={copied === "link" ? "check" : "link-01"}
+              size={16}
+            /></IconButton
+          >{/if}
+        <!-- Delete is last, red, after a divider: far from the actions people click often (Gimenes #4591). -->
+        {#if canDelete}<div
+            aria-hidden="true"
+            class="mx-0.5 h-4 w-px shrink-0 bg-border"
+          ></div>
+          <IconButton
+            label={vb.t("Apagar mensagem")}
+            data-delete-message={message.id}
+            class={floating
+              ? "rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+              : "text-destructive hover:text-destructive"}
+            onclick={() => {
+              error = "";
+              deleting = true;
+            }}><Icon icon="trash-01" size={16} /></IconButton
+          >{/if}
+      {/if}
     </TooltipProvider>
   </div>
   <!-- Floating toolbar: the button shows it (✓ + tooltip), this is for screen readers. Inline (phones): a word. -->

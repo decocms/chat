@@ -1,6 +1,6 @@
 <script lang="ts">
   // Emoji reactions (Gui #2724): chips under the message (yours highlighted, who reacted in a hover card), a click toggles yours;
-  // on hover the common ones not given yet, then 🙂 opens every emoji in a popover next to it. The Book keeps them
+  // the quick ones live in the hover toolbar, with the actions (Valls); 🙂 next to the chips opens every emoji in a popover. The Book keeps them
   // (messages.reactions) and pushes a "reactions" event.
   import type {
     ChatActions,
@@ -15,7 +15,7 @@
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
-  import { TOOLBAR_REACTIONS } from "./reactions";
+  import { OWN_REACTION } from "./reactions";
   let {
     message,
     me,
@@ -34,12 +34,6 @@
     grid = $state<HTMLDivElement | null>(null);
   const all = $derived(
     Object.entries(message.reactions ?? {}).filter(([, who]) => who.length),
-  );
-  // On hover, the common reactions not given yet wait in the row, where the chips show up (Gui #4726): a click
-  // turns one into a chip right there, so you see that it registered. One already given is only its chip, never
-  // also a suggestion.
-  const offered = $derived(
-    TOOLBAR_REACTIONS.filter((emoji) => !all.some(([e]) => e === emoji)),
   );
   const nameOf = (w: string) =>
     w === me
@@ -74,9 +68,8 @@
   }
 </script>
 
-<!-- The chips (yours highlighted, who reacted on hover), the common ones on hover (dashed, like Gui's #426), then a
-     button that opens the emoji popover. The hover-only buttons always take their place, hidden: showing them moves
-     nothing (no layout shift on hover). All 24px, the height the row keeps. -->
+<!-- The chips (yours highlighted, who reacted on hover), then a button that opens the emoji popover. The hover-only
+     button always takes its place, hidden: showing it moves nothing (no layout shift on hover). 24px, the row's height. -->
 <div
   data-message-reactions
   data-picking={open || undefined}
@@ -92,7 +85,7 @@
             class="inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full border border-solid px-2 text-base leading-none transition-colors {list.includes(
               me,
             )
-              ? 'border-brand-purple/60 bg-brand-purple/15 hover:bg-brand-purple/25'
+              ? OWN_REACTION
               : 'border-transparent bg-muted hover:border-border'}"
             onclick={() => react(emoji)}
             >{emoji}
@@ -114,18 +107,6 @@
         ></TooltipContent
       >
     </Tooltip>{/each}
-  {#each offered as emoji (emoji)}<button
-      type="button"
-      aria-label={vb.t("Reagir com {emoji}", { emoji })}
-      data-offer-react={emoji}
-      class="{HOVER_ONLY} group/offer inline-flex h-6 cursor-pointer items-center border-0 bg-transparent p-0 text-base leading-none pointer-coarse:hidden"
-      onclick={() => react(emoji)}
-      ><!-- Gui's look (#426): dashed, a little faded, solid and full on hover. The fade sits on the inside so it does
-           not fight the hover-only fade of the button. --><span
-        class="inline-flex h-full items-center rounded-full border border-dashed border-border px-2 opacity-70 transition-[opacity,border-color] group-hover/offer:border-solid group-hover/offer:opacity-100"
-        >{emoji}</span
-      ></button
-    >{/each}
   <!-- Every other emoji, in a popover next to this button (like Discord's and Slack's "add reaction"). Only on hover,
        also when the message has chips (Gimenes #5477); phones react from the long press. -->
   <Popover bind:open>
