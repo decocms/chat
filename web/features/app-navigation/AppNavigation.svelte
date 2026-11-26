@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { isDmId } from "../../../shared/dm";
+  import { corporateDomain, isDmId } from "../../../shared/dm";
   import Count from "../../lib/components/Count.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import SortableItem from "../../lib/components/SortableItem.svelte";
@@ -20,6 +20,7 @@
   import RoomSwitcher from "./RoomSwitcher.svelte";
   import RailCube from "../home/RailCube.svelte";
   import AccountRow from "./AccountRow.svelte";
+  import CompanyRooms from "./CompanyRooms.svelte";
   import {
     switcherDms,
     unreadDms,
@@ -64,7 +65,8 @@
     draft = $derived(controller.personal.draft),
     nav = $derived(controller.state),
     mutations = $derived(controller.rooms.state),
-    search = $derived(controller.search.state);
+    search = $derived(controller.search.state),
+    company = $derived(controller.company);
   const text = (
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
@@ -317,6 +319,13 @@
       onback && "max-md:hidden",
     )}
   >
+    <!-- Rooms open to your company that you did not join (2×2 grid): they stay out of the list, join one from here. -->
+    {#if $personal.me && corporateDomain($personal.me.email)}<CompanyRooms
+        rooms={$company}
+        {lang}
+        onjoin={controller.joinCompany}
+        onopen={controller.refreshCompany}
+      />{/if}
     <RailButton
       icon="search-md"
       label={text("search")}

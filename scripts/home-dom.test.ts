@@ -121,6 +121,7 @@ const { createRoomResources } =
   await import("../web/features/application/roomResources");
 const { createCallHub, setCallHub } = await import("../web/features/call/hub");
 import type { Room, RoomEvent } from "../shared/room";
+import type { OrgRoom } from "../shared/schemas";
 import type { CallApi } from "../web/features/call/callApi";
 import { CALL_THREAD } from "../shared/call";
 import type { RoomScopeBrowser } from "../web/features/room-scope/types";
@@ -1851,6 +1852,71 @@ test("Pedidos: an invite's Entrar joins, a message request shows its first messa
   request.querySelector<HTMLButtonElement>('[aria-label="Decline"]')!.click();
   await flush();
   expect(answers).toEqual([["bia@test.com", false]]);
+});
+
+test("Company rooms: the 2×2 grid opens the rooms you can join, with who opened them; Join joins, none shows the empty state", async () => {
+  const { default: CompanyRooms } =
+    await import("../web/features/app-navigation/CompanyRooms.svelte");
+  const joined: string[] = [];
+  let opened = 0;
+  const open = async (rooms: OrgRoom[]) => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = flushSync(() =>
+      mount(CompanyRooms, {
+        target,
+        props: {
+          lang: "en",
+          rooms,
+          onjoin: async (room: string) => {
+            joined.push(room);
+          },
+          onopen: () => {
+            opened++;
+          },
+        },
+      }),
+    );
+    cleanups.push(() => {
+      flushSync(() => {
+        void unmount(component);
+      });
+      target.remove();
+    });
+    const button = target.querySelector<HTMLButtonElement>(
+      "[data-company-rooms-button]",
+    )!;
+    expect(button.getAttribute("aria-label")).toBe("Company rooms");
+    button.click();
+    await flush();
+    return button;
+  };
+  const button = await open([
+    {
+      id: "aaaaaa",
+      title: "Farm Rio Project",
+      icon: null,
+      people: 3,
+      opened_by: "gimenes@test.com",
+      opened_by_name: "Gimenes",
+    },
+  ]);
+  expect(opened).toBe(1);
+  const row = document.querySelector<HTMLElement>(
+    '[data-company-room="aaaaaa"]',
+  )!;
+  expect(row.textContent).toContain("Farm Rio Project");
+  expect(row.textContent).toContain("Opened by Gimenes · 3 people");
+  [...row.querySelectorAll("button")]
+    .find((entry) => entry.textContent?.trim() === "Join")!
+    .click();
+  await flush();
+  expect(joined).toEqual(["aaaaaa"]);
+  expect(button.getAttribute("aria-expanded")).toBe("false");
+  await open([]);
+  expect(
+    document.querySelector("[data-company-rooms-empty]")!.textContent?.trim(),
+  ).toBe("No company rooms to join right now.");
 });
 
 test("a DM still loading draws your real DM list beside the placeholder chat; a room keeps its own skeleton", async () => {

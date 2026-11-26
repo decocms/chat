@@ -35,6 +35,8 @@
   import UpdateRow from "../user-center/UpdateRow.svelte";
   import UserCenter from "../user-center/UserCenter.svelte";
   import Requests from "../app-navigation/Requests.svelte";
+  import CompanyRooms from "../app-navigation/CompanyRooms.svelte";
+  import { corporateDomain } from "../../../shared/dm";
   import { userCenterCount } from "../user-center/count";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
@@ -82,6 +84,7 @@
     ondismiss,
     company,
     oncompany,
+    oncompanyopen,
     inbox,
   }: HomeBridge = $props();
   const account = $derived(personal.state);
@@ -449,6 +452,14 @@
       >
         {text("chatsTitle")}
       </h1>
+      <!-- Rooms open to your company that you did not join (2×2 grid): never in the list, join one from here. -->
+      {#if $account.me && corporateDomain($account.me.email)}<CompanyRooms
+          phone
+          rooms={$company ?? []}
+          {lang}
+          onjoin={oncompany}
+          onopen={oncompanyopen}
+        />{/if}
       <!-- New: a DM (people from your rooms, or an email) or a room (Gui #4572), as WhatsApp's top-right action. -->
       {#if $account.me}<NewMessage
           me={$account.me}
@@ -526,7 +537,7 @@
       </div>{/if}
     <!-- The phone's user center (Gimenes, step 4): the desktop sidebar's rows, in its order, under the search. Each row
       goes when it is done; inside a room only their count shows, on ← (RoomHeader). This list draws only on a phone. -->
-    {#if centerCount || $company?.length}<div class="mb-2 px-2">
+    {#if centerCount}<div class="mb-2 px-2">
         <UserCenter phone
           >{#if $account.updateAvailable}<UpdateRow {lang} />{/if}<InstallCard
             owner={pwa}
@@ -539,8 +550,6 @@
             {lang}
             {onjoin}
             {onanswer}
-            company={$company ?? []}
-            {oncompany}
           /></UserCenter
         >
       </div>{/if}

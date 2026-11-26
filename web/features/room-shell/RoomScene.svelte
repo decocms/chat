@@ -71,7 +71,6 @@
   const services = untrack(() => presentation.services),
     captured = untrack(() => scope);
   const personal = untrack(() => services.personal.state);
-  const company = untrack(() => services.navigation.company);
   let active = true,
     scoped: RoomScope | undefined;
   const current = () => active && services.ownsRoom(captured);
@@ -498,8 +497,6 @@
                 lang={services.language === "en" ? "en" : "pt"}
                 onjoin={services.navigation.callbacks.answerInvite}
                 onanswer={services.navigation.callbacks.answerRequest}
-                company={$company}
-                oncompany={services.navigation.joinCompany}
               />{/if}{/if}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
             <div
               data-document-pane="agents"
