@@ -2568,15 +2568,15 @@ describe("chat", () => {
       owner.dispose();
     }
   }, 30_000);
-  test("a message with only faces under it lays them over its last line (no row of height); chips or a status keep the row", () => {
-    const pass = (msg_id: number, who = "Codex") => ({
+  test("seen faces live in the text's right gutter: faces only sit there on the last line (no row of height); chips or a status keep the row", () => {
+    const pass = (msg_id: number, email = "agent@test") => ({
       msg_id,
-      email: "agent@test",
-      who,
+      email,
+      who: "Codex",
       status: "idle" as const,
       ts: Date.now(),
     });
-    // 1: faces only (an agent passed). 2: faces and a 👍. 3: faces and a "done". 4: a person's message, faces only.
+    // 1: faces only. 2: faces and a 👍. 3: faces and a "done". 4: a person's message, five faces (three, then "+2").
     const { target } = renderChat({
       ...fixture(),
       messages: [
@@ -2588,7 +2588,7 @@ describe("chat", () => {
         },
         message(3, "Faces and a status"),
         {
-          ...message(4, "A person, faces only"),
+          ...message(4, "A person, five faces"),
           author: "ana@test",
           kind: null,
         },
@@ -2597,28 +2597,48 @@ describe("chat", () => {
         pass(1),
         pass(2),
         pass(3),
-        { ...pass(3, "Claude"), email: "c@test", status: "done" as const },
-        pass(4),
+        { ...pass(3, "c@test"), status: "done" as const },
+        ...["a", "b", "c", "d", "e"].map((who) => pass(4, `${who}@test`)),
       ],
     });
+    // Every message's text keeps the same gutter: 88px, 60px on a phone.
+    for (const id of [1, 2, 3, 4])
+      expect(
+        target.querySelector<HTMLElement>(`#m${id} [data-message-body]`)!
+          .className,
+      ).toContain("[&>[data-rich-content]]:pr-22");
     const row = (id: number) =>
       target.querySelector<HTMLElement>(`[data-reaction-row="${id}"]`)!;
     for (const id of [1, 4]) {
       expect(row(id).hasAttribute("data-faces-only")).toBe(true);
-      // Right after the text, so the CSS lays it over the last line; the body reserves the faces' width there.
+      // Right after the text, so the CSS puts it in the gutter, on the last line.
       expect(
-        row(id).previousElementSibling?.hasAttribute("data-rich-flow"),
+        row(id).previousElementSibling?.hasAttribute("data-rich-content"),
       ).toBe(true);
-      expect(
-        target.querySelector<HTMLElement>(`#m${id} [data-message-body]`)!
-          .className,
-      ).toContain("[--faces:56px]");
+      expect(row(id).className).toContain("[[data-rich-content]+&]:absolute");
     }
-    expect(row(1).className).toContain("[[data-rich-flow=inline]+&]:absolute");
     for (const id of [2, 3]) {
       expect(row(id).hasAttribute("data-faces-only")).toBe(false);
       expect(row(id).className).not.toContain("absolute");
     }
+    // Three faces and "+2"; on a phone (the md:hidden stack), one face and "+4".
+    const stacks = row(4).querySelectorAll(
+      "[data-message-footer] .flex.items-end",
+    );
+    expect(stacks.length).toBe(2);
+    expect(stacks[0].querySelectorAll("[data-avatar-stack-item]").length).toBe(
+      3,
+    );
+    expect(
+      stacks[0].querySelector("[data-avatar-stack-more]")?.textContent,
+    ).toBe("+2");
+    expect(stacks[1].classList.contains("md:hidden")).toBe(true);
+    expect(stacks[1].querySelectorAll("[data-avatar-stack-item]").length).toBe(
+      1,
+    );
+    expect(
+      stacks[1].querySelector("[data-avatar-stack-more]")?.textContent,
+    ).toBe("+4");
   });
   test("spacing comes from the layout: a group starts 16px down whatever sits under the message above, a run 6px", () => {
     // 1 and 2: one agent's run (2 has a reaction). 3: someone else, a new group right after a row. 4: a reply from
@@ -3273,8 +3293,12 @@ describe("chat", () => {
     const footer = target.querySelector<HTMLElement>(
       "#m1 [data-message-footer]",
     )!;
-    expect(footer.querySelectorAll("[data-reader-read]")).toHaveLength(3);
-    expect(footer.textContent).toContain("+4");
+    // Three faces and "+4"; the phone's stack (md:hidden) shows one face and "+6".
+    const [desk, phone] = footer.querySelectorAll(".flex.items-end");
+    expect(desk.querySelectorAll("[data-reader-read]")).toHaveLength(3);
+    expect(desk.textContent).toContain("+4");
+    expect(phone.querySelectorAll("[data-reader-read]")).toHaveLength(1);
+    expect(phone.textContent).toContain("+6");
     expect(footer.querySelector("script") === null).toBe(true);
     expect(footer.textContent).toContain("<script>unsafe()</script>");
     const seen = footer.querySelector<HTMLButtonElement>(

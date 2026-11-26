@@ -205,7 +205,7 @@
     Object.values(m.reactions ?? {}).some((who) => who.length),
   );
   // Only the faces of who saw it (and the agents that passed) under the message: no chips, no "doing / done" line.
-  // They sit at the end of the text's last line instead of taking a row of their own (Valls), see the body.
+  // They sit in the text's right gutter, on its last line, instead of taking a row of their own (Valls), see the body.
   const facesOnly = $derived(
     !origin &&
       !editing &&
@@ -214,23 +214,6 @@
       !footer.statuses.length &&
       footer.readers.length + footer.passed.length > 0,
   );
-  // The width the faces take at the end of the last line, plus 8px before them: the footer's stack (MessageFooter,
-  // AvatarStack sm) is 20px per first face, 14px per next one or "+N", 12px for the ✓, and the button's 4px each side.
-  // Rounded up: a few px too many only wraps the spacer a little earlier, never over the text.
-  const FACES_SPACE = [
-    "[--faces:56px]",
-    "[--faces:72px]",
-    "[--faces:84px]",
-    "[--faces:100px]",
-  ];
-  const facesSpace = $derived.by(() => {
-    if (!facesOnly || !footer) return "";
-    const people = new Set([
-      ...footer.readers.map((r) => `${r.receipt.who}|${r.receipt.email}`),
-      ...footer.passed.map((p) => `${p.ack.who}|${p.ack.email}`),
-    ]).size;
-    return FACES_SPACE[Math.min(people, 3) + (people > 3 ? 1 : 0) - 1];
-  });
   const quote = $derived(
     m.reply_to
       ? [...room.messages, ...(room.origins || [])].find(
@@ -439,25 +422,19 @@
           >{vb.hhmm(m.ts)}</time
         >{/if}
     </div>
-    <!-- Faces only (facesOnly): when the text is the body's last block, its row is laid over the end of the text's
-         last line, bottom right, and takes no height, so the gap to the next message is the same as with nothing under
-         it. A spacer as wide as the faces ends the text (::after, zero height): the last line keeps room for them, and a
-         line too long for both wraps the spacer, which gives the faces a line of their own (like the row it was). With
-         a file, card or embed last, the row stays a row. -->
+    <!-- The text keeps a right gutter on every message, so the column of text is the same everywhere and nothing
+         in it reaches the faces: 88px, three faces, "+N" and the ✓ (MessageFooter), and 60px on a phone, where the
+         footer shows one face and "+N". With faces only under the text (facesOnly), the row sits in that gutter,
+         right-aligned, on the text's last line, and takes no height: the next message is as far as after a message
+         with nothing under it (Valls). With a file, card or embed after the text, the row stays a row. -->
     <div
       data-message-body
       class={[
         "min-w-0 flex-1 space-y-1",
-        facesOnly && [
-          "relative",
-          facesSpace,
-          // The text this works on: one flow, or blocks ending in a paragraph, a heading or a list. A code block,
-          // table or quote at the end keeps the row: the faces would cover it.
-          "[&>[data-rich-flow=inline]:has(+[data-faces-only])]:mb-0 [&>[data-rich-flow=block]:has(>:is(p,h1,h2,h3,h4,h5,h6,ul,ol):last-child):has(+[data-faces-only])]:mb-0",
-          "[&>[data-rich-flow=inline]:has(+[data-faces-only])]:after:inline-block [&>[data-rich-flow=inline]:has(+[data-faces-only])]:after:w-(--faces) [&>[data-rich-flow=inline]:has(+[data-faces-only])]:after:content-['']",
-          "[&>[data-rich-flow=block]:has(+[data-faces-only])>:is(p,h1,h2,h3,h4,h5,h6):last-child]:after:inline-block [&>[data-rich-flow=block]:has(+[data-faces-only])>:is(p,h1,h2,h3,h4,h5,h6):last-child]:after:w-(--faces) [&>[data-rich-flow=block]:has(+[data-faces-only])>:is(p,h1,h2,h3,h4,h5,h6):last-child]:after:content-['']",
-          "[&>[data-rich-flow=block]:has(+[data-faces-only])>:is(ul,ol):last-child>li:last-child]:after:inline-block [&>[data-rich-flow=block]:has(+[data-faces-only])>:is(ul,ol):last-child>li:last-child]:after:w-(--faces) [&>[data-rich-flow=block]:has(+[data-faces-only])>:is(ul,ol):last-child>li:last-child]:after:content-['']",
-        ],
+        !origin &&
+          "[&>[data-rich-content]]:pr-22 max-md:[&>[data-rich-content]]:pr-15",
+        facesOnly &&
+          "relative [&>[data-rich-content]:has(+[data-faces-only])]:mb-0",
       ]}
     >
       {#if !continuous}<div
@@ -604,10 +581,12 @@
             "-mt-1 flex min-h-6 flex-wrap items-center justify-between gap-x-3 select-none",
             // Right under a thread card it keeps a gap instead of pulling up into it (Gimenes #5477).
             "[[data-thread-card]+&]:mt-1.5",
-            // Faces only, right after the text: over the end of its last line (24px high, the faces centered on it), no height.
+            // Faces only, right after the text: in its gutter, a 24px box on its last line box (the text's bottom, its
+            // last block has no bottom margin), 1px up so the faces center on the x-height; no height of its own.
             facesOnly && [
-              "[[data-rich-flow=inline]+&]:absolute [[data-rich-flow=inline]+&]:right-0 [[data-rich-flow=inline]+&]:bottom-0 [[data-rich-flow=inline]+&]:mt-0 [[data-rich-flow=inline]+&]:h-6",
-              "[[data-rich-flow=block]:has(>:is(p,h1,h2,h3,h4,h5,h6,ul,ol):last-child)+&]:absolute [[data-rich-flow=block]:has(>:is(p,h1,h2,h3,h4,h5,h6,ul,ol):last-child)+&]:right-0 [[data-rich-flow=block]:has(>:is(p,h1,h2,h3,h4,h5,h6,ul,ol):last-child)+&]:bottom-0 [[data-rich-flow=block]:has(>:is(p,h1,h2,h3,h4,h5,h6,ul,ol):last-child)+&]:mt-0 [[data-rich-flow=block]:has(>:is(p,h1,h2,h3,h4,h5,h6,ul,ol):last-child)+&]:h-6",
+              "[[data-rich-content]+&]:absolute [[data-rich-content]+&]:right-0 [[data-rich-content]+&]:bottom-px [[data-rich-content]+&]:mt-0 [[data-rich-content]+&]:h-6",
+              // A code block's last line (20px) sits above its 12px padding.
+              "[[data-rich-content]:has(>pre:last-child)+&]:bottom-[11px]",
             ],
           ]}
         >

@@ -49,6 +49,23 @@
     vb.t("{via} de {who}", { via: prettyModel(model), who: vb.name(email) });
 </script>
 
+{#snippet oneFace(face: (typeof faces)[number])}<span
+    data-reader-read={face.read}
+    class="relative inline-flex"
+    ><PersonAvatar
+      data-avatar="person"
+      size="xs"
+      class="size-5 ring-2 ring-background"
+      email={face.email}
+      version={vb.avatarVersion(face.email)}
+    /><AgentMark
+      size="3xs"
+      tint
+      via={face.who}
+      class="absolute -bottom-0.5 -left-0.5 size-2.5 rounded-full text-[6px] ring-[1.5px] ring-background"
+    /></span
+  >{/snippet}
+
 {#snippet check()}<span
     aria-hidden="true"
     data-readers-check
@@ -137,29 +154,24 @@
              top of the one to its left, then +X, then the ✓✓ on top, tucked into
              the last one's bottom-right. Each face's agent badge sits at its
              bottom-left, so the face to its right never covers it. -->
+        <!-- On a phone, one face and "+N": the faces live in the text's right gutter (Message), narrower there. -->
         <AvatarStack
           size="sm"
+          class="max-md:hidden"
           items={stack}
           key={(face) => `${face.who}|${face.email}`}
           {more}
           after={footer.readers.length ? check : undefined}
-          >{#snippet face(face)}<span
-              data-reader-read={face.read}
-              class="relative inline-flex"
-              ><PersonAvatar
-                data-avatar="person"
-                size="xs"
-                class="size-5 ring-2 ring-background"
-                email={face.email}
-                version={vb.avatarVersion(face.email)}
-              /><AgentMark
-                size="3xs"
-                tint
-                via={face.who}
-                class="absolute -bottom-0.5 -left-0.5 size-2.5 rounded-full text-[6px] ring-[1.5px] ring-background"
-              /></span
-            >{/snippet}</AvatarStack
-        >
+          face={oneFace}
+        /><AvatarStack
+          size="sm"
+          class="md:hidden"
+          items={faces.slice(0, 1)}
+          key={(face) => `${face.who}|${face.email}`}
+          more={faces.length - 1}
+          after={footer.readers.length ? check : undefined}
+          face={oneFace}
+        />
       </Button>
       {#if shown}<div
           id={`${ids}-readers`}
