@@ -171,9 +171,8 @@ try {
     .locator("#msgs [data-chat-message]")
     .filter({ hasText: "Migration <img src=x onerror=alert(1)> verified" });
   await sent.hover();
-  // Reply on your own message is in its ⋯ menu (the bar keeps edit, forward, thread).
-  await sent.locator("[data-more-actions]").click();
-  await a.locator("[data-message-menu] [data-reply]").click();
+  // Reply is in the bar of your own message too (Valls).
+  await sent.locator("[data-message-toolbar] [data-reply]").click();
   await expect(composer.locator("[data-composer-reply]")).toBeVisible();
   await composer.locator("#input").fill("Reply keeps its context");
   await send.click();
