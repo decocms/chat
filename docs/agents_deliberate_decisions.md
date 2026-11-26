@@ -2481,6 +2481,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The cube's shared picture is now 176 px (it was 96 px), so the 64 px cube is sharp on a 2x screen.
   - No new `track()` event: the browser has no route for one. The ask box's own events count what the starters start.
 - Update (second pass, Valls picked this direction): the right side is anchored at the top in a 560 px column, with the cube beside the headline and one left edge for the header, the labels and the rows (all rows 56 px). A busy room's row says whose agent works and what it said last (`agentLine`: the room's newest line when an agent wrote it), with a live dot. Rows and starters have a solid hover and press feedback (scale 0.97). Everything enters once (`enter.ts`: opacity and a 6 px rise, 240 ms, `--vb-ease-out-quint`, 40 ms between items; reduced motion keeps only the fade). The starters show in quotes the words they write.
+- Update (reduction pass, Valls on #539: "mais clean"): no line under the headline (the sections say it), two starters only (Resumir o dia, Criar uma tarefa; "Chamar o time" was odd), no label and no preview on the starters, and no "ao vivo" (the live dot says it).
 - Other options: A grid of `RoomTile`s under the cube (screenshot on `feat/inbox-empty-state-tiles`). An illustration. Starters that send at once (they would send words that you did not choose).
 - Risk: low. The starters' words go through the router like any ask.
 - Undo: Revert the commit.

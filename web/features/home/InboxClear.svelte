@@ -31,7 +31,6 @@
     title,
     ago,
     layout = "desk",
-    clear = true,
     onopen,
     children,
   }: {
@@ -43,23 +42,11 @@
     ago: (ts: number) => string;
     /** desk: cube, headline, agents and recent rooms. phone: the recent rooms are the Chats list already. */
     layout?: "desk" | "phone";
-    /** Nothing waits on you at all ("Pra você" is empty): the line under the headline says so. */
-    clear?: boolean;
     onopen: (roomId: string) => void;
     /** Under the headline: the ways to start (a phone's chips). */
     children?: Snippet;
   } = $props();
   const rooms = $derived(quietRooms(me, now, layout === "desk" ? 4 : 2));
-  const working = $derived(rooms.working.length);
-  const status = $derived(
-    working === 1
-      ? homeText(lang, "clearWorkingOne")
-      : working
-        ? homeText(lang, "clearWorkingMany", { n: working })
-        : clear
-          ? homeText(lang, "clearHint")
-          : "",
-  );
 </script>
 
 <div
@@ -90,12 +77,6 @@
       >
         {title}
       </h2>
-      {#if clear || status}<p
-          class="m-0 text-sm text-balance text-muted-foreground"
-        >
-          {clear ? homeText(lang, "clearNobody") : ""}
-          {status}
-        </p>{/if}
     </div>
   </header>
   {#if children}<div class={cn("w-full", enter(1))}>
@@ -189,13 +170,10 @@
                     "busy",
                   )}{:else}{lastLine(room, me, lang, dm)}{/if}</span
               ></span
-            ><span
-              class="w-12 shrink-0 self-start pt-3 text-right text-xs text-muted-foreground tabular-nums"
-              >{#if busy}{homeText(
-                  lang,
-                  "clearLive",
-                )}{:else if room.updated_at}{ago(room.updated_at)}{/if}</span
-            ></a
+            >{#if !busy && room.updated_at}<span
+                class="w-12 shrink-0 self-start pt-3 text-right text-xs text-muted-foreground tabular-nums"
+                >{ago(room.updated_at)}</span
+              >{/if}</a
           >
         </li>{/each}
     </ul>

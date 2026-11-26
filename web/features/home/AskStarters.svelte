@@ -5,9 +5,9 @@
   import { homeText, type HomeCopyKey, type HomeLanguage } from "./copy";
   import { enter } from "./enter";
   /**
-   * The Inbox at zero: three ways to start. Each writes the start of an ask
-   * into the ask box (you finish it and send). Rows in the desktop list, each
-   * with the words it writes in quotes; chips over a phone's docked ask box.
+   * The Inbox at zero: two ways to start. Each writes the start of an ask
+   * into the ask box (you finish it and send). Rows in the desktop list,
+   * chips over a phone's docked ask box. Their names say it all: no label, no preview.
    */
   let {
     lang,
@@ -36,18 +36,7 @@
       label: "starterTask",
       text: "starterTaskText",
     },
-    {
-      id: "team",
-      icon: "users-01",
-      label: "starterTeam",
-      text: "starterTeamText",
-    },
   ];
-  /** The words a starter writes, as the row shows them: an open start ends in "…". */
-  const quote = (key: HomeCopyKey) => {
-    const words = homeText(lang, key);
-    return words.endsWith(" ") ? `“${words.trim()} …”` : `“${words}”`;
-  };
 </script>
 
 {#if layout === "rows"}<section
@@ -55,29 +44,18 @@
     aria-label={homeText(lang, "clearStart")}
     class="flex flex-col"
   >
-    <h2
-      class="m-0 flex h-6 items-center px-3 text-xs font-medium text-muted-foreground {enter(
-        0,
-      )}"
-    >
-      {homeText(lang, "clearStart")}
-    </h2>
     {#each starters as starter, index (starter.id)}<button
         type="button"
         data-ask-starter={starter.id}
-        class="flex h-14 w-full min-w-0 cursor-pointer items-center gap-3 rounded-lg border-0 bg-transparent px-3 text-left font-sans text-foreground outline-none transition-[background-color,transform] duration-150 ease-[var(--vb-ease-out-quint)] hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] motion-reduce:active:scale-100 {enter(
-          index + 1,
+        class="flex h-11 w-full min-w-0 cursor-pointer items-center gap-3 rounded-lg border-0 bg-transparent px-3 text-left font-sans text-foreground outline-none transition-[background-color,transform] duration-150 ease-[var(--vb-ease-out-quint)] hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] motion-reduce:active:scale-100 {enter(
+          index,
         )}"
         onclick={() => onstart(homeText(lang, starter.text))}
         ><span
           class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
           ><Icon icon={starter.icon} size={16} /></span
-        ><span class="flex min-w-0 flex-1 flex-col gap-0.5"
-          ><span class="truncate text-sm font-medium"
-            >{homeText(lang, starter.label)}</span
-          ><span class="truncate text-xs text-muted-foreground"
-            >{quote(starter.text)}</span
-          ></span
+        ><span class="min-w-0 flex-1 truncate text-sm font-medium"
+          >{homeText(lang, starter.label)}</span
         ></button
       >{/each}
   </section>{:else}<div

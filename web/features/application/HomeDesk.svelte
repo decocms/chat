@@ -729,7 +729,6 @@
                 : tab === "mentions"
                   ? t("Nenhuma menção.")
                   : t("Nenhuma tarefa aberta.")}
-              clear={!feed.length}
               ago={since}
               onopen={(roomId) => work({ roomId })}
             />
