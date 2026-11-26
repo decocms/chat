@@ -202,6 +202,7 @@
             {room}
             {actions}
             footer={footers.get(message.id)}
+            last={i === rows.length - 1}
           />{/if}{/each}
     {:else if !workers.length}<p
         data-chat-empty
