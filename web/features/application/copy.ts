@@ -573,6 +573,11 @@ const EN: Readonly<Record<string, string>> = {
   "Thread marcada como feita": "Thread marked as done",
   "Não deu pra marcar como feita. Tente de novo.":
     "Couldn't mark it as done. Try again.",
+  "Copiar link da thread": "Copy thread link",
+  "Reabrir thread": "Reopen thread",
+  "Thread reaberta": "Thread reopened",
+  "Não deu pra reabrir a thread. Tente de novo.":
+    "Couldn't reopen the thread. Try again.",
   "pronta pra fechar": "ready to close",
   parada: "stalled",
   revisar: "review",

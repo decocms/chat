@@ -1176,6 +1176,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
               (wait) => wait.book_id === value.id && wait.thread === target,
             ),
           waitsInRoom: () => waits.filter((wait) => wait.book_id === value.id),
+          notice: (text: string) => {
+            if (current()) showNotice(text, 2500);
+          },
         };
         const book = me()?.books.find((book) => book.id === value.id),
           icon = book?.icon

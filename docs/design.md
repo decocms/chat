@@ -16,6 +16,8 @@ The room screen has five areas, from left to right.
 
 The sidebar names the room. The top bar names the view. Do not show the room's name two times.
 
+A right-click, a long press or Shift+F10 on a thread row in the sidebar opens the row's menu (`ThreadMenu`). It has "Copiar link da thread", then "Marcar como feita" (an open thread) or "Reabrir thread" (a done thread). The two status items send `epic.status`, as the status pill does. The room's notice confirms each item.
+
 A room has no Inbox of its own. The Inbox is global: the home's page at `/?inbox` (`HomeInbox`, which draws `RoomInbox`). Desktop opens it from the rail. Do not add an Inbox entry to a room.
 
 ## The user center

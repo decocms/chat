@@ -5606,6 +5606,143 @@ describe("stable sidebar integration", () => {
     flushSync();
     expect(opened).toEqual([]);
   }, 30_000);
+  /** Open a thread row's menu: a right-click on the row, or Shift+F10 on its focused button. */
+  async function threadMenu(
+    rendered: ReturnType<typeof sidebar>,
+    id: string,
+    via: "pointer" | "keyboard" = "pointer",
+  ) {
+    const row = rendered.target.querySelector<HTMLElement>(
+      `[data-epic-thread="${id}"]`,
+    )!;
+    expect(row).not.toBeNull();
+    if (via === "keyboard") {
+      row.focus();
+      row.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "F10",
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    } else
+      row.dispatchEvent(
+        new window.MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: 20,
+          clientY: 20,
+        }),
+      );
+    for (let frame = 0; frame < 10; frame++) {
+      await settleMenu();
+      if (window.document.querySelector(`[data-thread-menu="${id}"]`)) break;
+    }
+    const menu = window.document.querySelector<HTMLElement>(
+      `[data-thread-menu="${id}"]`,
+    )!;
+    expect(menu).not.toBeNull();
+    expect(menu.getAttribute("role")).toBe("menu");
+    const items = [...menu.querySelectorAll<HTMLElement>("[role=menuitem]")];
+    return {
+      row,
+      labels: items.map((item) => item.textContent!.trim()),
+      item: (label: string) =>
+        items.find((item) => item.textContent!.trim() === label)!,
+    };
+  }
+  test("a thread row's menu copies the thread's link and marks it done (open tasks too, via the status command), or reopens it", async () => {
+    const room = fixture();
+    room.epics.push({ id: "x", title: "Other", tasks: [] });
+    const notices: string[] = [];
+    const rendered = sidebar(room, {
+      vb: {
+        ...vb,
+        epicBusy: () => null,
+        waitsIn: () => [],
+        notice: (text) => notices.push(text),
+      },
+    });
+    const copied: string[] = [];
+    window.navigator.clipboard.writeText = async (text) => {
+      copied.push(text);
+    };
+    const execCommand = window.document.execCommand;
+    window.document.execCommand = () => false;
+    try {
+      let menu = await threadMenu(rendered, "e");
+      expect(menu.labels).toEqual([
+        "Copiar link da thread",
+        "Marcar como feita",
+      ]);
+      expect(menu.row.getAttribute("aria-keyshortcuts")).toBe("Shift+F10");
+      menu.item("Copiar link da thread").click();
+      await settleMenu();
+      expect(copied).toEqual([`${window.location.origin}/b/r?t=e`]);
+      expect(notices).toEqual(["Copiado"]);
+      expect(window.document.querySelector("[data-thread-menu]")).toBeNull();
+      // Shift+F10 on the focused row opens the same menu.
+      menu = await threadMenu(rendered, "e", "keyboard");
+      menu.item("Marcar como feita").click();
+      await settleMenu();
+      // Opened from the keyboard, the focus goes back to the row.
+      expect(window.document.activeElement).toBe(menu.row);
+      expect(rendered.events).toEqual([
+        { t: "epic.status", id: "e", status: "done", via: "menu" },
+      ]);
+      // Done once the room says so: the notice comes with the room's update.
+      await rendered.settle(0, { ok: true });
+      expect(notices).toEqual(["Copiado"]);
+      const done = {
+        ...room,
+        epics: [
+          {
+            ...room.epics[0],
+            done: true,
+            status: "done" as const,
+            tasks: room.epics[0].tasks.map((task) => ({
+              ...task,
+              done: true,
+              status: "done" as const,
+            })),
+          },
+          room.epics[1],
+        ],
+      };
+      rendered.view.update({ ...rendered.props, room: done });
+      await settleMenu();
+      expect(notices).toEqual(["Copiado", "Thread marcada como feita"]);
+      // The open thread stays in the list while it is open; its menu now reopens it.
+      menu = await threadMenu(rendered, "e");
+      expect(menu.labels).toEqual(["Copiar link da thread", "Reabrir thread"]);
+      menu.item("Reabrir thread").click();
+      await settleMenu();
+      expect(rendered.events.at(-1)).toEqual({
+        t: "epic.status",
+        id: "e",
+        status: "doing",
+        via: "menu",
+      });
+      // A refusal says so at the foot of the screen.
+      await rendered.settle(1, { ok: false, error: "unknown epic" });
+      await settleMenu();
+      expect(notices.at(-1)).toBe(
+        "Não deu pra reabrir a thread. Tente de novo.",
+      );
+      // A blocked clipboard says so too.
+      window.navigator.clipboard.writeText = async () => {
+        throw new Error("blocked");
+      };
+      menu = await threadMenu(rendered, "x");
+      menu.item("Copiar link da thread").click();
+      await settleMenu();
+      expect(notices.at(-1)).toBe("Não consegui copiar o link.");
+    } finally {
+      window.document.execCommand = execCommand;
+    }
+    rendered.destroy();
+  }, 30_000);
 });
 
 describe("People interactions", () => {

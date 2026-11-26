@@ -101,7 +101,13 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     done: z.optional(z.boolean()),
   }),
   // The epic bar's status menu: "done" and "dismissed" mark it done, the open ones reopen it (Book.setEpicStatus).
-  z.object({ t: z.literal("epic.status"), id, status: z.enum(EPIC_STATUSES) }),
+  // via "menu": the sidebar's thread menu sent it (only the analytics event differs).
+  z.object({
+    t: z.literal("epic.status"),
+    id,
+    status: z.enum(EPIC_STATUSES),
+    via: z.optional(z.literal("menu")),
+  }),
   z.object({ t: z.literal("epic.order"), ids: z.array(z.string()) }),
   z.object({ t: z.literal("epic.pin"), id: z.string(), pinned: z.boolean() }),
   z.object({

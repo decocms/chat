@@ -10,6 +10,8 @@ import {
   mineEpics,
   reorderEpics,
   sidebarEpics,
+  threadLink,
+  threadMenuStatus,
   visibleEpics,
 } from "../web/features/navigation/model";
 import {
@@ -500,4 +502,25 @@ test("room visits: the room reopens the thread you left, and the recent three ke
   });
   broken.enter("me@x.com", "room1", "e1");
   expect(broken.last("me@x.com", "room1")).toBe("e1");
+});
+
+test("the thread menu copies the thread's room link with ?t=, and marks an open thread done or reopens a done one", () => {
+  expect(
+    threadLink("https://chat.example.test/b/room1?t=x#m4", "room1", "e1"),
+  ).toBe("https://chat.example.test/b/room1?t=e1");
+  expect(threadLink("http://127.0.0.1:8797/", "r 1", "a/b")).toBe(
+    "http://127.0.0.1:8797/b/r%201?t=a%2Fb",
+  );
+  expect(threadMenuStatus(epic("e1"))).toEqual({
+    t: "epic.status",
+    id: "e1",
+    status: "done",
+    via: "menu",
+  });
+  expect(threadMenuStatus(epic("e1", null, true))).toEqual({
+    t: "epic.status",
+    id: "e1",
+    status: "doing",
+    via: "menu",
+  });
 });

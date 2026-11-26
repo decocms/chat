@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--threadmenu] [--name <folder>]
 import { chromium, type Locator, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -951,6 +951,7 @@ try {
   }
   if (flag("forward")) await forwardScreens(browser, shots);
   if (flag("search")) await searchScreens(browser, shots);
+  if (flag("threadmenu")) await threadMenuScreens(browser, shots);
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
     ["/", "home-390.png"],
@@ -1599,4 +1600,120 @@ async function searchScreens(
       "phone: the Search pane stayed over the chat after a tap on a match",
     );
   await shot(phone, "search-phone-jump-390.png");
+}
+
+/**
+ * A thread row's menu in the sidebar (--threadmenu): a right-click at 1440 px, "Copiar link da thread" and the
+ * room's "Copiado", "Marcar como feita" (the thread and its open tasks are done; it leaves Open), then the Done tab
+ * with "Reabrir thread". At 390 px a long press in the drawer opens the same menu (the thread does not open, the
+ * drawer stays), then "Mark as done".
+ * The run fails if the clipboard does not hold the thread's link or the thread does not move to Done.
+ */
+async function threadMenuScreens(
+  browser: import("playwright").Browser,
+  shots: string[],
+) {
+  const domain =
+    (
+      (await (await fetch(`${base}/api/me`)).json()) as { email: string }
+    ).email.split("@")[1] ?? "";
+  const colleague = `bia@${domain}`;
+  await $`bunx wrangler d1 execute chat --local --command ${`INSERT OR IGNORE INTO users (email, name) VALUES ('${colleague}', 'Bia de Teste')`}`.quiet();
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    locale: "pt-BR",
+    permissions: ["clipboard-read", "clipboard-write"],
+  });
+  const desk = await context.newPage();
+  const thread = "c0000003";
+  const id = await threadRoom(
+    "Sala com threads",
+    [
+      { id: "c0000001", title: "Revisar o fluxo de cadastro", pinned: true },
+      {
+        id: "c0000002",
+        title: "Atualizar a página de preços",
+        theirs: true,
+        status: "doing",
+      },
+      { id: thread, title: "Preparar a demo de sexta", status: "doing" },
+      { id: "c0000004", title: "Escrever o guia de onboarding" },
+      { id: "c0000005", title: "Configurar o domínio de teste", done: true },
+    ],
+    desk,
+    colleague,
+  );
+  await commands(desk, id, [
+    { t: "task.add", epic: thread, title: "Montar o roteiro" },
+    { t: "task.add", epic: thread, title: "Gravar o vídeo" },
+  ]);
+  const shot = async (page: Page, file: string) => {
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(out, file) });
+    shots.push(file);
+  };
+  const row = (page: Page, epic: string) =>
+    page.locator(`[data-room-sidebar] [data-epic-thread="${epic}"]`);
+  const menu = (page: Page) => page.locator(`[data-thread-menu="${thread}"]`);
+  await desk.goto(`${base}/b/${id}`, { waitUntil: "networkidle" });
+  await desk.locator("[data-threads-tab=open]").click();
+  await row(desk, thread).waitFor();
+  await row(desk, thread).click({ button: "right" });
+  await menu(desk).waitFor();
+  await shot(desk, "threadmenu-open-1440.png");
+  await menu(desk).locator("[data-thread-menu-link]").click();
+  await desk.locator("aside[role=status]", { hasText: "Copiado" }).waitFor();
+  const link = await desk.evaluate(() => navigator.clipboard.readText());
+  if (link !== `${base}/b/${id}?t=${thread}`)
+    throw new Error(`Copiar link: the clipboard holds ${JSON.stringify(link)}`);
+  await shot(desk, "threadmenu-copied-1440.png");
+  await row(desk, thread).click({ button: "right" });
+  await menu(desk).locator("[data-thread-menu-status=done]").click();
+  await row(desk, thread).waitFor({ state: "detached" });
+  await desk
+    .locator("aside[role=status]", { hasText: "Thread marcada como feita" })
+    .waitFor();
+  await desk.mouse.move(0, 0);
+  await shot(desk, "threadmenu-done-open-tab-1440.png");
+  await desk.locator("[data-threads-tab=done]").click();
+  await row(desk, thread).waitFor();
+  await row(desk, thread).click({ button: "right" });
+  await menu(desk).locator("[data-thread-menu-status=reopen]").waitFor();
+  await shot(desk, "threadmenu-done-tab-reopen-1440.png");
+  await desk.keyboard.press("Escape");
+  await context.close();
+
+  // Phone: the drawer's rows, a long press on one.
+  const phone = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const other = "c0000004";
+  await phone.goto(`${base}/b/${id}`, { waitUntil: "networkidle" });
+  await phone.locator("[data-phone-title]").tap();
+  await phone.locator("[data-threads-tab=open]").tap();
+  await row(phone, other).waitFor();
+  const box = (await row(phone, other).boundingBox())!;
+  const cdp = await phone.context().newCDPSession(phone);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
+  });
+  await phone.waitForTimeout(700);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await phone.locator(`[data-thread-menu="${other}"]`).waitFor();
+  await phone.waitForTimeout(300);
+  if (new URL(phone.url()).searchParams.get("t") === other)
+    throw new Error("long press: the thread opened under its menu");
+  await shot(phone, "threadmenu-longpress-390.png");
+  await phone
+    .locator(`[data-thread-menu="${other}"] [data-thread-menu-status=done]`)
+    .tap();
+  await row(phone, other).waitFor({ state: "detached" });
+  await shot(phone, "threadmenu-done-390.png");
+  await phone.close();
 }

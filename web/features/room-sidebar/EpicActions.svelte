@@ -18,8 +18,9 @@
    * Feito). "Feito" marks the epic done, an open status
    * reopens it (Book.setEpicStatus). It sits right after the desktop top
    * bar's title. Phones have no status control (Gimenes #4065). The menu also
-   * pins the epic, since the epic list has no actions menu (Gimenes #3924,
-   * #3933). It does not pick the owner (Gimenes #3975).
+   * pins the epic (Gimenes #3924, #3933); the sidebar's row menu (ThreadMenu)
+   * only copies the link and marks done or reopens. It does not pick the owner
+   * (Gimenes #3975).
    */
   let {
     epic,
