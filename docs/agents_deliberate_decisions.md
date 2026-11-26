@@ -2294,3 +2294,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A click runs the CLI's update and `setup.sh` with the person's rights.
 - Undo: Revert the commit and release the app again.
 - Status: open
+
+### 2026-11-26 · fix/hover-no-cls · A message that grows under the pointer does not pull the chat to the bottom
+- Agent: Claude Opus 5.5
+- Context: Gui (#5740, #5741): the hover moves the layout on a message with an image and on the last message without "seen". He did not say how to fix it. Measured on local development: with the chat at the bottom, a hover on any message opened its reaction row (20 px), the chat followed the bottom, and every message above moved up 20 px. A tall image then left the pointer.
+- Decision:
+  - The chat's `ResizeObserver` (`web/features/chat-viewport/surface.ts`) ignores a resize when every resized element is under the pointer (`:hover`) and is not the scroller. The row then opens below the message, and nothing above it moves.
+  - The last message of the room or thread keeps its empty reaction row's height, `invisible` instead of `hidden`, so its hover grows nothing. On a phone (`pointer-coarse`) it stays `hidden`.
+  - Readers and agents that passed move to the last message of a run from the same person (the same rule as `continues()`), one face per person. Statuses stay on their message.
+- Other options: Overlay the row on hover (Gui #5347 asked that the hover make room). Keep the scroll position in `growth()` only for hover (the observer has the entries; `growth()` does not).
+- Risk: low. A message that streams while the pointer is on it does not follow the bottom until the pointer leaves it.
+- Undo: Revert the commit.
+- Status: open
