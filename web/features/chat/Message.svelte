@@ -530,7 +530,7 @@
             // The last message keeps that height, only hidden: nothing is under it to float over (Gui #5741).
             bare &&
               !last &&
-              "absolute top-full left-0 z-10 hidden w-fit rounded-control bg-background pr-1 pb-2.5 pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex has-[[data-picking]]:flex",
+              "absolute inset-x-0 top-full z-10 hidden bg-background pb-2.5 pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex has-[[data-picking]]:flex",
             bare &&
               last &&
               "invisible pointer-coarse:hidden pointer-fine:group-hover:visible pointer-fine:group-has-focus-visible:visible has-[[data-picking]]:visible",

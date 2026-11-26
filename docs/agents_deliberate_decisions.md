@@ -2363,7 +2363,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 - Agent: Claude Opus 5.5
 - Context: Gui (#5797): "fix the CLS, not the layout which isnt broken". The empty reaction row opened on hover and pushed every message below it down by 20 px (Leandro, Valls #5786).
-- Decision: An empty reaction row that is not on the last message is `absolute`, under the message body, with the page background, only as wide as its buttons. It shows on hover as before, and it takes no space. The last message keeps its `invisible` row (#5741).
+- Decision: An empty reaction row that is not on the last message is `absolute`, under the message body, with the page background, as wide as the message body. It shows on hover as before, and it takes no space. The last message keeps its `invisible` row (#5741).
 - Other options: A fixed 24 px row on every message (#443). That changes the layout, and Gui #5347 asked that adjacent messages stay together.
 - Risk: The row covers the start of the next message's first line while the pointer is on the message. #438 dropped a floating pill for that reason.
 - Undo: Revert the commit.
