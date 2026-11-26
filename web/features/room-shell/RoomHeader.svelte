@@ -106,21 +106,23 @@
     };
   });
   const en = $derived(presentation.services.language === "en");
-  // Phone title: the most important line first (the open thread, or a DM's
-  // person), and under it the room with the epic's progress (Gimenes #3739).
+  // A room's main thread (not a DM, not an epic or a view).
+  const roomMain = $derived(
+    !header.room.book.dm &&
+      threadTitle(header.room, header.thread) === undefined,
+  );
+  // Phone title: the most important line first. In a thread, its title, and
+  // under it the room with the epic's progress (Gimenes #3739). In a room's
+  // main thread, the room's icon and name on one line, like a DM's face and
+  // name (Gimenes #5919, #5923).
   const phoneTitle = $derived(
-    header.room.book.dm
-      ? header.room.book.title
-      : (threadTitle(header.room, header.thread) ??
-          presentation.services.t("Sala principal")),
+    (!header.room.book.dm && threadTitle(header.room, header.thread)) ||
+      header.room.book.title,
   );
   // Desktop: in a room's main thread the search takes the quiet "Sala principal"
   // label's place, at the bar's start (Gimenes #3902). Elsewhere the bar names
   // the epic or the view, and the search stays at the end.
-  const searchInTitle = $derived(
-    !header.room.book.dm &&
-      threadTitle(header.room, header.thread) === undefined,
-  );
+  const searchInTitle = $derived(roomMain);
   const searchLabel = $derived(
     searchPlaceholder(header.room.book, presentation.services.t),
   );
@@ -128,7 +130,7 @@
     header.room.epics.find((epic) => epic.id === header.thread),
   );
   const phoneSubtitle = $derived(
-    header.room.book.dm
+    header.room.book.dm || roomMain
       ? ""
       : [
           header.room.book.title,
@@ -269,6 +271,11 @@
           email: peer,
           version: roomAvatarVersion(header.room, $personal.me, peer),
         }}
+        lang={en ? "en" : "pt"}
+        surface="background"
+      />{:else if roomMain}<!-- A room's main thread: its icon beside its name. --><RoomAvatar
+        title={header.room.book.title}
+        icon={header.roomIcon}
         lang={en ? "en" : "pt"}
         surface="background"
       />{/if}<!-- Left, right after ← (Gimenes #3791). --><span
