@@ -555,7 +555,9 @@
             "[[data-thread-card]+&]:mt-1.5",
           ]}
         >
-          {#if reactable}<MessageReactions
+          <!-- The chips and their 🙂 only once there is a reaction: a row with only acks or "seen" offers none (the
+               hover bar's 🙂 reacts first). -->
+          {#if reactable && reacted}<MessageReactions
               message={m}
               me={room.me}
               {actions}
