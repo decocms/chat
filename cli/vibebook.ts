@@ -576,34 +576,64 @@ const HERDR_FILE = join(HOME, RUN_AGENT === "codex" ? "herdr-codex.json" : "herd
 const roomLabel = (title: string) => (RUN_AGENT === "codex" ? `${title.slice(0, 32)} · Codex` : title.slice(0, 40));
 /** What a running agent gets typed in to listen again. */
 const listenWords = () => (RUN_AGENT === "codex" ? CODEX_LISTEN_PROMPT : LISTEN_PROMPT);
-/** How the runner starts a Claude (Gimenes #5956, #5959): with bypass permissions, so that nobody must answer a
- *  permission prompt in a terminal that nobody watches. Codex keeps its defaults. Claude Code asks once, the first
- *  time, to accept the bypass mode: the person answers that one. */
-const agentFlags = () => (RUN_AGENT === "claude" ? ["--dangerously-skip-permissions"] : []);
-/** Mark a room folder as trusted in Claude Code (~/.claude.json, projects[folder].hasTrustDialogAccepted), so the
- *  Claude that the runner opens there does not stop at "Do you trust the files in this folder?" (Gimenes #5956). Only
- *  for room folders that the runner linked (.vibebook). Written to a temporary file, then renamed. Never throws. */
-function trustFolder(folder: string) {
-  if (RUN_AGENT !== "claude") return;
-  const file = join(homedir(), ".claude.json");
-  try {
-    if (linkedRoom(folder) === undefined) return;
-  } catch {
-    return;
-  }
+/** The runner's agents run headless: nobody watches their terminal, so any question there stops them (Gimenes #5956,
+ *  #5959, #5966). Thus each one starts with its bypass flag, its folder is trusted before the start, and the one-time
+ *  "accept bypass mode?" question of Claude Code is accepted in its settings. */
+const BYPASS = { claude: "--dangerously-skip-permissions", codex: "--dangerously-bypass-approvals-and-sandbox" } as const;
+/** The agent's arguments before the first prompt: the bypass flag, and the conversation to resume (`claude
+ *  --resume <id>`, `codex resume <id>`; Codex takes its flags after the subcommand). */
+const agentArgs = (session?: string) =>
+  RUN_AGENT === "codex" ? (session ? ["resume", BYPASS.codex, session] : [BYPASS.codex]) : [BYPASS.claude, ...(session ? ["--resume", session] : [])];
+/** Rewrite a JSON file through a temporary file and a rename. Never throws. */
+function editJson(file: string, edit: (cfg: Record<string, unknown>) => boolean) {
   try {
     const cfg = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>) : {};
-    const projects = (cfg.projects && typeof cfg.projects === "object" ? cfg.projects : {}) as Record<string, Record<string, unknown>>;
-    if (projects[folder]?.hasTrustDialogAccepted === true) return;
-    projects[folder] = { ...(projects[folder] ?? {}), hasTrustDialogAccepted: true };
-    cfg.projects = projects;
+    if (!edit(cfg)) return;
+    mkdirSync(dirname(file), { recursive: true });
     const tmp = `${file}.vibebook-${process.pid}`;
     writeFileSync(tmp, JSON.stringify(cfg, null, 2));
     renameSync(tmp, file);
   } catch {}
 }
-/** Arguments that resume a conversation: `claude --resume <id>`, `codex resume <id>`. */
-const resumeArgs = (session?: string) => (!session ? [] : RUN_AGENT === "codex" ? ["resume", session] : ["--resume", session]);
+/** Accept the bypass mode of Claude Code once (`skipDangerousModePermissionPrompt` in ~/.claude/settings.json), so the
+ *  first Claude the runner opens does not stop at that question. */
+function acceptBypass() {
+  if (RUN_AGENT !== "claude") return;
+  editJson(join(homedir(), ".claude", "settings.json"), (cfg) => {
+    if (cfg.skipDangerousModePermissionPrompt === true) return false;
+    cfg.skipDangerousModePermissionPrompt = true;
+    return true;
+  });
+}
+/** Mark a room folder as trusted, so the agent that the runner opens there does not stop at "Do you trust the files
+ *  in this folder?": Claude Code `projects[folder].hasTrustDialogAccepted` in ~/.claude.json, Codex `[projects."<folder>"]
+ *  trust_level = "trusted"` in ~/.codex/config.toml. Only for room folders that the runner linked (.vibebook). Never throws. */
+function trustFolder(folder: string) {
+  try {
+    if (linkedRoom(folder) === undefined) return;
+  } catch {
+    return;
+  }
+  if (RUN_AGENT === "claude") {
+    acceptBypass();
+    editJson(join(homedir(), ".claude.json"), (cfg) => {
+      const projects = (cfg.projects && typeof cfg.projects === "object" ? cfg.projects : {}) as Record<string, Record<string, unknown>>;
+      if (projects[folder]?.hasTrustDialogAccepted === true) return false;
+      projects[folder] = { ...(projects[folder] ?? {}), hasTrustDialogAccepted: true };
+      cfg.projects = projects;
+      return true;
+    });
+    return;
+  }
+  try {
+    const file = join(homedir(), ".codex", "config.toml");
+    const key = `[projects.${JSON.stringify(folder)}]`;
+    const toml = existsSync(file) ? readFileSync(file, "utf8") : "";
+    if (toml.split("\n").some((line) => line.trim() === key)) return;
+    mkdirSync(dirname(file), { recursive: true });
+    appendFileSync(file, `${toml && !toml.endsWith("\n") ? "\n" : ""}\n${key}\ntrust_level = "trusted"\n`);
+  } catch {}
+}
 /** The first prompt of an agent the runner opens: the slash command when the Claude Code plugin is installed, else the same in words. */
 const listenTask = (room: string) => (RUN_AGENT === "codex" ? `${CODEX_LISTEN_PROMPT} Sala: room_id=${room}.` : pluginVersion() ? `/vibebook:listen ${room}` : `${LISTEN_PROMPT} Sala: room_id=${room}.`);
 // A room's folder name: its first three meaningful words ("Viagem de avião para SP com os dogs" → viagem-aviao-sp).
@@ -948,7 +978,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
         writePrivate(HERDR_FILE, map);
         if (updating) log("info", "plugin", `${title}: reopening its Claude on plugin ${e.plugin_v} (same conversation)`, { room });
         try {
-          herdr("agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...agentFlags(), ...resumeArgs(e.session), listenTask(room));
+          herdr("agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...agentArgs(e.session), listenTask(room));
           log("info", "claude", `${title}: its ${RUN_NAME} had exited, started a new one`, { room, folder: tilde(e.folder), resume: short(e.session) });
         } catch (err) {
           const m = (err as Error).message;
@@ -1042,8 +1072,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
     // answered it and the room stayed "abrindo" (#4259). No auto-update prompt in the shells we open.
     const w = herdr("workspace", "create", "--cwd", e.folder, "--label", roomLabel(title), "--no-focus", "--env", "DISABLE_AUTO_UPDATE=true");
     e.workspace = w.workspace.workspace_id as string;
-    const args = ["agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--", ...agentFlags()];
-    if (e.session) args.push("--resume", e.session);
+    const args = ["agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--", ...agentArgs(e.session)];
     e.listening = true; // started with /vibebook:listen as its first prompt
     e.plugin_v = pluginHooks();
     e.prompted_at = Date.now();
@@ -1153,7 +1182,7 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
       continue;
     }
     // Back on after an off: the same conversation (--resume), so closing it lost nothing.
-    const r = happ("do", "space.new", "--name", roomLabel(title), "--folder", e.folder, "--argv", JSON.stringify([RUN_AGENT, ...agentFlags(), ...resumeArgs(e.session)]), "--task", listenTask(room));
+    const r = happ("do", "space.new", "--name", roomLabel(title), "--folder", e.folder, "--argv", JSON.stringify([RUN_AGENT, ...agentArgs(e.session)]), "--task", listenTask(room));
     e.space = r.space as string;
     e.prompted_at = Date.now();
     log("info", "claude", `${title}: opened a ${RUN_NAME}${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder), space: e.space });

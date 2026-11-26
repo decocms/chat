@@ -27,7 +27,7 @@ The menu has one update line, for deco.chat itself: the app and the `vibebook` C
 
 Nothing runs without a click.
 
-The runner that the app starts opens the Claude Code of each room with bypass permissions (`--dangerously-skip-permissions`). It also marks the room folder as trusted (`~/.claude.json`). Thus the Claude does not stop at a prompt in a terminal that nobody watches. The first time, Claude Code asks one time to accept the bypass mode. See README, "Security model".
+The runner that the app starts opens the Claude Code of each room with bypass permissions (`--dangerously-skip-permissions`; Codex: `--dangerously-bypass-approvals-and-sandbox`). It also marks the room folder as trusted (`~/.claude.json`, `~/.codex/config.toml`), and it accepts the one-time bypass question of Claude Code (`skipDangerousModePermissionPrompt` in `~/.claude/settings.json`). Thus the agent does not stop at a prompt in a terminal that nobody watches. See README, "Security model".
 
 ## Install
 

@@ -2510,9 +2510,9 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Agent: Claude Opus 5.5
 - Context: Gimenes #5956 asked that the Claudes the app opens do not stop at the folder trust question or at a permission prompt. I showed the risk (room content can trick a Claude that does not ask); he chose "Bypass sempre ligado" (#5959).
 - Decision:
-  - The runner starts Claude Code with `--dangerously-skip-permissions` at each start (new workspace, restart, Herdr app space). Codex keeps its defaults.
-  - Trust: before a start, the runner sets `projects[<folder>].hasTrustDialogAccepted` in `~/.claude.json`, only for a folder with a `.vibebook` of that room. It writes a temporary file and renames it.
-  - The one-time question of Claude Code to accept the bypass mode stays with the person. The runner does not answer it.
+  - The runner starts Claude Code with `--dangerously-skip-permissions` and Codex with `--dangerously-bypass-approvals-and-sandbox` (after `resume`), at each start (new workspace, restart, Herdr app space).
+  - Trust: before a start, the runner sets `projects[<folder>].hasTrustDialogAccepted` in `~/.claude.json` (temporary file, then rename) or adds `[projects."<folder>"] trust_level = "trusted"` to `~/.codex/config.toml`, only for a folder with a `.vibebook` of that room.
+  - The one-time question of Claude Code to accept the bypass mode: the runner sets `skipDangerousModePermissionPrompt: true` in `~/.claude/settings.json` (Gimenes #5966: a headless Claude cannot answer any question).
   - Questions: the listen prompt and `/vibebook:listen` tell the Claude to ask in the room with `choices`, never in the terminal. Plugin 0.25.7.
   - README "Security model" and `tray/README.md` say this and its worst result.
 - Other options: An opt-in menu item, off by default (my first proposal). `--permission-mode acceptEdits` with an allowlist.
