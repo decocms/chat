@@ -2563,3 +2563,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: On a slow network, the dark stage is empty until the image loads. A viewer chunk that takes more than 400 ms still shows the loading dialog first.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · feat/phone-topbar-b · The phone top bar in one line, with ⋮
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes picked option B of the mockup (#6016, #6030, #6032, #6052): one line, a WhatsApp-like subtitle, the search and ⋮ at the end, "Iniciar chamada" in ⋮, and the room's logo in a thread too. He did not say how to count online people and agents, what a DM's subtitle is, or where the phone call button goes.
+- Decision:
+  - "N online" counts the other members that are online, not you. Agents count the room's agents that listen now (`presence.agents` with `listening`).
+  - With nobody online and no agent, the subtitle lists the first names of the other members (5, then "e mais N"). A DM's subtitle is "online" only while the person is online.
+  - ⋮ shows "Iniciar chamada" only while the room has no call (the old `callIdle` rule). The call button under the bar on phones is removed. With a call on, the call's panel and stage keep their controls.
+  - The menu is the studio `DropdownMenu` (like the message menu), with a new Untitled UI icon `dots-vertical`.
+- Other options: Count yourself in "online". Keep the avatars at the bar's end. Keep the call button under the bar.
+- Risk: low
+- Undo: Revert the commit.
+- Status: open

@@ -16,13 +16,16 @@
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import { threadTitle } from "../room-sidebar/model";
   import Snapshot from "../../lib/components/Snapshot.svelte";
-  import AccountRow from "../app-navigation/AccountRow.svelte";
   import type { SidebarProps } from "../../app/sidebar";
   import { dmPeer, roomAvatarVersion } from "../room-scope/model";
-  import { isPanelToggleKey, phoneStripPanes } from "./panelViews";
-  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
-  import PresenceDot from "../../lib/components/PresenceDot.svelte";
-  import AvatarStack from "../../lib/components/AvatarStack.svelte";
+  import { isPanelToggleKey, phoneMenuPanes } from "./panelViews";
+  import { paneIcons, paneLabel } from "../documents/paneIcons";
+  import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
+  import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
+  import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
+  import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
+  import DropdownMenuSeparator from "../../lib/studio/DropdownMenuSeparator.svelte";
+  import { studioType } from "../../lib/components/type";
   import {
     NO_SEARCH,
     roomSearch,
@@ -46,6 +49,8 @@
     tabs,
     onPane,
     viewControls,
+    agentsOnline = 0,
+    onstartcall,
   }: {
     presentation: ApplicationRoomPresentation;
     header: ThreadHeaderProps;
@@ -60,6 +65,10 @@
     /** Desktop: the controls of the view in the middle, before the pane's tabs,
      * after a vertical divider. See docs/design.md (Top bar). */
     viewControls?: Snippet;
+    /** Phone: the room's agents that listen now, for the main thread's subtitle. */
+    agentsOnline?: number;
+    /** Phone: "Iniciar chamada" in ⋮, while the room has no call (Gimenes #6032). */
+    onstartcall?: () => void;
   } = $props();
   const personal = untrack(() => presentation.services.personal.state),
     geometry = untrack(() => layout.state);
@@ -90,22 +99,15 @@
   onDestroy(() => setFaviconBadge(false));
   // A DM's face stands for it, the same as in your DM list.
   const peer = $derived(dmPeer(header.room));
-  // Phone, a room: the other people, online first; two faces, then "+N".
-  const phonePeople = $derived.by(() => {
-    const room = header.room;
-    const others = room.members.filter((email) => email !== room.me);
-    const online = others.filter((email) => room.online.includes(email));
-    const order = [
-      ...online,
-      ...others.filter((email) => !online.includes(email)),
-    ];
-    return {
-      faces: order.slice(0, 2),
-      online,
-      more: Math.max(0, order.length - 2),
-    };
-  });
+  // Phone, a room: how many other members are online now.
+  const othersOnline = $derived(
+    header.room.members.filter(
+      (email) => email !== header.room.me && header.room.online.includes(email),
+    ).length,
+  );
   const en = $derived(presentation.services.language === "en");
+  const t = (text: string, vars?: Record<string, string | number>) =>
+    presentation.services.t(text, vars);
   // A room's main thread (not a DM, not an epic or a view).
   const roomMain = $derived(
     !header.room.book.dm &&
@@ -129,23 +131,71 @@
   const phoneEpic = $derived(
     header.room.epics.find((epic) => epic.id === header.thread),
   );
-  const phoneSubtitle = $derived(
-    header.room.book.dm || roomMain
-      ? ""
-      : [
-          header.room.book.title,
-          phoneEpic?.tasks.length
-            ? presentation.services.t("{done} de {total} tarefas", {
-                done: phoneEpic.tasks.filter((task) => task.done).length,
-                total: phoneEpic.tasks.length,
-              })
-            : "",
-        ]
-          .filter(Boolean)
-          .join(" · "),
+  // Phone, one bar (B, Gimenes #6016, #6030, #6052): the main thread's subtitle is like a WhatsApp group's. With
+  // someone online, "3 online · 2 agentes"; with only agents, "2 agentes trabalhando"; else the members' names.
+  const mainSubtitle = $derived.by(() => {
+    const online = othersOnline;
+    if (online)
+      return [
+        t("{n} online", { n: online }),
+        agentsOnline
+          ? t(agentsOnline === 1 ? "1 agente" : "{n} agentes", {
+              n: agentsOnline,
+            })
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    if (agentsOnline)
+      return t(
+        agentsOnline === 1 ? "1 agente trabalhando" : "{n} agentes trabalhando",
+        { n: agentsOnline },
+      );
+    const room = header.room;
+    const names = room.members
+      .filter((email) => email !== room.me)
+      .map(
+        (email) =>
+          (room.names?.[email] ?? email.split("@")[0] ?? "").split(" ")[0],
+      );
+    const shown = names.slice(0, 5).join(", ");
+    return names.length > 5
+      ? t("{names} e mais {n}", { names: shown, n: names.length - 5 })
+      : shown;
+  });
+  const peerOnline = $derived(!!peer && header.room.online.includes(peer));
+  const peerName = $derived(
+    peer
+      ? (header.room.names?.[peer] ?? peer.split("@")[0] ?? "").split(" ")[0]
+      : "",
   );
-  const t = (text: string, vars?: Record<string, string | number>) =>
-    presentation.services.t(text, vars);
+  // Phone ⋮: the call first, then the room's panes (a DM has no doc or people).
+  const phoneMenu = $derived(
+    phoneMenuPanes(!!header.room.book.dm).map((pane) => ({
+      pane,
+      label: paneLabel(pane, en),
+      icon: paneIcons[pane],
+    })),
+  );
+  const phoneSubtitle = $derived(
+    header.room.book.dm
+      ? peerOnline
+        ? t("online")
+        : ""
+      : roomMain
+        ? mainSubtitle
+        : [
+            header.room.book.title,
+            phoneEpic?.tasks.length
+              ? presentation.services.t("{done} de {total} tarefas", {
+                  done: phoneEpic.tasks.filter((task) => task.done).length,
+                  total: phoneEpic.tasks.length,
+                })
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+  );
   const mac =
     typeof navigator !== "undefined" &&
     /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -273,7 +323,7 @@
         }}
         lang={en ? "en" : "pt"}
         surface="background"
-      />{:else if roomMain}<!-- A room's main thread: its icon beside its name. --><RoomAvatar
+      />{:else}<!-- A room: its icon beside the name, in a thread too (Gimenes #6052). --><RoomAvatar
         title={header.room.book.title}
         icon={header.roomIcon}
         lang={en ? "en" : "pt"}
@@ -348,45 +398,38 @@
           if (live(event)) onPane?.("search");
         }}><Icon icon="search-md" size={20} /></IconButton
       >{/if}
-    {#if !header.room.book.dm && $geometry.mobile}<!-- Phone, a room (A2, Gimenes #4309): the people at the bar's end, online first; a tap opens Pessoas. Your own account is at the drawer's top. --><button
-        type="button"
-        data-phone-people
-        aria-label={t("Pessoas na sala")}
-        class="flex h-10 shrink-0 cursor-pointer items-center rounded-full border-0 bg-transparent px-1 focus-visible:outline-2 focus-visible:outline-ring md:hidden"
-        onclick={() => onPane?.("people")}
-        >{#if phonePeople.faces.length || phonePeople.more}<AvatarStack
-            class="items-center"
-            items={phonePeople.faces}
-            key={(email) => email}
-            more={phonePeople.more}
-            >{#snippet face(email)}<PersonAvatar
-                {email}
-                version={roomAvatarVersion(header.room, $personal.me, email)}
-                class="size-7 ring-2 ring-background"
-              />{#if phonePeople.online.includes(email)}<PresenceDot
-                  online
-                  class="size-2.5 ring-background"
-                />{/if}{/snippet}</AvatarStack
-          >{:else}<Icon icon="user-plus-01" size={20} />{/if}</button
-      >{:else if $personal.me}<span
-        data-phone-account
-        class="contents md:hidden"
-        ><AccountRow me={$personal.me} row={false} /></span
+    {#if $geometry.mobile}<!-- Phone (B, Gimenes #6016, #6032, #6052): ⋮ holds the call and the room's panes. --><DropdownMenu
+        ><DropdownMenuTrigger
+          >{#snippet child({ props })}<IconButton
+              {...props}
+              label={t("Mais opções")}
+              tooltipSide="bottom"
+              data-phone-more
+              size="icon"
+              class="size-10 shrink-0 rounded-full data-[state=open]:bg-accent md:hidden"
+              ><Icon icon="dots-vertical" size={20} /></IconButton
+            >{/snippet}</DropdownMenuTrigger
+        ><DropdownMenuContent
+          align="end"
+          sideOffset={6}
+          data-phone-more-menu
+          class={[studioType, "w-56"].join(" ")}
+          >{#if onstartcall}<DropdownMenuItem
+              data-phone-more-item="call"
+              onSelect={() => {
+                if (current()) onstartcall();
+              }}
+              ><Icon icon="phone" />{peerName
+                ? t("Ligar para {name}", { name: peerName })
+                : t("Iniciar chamada")}</DropdownMenuItem
+            ><DropdownMenuSeparator
+            />{/if}{#each phoneMenu as item (item.pane)}<DropdownMenuItem
+              data-phone-more-item={item.pane}
+              onSelect={() => {
+                if (current()) onPane?.(item.pane);
+              }}><Icon icon={item.icon} />{item.label}</DropdownMenuItem
+            >{/each}</DropdownMenuContent
+        ></DropdownMenu
       >{/if}
   </div>
-  <!-- Phone (A2, Gimenes #4309, #4331): Doc · Arquivos · Decisões · Lembretes under the bar. A tap opens that pane in
-       the sheet; while the sheet is open its own tab row (the one you drag to close it) takes this row's place.
-       Drawn only on a phone, not hidden with CSS: the desktop bar must have one set of pane tabs. -->
-  {#if tabs && $geometry.mobile && $geometry.sheet !== "doc"}<div
-      data-phone-strip
-      class="basis-full md:hidden [&_button]:justify-center [&_button]:gap-1 [&_button]:px-1.5 [&>div]:border-b-0 [&>div]:px-0 [&>div]:pt-0"
-    >
-      <DocumentToolbar
-        {...tabs}
-        compact
-        pane={"" as DocumentPane}
-        only={phoneStripPanes(!!header.room.book.dm)}
-        onPane={(pane) => onPane?.(pane)}
-      />
-    </div>{/if}
 </header>

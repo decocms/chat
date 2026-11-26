@@ -567,6 +567,10 @@
         {back}
         tabs={$view.toolbar}
         viewControls={callReady ? callControls : undefined}
+        agentsOnline={$view.sidebar.presence?.agents.filter(
+          (agent) => agent.listening,
+        ).length ?? 0}
+        onstartcall={callIdle ? () => call.join() : undefined}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}
@@ -580,10 +584,6 @@
       />{/if}{/snippet}
   {#snippet attention()}{#if $view}
       <div>
-        <!-- Phones: the top bar has no space for the controls of the view (docs/design.md). -->
-        {#if callIdle}<div class="flex justify-end px-4 pt-2 md:hidden">
-            {@render callControls()}
-          </div>{/if}
         <!-- Phones in the call with the stage closed: the call's panel, to open it again (the drawer has no foot). -->
         {#if $geometry.mobile && inCall && !stageOpen}<div class="px-4 pt-2">
             {@render callPanel(false)}
