@@ -1854,12 +1854,20 @@ test("Pedidos: an invite's Entrar joins, a message request shows its first messa
   expect(answers).toEqual([["bia@test.com", false]]);
 });
 
-test("Company rooms: the 2×2 grid opens the rooms you can join, with who opened them; Join joins, none shows the empty state", async () => {
+test("Company rooms: the rail's 2×2 grid opens a popover with the rooms you can join; Join joins, none shows the empty state; a phone gets a bottom sheet", async () => {
   const { default: CompanyRooms } =
     await import("../web/features/app-navigation/CompanyRooms.svelte");
   const joined: string[] = [];
   let opened = 0;
-  const open = async (rooms: OrgRoom[]) => {
+  const farm: OrgRoom = {
+    id: "aaaaaa",
+    title: "Farm Rio Project",
+    icon: null,
+    people: 3,
+    opened_by: "gimenes@test.com",
+    opened_by_name: "Gimenes",
+  };
+  const open = async (rooms: OrgRoom[], phone = false) => {
     const target = document.createElement("div");
     document.body.append(target);
     const component = flushSync(() =>
@@ -1868,6 +1876,7 @@ test("Company rooms: the 2×2 grid opens the rooms you can join, with who opened
         props: {
           lang: "en",
           rooms,
+          phone,
           onjoin: async (room: string) => {
             joined.push(room);
           },
@@ -1877,32 +1886,27 @@ test("Company rooms: the 2×2 grid opens the rooms you can join, with who opened
         },
       }),
     );
-    cleanups.push(() => {
+    const close = () => {
       flushSync(() => {
         void unmount(component);
       });
       target.remove();
-    });
+    };
+    cleanups.push(close);
     const button = target.querySelector<HTMLButtonElement>(
       "[data-company-rooms-button]",
     )!;
     expect(button.getAttribute("aria-label")).toBe("Company rooms");
     button.click();
     await flush();
-    return button;
+    const panel = document.querySelector<HTMLElement>("[data-company-rooms]")!;
+    return { button, panel, close };
   };
-  const button = await open([
-    {
-      id: "aaaaaa",
-      title: "Farm Rio Project",
-      icon: null,
-      people: 3,
-      opened_by: "gimenes@test.com",
-      opened_by_name: "Gimenes",
-    },
-  ]);
+  // Desktop: a popover beside the rail button, never a dialog.
+  const desk = await open([farm]);
   expect(opened).toBe(1);
-  const row = document.querySelector<HTMLElement>(
+  expect(desk.panel.dataset.slot).toBe("popover-content");
+  const row = desk.panel.querySelector<HTMLElement>(
     '[data-company-room="aaaaaa"]',
   )!;
   expect(row.textContent).toContain("Farm Rio Project");
@@ -1912,11 +1916,28 @@ test("Company rooms: the 2×2 grid opens the rooms you can join, with who opened
     .click();
   await flush();
   expect(joined).toEqual(["aaaaaa"]);
-  expect(button.getAttribute("aria-expanded")).toBe("false");
-  await open([]);
+  expect(desk.button.getAttribute("aria-expanded")).toBe("false");
+  desk.close();
+  const empty = await open([]);
   expect(
-    document.querySelector("[data-company-rooms-empty]")!.textContent?.trim(),
+    empty.panel
+      .querySelector("[data-company-rooms-empty]")!
+      .textContent?.trim(),
   ).toBe("No company rooms to join right now.");
+  empty.close();
+  // A phone: the same list in a sheet from the bottom.
+  environment.happyDOM.setViewport({ width: 400, height: 800 });
+  cleanups.push(() =>
+    environment.happyDOM.setViewport({ width: 1024, height: 768 }),
+  );
+  await flush();
+  const phone = await open([farm], true);
+  expect(phone.panel.dataset.slot).toBe("sheet-content");
+  expect(phone.panel.getAttribute("role")).toBe("dialog");
+  expect(phone.panel.textContent).toContain("Company rooms");
+  expect(
+    phone.panel.querySelector('[data-company-room="aaaaaa"]')!.textContent,
+  ).toContain("Opened by Gimenes · 3 people");
 });
 
 test("a DM still loading draws your real DM list beside the placeholder chat; a room keeps its own skeleton", async () => {
