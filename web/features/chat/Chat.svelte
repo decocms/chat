@@ -180,9 +180,15 @@
     class="pb-4 font-sans text-sm text-foreground"
     oncopy={copySelection}
   >
-    {#if more}<div class="flex justify-center p-3">
-        <Button variant="outline" size="sm" id="olderBtn" onclick={onloadolder}
-          >{vb.t("Carregar mensagens anteriores")}</Button
+    <!-- Older messages: a quiet line, not a button that stands out (Gimenes #6064). Scrolling near it loads them; a
+         click does too. -->
+    {#if more}<div class="flex justify-center p-2">
+        <button
+          type="button"
+          id="olderBtn"
+          aria-label={vb.t("Carregar mensagens anteriores")}
+          class="cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 font-sans text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          onclick={onloadolder}>{vb.t("Carregando…")}</button
         >
       </div>{/if}
     {#if origin}<div

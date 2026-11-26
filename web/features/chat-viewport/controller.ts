@@ -4,8 +4,8 @@ import type { RoomCommand } from "../../../shared/commands";
 import { visibleChatMessages } from "../chat/privacy";
 
 export const CHAT_WINDOW = 60,
-  /** A phone shows 3-5 messages: it draws 20 (enough to fill the screen with short messages), and more as the person scrolls up (Gimenes #6050). */
-  CHAT_WINDOW_PHONE = 20,
+  /** A phone shows 3-5 messages: it draws 8, then 8 more while they do not fill the chat or the person scrolls up (Gimenes #6050, #6064). */
+  CHAT_WINDOW_PHONE = 8,
   MESSAGE_SEARCH_PAGES = 15,
   /** How long a jump to a message owns the scroll: long enough for a smooth scroll to land. */
   JUMP_SETTLE_MS = 900;
@@ -441,8 +441,21 @@ export function createChatViewport(options: {
         pinned = true;
         bottom();
       }
-      if (owns(ticket) && surface === ownedSurface)
-        lastTop = ownedSurface.metrics().top;
+      if (owns(ticket) && surface === ownedSurface) {
+        const value = ownedSurface.metrics();
+        lastTop = value.top;
+        // A small window of short messages does not fill the chat, so there is no scroll up to load more: draw the
+        // next step now (Gimenes #6064).
+        if (
+          !jump &&
+          value.height <= value.client &&
+          room &&
+          endOf(visibleMessages()) > count
+        )
+          later(() => {
+            if (owns(ticket) && surface === ownedSurface) this.loadOlder();
+          }, 0);
+      }
     },
     pinned: () => pinned,
     /** Explicit own-send/latest/force-bottom intent. Incoming peer messages do
