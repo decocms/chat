@@ -770,9 +770,6 @@ const EN: Readonly<Record<string, string>> = {
   "Sugestões do @vibe": "@vibe's suggestions",
   "Pedindo pra entrar": "Asking to join",
   "Aberta pra @{domain}": "Open to @{domain}",
-  "Quem entra com email @{domain} vê o título e as pessoas, e entra sem pedir.":
-    "Anyone signed in with an @{domain} email sees the title and people, and joins without asking.",
-  "Só quem você convida entra.": "Only people you invite can join.",
   "pediu {ago}": "asked {ago} ago",
   "Liberar: entra na sala e recebe o link por email":
     "Let in: joins the room and gets the link by email",

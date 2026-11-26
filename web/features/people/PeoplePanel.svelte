@@ -223,7 +223,7 @@
   <form
     id="invite"
     data-invite-form
-    class={inviting ? (members ? "mb-4" : "") : "hidden"}
+    class={inviting ? (members ? "p-1" : "") : "hidden"}
     onsubmit={submitInvite}
   >
     <InlineAdd
@@ -251,9 +251,9 @@
 {/snippet}
 {#snippet openToCompany()}{#if domain}<div
       data-room-org={org ? "open" : "private"}
-      class={cn("px-2", members ? "mb-4" : "pt-3")}
+      class={members ? "px-3" : "px-2 pt-3"}
     >
-      <label class="flex min-h-9 cursor-pointer items-center gap-2">
+      <label class="flex min-h-10 cursor-pointer items-center gap-2">
         <Icon
           icon="users-01"
           size={16}
@@ -269,15 +269,7 @@
           onCheckedChange={(open) => void setOrg(open)}
         />
       </label>
-      <p class="m-0 text-xs text-muted-foreground">
-        {org
-          ? vb.t(
-              "Quem entra com email @{domain} vê o título e as pessoas, e entra sem pedir.",
-              { domain },
-            )
-          : vb.t("Só quem você convida entra.")}
-      </p>
-      {#if orgError}<p role="alert" class="m-0 text-xs text-destructive">
+      {#if orgError}<p role="alert" class="m-0 pb-2 text-xs text-destructive">
           {orgError}
         </p>{/if}
     </div>{/if}{/snippet}
@@ -465,17 +457,24 @@
           >
         </div>{/each}
     </div>{/if}
-  {#if members}{#if !inviting}<Button
-        variant="outline"
-        size="sm"
-        class="mb-4 w-full"
-        data-invite-toggle
-        bind:ref={toggle}
-        onclick={openInvite}
-        ><Icon icon="user-plus-01" size={16} />{vb.t(
-          "Convidar pessoas",
-        )}</Button
-      >{/if}{@render inviteForm()}{@render openToCompany()}{:else}
+  {#if members}<!-- Inviting and who may walk in, one card of rows like the account settings. -->
+    <div
+      data-people-access
+      class="mb-4 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card"
+    >
+      {#if !inviting}<Button
+          variant="ghost"
+          class="h-10 w-full justify-start rounded-none px-3 font-normal has-[>svg]:px-3"
+          data-invite-toggle
+          bind:ref={toggle}
+          onclick={openInvite}
+          ><Icon
+            icon="user-plus-01"
+            size={16}
+            class="text-muted-foreground"
+          />{vb.t("Convidar pessoas")}</Button
+        >{/if}{@render inviteForm()}{@render openToCompany()}
+    </div>{:else}
     <SectionHeader title={vb.t("Pessoas e agents")}>
       {#snippet action()}{#if !inviting}<IconButton
             size="icon-xs"
