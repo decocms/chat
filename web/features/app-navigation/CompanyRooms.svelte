@@ -99,11 +99,11 @@
   }
 </script>
 
-<!-- The dot: the rail's unread dot (solid, ringed in the surface it sits on), at the button's top-right corner. -->
+<!-- The dot: the app's notification red (Count, bg-destructive), solid, ringed in the surface it sits on, at the button's top-right corner. -->
 {#snippet dot(ring: string)}{#if fresh}<span
       aria-hidden="true"
       data-company-rooms-dot
-      class="pointer-events-none absolute top-0.5 right-0.5 size-2 rounded-full bg-foreground ring-2 {ring}"
+      class="pointer-events-none absolute top-0.5 right-0.5 size-2.5 rounded-full bg-destructive ring-2 {ring}"
     ></span>{/if}{/snippet}
 
 {#snippet trigger(props: Record<string, unknown>)}{#if phone}<Button
@@ -150,7 +150,7 @@
             <span class="flex min-w-0 items-center gap-1.5"
               ><span class="truncate text-sm font-medium">{room.title}</span
               >{#if isNew(room)}<Badge
-                  variant="brand"
+                  variant="default"
                   size="sm"
                   data-company-room-new
                   class="shrink-0">{homeText(lang, "newRoom")}</Badge
