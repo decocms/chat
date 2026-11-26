@@ -277,6 +277,10 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         personal.invalidate();
       },
       orgRooms: (signal) => accountApi.orgRooms(signal),
+      seeOrgRooms: (until) =>
+        accountApi
+          .seeOrgRooms(until, AbortSignal.timeout(15_000))
+          .then(() => {}),
       meApp: (signal) => accountApi.meApp(signal),
       joinOrg: async (room) => {
         // Not let in (the room closed meanwhile): it went as a request, and the room's page says so.

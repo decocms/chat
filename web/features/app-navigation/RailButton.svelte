@@ -11,7 +11,7 @@
   /**
    * A rail action: a ghost round icon button, or (with `children`) a 36px
    * tile like a room's, such as the home mark. `current` draws the bar a
-   * selected room gets.
+   * selected room gets. `badge` draws over the icon button, e.g. a dot.
    */
   let {
     label,
@@ -20,6 +20,7 @@
     current = false,
     ref = $bindable(null),
     children,
+    badge,
     ...rest
   }: Omit<HTMLButtonAttributes, "style" | "class" | "children"> & {
     label: string;
@@ -29,6 +30,8 @@
     current?: boolean;
     ref?: HTMLButtonElement | null;
     children?: Snippet;
+    /** Drawn inside the button after the icon (positioned absolutely by the caller). */
+    badge?: Snippet;
   } = $props();
 </script>
 
@@ -50,7 +53,10 @@
         )}
       >
         {#if current}<RailPill state="selected" />{/if}
-        {#if icon}<Icon {icon} class="size-4" />{/if}{@render children?.()}
+        {#if icon}<Icon
+            {icon}
+            class="size-4"
+          />{/if}{@render children?.()}{@render badge?.()}
       </button>
     {/snippet}
   </TooltipTrigger>

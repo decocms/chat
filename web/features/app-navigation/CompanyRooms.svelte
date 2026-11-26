@@ -1,6 +1,7 @@
 <script lang="ts">
   import { MediaQuery } from "svelte/reactivity";
   import { MOBILE_QUERY } from "../../lib/breakpoints";
+  import Badge from "../../lib/studio/Badge.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
@@ -21,6 +22,9 @@
    * list, so it only holds the rooms you are in. On the rail (desktop) it sits
    * right above search and opens a popover beside it; on a phone (the Chats
    * bar, above the search field) it opens a sheet from the bottom.
+   * A room opened to the company after you last looked (`new`) puts a dot on
+   * the button and a "Nova" pill on its row, first in the list; closing the
+   * list makes them seen.
    */
   let {
     rooms,
@@ -28,6 +32,7 @@
     phone = false,
     onjoin,
     onopen,
+    onclose,
   }: {
     rooms: readonly OrgRoom[];
     lang: HomeLanguage;
@@ -35,20 +40,50 @@
     phone?: boolean;
     /** Joins a room open to your company and opens it. */
     onjoin?: (room: string) => Promise<void>;
-    /** Called each time the list opens: reads it again. */
+    /** Called each time the list opens: reads it again and marks what it shows as seen. */
     onopen?: () => void;
+    /** Called when the list closes: nothing in it is new anymore. */
+    onclose?: () => void;
   } = $props();
   const mobile = new MediaQuery(MOBILE_QUERY);
   let open = $state(false),
     busy = $state<string | null>(null),
     failed = $state<string | null>(null),
     sheet = $state<HTMLElement | null>(null);
-  const label = $derived(homeText(lang, "companyRooms"));
-  function opened(next: boolean) {
-    if (!next) return;
-    failed = null;
-    onopen?.();
-  }
+  const title = $derived(homeText(lang, "companyRooms"));
+  const fresh = $derived(rooms.filter((room) => room.new).length);
+  const label = $derived(
+    fresh === 0
+      ? title
+      : fresh === 1
+        ? homeText(lang, "companyRoomsNewOne")
+        : homeText(lang, "companyRoomsNew", { n: fresh }),
+  );
+  // What was new while the list is open stays new until it closes: a reread after the server marked it seen says
+  // `new: false`, and the pill must not vanish under the reader.
+  let kept = $state<ReadonlySet<string>>(new Set());
+  $effect(() => {
+    if (!open) return;
+    const add = rooms.filter((room) => room.new && !kept.has(room.id));
+    if (add.length) kept = new Set([...kept, ...add.map((room) => room.id)]);
+  });
+  const isNew = (room: OrgRoom) => room.new || kept.has(room.id);
+  // Unseen first (the server sorts them so too).
+  const sorted = $derived(
+    [...rooms].sort((a, b) => Number(isNew(b)) - Number(isNew(a))),
+  );
+  let wasOpen = false;
+  $effect(() => {
+    if (open === wasOpen) return;
+    wasOpen = open;
+    if (open) {
+      failed = null;
+      onopen?.();
+    } else {
+      kept = new Set();
+      onclose?.();
+    }
+  });
   async function join(room: string) {
     if (busy || !onjoin) return;
     busy = room;
@@ -64,19 +99,32 @@
   }
 </script>
 
+<!-- The dot: the rail's unread dot (solid, ringed in the surface it sits on), at the button's top-right corner. -->
+{#snippet dot(ring: string)}{#if fresh}<span
+      aria-hidden="true"
+      data-company-rooms-dot
+      class="pointer-events-none absolute top-0.5 right-0.5 size-2 rounded-full bg-foreground ring-2 {ring}"
+    ></span>{/if}{/snippet}
+
 {#snippet trigger(props: Record<string, unknown>)}{#if phone}<Button
       {...props}
       variant="secondary"
       data-company-rooms-button
+      data-new={fresh || undefined}
       aria-label={label}
-      class="size-10 shrink-0 rounded-full p-0"
-      ><Icon icon="grid-01" class="size-5" /></Button
+      class="relative size-10 shrink-0 rounded-full p-0"
+      ><Icon icon="grid-01" class="size-5" />{@render dot(
+        "ring-background",
+      )}</Button
     >{:else}<RailButton
       {...props}
       icon="grid-01"
       {label}
       data-company-rooms-button
-    />{/if}{/snippet}
+      data-new={fresh || undefined}
+    >
+      {#snippet badge()}{@render dot("ring-sidebar")}{/snippet}
+    </RailButton>{/if}{/snippet}
 
 {#snippet list()}{#if rooms.length === 0}<p
       data-company-rooms-empty
@@ -86,7 +134,7 @@
     </p>{:else}<ul
       class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto overscroll-contain p-0"
     >
-      {#each rooms as room (room.id)}{@const who =
+      {#each sorted as room (room.id)}{@const who =
           room.opened_by_name || room.opened_by || ""}
         <li
           data-company-room={room.id}
@@ -99,7 +147,15 @@
             surface="background"
           />
           <span class="flex min-w-0 flex-1 flex-col">
-            <span class="truncate text-sm font-medium">{room.title}</span>
+            <span class="flex min-w-0 items-center gap-1.5"
+              ><span class="truncate text-sm font-medium">{room.title}</span
+              >{#if isNew(room)}<Badge
+                  variant="brand"
+                  size="sm"
+                  data-company-room-new
+                  class="shrink-0">{homeText(lang, "newRoom")}</Badge
+                >{/if}</span
+            >
             <span class="truncate text-xs leading-4 text-muted-foreground"
               >{homeText(lang, room.people === 1 ? "openedByOne" : "openedBy", {
                 who,
@@ -125,10 +181,7 @@
 {#if mobile.current}{@render trigger({
     "aria-haspopup": "dialog",
     "aria-expanded": open,
-    onclick: () => {
-      open = true;
-      opened(true);
-    },
+    onclick: () => (open = true),
   })}
   <Sheet bind:open>
     <SheetContent
@@ -150,7 +203,7 @@
       ></span>
       <div class="flex items-center gap-2 pl-2">
         <SheetTitle class="m-0 min-w-0 flex-1 truncate text-base font-semibold"
-          >{label}</SheetTitle
+          >{title}</SheetTitle
         >
         <IconButton
           size="icon-sm"
@@ -161,7 +214,7 @@
       </div>
       {@render list()}
     </SheetContent>
-  </Sheet>{:else}<Popover bind:open onOpenChange={opened}>
+  </Sheet>{:else}<Popover bind:open>
     <PopoverTrigger>
       {#snippet child({ props })}{@render trigger(props)}{/snippet}
     </PopoverTrigger>
@@ -170,10 +223,10 @@
       align="end"
       sideOffset={8}
       data-company-rooms
-      aria-label={label}
+      aria-label={title}
       class="flex max-h-[min(28rem,calc(100dvh-2rem))] w-80 max-w-[calc(100vw-16px)] flex-col gap-1 p-1.5 font-sans text-foreground"
     >
-      <p class="m-0 px-2 pt-1.5 pb-1 text-sm font-semibold">{label}</p>
+      <p class="m-0 px-2 pt-1.5 pb-1 text-sm font-semibold">{title}</p>
       {@render list()}
     </PopoverContent>
   </Popover>{/if}

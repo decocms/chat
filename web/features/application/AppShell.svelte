@@ -259,7 +259,8 @@
     ondismiss: services.navigation.callbacks.dismiss,
     company: services.navigation.company,
     oncompany: services.navigation.joinCompany,
-    oncompanyopen: services.navigation.refreshCompany,
+    oncompanyopen: services.navigation.openCompany,
+    oncompanyclose: services.navigation.closeCompany,
   });
   onMount(() => {
     effects.documentLanguage(services.language);

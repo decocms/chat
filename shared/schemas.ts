@@ -231,6 +231,10 @@ export const OrgRoom = z.object({
   people: z.number(),
   opened_by: z.nullable(z.string()),
   opened_by_name: z.nullable(z.string()),
+  /** When it opened to the company (null = before that was recorded). */
+  opened_at: z.nullable(z.number()),
+  /** Opened after you last looked at the list: the grid button shows a dot, the row a "New" pill. */
+  new: z.boolean(),
 });
 export type OrgRoom = z.infer<typeof OrgRoom>;
 export const OrgRoomsResult = z.object({
@@ -238,6 +242,8 @@ export const OrgRoomsResult = z.object({
   rooms: z.array(OrgRoom),
 });
 export type OrgRoomsResult = z.infer<typeof OrgRoomsResult>;
+/** You looked at the company rooms: the ones opened up to `until` are no longer new. */
+export const OrgRoomsSeenBody = z.object({ until: z.number() });
 export const DecideRequestBody = z.object({
   email: z.string(),
   ok: z.boolean(),

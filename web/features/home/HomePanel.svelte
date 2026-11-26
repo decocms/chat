@@ -85,6 +85,7 @@
     company,
     oncompany,
     oncompanyopen,
+    oncompanyclose,
     inbox,
   }: HomeBridge = $props();
   const account = $derived(personal.state);
@@ -459,6 +460,7 @@
           {lang}
           onjoin={oncompany}
           onopen={oncompanyopen}
+          onclose={oncompanyclose}
         />{/if}
       <!-- New: a DM (people from your rooms, or an email) or a room (Gui #4572), as WhatsApp's top-right action. -->
       {#if $account.me}<NewMessage

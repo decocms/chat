@@ -81,6 +81,11 @@ export function createAccountApi(fetcher?: FetchLike) {
       api.org.rooms
         .$get({}, { init: { signal, cache: "no-store" } })
         .then((response) => read(response, OrgRoomsResult)),
+    /** You looked at the company rooms: the ones opened up to `until` are no longer new. */
+    seeOrgRooms: (until: number, signal: AbortSignal) =>
+      api.org.rooms.seen
+        .$post({ json: { until } }, { init: { signal } })
+        .then((response) => read(response, OkResult)),
     /** Whether you run the deco.chat menu bar app (the user center's "Instale o app"). */
     meApp: (signal: AbortSignal) =>
       api.me.app

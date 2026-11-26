@@ -99,6 +99,7 @@ import {
   TintBody,
   ForwardedBody,
   RoomOrgBody,
+  OrgRoomsSeenBody,
   type RoomOrgResult,
   type OrgRoomsResult,
   type UploadFileResult,
@@ -197,6 +198,8 @@ export interface ApiServices {
   setRoomOrg(roomId: string, open: boolean): Promise<"dm" | "no_domain" | { org: string | null }>;
   /** The rooms open to your company domain where you are not a member yet (the home's "Da sua empresa"). */
   orgRooms(): Promise<OrgRoomsResult>;
+  /** You looked at the company rooms: the ones opened up to `until` are no longer new. */
+  seeOrgRooms(until: number): Promise<void>;
   /** A member approves (invites) or denies a pending request; false = no such pending request. */
   decideRequest(roomId: string, email: string, ok: boolean): Promise<boolean>;
   createRoom(title?: string): Promise<string>;
@@ -456,6 +459,11 @@ export const api = roomPosts
     const svc = c.get("svc"), out = await svc.orgRooms();
     if (out.rooms.length) svc.track("org_rooms_listed", { n: out.rooms.length });
     return c.json(out satisfies OrgRoomsResult, 200);
+  })
+  // The grid button's dot: you opened the list, so what it showed is no longer new (per person, every device).
+  .post("/api/org/rooms/seen", body(OrgRoomsSeenBody), async (c) => {
+    await c.get("svc").seeOrgRooms(c.req.valid("json").until);
+    return c.json(ok, 200);
   })
   // Archive is per person; archived: false restores.
   .post("/api/books/:id/archive", body(ArchiveBody), async (c) => {

@@ -305,3 +305,63 @@ test("leaving the open room goes home once the server takes you out; leaving ano
   rooms.dispose();
   personal.dispose();
 });
+
+test("company rooms: opening the list reads it again and marks the newest one shown as seen; closing drops every New", async () => {
+  const timer = manualClock();
+  const personal = createPersonalSession(
+    homeApi({ me: async () => me({ email: "bia@deco.cx" }) }),
+    { clock: timer.clock },
+  );
+  await personal.refresh();
+  const rooms = createRoomsSession(personal, timer.clock);
+  const org = (id: string, fresh: boolean, at: number) => ({
+    id,
+    title: id,
+    icon: null,
+    people: 1,
+    opened_by: "ana@deco.cx",
+    opened_by_name: "Ana",
+    opened_at: at,
+    new: fresh,
+  });
+  let reads = 0;
+  const seen: number[] = [];
+  const controller = createAppNavigationSession(
+    personal,
+    rooms,
+    {
+      navigate() {},
+      home() {},
+      archived() {},
+      orgRooms: async () => {
+        reads++;
+        return {
+          domain: "deco.cx",
+          rooms: [
+            org("bbbbbb", true, 30),
+            org("cccccc", true, 20),
+            org("aaaaaa", false, 10),
+          ],
+        };
+      },
+      seeOrgRooms: async (until) => {
+        seen.push(until);
+      },
+    },
+    timer.clock,
+  );
+  await settle();
+  expect(reads).toBe(1);
+  expect(get(controller.company).filter((room) => room.new)).toHaveLength(2);
+  controller.openCompany();
+  await settle();
+  expect(reads).toBe(2);
+  expect(seen).toEqual([30]);
+  // Still New while the list is open.
+  expect(get(controller.company).filter((room) => room.new)).toHaveLength(2);
+  controller.closeCompany();
+  expect(get(controller.company).some((room) => room.new)).toBe(false);
+  controller.dispose();
+  rooms.dispose();
+  personal.dispose();
+});

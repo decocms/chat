@@ -23,44 +23,88 @@ export async function roomOrg(db: D1Database, roomId: string, email: string) {
   return { domain: corporateDomain(email), org: row?.org ?? null };
 }
 
-/** Opens the room to your domain, or closes it. People who joined stay members. The caller checks membership. */
+/** Opens the room to your domain, or closes it. People who joined stay members. The caller checks membership.
+ *  `org_at` is when it opened: the grid button marks rooms opened after you last looked as new. */
 export async function setRoomOrg(
   db: D1Database,
   roomId: string,
   email: string,
   open: boolean,
+  now = Date.now(),
 ): Promise<"dm" | "no_domain" | { org: string | null }> {
   if (isDmId(roomId)) return "dm";
   const domain = corporateDomain(email);
   if (open && !domain) return "no_domain";
   await db
-    .prepare(`UPDATE books SET org = ?, org_by = ? WHERE id = ? AND dm IS NULL`)
-    .bind(open ? domain : null, open ? email : null, roomId)
+    .prepare(
+      `UPDATE books SET org = ?1, org_by = ?2,
+              org_at = CASE WHEN ?1 IS NULL THEN NULL WHEN org IS ?1 THEN org_at ELSE ?3 END
+        WHERE id = ?4 AND dm IS NULL`,
+    )
+    .bind(open ? domain : null, open ? email : null, now, roomId)
     .run();
   return { org: open ? domain : null };
 }
 
-/** The rooms open to your domain where you are not a member yet, newest first: only their cover, never content. */
+/** The rooms open to your domain where you are not a member yet, unseen first, then newest: only their cover, never
+ *  content. A room opened to the company after you last looked at the list (`users.org_seen_at`) is `new`. The first
+ *  read starts that marker at now, so rooms opened before this shipped are never new. */
 export async function orgRooms(
   db: D1Database,
   email: string,
+  now = Date.now(),
 ): Promise<{ domain: string | null; rooms: OrgRoom[] }> {
   const domain = corporateDomain(email);
   if (!domain) return { domain, rooms: [] };
-  const rooms = (
+  let seen = (
+    await db
+      .prepare(`SELECT org_seen_at FROM users WHERE email = ?`)
+      .bind(email)
+      .first<{ org_seen_at: number | null }>()
+  )?.org_seen_at;
+  if (seen == null) {
+    seen = now;
     await db
       .prepare(
-        `SELECT b.id, b.title, b.icon, b.org_by AS opened_by, u.name AS opened_by_name,
+        `UPDATE users SET org_seen_at = ? WHERE email = ? AND org_seen_at IS NULL`,
+      )
+      .bind(now, email)
+      .run();
+  }
+  const rows = (
+    await db
+      .prepare(
+        `SELECT b.id, b.title, b.icon, b.org_by AS opened_by, u.name AS opened_by_name, b.org_at AS opened_at,
                 (SELECT count(*) FROM members m WHERE m.book_id = b.id) AS people
            FROM books b LEFT JOIN users u ON u.email = b.org_by
           WHERE b.org = ?1 AND b.dm IS NULL
             AND NOT EXISTS (SELECT 1 FROM members m WHERE m.book_id = b.id AND m.email = ?2)
-          ORDER BY b.updated_at DESC LIMIT 50`,
+          ORDER BY (COALESCE(b.org_at, 0) > ?3) DESC, b.updated_at DESC LIMIT 50`,
       )
-      .bind(domain, email)
-      .all<OrgRoom>()
+      .bind(domain, email, seen)
+      .all<Omit<OrgRoom, "new">>()
   ).results;
+  const rooms = rows.map((room) => ({
+    ...room,
+    new: room.opened_at != null && room.opened_at > seen,
+  }));
   return { domain, rooms };
+}
+
+/** You looked at the list: rooms opened up to `until` (the newest one it showed) are no longer new. Never moves back,
+ *  never past now. */
+export async function seeOrgRooms(
+  db: D1Database,
+  email: string,
+  until: number,
+  now = Date.now(),
+) {
+  await db
+    .prepare(
+      `UPDATE users SET org_seen_at = MAX(COALESCE(org_seen_at, 0), ?) WHERE email = ?`,
+    )
+    .bind(Math.min(until, now), email)
+    .run();
 }
 
 /** What `requestAccess` needs from the Worker, so the rule runs without its bindings. */

@@ -860,6 +860,7 @@ const profileApi: AccountApi = {
   dismiss: async () => ({ ok: true as const }),
   answerInvite: async () => ({ ok: true as const }),
   orgRooms: async () => ({ domain: null, rooms: [] }),
+  seeOrgRooms: async () => ({ ok: true as const }),
   meApp: async () => ({ app: true }),
   joinOrg: async () => ({ ok: true as const, member: true as const }),
 };
@@ -1862,6 +1863,8 @@ test("Company rooms: the rail's 2×2 grid opens a popover with the rooms you can
     people: 3,
     opened_by: "gimenes@test.com",
     opened_by_name: "Gimenes",
+    opened_at: 1,
+    new: false,
   };
   const open = async (rooms: OrgRoom[], phone = false) => {
     const target = document.createElement("div");
@@ -1934,6 +1937,78 @@ test("Company rooms: the rail's 2×2 grid opens a popover with the rooms you can
   expect(
     phone.panel.querySelector('[data-company-room="aaaaaa"]')!.textContent,
   ).toContain("Opened by Gimenes · 3 people");
+});
+
+test("Company rooms: a room opened since you last looked puts a dot on the grid button and a New pill first in the list; closing tells the shell", async () => {
+  const { default: CompanyRooms } =
+    await import("../web/features/app-navigation/CompanyRooms.svelte");
+  const room = (id: string, title: string, fresh: boolean): OrgRoom => ({
+    id,
+    title,
+    icon: null,
+    people: 2,
+    opened_by: "ana@test.com",
+    opened_by_name: "Ana",
+    opened_at: fresh ? 2 : 1,
+    new: fresh,
+  });
+  const events: string[] = [];
+  const draw = (rooms: OrgRoom[], phone = false) => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = flushSync(() =>
+      mount(CompanyRooms, {
+        target,
+        props: {
+          lang: "en",
+          rooms,
+          phone,
+          onopen: () => events.push("open"),
+          onclose: () => events.push("close"),
+        },
+      }),
+    );
+    cleanups.push(() => {
+      flushSync(() => {
+        void unmount(component);
+      });
+      target.remove();
+    });
+    return target.querySelector<HTMLButtonElement>(
+      "[data-company-rooms-button]",
+    )!;
+  };
+  const rooms = [room("aaaaaa", "Old", false), room("bbbbbb", "Sales", true)];
+  const button = draw(rooms);
+  expect(button.getAttribute("aria-label")).toBe("Company rooms, 1 new");
+  expect(button.querySelector("[data-company-rooms-dot]")).not.toBeNull();
+  button.click();
+  await flush();
+  expect(events).toEqual(["open"]);
+  const panel = document.querySelector<HTMLElement>("[data-company-rooms]")!;
+  const rows = [...panel.querySelectorAll<HTMLElement>("[data-company-room]")];
+  // Unseen first, with its pill; the old one has none.
+  expect(rows.map((row) => row.dataset.companyRoom)).toEqual([
+    "bbbbbb",
+    "aaaaaa",
+  ]);
+  expect(
+    rows[0]!.querySelector("[data-company-room-new]")!.textContent?.trim(),
+  ).toBe("New");
+  expect(rows[1]!.querySelector("[data-company-room-new]")).toBeNull();
+  panel.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  );
+  await flush();
+  expect(events).toEqual(["open", "close"]);
+  // Seen (the shell clears `new` on close): no dot, no pill, the plain label.
+  const seen = draw(rooms.map((entry) => ({ ...entry, new: false })));
+  expect(seen.getAttribute("aria-label")).toBe("Company rooms");
+  expect(seen.querySelector("[data-company-rooms-dot]")).toBeNull();
+  // The phone bar's round button gets the same dot.
+  const phone = draw(rooms, true);
+  expect(phone.getAttribute("aria-label")).toBe("Company rooms, 1 new");
+  expect(phone.querySelector("[data-company-rooms-dot]")).not.toBeNull();
 });
 
 test("a DM still loading draws your real DM list beside the placeholder chat; a room keeps its own skeleton", async () => {
