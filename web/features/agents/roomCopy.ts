@@ -3,7 +3,7 @@ const pt = {
   title: "Seus agents nesta sala",
   local: "Claude Code no seu computador",
   localHelp:
-    "Abre (ou fecha) um Claude Code seu para esta sala pelo vibebook herdr, na sua máquina.",
+    "Abre (ou fecha) um Claude Code seu para esta sala pelo app deco.chat, na sua máquina.",
   on: "ligado",
   off: "desligado",
   listening: "ouvindo esta sala",
@@ -12,7 +12,7 @@ const pt = {
   turnOn: "Ligar agent",
   turnOff: "Desligar agent",
   focus: "Ir pro seu agent no herdr",
-  focusFailed: "O vibebook herdr não está rodando nesta máquina.",
+  focusFailed: "O app deco.chat não está rodando nesta máquina.",
   focusBlocked:
     'O navegador bloqueou o acesso a este computador: clique no cadeado ao lado do endereço, libere "Rede local" (ou "Apps neste dispositivo") e recarregue.',
   newFolder: "pasta nova",
@@ -39,10 +39,10 @@ const pt = {
   listeningDone: "Seu agent está ouvindo esta sala.",
   opening: "Abrindo seu agent no seu computador…",
   openingHelp:
-    "O vibebook herdr abre o Claude Code na pasta da sala; leva uns segundos.",
+    "O app deco.chat abre o Claude Code na pasta da sala; leva uns segundos.",
   late: "Seu agent ainda não está ouvindo.",
   lateHelp:
-    "Confira se o vibebook herdr está rodando no seu computador, ou se o agent parou numa pergunta lá.",
+    "Confira se o app deco.chat está rodando no seu computador, ou se o agent parou numa pergunta lá.",
   absent: "Seu agent não está nesta sala.",
   starting: "Começando a sala",
   roomCreated: "Sala criada",
@@ -149,7 +149,7 @@ const en: Record<RoomAgentCopyKey, string> = {
   title: "Your agents in this room",
   local: "Claude Code on your computer",
   localHelp:
-    "Opens (or closes) your Claude Code for this room through Vibebook herdr on your computer.",
+    "Opens (or closes) your Claude Code for this room through the deco.chat app on your computer.",
   on: "on",
   off: "off",
   listening: "listening to this room",
@@ -158,7 +158,7 @@ const en: Record<RoomAgentCopyKey, string> = {
   turnOn: "Turn agent on",
   turnOff: "Turn agent off",
   focus: "Go to your agent in herdr",
-  focusFailed: "Vibebook herdr is not running on this computer.",
+  focusFailed: "The deco.chat app is not running on this computer.",
   focusBlocked:
     'The browser blocked access to this computer: click the lock next to the address, allow "Local network" (or "Apps on this device") and reload.',
   newFolder: "new folder",
@@ -185,10 +185,10 @@ const en: Record<RoomAgentCopyKey, string> = {
   listeningDone: "Your agent is listening to this room.",
   opening: "Opening your agent on your computer…",
   openingHelp:
-    "Vibebook herdr opens Claude Code in the room folder; this takes a few seconds.",
+    "The deco.chat app opens Claude Code in the room folder; this takes a few seconds.",
   late: "Your agent is not listening yet.",
   lateHelp:
-    "Check that Vibebook herdr is running on your computer, or whether the agent stopped at a question there.",
+    "Check that the deco.chat app is running on your computer, or whether the agent stopped at a question there.",
   absent: "Your agent is not in this room.",
   starting: "Getting the room started",
   roomCreated: "Room created",

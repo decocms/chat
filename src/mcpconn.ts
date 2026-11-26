@@ -79,10 +79,12 @@ export async function getConn(env: Env, book: string, id: string, email: string)
 // ponytail: one session per connection per isolate, re-initialized on 404/400; enough for a few calls a minute.
 const sessions = new Map<string, string | null>();
 let rpcId = 0;
+// The identity seal goes as X-Deco-Chat-Identity and, until the servers that read it moved (public/mcp-identity.txt),
+// also as the old X-Vibebook-Identity (Gimenes #5948).
 async function post(url: string, token: string | null, body: unknown, session?: string | null, identity?: string) {
   const r = await fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": PROTOCOL, ...(token ? { authorization: `Bearer ${token}` } : {}), ...(session ? { "mcp-session-id": session } : {}), ...(identity ? { "x-vibebook-identity": identity } : {}) },
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": PROTOCOL, ...(token ? { authorization: `Bearer ${token}` } : {}), ...(session ? { "mcp-session-id": session } : {}), ...(identity ? { "x-deco-chat-identity": identity, "x-vibebook-identity": identity } : {}) },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(30_000),
     redirect: "manual",
@@ -93,7 +95,7 @@ export async function readMcpAnswer(r: Response, id: number): Promise<unknown> {
   const text = (await r.text()).slice(0, 4_000_000);
   // A server that checks X-Vibebook-Identity and refuses it (it still trusts vibebook.dev, or this person isn't on its
   // list) answers 403: say what to fix instead of a raw status (Gui #3577).
-  if (r.status === 403 && /vibebook identity/i.test(text)) throw new Error(`${new URL(r.url || "http://servidor").host || "o servidor"} não aceitou a identidade do deco.chat. Quem cuida dele: veja /mcp-identity.txt (o issuer agora é este endereço, não vibebook.dev)`);
+  if (r.status === 403 && /(vibebook|deco\.chat) identity/i.test(text)) throw new Error(`${new URL(r.url || "http://servidor").host || "o servidor"} não aceitou a identidade do deco.chat. Quem cuida dele: veja /mcp-identity.txt (o issuer agora é este endereço, não vibebook.dev)`);
   if (r.status === 403) throw new Error(`o servidor recusou o acesso: ${text.slice(0, 160)}`);
   if (!r.ok) throw new Error(`servidor MCP respondeu ${r.status}${r.status === 401 ? " (token errado ou faltando)" : ""}: ${text.slice(0, 160)}`);
   const msgs = (r.headers.get("content-type") || "").includes("text/event-stream")

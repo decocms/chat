@@ -2481,3 +2481,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: After a copy, the row cannot be hidden until the page loads again.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · feat/deco-chat-names · deco.chat names for the headers and the app's text
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes #5946 asked to start to remove the name "vibebook". He chose step 1 (text that people see) and step 2 (headers) of the plan (#5947, #5948).
+- Decision:
+  - Server: it reads `x-deco-chat-<name>` first and `x-vibebook-<name>` after it, for the six CLI headers (`cliHeader`, `src/agent.ts`). The CLI sends the new names from its next version.
+  - Identity seal: calls from the server send `X-Deco-Chat-Identity` and the old `X-Vibebook-Identity`, with the same JWT. Calls from the browser (`directSdk.ts`) send only the old name for now: a new header name fails the CORS preflight of a server that allows only the old one. `public/mcp-identity.txt` tells servers to read both and to allow both.
+  - Text: "vibebook herdr" in the room's agent text is now "app deco.chat" ("the deco.chat app"). The invite line says "set up deco.chat". Commands that people type (`vibebook statusline`, `vibebook herdr`) change with the CLI release that adds `decochat`.
+- Other options: Send only the new identity header (servers that read the old one would refuse every call). Send the new header from the browser too (CORS would block servers that list only the old one).
+- Risk: The old names stay until a later cleanup. A room app that reads the identity header in the browser still gets the old name only.
+- Undo: Revert the commit.
+- Status: open

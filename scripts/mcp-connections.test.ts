@@ -687,8 +687,10 @@ test("actual RPC and public projection never read historical pasted credentials"
         const request = new Request(input, init);
         expect(request.url).toBe(row.url);
         expect(request.headers.has("authorization")).toBe(false);
-        const signed = request.headers.get("x-vibebook-identity");
+        const signed = request.headers.get("x-deco-chat-identity");
         if (!signed) throw Error("Expected actual viewer JWT");
+        // The old name carries the same seal until the servers moved (public/mcp-identity.txt).
+        expect(request.headers.get("x-vibebook-identity")).toBe(signed);
         const claims: unknown = JSON.parse(
           Buffer.from(signed.split(".")[1], "base64url").toString("utf8"),
         );
