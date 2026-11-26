@@ -185,13 +185,31 @@ test("window grows sixty locally then requests actual older boundary, preserving
   expect(h.commands).toEqual([{ t: "older", thread: "main", before: 1 }]);
   h.view.dispose();
 });
-test("a phone draws twenty messages, and twenty more per scroll-back step (Gimenes #6050)", () => {
+test("a phone draws eight messages, and eight more per scroll-back step (Gimenes #6050, #6064)", () => {
   const h = harness(120, () => CHAT_WINDOW_PHONE);
-  expect(h.view.selection().list).toHaveLength(CHAT_WINDOW_PHONE);
-  expect(h.view.selection().list[0]?.id).toBe(101);
+  expect(CHAT_WINDOW_PHONE).toBe(8);
+  expect(h.view.selection().list).toHaveLength(8);
+  expect(h.view.selection().list[0]?.id).toBe(113);
   h.view.loadOlder();
-  expect(h.view.selection().list).toHaveLength(CHAT_WINDOW_PHONE * 2);
+  expect(h.view.selection().list).toHaveLength(16);
   expect(h.commands).toHaveLength(0);
+  h.view.dispose();
+});
+test("a window that does not fill the chat draws the next step by itself (Gimenes #6064)", () => {
+  const h = harness(120, () => CHAT_WINDOW_PHONE);
+  const before = h.view.capture();
+  // Eight short messages: the content is shorter than the chat.
+  h.metrics.height = 80;
+  h.metrics.top = 0;
+  h.view.afterRender(true, before);
+  h.time.flush();
+  expect(h.view.selection().list).toHaveLength(16);
+  // Now it overflows: no more steps by itself.
+  const next = h.view.capture();
+  h.metrics.height = 1000;
+  h.view.afterRender(true, next);
+  h.time.flush();
+  expect(h.view.selection().list).toHaveLength(16);
   h.view.dispose();
 });
 test("fresh partial snapshot invalidates completed history and permits one initial fill", () => {
