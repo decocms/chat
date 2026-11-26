@@ -653,14 +653,71 @@ var lastPluginRestart = 0;
 var RESTART_GAP_MS = 3 * 60000;
 var herdr = (...args) => JSON.parse(execFileSync("herdr", args, { stdio: ["ignore", "pipe", "pipe"] }).toString()).result;
 var PROJECTS = join2(homedir(), "Projects");
-var LISTEN_PROMPT = 'Ouça a sala do vibebook desta pasta: rode `vibebook listen --model "<seu modelo>"` em background (Bash run_in_background); quando ele sair, `vibebook call read_room`, aja nas mensagens from_your_human e volte a ouvir. (Com o plugin, é o /vibebook:listen.)';
+var LISTEN_PROMPT = 'Ouça a sala do vibebook desta pasta: rode `vibebook listen --model "<seu modelo>"` em background (Bash run_in_background); quando ele sair, `vibebook call read_room`, aja nas mensagens from_your_human e volte a ouvir. Pergunte na sala (com choices), nunca neste terminal: ninguém olha ele. (Com o plugin, é o /vibebook:listen.)';
 var CODEX_LISTEN_PROMPT = 'Ouça a sala do vibebook desta pasta: rode `vibebook listen --model "<seu modelo>"` uma vez (no Codex ele fica em segundo plano e manda uma mensagem nesta conversa quando a sala tiver novidade); depois `vibebook call read_room` e aja nas mensagens from_your_human. Não rode listen de novo a cada turno.';
 var RUN_AGENT = (flag("agent") ?? process.env.VIBEBOOK_AGENT) === "codex" ? "codex" : "claude";
 var RUN_NAME = RUN_AGENT === "codex" ? "Codex" : "Claude";
 var HERDR_FILE = join2(HOME, RUN_AGENT === "codex" ? "herdr-codex.json" : "herdr.json");
 var roomLabel = (title) => RUN_AGENT === "codex" ? `${title.slice(0, 32)} · Codex` : title.slice(0, 40);
 var listenWords = () => RUN_AGENT === "codex" ? CODEX_LISTEN_PROMPT : LISTEN_PROMPT;
-var resumeArgs = (session) => !session ? [] : RUN_AGENT === "codex" ? ["resume", session] : ["--resume", session];
+var BYPASS = { claude: "--dangerously-skip-permissions", codex: "--dangerously-bypass-approvals-and-sandbox" };
+var agentArgs = (session) => RUN_AGENT === "codex" ? session ? ["resume", BYPASS.codex, session] : [BYPASS.codex] : [BYPASS.claude, ...session ? ["--resume", session] : []];
+function editJson(file, edit) {
+  try {
+    const cfg = existsSync2(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
+    if (!edit(cfg))
+      return;
+    mkdirSync(dirname(file), { recursive: true });
+    const tmp = `${file}.vibebook-${process.pid}`;
+    writeFileSync(tmp, JSON.stringify(cfg, null, 2));
+    renameSync(tmp, file);
+  } catch {}
+}
+function acceptBypass() {
+  if (RUN_AGENT !== "claude")
+    return;
+  editJson(join2(homedir(), ".claude", "settings.json"), (cfg) => {
+    if (cfg.skipDangerousModePermissionPrompt === true)
+      return false;
+    cfg.skipDangerousModePermissionPrompt = true;
+    return true;
+  });
+}
+function trustFolder(folder) {
+  try {
+    if (linkedRoom(folder) === undefined)
+      return;
+  } catch {
+    return;
+  }
+  if (RUN_AGENT === "claude") {
+    acceptBypass();
+    editJson(join2(homedir(), ".claude.json"), (cfg) => {
+      const projects = cfg.projects && typeof cfg.projects === "object" ? cfg.projects : {};
+      if (projects[folder]?.hasTrustDialogAccepted === true)
+        return false;
+      projects[folder] = { ...projects[folder] ?? {}, hasTrustDialogAccepted: true };
+      cfg.projects = projects;
+      return true;
+    });
+    return;
+  }
+  try {
+    const file = join2(homedir(), ".codex", "config.toml");
+    const key = `[projects.${JSON.stringify(folder)}]`;
+    const toml = existsSync2(file) ? readFileSync(file, "utf8") : "";
+    if (toml.split(`
+`).some((line) => line.trim() === key))
+      return;
+    mkdirSync(dirname(file), { recursive: true });
+    appendFileSync(file, `${toml && !toml.endsWith(`
+`) ? `
+` : ""}
+${key}
+trust_level = "trusted"
+`);
+  } catch {}
+}
 var listenTask = (room) => RUN_AGENT === "codex" ? `${CODEX_LISTEN_PROMPT} Sala: room_id=${room}.` : pluginVersion() ? `/vibebook:listen ${room}` : `${LISTEN_PROMPT} Sala: room_id=${room}.`;
 var STOP = new Set("a o as os e de da do das dos para pra pro com em no na nos nas um uma por que the of for with and to in on at my our".split(" "));
 var slug = (t) => {
@@ -695,18 +752,21 @@ function roomFolder(room, title) {
 function linkFolder(folder, room) {
   mkdirSync(folder, { recursive: true });
   const f = join2(folder, ".vibebook");
+  let linked = false;
   try {
-    if (linkedRoom(folder) === room)
-      return;
+    linked = linkedRoom(folder) === room;
   } catch {}
-  writeFileSync(f, `room_id=${room}
+  if (!linked) {
+    writeFileSync(f, `room_id=${room}
 `);
-  const exclude = join2(folder, ".git", "info", "exclude");
-  if (existsSync2(exclude) && !readFileSync(exclude, "utf8").split(`
+    const exclude = join2(folder, ".git", "info", "exclude");
+    if (existsSync2(exclude) && !readFileSync(exclude, "utf8").split(`
 `).includes(".vibebook"))
-    appendFileSync(exclude, `
+      appendFileSync(exclude, `
 .vibebook
 `);
+  }
+  trustFolder(folder);
 }
 var hostAppMemo;
 function hostApp() {
@@ -1033,7 +1093,7 @@ async function herdrSync(agent, tools) {
         if (updating)
           log("info", "plugin", `${title}: reopening its Claude on plugin ${e.plugin_v} (same conversation)`, { room });
         try {
-          herdr("agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...resumeArgs(e.session), listenTask(room));
+          herdr("agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...agentArgs(e.session), listenTask(room));
           log("info", "claude", `${title}: its ${RUN_NAME} had exited, started a new one`, { room, folder: tilde(e.folder), resume: short(e.session) });
         } catch (err) {
           const m = err.message;
@@ -1118,9 +1178,7 @@ async function herdrSync(agent, tools) {
     }
     const w = herdr("workspace", "create", "--cwd", e.folder, "--label", roomLabel(title), "--no-focus", "--env", "DISABLE_AUTO_UPDATE=true");
     e.workspace = w.workspace.workspace_id;
-    const args = ["agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--"];
-    if (e.session)
-      args.push("--resume", e.session);
+    const args = ["agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--", ...agentArgs(e.session)];
     e.listening = true;
     e.plugin_v = pluginHooks();
     e.prompted_at = Date.now();
@@ -1223,7 +1281,7 @@ async function herdrAppSync(agent, tools) {
       log("info", "claude", `${title}: adopted the ${RUN_NAME} already open in its folder`, { room, folder: tilde(e.folder), space: there.id });
       continue;
     }
-    const r = happ("do", "space.new", "--name", roomLabel(title), "--folder", e.folder, "--argv", JSON.stringify([RUN_AGENT, ...resumeArgs(e.session)]), "--task", listenTask(room));
+    const r = happ("do", "space.new", "--name", roomLabel(title), "--folder", e.folder, "--argv", JSON.stringify([RUN_AGENT, ...agentArgs(e.session)]), "--task", listenTask(room));
     e.space = r.space;
     e.prompted_at = Date.now();
     log("info", "claude", `${title}: opened a ${RUN_NAME}${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder), space: e.space });

@@ -27,7 +27,7 @@ Do all work through the `vibebook` CLI in Bash (see the vibebook skill). If the 
      4. Do the work with your usual tools and my usual permissions.
      5. Post what you did (with links): `vibebook call post '{"text":"…","thread":"<epic id>","done":true}'`.
      6. Move the related task with `set_task_status`: `doing` when you start, `review` if you need my approval, `done` when you deliver.
-     7. If a decision is necessary that only I can make, ask in the room.
+     7. If a decision is necessary that only I can make, ask in the room, with `choices` when there are options. Do not ask in this terminal (no AskUserQuestion, no question that waits for typed input): when the deco.chat app opened this session, nobody watches the terminal, and the question stops you.
    <!-- agent-rules:acks -->
    - When you take a request from the room, run `ack` on that message before you start. The room then shows "<model> de <human> está fazendo isso" under it.
    - Main is for thread starts. When `ack` returns `thread`, the server opened the thread of that request: run `start_thread` with `from_message_id` (it returns that thread, with your title and tasks) and post there, not in main.
