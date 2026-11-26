@@ -9,7 +9,11 @@ import { createNewRoomSession } from "../home/session";
 import { createSearchSession } from "./search";
 import { authClock, type AuthClock } from "../auth/owner";
 import { corporateDomain } from "../../../shared/dm";
-import type { OrgRoom, OrgRoomsResult } from "../../../shared/schemas";
+import type {
+  MeAppResult,
+  OrgRoom,
+  OrgRoomsResult,
+} from "../../../shared/schemas";
 export type AppNavigationCallbacks = {
   navigate: (target: RoomTarget) => void;
   home: () => void;
@@ -29,6 +33,8 @@ export type AppNavigationCallbacks = {
   orgRooms?: (signal: AbortSignal) => Promise<OrgRoomsResult>;
   /** Joins a room open to your company and opens it. */
   joinOrg?: (room: string) => Promise<void>;
+  /** Whether you run the deco.chat menu bar app on a computer (GET /api/me/app). */
+  meApp?: (signal: AbortSignal) => Promise<MeAppResult>;
 };
 /** Where a room's menu opens (the pointer, or under the row from the keyboard) and for which room. */
 export type RoomMenuAnchor = Readonly<{ id: string; x: number; y: number }>;
@@ -112,6 +118,26 @@ export function createAppNavigationSession(
     const me = get(personal.state).me;
     if (me) loadCompany(me.email);
   }
+  // "Instale o app" (Gimenes #5843): null until known, read once per signed-in person; a failed read stays null.
+  const appInstalled = writable<boolean | null>(null);
+  let appEmail = "",
+    appLoad: AbortController | null = null;
+  const stopApp = personal.state.subscribe((value) => {
+    const load = callbacks.meApp;
+    if (!load || !value.me || value.me.email === appEmail) return;
+    appEmail = value.me.email;
+    appLoad?.abort();
+    appInstalled.set(null);
+    const abort = (appLoad = new AbortController());
+    Promise.resolve(abort.signal)
+      .then(load)
+      .then(
+        (result) => {
+          if (appLoad === abort) appInstalled.set(result.app);
+        },
+        () => {},
+      );
+  });
   /** Joins a room open to your company: it leaves the list at once. */
   async function joinCompany(room: string) {
     await callbacks.joinOrg?.(room);
@@ -122,6 +148,7 @@ export function createAppNavigationSession(
     rooms,
     state,
     company: { subscribe: company.subscribe },
+    appInstalled: { subscribe: appInstalled.subscribe },
     joinCompany,
     refreshCompany,
     creator,
@@ -268,6 +295,8 @@ export function createAppNavigationSession(
       stopIdentity();
       stopCompany();
       companyLoad?.abort();
+      stopApp();
+      appLoad?.abort();
       trigger = null;
       active = false;
       creator.dispose();

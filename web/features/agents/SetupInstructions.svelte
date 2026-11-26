@@ -20,6 +20,7 @@
     intro?: boolean;
   } = $props();
   const text = (key: Parameters<typeof agentText>[1]) => agentText(lang, key);
+  const install = $derived(`curl -fsSL ${origin}/setup.sh | sh`);
   let notice = $state("");
   let active = true,
     ticket = 0;
@@ -52,24 +53,54 @@
   {#if intro}<Heading level={3}
       >{text(roomId ? "roomConnectTitle" : "connectTitle")}</Heading
     >
-    <p class="m-0 text-sm leading-6 text-muted-foreground">
-      {text("connectBody")}
-    </p>
-  {/if}<code
+  {/if}<!-- The app first (Gimenes #5843): it keeps a Claude in each room with no terminal; the prompt is the one-session way. -->
+  <p class="m-0 text-sm leading-6 text-muted-foreground">
+    {text("appBody")}
+  </p>
+  <code
+    data-setup-app
     class="block select-text break-words rounded-control bg-muted p-3 font-mono text-xs"
-    >{connectPrompt(origin, roomId)}</code
+    >{install}</code
   ><Button
     onclick={(event) => {
-      if (active && event.currentTarget.isConnected)
-        void copy(connectPrompt(origin, roomId));
+      if (active && event.currentTarget.isConnected) void copy(install);
     }}>{text("copy")}</Button
   >
+  <p class="m-0 text-xs text-muted-foreground">
+    <a
+      href="https://github.com/decocms/chat/releases"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
+      >{text("appWindows")}</a
+    >
+  </p>
   {#if notice}<p role="status" class="m-0 text-sm text-muted-foreground">
       {notice}
     </p>{/if}
   {#if waiting}<p role="status" class="m-0 text-xs text-muted-foreground">
       {text("waiting")}
     </p>{/if}
+  <details data-setup-session class="text-sm leading-6">
+    <summary
+      class="cursor-pointer rounded-control focus-visible:outline-2 focus-visible:outline-ring"
+      >{text("sessionOnly")}</summary
+    >
+    <div class="space-y-2 pt-2">
+      <p class="m-0 text-muted-foreground">{text("sessionBody")}</p>
+      <code
+        class="block select-text break-words rounded-control bg-muted p-3 font-mono text-xs"
+        >{connectPrompt(origin, roomId)}</code
+      ><Button
+        variant="outline"
+        size="sm"
+        onclick={(event) => {
+          if (active && event.currentTarget.isConnected)
+            void copy(connectPrompt(origin, roomId));
+        }}>{text("copy")}</Button
+      >
+    </div>
+  </details>
   <details class="text-sm leading-6">
     <summary
       class="cursor-pointer rounded-control focus-visible:outline-2 focus-visible:outline-ring"

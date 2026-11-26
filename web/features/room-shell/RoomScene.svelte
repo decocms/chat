@@ -30,6 +30,7 @@
   import UpdateRow from "../user-center/UpdateRow.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
+  import AppOffer from "../user-center/AppOffer.svelte";
   import Requests from "../app-navigation/Requests.svelte";
   import { roomAvatarVersion } from "../room-scope/model";
   import CallControls from "../call/CallControls.svelte";
@@ -78,7 +79,8 @@
   } = $props();
   const services = untrack(() => presentation.services),
     captured = untrack(() => scope);
-  const personal = untrack(() => services.personal.state);
+  const personal = untrack(() => services.personal.state),
+    appInstalled = untrack(() => services.navigation.appInstalled);
   let active = true,
     scoped: RoomScope | undefined;
   const current = () => active && services.ownsRoom(captured);
@@ -504,6 +506,9 @@
               owner={services.pwa}
               lang={services.language}
               row
+            /><AppOffer
+              installed={$appInstalled}
+              lang={services.language === "en" ? "en" : "pt"}
             />{#if $personal.me}<Requests
                 center
                 invites={$personal.me.invites ?? []}

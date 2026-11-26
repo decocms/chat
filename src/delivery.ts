@@ -18,3 +18,26 @@ export const MACHINE_ID = /^m_[a-f0-9]{32}$/;
 export const sandboxMachine = (sandboxId: string) => `sb_${sandboxId}`;
 /** A machine that checked in within this long is online. The runner asks claude_rooms at least every 5 min. */
 export const MACHINE_FRESH = 7 * 60_000;
+
+/** The menu bar app counts as installed while one of the person's "app" machines (its runner sends kind app) was seen
+ *  within this long (Gimenes #5843). */
+export const APP_FRESH = 30 * 864e5;
+/** Binds (email, the oldest seen_at that counts). */
+export const APP_SQL = `SELECT 1 AS x FROM machines WHERE email = ? AND kind = 'app' AND seen_at > ? LIMIT 1`;
+const appSeen = new Map<string, { at: number; app: boolean }>();
+/** True when this person runs the deco.chat menu bar app on a computer. Cached per isolate for 10 min. */
+/** The part of D1 that hasApp uses (this file is also type-checked without the Workers types). */
+type FirstDb = { prepare(sql: string): { bind(...values: unknown[]): { first<T>(): Promise<T | null> } } };
+export async function hasApp(db: FirstDb, email: string): Promise<boolean> {
+  const hit = appSeen.get(email);
+  if (hit && Date.now() - hit.at < 10 * 60_000) return hit.app;
+  const row = await db
+    .prepare(APP_SQL)
+    .bind(email, Date.now() - APP_FRESH)
+    .first<{ x: number }>();
+  if (appSeen.size > 20_000) appSeen.clear();
+  appSeen.set(email, { at: Date.now(), app: !!row });
+  return !!row;
+}
+/** A runner in the app just checked in: this isolate stops answering from an old "no app". */
+export const appCheckedIn = (email: string) => appSeen.set(email, { at: Date.now(), app: true });

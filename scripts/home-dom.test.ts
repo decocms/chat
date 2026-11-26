@@ -860,6 +860,7 @@ const profileApi: AccountApi = {
   dismiss: async () => ({ ok: true as const }),
   answerInvite: async () => ({ ok: true as const }),
   orgRooms: async () => ({ domain: null, rooms: [] }),
+  meApp: async () => ({ app: true }),
   joinOrg: async () => ({ ok: true as const, member: true as const }),
 };
 test("Home renders untrusted room metadata as text and passes exact room identity", async () => {
