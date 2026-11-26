@@ -2550,3 +2550,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit. Old clients do not send `via`, and the server ignores a missing one.
 - Status: open
+
+### 2026-11-26 · fix/image-open-flash · How the image viewer opens without a flash
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes #6014: on a phone, a tap on an image showed the dialog, then nothing, then the dialog again. He asked for adversarial reviews and simpler logic with the same UI. Three reviews and a frame probe found three causes: the loading dialog of `RoomScene` before the viewer chunk loads, the image gate of #5629 in `FileViewer` (it closed the dialog again on ←/→ and on later opens), and a first fit that animated from the image's own size.
+- Decision:
+  - Remove the image gate (`decoded`, `waited`, the 700 ms timer, the `new Image()` probe). Since #550 the stage has a fixed full-screen size, so the reason for the gate is gone. The dialog opens when the file's kind is known.
+  - The zoom transition starts only two frames after the image loads. The zoom reset reads a primitive id, so a store update (a room message) does not reset the zoom.
+  - A press (`pointerdown`) on a chat image or file loads the viewer chunk. The loading dialog shows only after 400 ms or on an error.
+- Other options: Load the viewer chunk when the room opens (a fetch on every room visit, against "only on a view intent"). Draw the loading dialog as the dark stage (the swap still animates two dialogs).
+- Risk: On a slow network, the dark stage is empty until the image loads. A viewer chunk that takes more than 400 ms still shows the loading dialog first.
+- Undo: Revert the commit.
+- Status: open

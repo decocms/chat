@@ -95,46 +95,10 @@
     }).format(bytes / (mega ? 1_000_000 : 1_000));
   });
   let content = $state<HTMLElement | null>(null);
-  /** A file opens once its kind is known, and an image once it has loaded (or after 700 ms), so the dialog grows in at
-   *  its own size, not from a loading line (Gimenes #5629). The browser's cache then draws the viewer's own <img> at once. */
-  let decoded = $state("");
-  let waited = $state(false);
-  const opening = $derived(
-    !inline && $view.open ? ($view.target?.id ?? "") : "",
-  );
-  $effect(() => {
-    if (!opening) return;
-    waited = false;
-    const timer = setTimeout(() => (waited = true), 700);
-    return () => clearTimeout(timer);
-  });
-  const imageURL = $derived(
-    $view.content?.kind === "image" ? $view.content.url : "",
-  );
-  $effect(() => {
-    const url = imageURL;
-    if (!url || untrack(() => decoded) === url) return;
-    let current = true;
-    const probe = new Image();
-    probe.onload = probe.onerror = () => {
-      if (current) decoded = url;
-    };
-    probe.src = url;
-    return () => {
-      current = false;
-    };
-  });
-  /** Until the file's kind is known, the dialog would open as the large viewer for a frame. */
-  const known = $derived(
-    !!$view.file || !!$view.content || $view.phase === "error",
-  );
+  /** The dialog opens once the file's kind is known, so it never shows the large viewer for a frame. It then stays
+   *  open: the image stage has a fixed size, and the <img> is invisible until it has its natural size (Gimenes #6014). */
   const shown = $derived(
-    $view.open &&
-      (waited ||
-        (known &&
-          (!image ||
-            $view.phase === "error" ||
-            (!!imageURL && decoded === imageURL)))),
+    $view.open && (!!$view.file || !!$view.content || $view.phase === "error"),
   );
   const pinned = $derived(
     $view.room?.pins?.some(
@@ -166,8 +130,10 @@
    *  #5961, option B). One title bar holds every control, so all have the same size. */
   const stage = $derived(image && !inline);
   let zoom = $state<ZoomView | undefined>();
+  /** A primitive, so the reset runs when the file changes, not on each store update (a room message reset the zoom). */
+  const openedId = $derived($view.target?.id);
   $effect(() => {
-    void $view.target?.id;
+    void openedId;
     zoom = stage ? fitted(1) : undefined;
   });
   const tone = $derived(
