@@ -51,12 +51,23 @@ People & agents is a pane beside the chat, like Discord's member list (Online, O
 
 The separator divides two scopes. On its left, the controls change the view in the middle. On its right, the controls open parts of the room.
 
+### The room's search
+
+The room's search field is `RoomSearchField` (chat). It finds messages of the room by words, by a person, or by both.
+
+1. The person icon at the end of the field ("Filtrar por pessoa") lists the room's members. The picked person is a chip before the words.
+2. A person with no words lists all of that person's own messages in the room, newest first. The messages of their agent are not included.
+3. The Search pane lists the loaded matches and the server's pages of the room's history (`GET /api/books/:id/search`). "Mostrar mais" gets the next page.
+4. The × and Esc clear the words and the person. Backspace in an empty field removes the person.
+5. When the search is empty, the pane that was open before comes back. If no pane was open, the pane closes. An empty Search pane never stays open.
+6. Phones: the search icon in the top bar opens the Search pane in the sheet. The field is at the top of the pane.
+
 ### The top bar on phones
 
 The phone layout is A2 (Gimenes #4309, #4331):
 
 1. ← goes back to the home. It shows the number of user center rows (see "The user center on phones"). The title (thread, then room) with ▾ opens the drawer with the threads.
-2. At the end of the bar, a room shows the avatars of the other people, online first: two faces, then "+N". A tap opens People. A DM shows your account there.
+2. At the end of the bar, the search icon opens the Search pane. Then a room shows the avatars of the other people, online first: two faces, then "+N". A tap opens People. A DM shows your account there.
 3. Under the bar, a strip is always there: Doc, Arquivos, Decisões, Lembretes (`phoneStripPanes`). A DM has no Doc. A tap opens that pane in the doc sheet. While the sheet is open, the sheet's own tab row takes the strip's place.
 4. The drawer's tab row keeps only Apps and Agents (`phoneDrawerPanes`).
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
+  import { get } from "svelte/store";
   import type { ComponentProps, Snippet } from "svelte";
   import Separator from "../../lib/studio/Separator.svelte";
   import RoomBarTitle from "./RoomBarTitle.svelte";
@@ -22,7 +23,17 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import PresenceDot from "../../lib/components/PresenceDot.svelte";
   import AvatarStack from "../../lib/components/AvatarStack.svelte";
-  import { roomSearchQuery } from "../chat/roomSearch";
+  import {
+    NO_SEARCH,
+    roomSearch,
+    searchActive,
+    searchOf,
+    searchPaneStep,
+    searchPlaceholder,
+    type PaneBefore,
+    type SearchFilter,
+  } from "../chat/roomSearch";
+  import RoomSearchField from "../chat/RoomSearchField.svelte";
   import Count from "../../lib/components/Count.svelte";
   import { userCenterCount } from "../user-center/count";
   let {
@@ -111,13 +122,7 @@
       threadTitle(header.room, header.thread) === undefined,
   );
   const searchLabel = $derived(
-    header.room.book.dm
-      ? presentation.services.t("Buscar na conversa")
-      : header.room.book.title
-        ? presentation.services.t("Buscar em {room}", {
-            room: header.room.book.title,
-          })
-        : presentation.services.t("Buscar nesta sala"),
+    searchPlaceholder(header.room.book, presentation.services.t),
   );
   const phoneEpic = $derived(
     header.room.epics.find((epic) => epic.id === header.thread),
@@ -160,15 +165,33 @@
     if (!layout.read().documentVisible) layout.toggleDocument();
     onPane?.(pane);
   }
-  // The room's search (like Discord's): typing opens the Search pane beside the chat, which lists the matches.
-  function searchRoom(value: string) {
+  // The room's search (like Discord's): typing or picking a person opens the Search pane beside the chat, which
+  // lists the matches. Clearing it gives the column back as it was: the pane open before, or no pane.
+  const searching = $derived(searchOf($roomSearch, header.room.id));
+  let paneBefore: PaneBefore | null = null;
+  function searchRoom(next: SearchFilter) {
     if (!current()) return;
-    roomSearchQuery.set(value);
-    if (value.trim() && !(split && layout.read().pane === "search")) {
+    roomSearch.set({ room: header.room.id, ...next });
+    const step = searchPaneStep(searchActive(next), layout.read(), paneBefore);
+    if (step.kind === "open") {
+      paneBefore = step.before;
       if (!layout.read().documentVisible) layout.toggleDocument();
       onPane?.("search");
-    }
+    } else if (step.kind === "restore") {
+      paneBefore = null;
+      onPane?.(step.pane);
+    } else if (step.kind === "close") {
+      paneBefore = null;
+      // Back to the old pane first (picking a pane opens it), then closed.
+      layout.setPane(step.pane, { quiet: true });
+      if (layout.read().documentVisible) layout.toggleDocument();
+    } else if (!searchActive(next)) paneBefore = null;
   }
+  // The search is this room's: leaving the room ends it.
+  onDestroy(() => {
+    if (get(roomSearch).room === header.room.id)
+      roomSearch.set({ room: "", ...NO_SEARCH });
+  });
   function onwindowkeydown(event: KeyboardEvent) {
     if (event.defaultPrevented || !current()) return;
     if (!isPanelToggleKey(event, mac)) return;
@@ -179,36 +202,17 @@
 </script>
 
 <svelte:window onkeydown={onwindowkeydown} />
-<!-- The room's search field: at the bar's start in the main thread, else at its end. -->
-{#snippet search(size: string)}<label
-    data-room-search-field
-    class={[
-      "hidden shrink-0 items-center gap-1.5 rounded-lg bg-muted text-muted-foreground focus-within:text-foreground md:flex",
-      size,
-    ]}
-    ><Icon icon="search-md" size={14} /><input
-      type="text"
-      inputmode="search"
-      value={$roomSearchQuery}
-      placeholder={searchLabel}
-      aria-label={searchLabel}
-      class="h-full min-w-0 flex-1 border-0 bg-transparent font-sans text-sm text-foreground outline-none placeholder:text-muted-foreground"
-      oninput={(event) => searchRoom(event.currentTarget.value)}
-      onkeydown={(event) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          searchRoom("");
-          event.currentTarget.blur();
-        }
-      }}
-    />{#if $roomSearchQuery}<IconButton
-        label={t("Limpar busca")}
-        tooltipSide="bottom"
-        size="icon-xs"
-        class="-mr-1.5 text-muted-foreground hover:text-foreground"
-        onclick={() => searchRoom("")}><Icon icon="x" size={14} /></IconButton
-      >{/if}</label
-  >{/snippet}
+<!-- The room's search field: at the bar's start in the main thread, else at its end. Desktop only: a phone draws it
+     in the Search pane. -->
+{#snippet search(size: string)}<RoomSearchField
+    value={searching}
+    onchange={searchRoom}
+    members={header.room.members}
+    me={header.room.me}
+    placeholder={searchLabel}
+    vb={header.vb}
+    class={["hidden md:flex", size].join(" ")}
+  />{/snippet}
 <!-- The tab's name follows the room (the server's <title> only names the first page, in the room's language). -->
 <svelte:head
   ><title
@@ -311,7 +315,10 @@
       </div>{/if}
     <!-- A DM has the search too (Gimenes #4326), at the bar's end: the person's name keeps the title's place. -->
     {#if !searchInTitle}{@render search(
-        "mr-1 h-8 w-44 px-2.5 transition-[width] duration-150 focus-within:w-60",
+        [
+          "mr-1 h-8 px-2.5 transition-[width] duration-150",
+          searching.person ? "w-64" : "w-44 focus-within:w-60",
+        ].join(" "),
       )}{/if}
     {#if tabs}<div data-header-tabs class="hidden min-w-0 md:block">
         <DocumentToolbar
@@ -324,6 +331,16 @@
           onPane={pickPane}
         />
       </div>{/if}
+    {#if $geometry.mobile}<!-- Phone: the search opens its pane in the sheet, with the field at its top. --><IconButton
+        label={searchLabel}
+        tooltipSide="bottom"
+        data-phone-search
+        size="icon"
+        class="size-10 shrink-0 rounded-full md:hidden"
+        onclick={(event) => {
+          if (live(event)) onPane?.("search");
+        }}><Icon icon="search-md" size={20} /></IconButton
+      >{/if}
     {#if !header.room.book.dm && $geometry.mobile}<!-- Phone, a room (A2, Gimenes #4309): the people at the bar's end, online first; a tap opens Pessoas. Your own account is at the drawer's top. --><button
         type="button"
         data-phone-people

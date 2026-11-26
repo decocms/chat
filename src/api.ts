@@ -79,6 +79,8 @@ import {
   LoginsResult,
   type SearchResult,
   SearchQuery,
+  type RoomSearchResult,
+  RoomSearchQuery,
   type InboxResult,
   type ErrorBody,
   type OkResult,
@@ -163,6 +165,8 @@ export interface ApiServices {
   sqlAll(query: string, ...binds: Bind[]): Promise<unknown[]>;
   /** Search the person's rooms (rate-limited per person: false = over the limit). */
   search(q: string): Promise<SearchResult | false>;
+  /** Search one room by text, by author, or both (the same limit as `search`). The route checks membership. */
+  roomSearch(roomId: string, q: string, from?: string, before?: number): Promise<RoomSearchResult | false>;
   /** The cross-room Inbox: waits, held-back mentions, the person's open tasks and open threads. */
   inbox(): Promise<InboxResult>;
   /** Mark an open thread done from the Inbox; false = no such open thread. */
@@ -513,6 +517,22 @@ export const accountApi = api
     const out = await c.get("svc").search(q);
     if (!out) return c.json({ error: "rate limited" } satisfies ErrorBody, 429);
     return c.json(out satisfies SearchResult, 200);
+  })
+  // The room's own search (the top bar's field and its people filter): this room only, for its members.
+  .get("/api/books/:id/search", validator("query", (value, c) => {
+    const first = (v: unknown) => (Array.isArray(v) ? v[0] : v);
+    const r = RoomSearchQuery.safeParse({ q: first(value.q), from: first(value.from), before: first(value.before) });
+    return r.success ? r.data : c.json({ error: "bad request" } satisfies ErrorBody, 400);
+  }), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id"), query = c.req.valid("query");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    const q = (query.q ?? "").trim().slice(0, 120), from = (query.from ?? "").trim().toLowerCase().slice(0, 320);
+    const before = Number(query.before) > 0 ? Math.floor(Number(query.before)) : undefined;
+    if (q.length < 2 && !from) return c.json({ messages: [], more: false } satisfies RoomSearchResult, 200);
+    const out = await svc.roomSearch(id, q, from || undefined, before);
+    if (!out) return c.json({ error: "rate limited" } satisfies ErrorBody, 429);
+    if (!before) svc.track("room_search", { book: id, text: q.length >= 2, from: !!from, hits: out.messages.length });
+    return c.json(out satisfies RoomSearchResult, 200);
   })
   .get("/api/inbox", async (c) => c.json((await c.get("svc").inbox()) satisfies InboxResult, 200))
   .get("/api/me/logins", async (c) => {

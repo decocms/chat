@@ -3062,37 +3062,49 @@ export class Book extends DurableObject<Env> {
   }
   // Search this room (Nov 2026, "memória do vibebook"): messages by text or attached file name, epics (done too)
   // by title or doc. Each term must appear (AND), case-insensitive for ASCII. The caller (/api/search, MCP search)
-  // fans out over the person's rooms.
+  // fans out over the person's rooms; the room's own search (/api/books/:id/search) asks only this room.
+  // `from`: only that person's own messages (not their agent's), with or without terms; it finds no epics.
+  // `before`: messages older than that id (the next page). `more`: an older match exists.
   // ponytail: LIKE scan over the room's messages; FTS5 if a room's history makes it slow.
   // The call chat is only seen beside the call's stage: its messages are not search results.
-  search(bookId: string, q: string, limit = 8, viewer = "") {
+  search(bookId: string, q: string, limit = 8, viewer = "", filter: { from?: string; before?: number } = {}) {
     this.bind(bookId);
     const terms = q.toLowerCase().split(/\s+/).filter((w) => w.length > 1).slice(0, 6);
-    if (!terms.length) return { messages: [], epics: [] };
+    const from = filter.from?.trim().toLowerCase() || null;
+    const before = filter.before && filter.before > 0 ? Math.floor(filter.before) : null;
+    if (!terms.length && !from) return { messages: [], epics: [], more: false };
     const like = (col: string) => terms.map(() => `lower(${col}) LIKE ? ESCAPE '\\'`).join(" AND ");
     const args = terms.map((w) => `%${w.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
     const titles = new Map(this.sql.exec<{ id: string; title: string }>(`SELECT id, title FROM epics`).toArray().map((e) => [e.id, e.title]));
-    const messages = this.sql
+    // Without terms, any message of that person with text or files (a deleted one has neither).
+    const match = terms.length
+      ? `((${like("coalesce(text, '')")}) OR (${like("coalesce(files, '')")}))`
+      : `(coalesce(text, '') != '' OR files IS NOT NULL)`;
+    const rows = this.sql
       .exec<{ id: number; thread: string; author: string; kind: string | null; via: string | null; text: string | null; files: string | null; ts: number }>(
         `SELECT id, thread, author, kind, via, text, files, ts FROM messages
-         WHERE author != 'ai' AND thread != '${CALL_THREAD}' AND ${VISIBLE_SQL()} AND ((${like("coalesce(text, '')")}) OR (${like("coalesce(files, '')")}))
+         WHERE author != 'ai' AND thread != '${CALL_THREAD}' AND ${VISIBLE_SQL()} AND ${match}
+         ${from ? `AND author = ? AND coalesce(kind, '') != 'agent'` : ""} ${before ? "AND id < ?" : ""}
          ORDER BY id DESC LIMIT ?`,
-        viewer, ...args, ...args, limit,
+        viewer, ...(terms.length ? [...args, ...args] : []), ...(from ? [from] : []), ...(before ? [before] : []), limit + 1,
       )
-      .toArray()
+      .toArray();
+    const more = rows.length > limit;
+    const messages = rows.slice(0, limit)
       .map((m) => {
-        const text = m.text ?? "", low = text.toLowerCase(), at = Math.max(0, low.indexOf(terms[0]) - 60);
+        const text = m.text ?? "", low = text.toLowerCase(), at = terms.length ? Math.max(0, low.indexOf(terms[0]) - 60) : 0;
         const files = storedFileRefs(m.files, (kind) => console.warn("book stored projection", kind));
         return { id: m.id, thread: m.thread, topic: m.thread === "main" ? null : titles.get(m.thread) ?? null, author: m.author, by_agent: m.kind === "agent", via: m.via, ts: m.ts, files,
           snippet: (at ? "…" : "") + text.slice(at, at + 200).replace(/\s+/g, " ") + (text.length > at + 200 ? "…" : "") };
       });
+    if (from) return { messages, epics: [], more };
     const epics = this.sql
       .exec<{ id: string; title: string; done: number | null; ts: number }>(`SELECT id, title, done, ts FROM epics ORDER BY ts DESC`)
       .toArray()
       .filter((e) => { const hay = `${e.title}\n${this.get(`doc:${e.id}`) ?? ""}`.toLowerCase(); return terms.every((w) => hay.includes(w)); })
       .slice(0, limit)
       .map((e) => ({ id: e.id, title: e.title, done: (e.done ?? 0) > 0, ts: e.ts }));
-    return { messages, epics };
+    return { messages, epics, more };
   }
   agentTask(bookId: string, taskId: string, status: string, email: string) {
     this.bind(bookId);

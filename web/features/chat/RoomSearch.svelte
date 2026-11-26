@@ -4,13 +4,23 @@
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import VibeCube from "../home/VibeCube.svelte";
   import Badge from "../../lib/studio/Badge.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   import { AGENT_NAMES, agentProvider } from "../../lib/components/agent";
   import Spinner from "../../lib/studio/Spinner.svelte";
-  import type { SearchResult } from "../../../shared/schemas";
-  import { matchesQuery, roomSearchQuery } from "./roomSearch";
+  import type { RoomSearchResult } from "../../../shared/schemas";
+  import {
+    matchesSearch,
+    mergeHits,
+    roomSearch,
+    searchActive,
+    searchOf,
+    type SearchFilter,
+  } from "./roomSearch";
+  import RoomSearchField from "./RoomSearchField.svelte";
   /**
-   * The room's message search, in the pane beside the chat (like Discord's): the messages this room has loaded
-   * that match, newest first, then what the server finds further back. A click jumps to the message.
+   * The room's message search, in the pane beside the chat (like Discord's): by words, by a person, or both. It lists
+   * the matches this room has loaded and the server's pages of the room's history, newest first, with "Mostrar mais"
+   * for the next page. A click jumps to the message. A phone draws the field at the top (the top bar has no space).
    */
   type Hit = {
     id: number;
@@ -21,10 +31,16 @@
     /** Written by the person's agent (kind "agent"), in their name. */
     kind?: string | null;
     via?: string | null;
+    deleted?: number | null;
+    files?: readonly { name: string }[] | null;
   };
   let {
     roomId,
     messages,
+    members,
+    me,
+    placeholder,
+    phone = false,
     epicTitle,
     vb,
     search,
@@ -32,6 +48,11 @@
   }: {
     roomId: string;
     messages: readonly Hit[];
+    members: readonly string[];
+    me: string;
+    placeholder: string;
+    /** A phone: the pane draws the field, and says what to do while the search is empty. */
+    phone?: boolean;
     epicTitle: (thread: string) => string | null;
     vb: {
       t: (text: string, vars?: Record<string, string | number>) => string;
@@ -39,64 +60,91 @@
       ago: (ts: number) => string;
       avatarVersion: (email: string) => number | null | undefined;
     };
-    search: (q: string, signal: AbortSignal) => Promise<SearchResult>;
+    search: (
+      filter: SearchFilter & { before?: number },
+      signal: AbortSignal,
+    ) => Promise<RoomSearchResult>;
     onjump: (id: number, thread: string) => void;
   } = $props();
-  const query = roomSearchQuery;
+  const filter = $derived(searchOf($roomSearch, roomId));
+  const active = $derived(searchActive(filter));
   let remote = $state<Hit[]>([]),
+    more = $state(false),
     loading = $state(false),
+    paging = $state(false),
     timer: ReturnType<typeof setTimeout> | undefined,
     abort: AbortController | null = null;
   const local = $derived(
-    [...messages]
-      .filter((m) => m.text && matchesQuery(m.text, $query))
-      .sort((a, b) => b.id - a.id),
+    active ? messages.filter((m) => matchesSearch(m, filter)) : [],
   );
-  const hits = $derived.by(() => {
-    const seen = new Set(local.map((m) => m.id));
-    return [...local, ...remote.filter((m) => !seen.has(m.id))].slice(0, 80);
+  const hits = $derived(mergeHits(local, remote, more));
+  const toHit = (m: RoomSearchResult["messages"][number]): Hit => ({
+    id: m.id,
+    thread: m.thread,
+    author: m.author,
+    ts: m.ts,
+    text: m.snippet,
+    kind: m.by_agent ? "agent" : null,
+    via: m.via,
+    files: m.files,
   });
+  /** One page from the server, then `done` with it (null: it failed, the list keeps what it has), unless a newer
+   *  search replaced this one. */
+  function ask(
+    next: SearchFilter,
+    before: number | undefined,
+    done: (result: RoomSearchResult | null) => void,
+  ) {
+    abort?.abort();
+    const controller = new AbortController();
+    abort = controller;
+    search({ ...next, before }, controller.signal).then(
+      (result) => !controller.signal.aborted && done(result),
+      () => !controller.signal.aborted && done(null),
+    );
+  }
   $effect(() => {
-    const q = $query.trim();
+    const next = { text: filter.text.trim(), person: filter.person };
     clearTimeout(timer);
     abort?.abort();
     remote = [];
-    if (q.length < 2) {
+    more = false;
+    paging = false;
+    if (!searchActive(next)) {
       loading = false;
       return;
     }
     loading = true;
     timer = setTimeout(() => {
-      const controller = new AbortController();
-      abort = controller;
-      search(q, controller.signal)
-        .then((result) => {
-          if (controller.signal.aborted) return;
-          remote = result.messages
-            .filter((m) => m.room_id === roomId)
-            .map((m) => ({
-              id: m.id,
-              thread: m.thread,
-              author: m.author,
-              ts: m.ts,
-              text: m.snippet,
-              kind: m.by_agent ? "agent" : null,
-              via: m.via,
-            }));
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (!controller.signal.aborted) loading = false;
-        });
+      ask(next, undefined, (result) => {
+        loading = false;
+        if (!result) return;
+        remote = result.messages.map(toHit);
+        more = result.more;
+      });
     }, 300);
   });
+  function showMore() {
+    if (paging || !remote.length) return;
+    const next = { text: filter.text.trim(), person: filter.person };
+    paging = true;
+    ask(next, Math.min(...remote.map((hit) => hit.id)), (result) => {
+      paging = false;
+      if (!result) return;
+      remote = [...remote, ...result.messages.map(toHit)];
+      more = result.more;
+    });
+  }
   onDestroy(() => {
     clearTimeout(timer);
     abort?.abort();
   });
   /** The query's words marked in a line of the message. */
   function parts(value: string, q: string) {
-    const words = q.trim().split(/\s+/).filter(Boolean);
+    const words = q
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length > 1);
     if (!words.length) return [{ text: value, hit: false }];
     const escaped = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     return value
@@ -107,6 +155,9 @@
         hit: words.some((w) => w.toLowerCase() === piece.toLowerCase()),
       }));
   }
+  /** What a row shows: the text, or the names of the files of a message without text. */
+  const line = (hit: Hit) =>
+    hit.text || (hit.files ?? []).map((file) => file.name).join(", ");
 </script>
 
 <section
@@ -114,14 +165,30 @@
   aria-label={vb.t("Buscar nesta sala")}
   class="flex min-h-0 flex-1 flex-col font-sans text-sm text-foreground"
 >
-  <!-- The field is in the top bar; here only how many it found (like Discord's "N Results"). -->
-  {#if $query.trim().length >= 2}<p
+  <!-- Desktop: the field is in the top bar; here only how many it found (like Discord's "N Results"). -->
+  {#if phone}<RoomSearchField
+      value={filter}
+      onchange={(next) => roomSearch.set({ room: roomId, ...next })}
+      {members}
+      {me}
+      {placeholder}
+      vb={{ t: vb.t, name: vb.name, avatarVersion: vb.avatarVersion }}
+      focus
+      class="mx-3 mt-3 h-10 px-3"
+    />{/if}
+  {#if active}<p
       role="status"
       class="m-0 flex shrink-0 items-center gap-2 px-4 pt-3 pb-1 text-xs font-semibold text-muted-foreground"
     >
-      {vb.t(hits.length === 1 ? "1 resultado" : "{n} resultados", {
-        n: hits.length,
-      })}{#if loading}<Spinner size="xs" />{/if}
+      {more
+        ? vb.t("{n}+ resultados", { n: hits.length })
+        : vb.t(hits.length === 1 ? "1 resultado" : "{n} resultados", {
+            n: hits.length,
+          })}{#if loading}<Spinner size="xs" />{/if}
+    </p>{:else if phone}<p
+      class="m-0 px-4 py-10 text-center text-sm text-muted-foreground"
+    >
+      {vb.t("Busque por palavras ou escolha uma pessoa.")}
     </p>{/if}
   <ol
     class="m-0 flex min-h-0 flex-1 list-none flex-col gap-1 overflow-y-auto p-2"
@@ -176,7 +243,7 @@
                   >› {epicTitle(hit.thread)}</span
                 >{/if}</span
             ><span class="line-clamp-3 break-words leading-5"
-              >{#each parts(hit.text, $query) as piece}{#if piece.hit}<mark
+              >{#each parts(line(hit), filter.text) as piece}{#if piece.hit}<mark
                     class="rounded-sm bg-brand/30 px-px text-inherit"
                     >{piece.text}</mark
                   >{:else}{piece.text}{/if}{/each}</span
@@ -184,7 +251,18 @@
           ></button
         >
       </li>{/each}
-    {#if $query.trim().length >= 2 && !loading && !hits.length}<li
+    {#if more && !loading}<li class="flex justify-center p-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          data-search-more
+          disabled={paging}
+          aria-busy={paging || undefined}
+          onclick={showMore}
+          >{#if paging}<Spinner size="xs" />{/if}{vb.t("Mostrar mais")}</Button
+        >
+      </li>{/if}
+    {#if active && !loading && !hits.length}<li
         class="px-4 py-10 text-center text-muted-foreground"
       >
         {vb.t("Nada encontrado nesta sala")}

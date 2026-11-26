@@ -167,6 +167,32 @@ export type SearchResult = z.infer<typeof SearchResult>;
 /** Query values remain permissive strings; the existing handler trims/slices q. */
 export const SearchQuery = z.object({ q: z.optional(z.string()) });
 export type SearchQuery = z.infer<typeof SearchQuery>;
+/** The search of one room (GET /api/books/:id/search): its text, its author, or both. `before` is the message id
+ *  where the next page starts. Strings, like every query value; the handler trims and checks them. */
+export const RoomSearchQuery = z.object({
+  q: z.optional(z.string()),
+  from: z.optional(z.string()),
+  before: z.optional(z.string()),
+});
+export type RoomSearchQuery = z.infer<typeof RoomSearchQuery>;
+/** The room's matches, newest first. `more`: an older page exists (ask again with `before` = the last id). */
+export const RoomSearchResult = z.object({
+  messages: z.array(
+    z.object({
+      id: z.number(),
+      thread: z.string(),
+      topic: z.nullable(z.string()),
+      author: z.string(),
+      by_agent: z.boolean(),
+      via: z.nullable(z.string()),
+      ts: z.number(),
+      files: z.array(z.object({ id: z.string(), name: z.string() })),
+      snippet: z.string(),
+    }),
+  ),
+  more: z.boolean(),
+});
+export type RoomSearchResult = z.infer<typeof RoomSearchResult>;
 export const LoginsResult = z.object({
   logins: z.array(
     z.object({ method: z.string(), last: z.number(), n: z.number() }),

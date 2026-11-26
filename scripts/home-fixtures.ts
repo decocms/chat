@@ -57,6 +57,7 @@ export function homeApi(overrides: Partial<HomeApi> = {}): HomeApi {
     agents: async () => ({ agents: [], last_used: null }),
     archived: async () => ({ books: [] }),
     search: async () => ({ rooms: 1, epics: [], messages: [] }),
+    roomSearch: async () => ({ messages: [], more: false }),
     route: async () => suggestion,
     startRoom: async () => ({
       id: "bbbbbb",
