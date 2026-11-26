@@ -2,7 +2,7 @@
 // a message request. Free providers (gmail.com…) never count. D1 is a bun:sqlite stand-in with the tables canDm reads.
 import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
-import { corporateDomain } from "../shared/dm";
+import { corporateDomain } from "../shared/org";
 import { canDm } from "../src/dm";
 import { contacts } from "../web/features/app-navigation/contacts";
 import type { MeResult } from "../shared/schemas";

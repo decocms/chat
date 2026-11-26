@@ -12,7 +12,8 @@ import { routeMessage } from "./route-home";
 import { startRoom } from "./start-room";
 import { canDm, dmIds, openDmWith } from "./dm";
 import { findSecret } from "./secrets";
-import { corporateDomain, isDmId, MUTUAL } from "../shared/dm";
+import { isDmId, MUTUAL } from "../shared/dm";
+import { corporateDomain } from "../shared/org";
 import { answerInvite, befriend, bookStub, invitesFor, joinRoom, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, typesError, waitsFor } from "./rooms";
 import { sendInviteEmail } from "./invite-mail";
 import { track } from "./track";
@@ -59,7 +60,7 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     const hit = MeData.safeParse(await cached.json().catch(() => null));
     if (hit.success) return { ...hit.data, v: await currentVersion(env, req.url), cached: true };
   }
-  // Colleagues for "Nova mensagem": everyone with an account and your company email domain (shared/dm.ts), after the
+  // Colleagues for "Nova mensagem": everyone with an account and your company email domain (shared/org.ts), after the
   // people from your rooms. Free providers (gmail.com…) have none (Gimenes #5006).
   const domain = corporateDomain(email);
   // One round trip's worth: the reads run together.
