@@ -789,7 +789,7 @@ function machineId() {
 /** The agent id the CLI uses inside a Claude Code session (agentId), from that session's id. */
 const sessionAgent = (session: string) => `s_${createHash("sha256").update(`${RUN_AGENT === "codex" ? "codex" : "claude-code"}:${session}`).digest("hex").slice(0, 32)}`;
 let roomsCache: { gen: number; at: number; key: string; res: Awaited<ReturnType<typeof callTool>> } | null = null;
-async function claudeRooms(agent: string, tools: Tool[], kind: "herdr" | "herdr-app" = "herdr", managed: string[] = []) {
+async function claudeRooms(agent: string, tools: Tool[], kind: "herdr" | "herdr-app" | "app" = "herdr", managed: string[] = []) {
   const port = await ensureHub().catch(() => null);
   let gen = -1;
   if (port) try { gen = ((await (await fetch(`http://127.0.0.1:${port}/wait?book=agents&since=-1`)).json()) as { agents?: number }).agents ?? -1; } catch {}
@@ -880,7 +880,9 @@ async function herdrSync(agent: string, tools: Tool[]) {
   const panes = herdr("pane", "list").panes as Pane[];
   const mapped = new Set(Object.values(map).map((e) => e.workspace).filter(Boolean));
   const managed = panes.filter((p) => p.agent === RUN_AGENT && mapped.has(p.workspace_id) && p.agent_session?.value).map((p) => sessionAgent(p.agent_session!.value!));
-  const res = await claudeRooms(agent, tools, "herdr", managed);
+  // Inside the menu bar app (it sets VIBEBOOK_HERDR_DIR for `vibebook watch`, so for this runner too) the machine is an
+  // "app": the server then stops asking this person's Claudes to suggest the app (Gimenes #5843).
+  const res = await claudeRooms(agent, tools, process.env.VIBEBOOK_HERDR_DIR ? "app" : "herdr", managed);
   const rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: { room_id: string; title: string; on: boolean; listening?: boolean }[] }).rooms ?? [];
   const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const on = new Map(rooms.filter((r) => r.on).map((r) => [r.room_id, r.title]));

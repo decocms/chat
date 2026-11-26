@@ -197,10 +197,10 @@
     ];
     return list.filter((a): a is Action => !!a);
   });
-  // Yours: edit, forward, thread. Someone else's: reply, forward, copy (Valls).
+  // Yours: reply, edit, forward, thread. Someone else's: reply, forward, copy (Valls).
   const BAR_KEYS = $derived<Action["key"][]>(
     !!me && message.author === me
-      ? ["edit", "forward", "thread"]
+      ? ["reply", "edit", "forward", "thread"]
       : ["reply", "forward", "text"],
   );
   const barActions = $derived(
@@ -300,7 +300,7 @@
           aria-hidden="true"
           class="mx-0.5 h-4 w-px shrink-0 bg-border"
         ></div>{/if}
-      {#if floating}<!-- Only the main actions in the bar (Valls): on your message edit, forward, thread; on someone
+      {#if floating}<!-- Only the main actions in the bar (Valls): on your message reply, edit, forward, thread; on someone
            else's reply, forward, copy. Every other action is in ⋯, like Discord's message menu. -->
         {#each barActions as action (action.key)}<IconButton
             label={action.label}

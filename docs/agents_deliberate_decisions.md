@@ -2441,6 +2441,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert the commit.
 - Status: open
 - Update (Valls): the bar keeps only the main actions, the rest go in a ⋯ menu (`DropdownMenu`, like Discord's message menu). On your message the bar has edit, forward and thread; on someone else's, reply, forward and copy. The menu has every other action, then delete in red after a divider. The bar is 36 px high with 4 px padding, so every 28 px item (and the pressed ring) sits centred with the same space above and below. The bar stays shown while its menu is open.
+- Update (fix/reply-on-own-messages, Valls): reply is back in the bar on your own message too: reply, edit, forward, thread, then ⋯. It leaves the ⋯ menu there.
 
 ### 2026-11-26 · viktor/room-search-people · Room search by person, and the empty pane
 
@@ -2456,5 +2457,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The agent tool `search` did not get a person filter.
 - Other options: Include the agent's messages, or add a "with agents" switch. Use `Combobox` with its `div` trigger. Match the author's name in the words. Keep the search of all rooms and only filter it in the browser. Leave phones without a search.
 - Risk: low.
+
+### 2026-11-26 · feat/app-nudge · Ask people with no deco.chat app to install it
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes #5843 asked how to move people from the setup prompt to the menu bar app, and how to tell their connected Claudes. He chose all four parts of the proposal (#5851, #5859).
+- Decision:
+  - Signal: the runner inside the menu bar app (`VIBEBOOK_HERDR_DIR` is set) sends `claude_rooms` the machine kind `app`. A person "has the app" while one of their `app` machines was seen in the last 30 days (`hasApp`, `src/delivery.ts`). No new column: `machines.kind` already holds text.
+  - Claudes: `read_room` returns `app_hint` while the person has no app (not for a sandbox's Claude). The hint asks the Claude to tell its human once, with the install line, and not to install it itself. A room message cannot do this, because the Claudes treat room content as data.
+  - User center (desktop): an "Instale o app" row after the notifications offer, from `GET /api/me/app`. Copiar copies the `setup.sh` line; on Windows, Baixar opens the releases. × hides it in this browser for 14 days (`localStorage`). It is not in the phone's box: the app is for computers.
+  - Setup instructions: the app's install line is first; the prompt moved under "Só esta sessão do Claude Code (avançado)". `public/llms.txt` step 5 tells a Claude that follows the prompt to suggest the app.
+- Other options: an `x-vibebook-app` header on each CLI call (the first proposal); a CLI in a Claude's terminal is the same with or without the app, so the runner's machine is the true signal. Storing "hint shown" per person (a new column). A field in `/api/me` (cached in the Person DO).
+- Risk: People on app 0.1.1 or 0.1.2 still see the hint until they update to the app release that has this CLI. A Claude can repeat the hint in a new session.
 - Undo: Revert the commit.
 - Status: open

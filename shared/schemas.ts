@@ -199,6 +199,9 @@ export const LoginsResult = z.object({
   ),
 });
 export type LoginsResult = z.infer<typeof LoginsResult>;
+/** GET /api/me/app: whether you run the deco.chat menu bar app on a computer (its runner checked in, Gimenes #5843). */
+export const MeAppResult = z.object({ app: z.boolean() });
+export type MeAppResult = z.infer<typeof MeAppResult>;
 
 // The room's "Ligar Claude" toggle and access requests.
 export const ClaudeToggleBody = z.object({ on: z.optional(z.boolean()) });

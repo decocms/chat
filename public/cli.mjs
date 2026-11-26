@@ -1001,7 +1001,7 @@ async function herdrSync(agent, tools) {
   const panes = herdr("pane", "list").panes;
   const mapped = new Set(Object.values(map).map((e) => e.workspace).filter(Boolean));
   const managed = panes.filter((p) => p.agent === RUN_AGENT && mapped.has(p.workspace_id) && p.agent_session?.value).map((p) => sessionAgent(p.agent_session.value));
-  const res = await claudeRooms(agent, tools, "herdr", managed);
+  const res = await claudeRooms(agent, tools, process.env.VIBEBOOK_HERDR_DIR ? "app" : "herdr", managed);
   const rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
   const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const on = new Map(rooms.filter((r) => r.on).map((r) => [r.room_id, r.title]));

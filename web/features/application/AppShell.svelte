@@ -19,6 +19,7 @@
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import UserCenter from "../user-center/UserCenter.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
+  import AppOffer from "../user-center/AppOffer.svelte";
   import Requests from "../app-navigation/Requests.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
@@ -52,7 +53,8 @@
   } = $props();
   const application = untrack(() => services.state),
     personal = untrack(() => services.personal.state),
-    room = untrack(() => services.rootRoom.state);
+    room = untrack(() => services.rootRoom.state),
+    appInstalled = untrack(() => services.navigation.appInstalled);
   // The call I am in is the app's (callHub): off a room (Home, the archive, the settings), the DM list's foot shows
   // its panel; opening it goes back to the call's room, whose view opens the stage.
   const calls = callHub(),
@@ -370,6 +372,9 @@
             owner={services.pwa}
             lang={services.language}
             row
+          /><AppOffer
+            installed={$appInstalled}
+            lang={services.language === "en" ? "en" : "pt"}
           />{#if $personal.me}<Requests
               center
               invites={$personal.me.invites ?? []}

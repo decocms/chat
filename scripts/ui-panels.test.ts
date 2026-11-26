@@ -2713,9 +2713,10 @@ describe("chat", () => {
       ]
         .filter((el) => !el.hasAttribute("data-quick-react"))
         .map((el) => el.getAttribute("aria-label"));
-    // Yours: edit, forward, thread (when the room offers them), then ⋯. Someone else's: reply, forward, copy, then ⋯.
+    // Yours: reply, edit, forward, thread (when the room offers them), then ⋯. Someone else's: reply, forward, copy, then ⋯.
     expect(bar(8)).toEqual([
       "Mais reações",
+      "Responder",
       "Editar mensagem",
       ...(target.querySelector("#m8 [data-message-toolbar] [data-forward]")
         ? ["Encaminhar"]
@@ -2752,7 +2753,9 @@ describe("chat", () => {
                 ? "delete"
                 : "other",
     );
-    expect(keys.slice(0, 3)).toEqual(["reply", "copy", "link"]);
+    // Reply is in the bar of yours, so not in its ⋯.
+    expect(keys.slice(0, 2)).toEqual(["copy", "link"]);
+    expect(keys).not.toContain("reply");
     expect(keys.slice(-2)).toEqual(["|", "delete"]);
     expect(rows.at(-1)!.dataset.variant).toBe("destructive");
     expect(menu.querySelector("[data-edit-message]")).toBeNull();
@@ -7835,6 +7838,7 @@ describe("account", () => {
         },
         answerInvite: async () => ({ ok: true as const }),
         orgRooms: async () => ({ domain: null, rooms: [] }),
+        meApp: async () => ({ app: true }),
         joinOrg: async () => ({ ok: true as const, member: true as const }),
       },
       time.clock,
