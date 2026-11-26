@@ -2587,10 +2587,20 @@ describe("chat", () => {
       kind: null,
       reactions: { "🚀": ["me@test"], "👍": ["ana@test"] },
     };
+    // An agent marked 10 done: its row shows the ack, and still no 🙂 (no reaction yet).
     const { target } = renderChat(
       {
         ...fixture(),
         messages: [theirs, bare, mineDefault, mineExtra],
+        acks: [
+          {
+            msg_id: 10,
+            email: "agent@test",
+            who: "Codex",
+            status: "done",
+            ts: Date.now(),
+          },
+        ],
       },
       {
         actions: {
@@ -2643,9 +2653,16 @@ describe("chat", () => {
       ["😂", "false"],
       ["🚀", "true"],
     ]);
-    // A message with nothing under it has no reaction row at all: the hover opens nothing under it, so it covers
-    // nothing below and moves nothing (no floating row, no spacer).
-    expect(target.querySelector('[data-reaction-row="10"]')).toBeNull();
+    // The hover opens nothing under a message, so it covers nothing below and moves nothing (no floating row, no spacer).
+    // The 🙂 next to the chips only once a message has a reaction: none on a row with only an ack.
+    expect(target.querySelector('[data-reaction-row="10"]')).not.toBeNull();
+    expect(
+      target.querySelector("#m10 [data-reaction-row] [data-add-reaction]"),
+    ).toBeNull();
+    expect(target.querySelector("#m10 [data-message-reactions]")).toBeNull();
+    expect(
+      target.querySelector("#m9 [data-reaction-row] [data-add-reaction]"),
+    ).not.toBeNull();
     expect(target.querySelector("[data-reaction-space]")).toBeNull();
     expect(target.querySelector("[data-offer-react]")).toBeNull();
     // A row with a reaction is in the flow, inside the message's own box, 24px high.
