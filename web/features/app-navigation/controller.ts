@@ -86,12 +86,11 @@ export function createAppNavigationSession(
   const company = writable<readonly OrgRoom[]>([]);
   let companyMe: unknown = null,
     companyLoad: AbortController | null = null;
-  const stopCompany = personal.state.subscribe((value) => {
+  function loadCompany(email: string) {
     const load = callbacks.orgRooms;
-    if (!load || !value.me || value.me === companyMe) return;
-    companyMe = value.me;
+    if (!load) return;
     companyLoad?.abort();
-    if (!corporateDomain(value.me.email)) return company.set([]);
+    if (!corporateDomain(email)) return company.set([]);
     const abort = (companyLoad = new AbortController());
     // A failed read keeps the list as it was; it never reaches the personal store's other readers.
     Promise.resolve(abort.signal)
@@ -102,7 +101,17 @@ export function createAppNavigationSession(
         },
         () => {},
       );
+  }
+  const stopCompany = personal.state.subscribe((value) => {
+    if (!callbacks.orgRooms || !value.me || value.me === companyMe) return;
+    companyMe = value.me;
+    loadCompany(value.me.email);
   });
+  /** Reads the company's rooms again (the "Salas da empresa" dialog, each time it opens). */
+  function refreshCompany() {
+    const me = get(personal.state).me;
+    if (me) loadCompany(me.email);
+  }
   /** Joins a room open to your company: it leaves the list at once. */
   async function joinCompany(room: string) {
     await callbacks.joinOrg?.(room);
@@ -114,6 +123,7 @@ export function createAppNavigationSession(
     state,
     company: { subscribe: company.subscribe },
     joinCompany,
+    refreshCompany,
     creator,
     search,
     callbacks,
