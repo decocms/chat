@@ -2411,3 +2411,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert the commit.
 - Status: open
 - Update (fix/react-opens-space, Gui #5825): a click on the floating row (the picker opens) makes its room. A spacer after the message grows from 0 to 20 px with the `grid-rows` transition, and the next message slides down. When a reaction is given, the row goes into the flow with the same 20 px, so nothing jumps. Esc closes the space again. A quick reaction (👍) without the picker puts the row in the flow at once, without the animation.
+
+### 2026-11-26 · feat/inbox-empty-state · The Inbox at zero shows what is still moving
+
+- Agent: claude-opus-5-5
+- Context: Valls: when nothing waits, the Inbox is sad. The right side had only two lines of text, and the list on the left was blank.
+- Decision:
+  - A new organism, `InboxClear` (`web/features/home/`), takes the right side when the tab is empty. It has the cube (`VibeCube`, the static picture: no new WebGL context), a headline ("Tudo em dia"), one line with real data (how many agents work now), and two short lists: the rooms an agent works in now, and the 4 rooms that moved last (`quietRooms` in `model.ts`). A row opens its room beside the list, as the ask box does. No component did this: `RoomTile` is a grid tile without a preview line, and `RoomRow` is the phone's chat row.
+  - A new molecule, `AskStarters`, fills the empty "Pra você" list with three starters ("Resumir o dia", "Criar uma tarefa", "Chamar o time"). A click writes the start of the ask into the ask box and puts the caret at the end. You finish it and send. It sends nothing.
+  - A phone's "Pra você" chip at zero shows the same `InboxClear` (without the recent rooms: "Todas" is that list) with the starters as chips.
+  - The cube's shared picture is now 176 px (it was 96 px), so the 64 px cube is sharp on a 2x screen.
+  - No new `track()` event: the browser has no route for one. The ask box's own events count what the starters start.
+- Other options: A grid of `RoomTile`s under the cube (screenshot on `feat/inbox-empty-state-tiles`). An illustration. Starters that send at once (they would send words that you did not choose).
+- Risk: low. The starters' words go through the router like any ask.
+- Undo: Revert the commit.
+- Status: open
