@@ -33,7 +33,6 @@
     />{:else}
     {#snippet agents(email: string)}<AgentPresenceRows
         presence={sidebar.presence ?? { agents: [], sandboxes: [] }}
-        self={email === sidebar.room.me}
         {email}
         t={sidebar.vb.t}
         name={sidebar.vb.name}

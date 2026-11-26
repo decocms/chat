@@ -308,7 +308,6 @@
       <div class="px-1.5 empty:hidden">
         <AgentPresenceRows
           {presence}
-          self
           email={room.me}
           t={vb.t}
           name={vb.name}
