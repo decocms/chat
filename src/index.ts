@@ -183,7 +183,7 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS sandboxes_book ON sandboxes (book_id)`,
   `CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, email TEXT, p256dh TEXT, auth TEXT, ua TEXT, created_at INTEGER)`,
   // Machines (Nov 2026): a computer running `vibebook herdr` checks in through claude_rooms (id from ~/.vibebook/machine.json,
-  // its name, herdr | herdr-app | app: the runner inside the deco.chat menu bar app). A sandbox is a machine too, id `sb_<sandbox id>`, known from `sandboxes` (no row here).
+  // its name, herdr | herdr-app | app: the runner inside the deco.chat menu bar app). A computer that only made CLI calls is kind cli (new rows from Nov 26, 2026; older ones say herdr). A sandbox is a machine too, id `sb_<sandbox id>`, known from `sandboxes` (no row here).
   `CREATE TABLE IF NOT EXISTS machines (id TEXT PRIMARY KEY, email TEXT, name TEXT, kind TEXT, seen_at INTEGER, created_at INTEGER)`,
   `CREATE INDEX IF NOT EXISTS machines_email ON machines (email)`,
   // Delivery per room: a machine's switch (covers every agent it runs there; none = members.claude_on, a sandbox = on)

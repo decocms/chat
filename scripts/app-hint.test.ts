@@ -1,6 +1,6 @@
-// "Install the app" (Gimenes #5843): a person runs the deco.chat menu bar app when one of their machines checked in
-// with kind "app" (the runner inside the app) in the last 30 days. Then read_room has no app_hint and the user center
-// has no "Instale o app" row. D1 is a bun:sqlite stand-in.
+// "Install the app" (Gimenes #5843, #5960): a person is set up when one of their machines ran the runner (kind app,
+// herdr or herdr-app) in the last 30 days. Then read_room has no app_hint and the user center has no "Instale o app"
+// row. A machine that only made CLI calls (kind cli) does not count. D1 is a bun:sqlite stand-in.
 import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
 import { APP_FRESH, appCheckedIn, hasApp } from "../src/delivery";
@@ -42,12 +42,19 @@ test("a machine of kind app seen lately counts as the app", async () => {
   expect(await hasApp(w.db, "ana@x.co")).toBe(true);
 });
 
-test("a terminal runner, a Herdr app machine or an old app machine is not the app", async () => {
+test("a terminal runner or a Herdr app machine counts too (Gimenes #5960)", async () => {
   const w = world();
   w.add("m_2", "bia@x.co", "herdr", Date.now());
-  w.add("m_3", "bia@x.co", "herdr-app", Date.now());
-  w.add("m_4", "bia@x.co", "app", Date.now() - APP_FRESH - 1000);
-  expect(await hasApp(w.db, "bia@x.co")).toBe(false);
+  expect(await hasApp(w.db, "bia@x.co")).toBe(true);
+  w.add("m_3", "gil@x.co", "herdr-app", Date.now());
+  expect(await hasApp(w.db, "gil@x.co")).toBe(true);
+});
+
+test("a machine that only made CLI calls, or an old runner machine, does not count", async () => {
+  const w = world();
+  w.add("m_6", "ivo@x.co", "cli", Date.now());
+  w.add("m_4", "ivo@x.co", "app", Date.now() - APP_FRESH - 1000);
+  expect(await hasApp(w.db, "ivo@x.co")).toBe(false);
 });
 
 test("another person's app does not count for you", async () => {

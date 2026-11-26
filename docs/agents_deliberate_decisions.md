@@ -2494,3 +2494,13 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: The old names stay until a later cleanup. A room app that reads the identity header in the browser still gets the old name only.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · fix/app-hint-any-runner · Any computer with the runner counts as set up
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes #5960: "Instale o app" showed for him with the app installed. He asked that a connected machine end the notice. His machines in D1 were all kind `herdr`.
+- Decision: A machine counts when the runner checked in from it in the last 30 days: kind `app`, `herdr` or `herdr-app` (`APP_SQL`). A machine that is only known from CLI calls is now kind `cli` (new rows) and does not count. Thus a person who pastes the setup prompt in a terminal Claude still gets the hint, and a person with the app or `vibebook herdr` does not.
+- Other options: Any machine row (every CLI call registers its machine, so the hint would almost never show). Only kind `app` (the old rule: wrong for an app that does not send it yet).
+- Risk: Machines that older CLIs registered from calls only say `herdr`, so those people do not get the hint.
+- Undo: Revert the commit.
+- Status: open
