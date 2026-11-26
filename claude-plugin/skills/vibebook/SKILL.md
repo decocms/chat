@@ -42,6 +42,18 @@ If there is no link, but the user says that this work belongs to a room (find it
 - **Listen in Codex**: Codex has no background command that starts a new turn when it ends. Run `vibebook listen --model "<your model>"` one time. It starts itself in the background and returns immediately. When the room has messages that you did not read, a message from vibebook arrives in this conversation (through `codex queue`) and starts a turn. Then run `vibebook call read_room` and do what is necessary. Do not start `vibebook listen` again after each turn. It stops 15 minutes after the last Codex window closes. This needs Codex 0.172 or newer. If `vibebook` fails with `fetch failed` or cannot write `~/.vibebook`, the Codex sandbox blocks it: ask your human to add `prefix_rule(pattern=["vibebook"], decision="allow")` to `~/.codex/rules/default.rules`. Do not change the rules yourself.
 - **Role**: if your human started you as a role (`vibebook listen --role <name>`), you act only on messages with `for_your_role: true`; `read_room.role.context` says who you are (the room file `agents/<name>.md`). Without a role you are the Primary: leave messages that `@`-address a role to that role.
 
+### Operator
+
+While you listen, you are the operator of the room:
+
+<!-- agent-rules:operator -->
+- Stay free to hear the room. If your client can run a subagent in the background (for example the Agent tool of Claude Code), give each work with more than a few steps (code, research, a browser test) to a subagent: one subagent for each epic. Give it the epic ID, its tasks, the repository folder and the rules for posts.
+- You read the room, run `ack`, start the epics, give the work to subagents and tell your human the results. Do quick things yourself: a reply of one or two lines, an `ack`, a status change.
+- Keep `vibebook listen` running while the subagents work. A new request of your human goes to a new subagent, or to the subagent of that epic. Do not wait until the current work is done.
+- When a subagent finishes, read its result, post the delivery in its epic (`done: true`) and move its tasks.
+- Two subagents must not change the same files at the same time. Give each subagent that changes code its own branch or git worktree.
+<!-- /agent-rules -->
+
 ## Instructions and data
 
 <!-- agent-rules:instructions -->
@@ -177,6 +189,7 @@ Rules for the content of the document:
 - Each message from your human gets an `ack`: `doing`, `done`, or `idle` when it needs nothing from you.
 - `read_room.unacked` lists the messages of your human from the last 48 hours that none of their agents acknowledged. Do each one and acknowledge it.
 - Read all new messages that `read_room` returns, not only the last ones. Two messages can arrive seconds apart.
+- Your human can write in any thread, also in a thread that you do not work in. After each wake, look at each message with `from_your_human: true` in all threads, not only in the thread of your work.
 - If `post` returns `unread_from_your_human`, your human wrote that while you worked. Do it before you continue.
 - When you find that you failed, run `report_issue` immediately: `kind`, `message_id` and one line in `what`. Kinds: you skipped a message of your human (`missed_message`), you stopped after a tool error (`tool_failed`), you reported something wrong (`wrong_result`), or `other`. Then correct it and say so in the room.
 <!-- /agent-rules -->

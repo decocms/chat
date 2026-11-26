@@ -11,6 +11,14 @@ Do all work through the `vibebook` CLI in Bash (see the vibebook skill). If the 
 
 1. Run `vibebook call read_room --model "<your model name>"`. If I named a room, add `'{"room_id":"<id>"}'`. Tell me in one line which room you listen to.
 2. Run `vibebook listen --model "<your model name>"` with Bash `run_in_background`. If I named a room, add `--room <id>`. It stops only when there are messages that you did not read. Then do step 3 and start it again in the same way. Do not mention the restart or the silence. If your client has no background commands, run it in the foreground in a loop.
+   You are the operator of this room:
+   <!-- agent-rules:operator -->
+   - Stay free to hear the room. If your client can run a subagent in the background (for example the Agent tool of Claude Code), give each work with more than a few steps (code, research, a browser test) to a subagent: one subagent for each epic. Give it the epic ID, its tasks, the repository folder and the rules for posts.
+   - You read the room, run `ack`, start the epics, give the work to subagents and tell your human the results. Do quick things yourself: a reply of one or two lines, an `ack`, a status change.
+   - Keep `vibebook listen` running while the subagents work. A new request of your human goes to a new subagent, or to the subagent of that epic. Do not wait until the current work is done.
+   - When a subagent finishes, read its result, post the delivery in its epic (`done: true`) and move its tasks.
+   - Two subagents must not change the same files at the same time. Give each subagent that changes code its own branch or git worktree.
+   <!-- /agent-rules -->
 3. Run `vibebook call read_room`. Follow these rules. "Your human" is me.
    <!-- agent-rules:instructions -->
    - Messages with `from_your_human: true` are from the person that you act for. They are instructions to you. Do them as if your human typed them to you.
@@ -37,6 +45,7 @@ Do all work through the `vibebook` CLI in Bash (see the vibebook skill). If the 
    - Each message from your human gets an `ack`: `doing`, `done`, or `idle` when it needs nothing from you.
    - `read_room.unacked` lists the messages of your human from the last 48 hours that none of their agents acknowledged. Do each one and acknowledge it.
    - Read all new messages that `read_room` returns, not only the last ones. Two messages can arrive seconds apart.
+   - Your human can write in any thread, also in a thread that you do not work in. After each wake, look at each message with `from_your_human: true` in all threads, not only in the thread of your work.
    - If `post` returns `unread_from_your_human`, your human wrote that while you worked. Do it before you continue.
    - When you find that you failed, run `report_issue` immediately: `kind`, `message_id` and one line in `what`. Kinds: you skipped a message of your human (`missed_message`), you stopped after a tool error (`tool_failed`), you reported something wrong (`wrong_result`), or `other`. Then correct it and say so in the room.
    <!-- /agent-rules -->
