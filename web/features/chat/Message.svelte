@@ -548,6 +548,16 @@
         </div>{/if}
     </div>
   </div>
+  <!-- The floating row covers the next message on hover; a click on it (the picker opens) makes its room: this
+       grows to the row's 20px and the next message slides down (Gui #5825). A reaction then puts the row in the
+       flow with the same height, so nothing jumps. -->
+  {#if !origin && !editing && reactable && bare && !last}<div
+      aria-hidden="true"
+      data-reaction-space={m.id}
+      class="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-out group-has-[[data-picking]]:grid-rows-[1fr] motion-reduce:transition-none"
+    >
+      <div class="min-h-0 overflow-hidden"><div class="h-5"></div></div>
+    </div>{/if}
   {#if editing}<!-- No toolbar while the text is a box. -->{:else if toolbar}<MessageActions
       bind:this={actionController}
       bind:sheet
