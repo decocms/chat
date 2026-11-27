@@ -6,7 +6,7 @@
 input=$(cat 2>/dev/null)
 codex=; printf %s "$input" | grep -q '"transcript_path":"[^"]*/rollout-[^"]*\.jsonl"' && codex=1
 model=$(printf %s "$input" | sed -nE 's/.*"model":"([A-Za-z0-9._ -]{1,40})".*/\1/p' | head -n 1)
-room=$(sed -n 's/^room_id=//p' "${CLAUDE_PROJECT_DIR:-.}/.vibebook" 2>/dev/null | head -n 1)
+room=$(sed -n 's/^room_id=//p' "${CLAUDE_PROJECT_DIR:-.}/.deco-chat" "${CLAUDE_PROJECT_DIR:-.}/.vibebook" 2>/dev/null | head -n 1)
 # No .vibebook? A room link in README/AGENTS/CLAUDE (the vibebook badge) links the repo too.
 [ -n "$room" ] || room=$(cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && cat README.md AGENTS.md CLAUDE.md 2>/dev/null | grep -oE '(chat\.decocms\.com|vibebook\.dev)/b/[a-z0-9]{12}' | head -n 1 | cut -d/ -f3)
 if [ -n "$room" ] && [ -n "$codex" ]; then

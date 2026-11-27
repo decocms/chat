@@ -13,8 +13,12 @@ import { createAgentRunners, type MachineAgent } from "./agentRunners";
 import { menuOf } from "./menu";
 import { AGENT_KINDS, agentVersion as versionNumber, type MachineKinds } from "../shared/agentKinds";
 
-const VERSION = "1.7.15";
-const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
+const VERSION = "1.7.16";
+// The deco.chat names (Gimenes #6527, #6547: wave 1, both names work). DECO_CHAT_<X> wins over VIBEBOOK_<X>: it is
+// copied onto the old name here, so every read below and every child (hooks, runner, tray) sees it.
+for (const [k, v] of Object.entries(process.env)) if (k.startsWith("DECO_CHAT_") && v !== undefined) process.env[`VIBEBOOK_${k.slice(10)}`] = v;
+/** ~/.deco-chat once it exists, else ~/.vibebook (wave 1 still makes the old one). */
+const HOME = process.env.VIBEBOOK_HOME || (existsSync(join(homedir(), ".deco-chat")) ? join(homedir(), ".deco-chat") : join(homedir(), ".vibebook"));
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
 const DEFAULT_ORIGIN = "https://chat.decocms.com";
@@ -99,7 +103,13 @@ function repoRoot() {
     return process.cwd();
   }
 }
-const linkedRoom = (root: string) => readFileSync(join(root, ".vibebook"), "utf8").match(/^room_id=([a-z0-9]+)/m)?.[1];
+/** The files that link a folder to a room: `.deco-chat` (the new name), else `.vibebook`. */
+const ROOM_FILES = [".deco-chat", ".vibebook"];
+/** The room in the folder's link file. Throws when the folder has neither, as readFileSync did. */
+const linkedRoom = (root: string) => {
+  const f = ROOM_FILES.map((n) => join(root, n)).find((p) => existsSync(p)) ?? join(root, ".vibebook");
+  return readFileSync(f, "utf8").match(/^room_id=([a-z0-9]+)/m)?.[1];
+};
 function roomHere(root: string): string | undefined {
   try {
     const r = linkedRoom(root);
@@ -676,7 +686,7 @@ function roomFolder(room: string, title: string) {
     } catch {
       return;
     }
-    if (names.includes(".vibebook")) {
+    if (ROOM_FILES.some((n) => names.includes(n))) {
       try {
         if (linkedRoom(dir) === room) return dir;
       } catch {}
@@ -692,7 +702,7 @@ function roomFolder(room: string, title: string) {
 /** Link the folder to the room (.vibebook), kept out of git when it's a repo that doesn't track it. */
 function linkFolder(folder: string, room: string) {
   mkdirSync(folder, { recursive: true });
-  const f = join(folder, ".vibebook");
+  const f = join(folder, existsSync(join(folder, ".deco-chat")) ? ".deco-chat" : ".vibebook");
   let linked = false;
   try {
     linked = linkedRoom(folder) === room;

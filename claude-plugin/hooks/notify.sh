@@ -4,12 +4,13 @@
 # "⏸ espera você no terminal" and the person sees it waits on them. No-op elsewhere; never blocks Claude.
 command -v vibebook >/dev/null 2>&1 || exit 0
 command -v node >/dev/null 2>&1 || exit 0
-# The room of this folder: the runner names it (VIBEBOOK_ROOM), else `.vibebook` or a room link at the repo root, else in
+# The room of this folder: the runner names it (DECO_CHAT_ROOM or VIBEBOOK_ROOM), else `.deco-chat`, `.vibebook` or a room link at the repo root, else in
 # this folder. A room folder the runner made is not a git repo, and a git-only check skipped every question there, so it
 # stayed in the terminal (Gimenes #6490, #6508).
+[ -n "$DECO_CHAT_ROOM" ] && VIBEBOOK_ROOM=$DECO_CHAT_ROOM
 if [ -z "$VIBEBOOK_ROOM" ]; then
   root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$(pwd)
-  [ -f "$root/.vibebook" ] || grep -qsE "(chat\.decocms\.com|vibebook\.dev)/b/" "$root/README.md" "$root/AGENTS.md" "$root/CLAUDE.md" || exit 0
+  [ -f "$root/.deco-chat" ] || [ -f "$root/.vibebook" ] || grep -qsE "(chat\.decocms\.com|vibebook\.dev)/b/" "$root/README.md" "$root/AGENTS.md" "$root/CLAUDE.md" || exit 0
 fi
 input=$(cat)
 # The CLI names its agent after CLAUDE_CODE_SESSION_ID, which a hook's environment doesn't carry: without it a hook's
