@@ -5,6 +5,20 @@ import type { PersonalSession } from "../home/personal";
 import type { RoomsSession } from "../rooms/session";
 import type { RoomTarget } from "../home/model";
 import { orderedRooms, roomsOnly } from "../home/model";
+import {
+  canStep,
+  folderOf,
+  moveToFolder,
+  newFolder,
+  newFolderId,
+  railEntries,
+  sameShape,
+  shapeOf,
+  step,
+  takeOut,
+  type RailShape,
+} from "./railFolders";
+import { createOpenFolders } from "./openFolders";
 import { createNewRoomSession } from "../home/session";
 import { createSearchSession } from "./search";
 import { authClock, type AuthClock } from "../auth/owner";
@@ -40,6 +54,8 @@ export type AppNavigationCallbacks = {
 };
 /** Where a room's menu opens (the pointer, or under the row from the keyboard) and for which room. */
 export type RoomMenuAnchor = Readonly<{ id: string; x: number; y: number }>;
+/** A folder's menu: where it opens, and for which folder of yours. */
+export type FolderMenuAnchor = Readonly<{ id: string; x: number; y: number }>;
 export function createAppNavigationSession(
   personal: PersonalSession,
   rooms: RoomsSession,
@@ -60,6 +76,10 @@ export function createAppNavigationSession(
     renameBusy: false,
     renameError: "",
     renameSubmitted: false,
+    /** The folder whose menu is open (a right-click on it, like a room's). */
+    folderMenu: null as FolderMenuAnchor | null,
+    /** The folder whose "Configurações da pasta" dialog is open. */
+    folderSettings: null as string | null,
   });
   const creator = createNewRoomSession(personal, callbacks.navigate, clock),
     search = createSearchSession(personal, callbacks.navigate, clock);
@@ -71,10 +91,25 @@ export function createAppNavigationSession(
   /** The rooms on the rail, in its order: your DMs are listed apart, so they are not there. */
   const railRooms = () =>
     orderedRooms(roomsOnly(get(personal.state).me?.books ?? []));
+  /** Your rail with its folders, by ids. */
+  const railShape = (): RailShape => {
+    const me = get(personal.state).me;
+    return me ? shapeOf(railEntries(me.books, me.folders ?? [])) : [];
+  };
+  /** Which folders are open on this device, per person (localStorage). */
+  const openFolders = createOpenFolders(
+    () => get(personal.state).me?.email ?? null,
+  );
+  const stopOpenFolders = personal.state.subscribe(() => openFolders.sync());
+  const saveRail = (next: RailShape) => {
+    if (!sameShape(next, railShape())) void rooms.rail(next);
+  };
   const close = () =>
     state.update((s) => ({
       ...s,
       menu: null,
+      folderMenu: null,
+      folderSettings: null,
       archiveId: null,
       leaveId: null,
       renameId: null,
@@ -252,6 +287,72 @@ export function createAppNavigationSession(
     closeMenu() {
       state.update((s) => (s.menu ? { ...s, menu: null } : s));
     },
+    /** Your folders that are open on this device. */
+    openFolders: { subscribe: openFolders.subscribe },
+    toggleFolder(id: string) {
+      openFolders.toggle(id);
+    },
+    /** "Fechar todas as pastas". */
+    closeFolders() {
+      openFolders.closeAll();
+    },
+    /** Opens a folder's menu at the pointer, or under the folder from the keyboard. */
+    openFolderMenu(
+      id: string,
+      element?: HTMLElement,
+      point?: { x: number; y: number },
+    ) {
+      if (
+        !active ||
+        !get(personal.state).me?.folders?.some((folder) => folder.id === id)
+      )
+        return;
+      trigger = element ?? null;
+      const box = point ? null : element?.getBoundingClientRect();
+      const at = point ?? (box ? { x: box.left + 12, y: box.bottom } : null);
+      state.update((s) => ({
+        ...s,
+        menu: null,
+        folderMenu: Object.freeze({ id, x: at?.x ?? 0, y: at?.y ?? 0 }),
+      }));
+    },
+    closeFolderMenu() {
+      state.update((s) => (s.folderMenu ? { ...s, folderMenu: null } : s));
+    },
+    /** "Configurações da pasta": its name and color. */
+    askFolderSettings(id: string) {
+      state.update((s) => ({ ...s, folderMenu: null, folderSettings: id }));
+    },
+    /** "Marcar pasta como lida": each of its rooms, as "Marcar como lido" does one. */
+    markFolderRead(id: string) {
+      if (!active) return;
+      for (const room of get(personal.state).me?.books ?? [])
+        if (room.rail_folder === id) void rooms.read(room.id);
+    },
+    /** Your rail in a new shape (a drop): saved whole. */
+    rail(next: RailShape) {
+      if (active) saveRail(next);
+    },
+    /** "Mover ▸ <pasta>", "Nova pasta", "Tirar da pasta". */
+    moveToFolder(id: string, folder: string) {
+      saveRail(moveToFolder(railShape(), id, folder));
+    },
+    newFolder(id: string) {
+      const folder = newFolderId();
+      openFolders.open(folder);
+      saveRail(newFolder(railShape(), id, folder));
+    },
+    takeOut(id: string) {
+      saveRail(takeOut(railShape(), id));
+    },
+    /** The folder a room is in on your rail, if any. */
+    folderOf(id: string) {
+      return folderOf(railShape(), id);
+    },
+    /** Whether "Para cima" / "Para baixo" can move this room or folder. */
+    canMove(id: string, delta: -1 | 1) {
+      return canStep(railShape(), id, delta);
+    },
     closeSettings() {
       close();
     },
@@ -276,14 +377,10 @@ export function createAppNavigationSession(
       const left = await rooms.leave(id);
       if (left && active && get(state).roomId === id) callbacks.home();
     },
-    move(id: string, delta: number) {
-      const ids = railRooms().map((room) => room.id),
-        from = ids.indexOf(id),
-        to = from + delta;
-      if (from < 0 || to < 0 || to >= ids.length) return;
-      ids.splice(from, 1);
-      ids.splice(to, 0, id);
-      void rooms.order(ids);
+    /** One step up or down: a room inside its folder, else a room or a folder on the rail. */
+    move(id: string, delta: -1 | 1) {
+      if (canStep(railShape(), id, delta))
+        saveRail(step(railShape(), id, delta));
     },
     /** The rail's rooms in a new order (a drop): only a reorder of the rooms there are now. Your DMs are not on the rail, so they are not in `ids`. */
     order(ids: readonly string[]) {
@@ -352,6 +449,8 @@ export function createAppNavigationSession(
       companyLoad?.abort();
       stopApp();
       appLoad?.abort();
+      openFolders.dispose();
+      stopOpenFolders();
       trigger = null;
       active = false;
       creator.dispose();

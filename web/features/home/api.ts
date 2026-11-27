@@ -15,6 +15,7 @@ import {
   RoomSearchResult,
   StartRoomResult,
   TINTS,
+  type RailItem,
 } from "../../../shared/schemas";
 export type RoomTint = (typeof TINTS)[number] | null;
 export class HomeFailure extends Error {
@@ -129,6 +130,20 @@ export function createHomeApi(fetcher?: FetchLike) {
     order: (ids: string[], signal?: AbortSignal) =>
       api.rooms.order
         .$post({ json: { ids } }, { init: { signal } })
+        .then((response) => read(response, OkResult)),
+    /** Your whole rail with its folders (per person). */
+    rail: (items: RailItem[], signal?: AbortSignal) =>
+      api.rail
+        .$post({ json: { items } }, { init: { signal } })
+        .then((response) => read(response, OkResult)),
+    /** A folder of yours: its name and color. */
+    railFolder: (
+      id: string,
+      patch: { name: string | null; tint: RoomTint },
+      signal?: AbortSignal,
+    ) =>
+      api.rail.folders[":id"]
+        .$post({ param: param(id), json: patch }, { init: { signal } })
         .then((response) => read(response, OkResult)),
     tint: (id: string, tint: RoomTint, signal?: AbortSignal) =>
       room.tint

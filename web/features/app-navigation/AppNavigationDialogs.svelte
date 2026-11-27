@@ -13,10 +13,9 @@
   import { roomIconPng } from "../rooms/images";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
   import SearchPalette from "./SearchPalette.svelte";
-  import { tintDot, tintName } from "./tints";
-  import { TINTS } from "../../../shared/schemas";
+  import TintPicker from "./TintPicker.svelte";
+  import { knownTint } from "./tints";
   import { createApplicationCopy } from "../application/copy";
-  import { cn } from "../../lib/studio/utils";
   import type {
     NavigationDialogOwners,
     NavigationDialogIntent,
@@ -141,26 +140,12 @@
   {@const pending = !!$mutations.pending[`tint:${room.id}`]}
   <fieldset class="min-w-0 space-y-2 border-0 p-0" data-room-tints>
     <legend class="mb-1 p-0 text-sm font-medium">{t("Cor")}</legend>
-    <div class="flex flex-wrap gap-2">
-      {#each [null, ...TINTS] as tint (tint ?? "none")}
-        {@const on = (room.tint ?? null) === tint}
-        <button
-          type="button"
-          data-tint={tint ?? "none"}
-          aria-label={t(tintName(tint))}
-          aria-pressed={on}
-          title={t(tintName(tint))}
-          disabled={pending}
-          class={cn(
-            "grid size-8 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 outline-offset-2 disabled:cursor-not-allowed",
-            on && "outline-2 outline-solid outline-foreground",
-          )}
-          onclick={() => void controller.rooms.tint(room.id, tint)}
-          ><span class={cn("size-6 rounded-full", tintDot(tint))}
-          ></span></button
-        >
-      {/each}
-    </div>
+    <TintPicker
+      value={knownTint(room.tint)}
+      {lang}
+      disabled={pending}
+      onpick={(tint) => void controller.rooms.tint(room.id, tint)}
+    />
     {#if $mutations.issues[`tint:${room.id}`]}<p
         role="alert"
         class="break-words text-destructive"

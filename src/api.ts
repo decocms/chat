@@ -110,6 +110,9 @@ import {
   ResolveWaitBody,
   ResolveWaitsBody,
   RoomOrderBody,
+  RailBody,
+  RailFolderBody,
+  type RailItem,
   TINTS,
   TintBody,
   ForwardedBody,
@@ -216,6 +219,10 @@ export interface ApiServices {
   requestAccess(roomId: string): Promise<"not_found" | "member" | "limited" | "asked">;
   /** Your company domain and the domain the room is open to (src/orgRooms.ts); the route checks membership. */
   roomOrg(roomId: string): Promise<RoomOrgResult>;
+  /** Your whole rail in order (rooms and your folders, src/railFolders.ts); "bad" = a room not yours, or twice. */
+  saveRail(items: readonly RailItem[]): Promise<"ok" | "bad">;
+  /** A folder of yours: its name and color. False = no such folder of yours. */
+  setRailFolder(id: string, patch: { name?: string | null; tint?: string | null }): Promise<boolean>;
   /** Open the room to your company domain, or close it; the route checks membership. */
   setRoomOrg(roomId: string, open: boolean): Promise<"dm" | "no_domain" | { org: string | null }>;
   /** The rooms open to your company domain where you are not a member yet (the home's "Da sua empresa"). */
@@ -441,6 +448,20 @@ export const api = roomPosts
     if (!list.length) return c.json({ error: "ids required" } satisfies ErrorBody, 400);
     const email = c.get("email");
     await c.get("svc").sqlBatch(`UPDATE members SET position = ? WHERE book_id = ? AND email = ?`, list.map((id, i) => [i, id, email]));
+    return c.json(ok, 200);
+  })
+  // Your rail with its folders, per person (a drop, a new folder, a room out of a folder): only your rows change.
+  .post("/api/rail", body(RailBody), async (c) => {
+    const svc = c.get("svc"), items = c.req.valid("json").items;
+    if ((await svc.saveRail(items)) === "bad") return c.json({ error: "bad rail" } satisfies ErrorBody, 400);
+    svc.track("rail_saved", { folders: items.filter((item) => "folder" in item).length });
+    return c.json(ok, 200);
+  })
+  // "Configurações da pasta": a folder's name and color (yours only).
+  .post("/api/rail/folders/:id", body(RailFolderBody), async (c) => {
+    const svc = c.get("svc");
+    if (!(await svc.setRailFolder(c.req.param("id"), c.req.valid("json")))) return c.json({ error: "no folder" } satisfies ErrorBody, 404);
+    svc.track("rail_folder_edited");
     return c.json(ok, 200);
   })
   // A room's color on your rail (yours only).

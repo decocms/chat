@@ -1,4 +1,5 @@
 import type { RoomTint } from "../home/api";
+import { TINTS } from "../../../shared/schemas";
 
 /** A room's color as a dot: the edit dialog's swatches (Gimenes #6163). */
 export function tintDot(tint: RoomTint): string {
@@ -47,3 +48,31 @@ export function tintName(tint: RoomTint): string {
     }
   }
 }
+
+/** A color as text, for an icon in it: a folder's on the rail. No color is the muted text. */
+export function tintText(tint: RoomTint): string {
+  switch (tint) {
+    case null:
+      return "text-muted-foreground";
+    case "blue":
+      return "text-room-tint-blue";
+    case "green":
+      return "text-room-tint-green";
+    case "yellow":
+      return "text-room-tint-yellow";
+    case "orange":
+      return "text-room-tint-orange";
+    case "pink":
+      return "text-room-tint-pink";
+    case "purple":
+      return "text-room-tint-purple";
+    default: {
+      const unknown: never = tint;
+      return unknown;
+    }
+  }
+}
+
+/** A stored tint, if it is one the app knows; anything else is no color. */
+export const knownTint = (raw: string | null | undefined): RoomTint =>
+  (TINTS as readonly string[]).includes(raw ?? "") ? (raw as RoomTint) : null;

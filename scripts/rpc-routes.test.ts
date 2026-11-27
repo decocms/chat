@@ -172,6 +172,11 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     requestAccess: async () => "asked",
     roomOrg: async () => ({ domain: "example.com", org: null }),
     setRoomOrg: async (_room, open) => ({ org: open ? "example.com" : null }),
+    saveRail: async (items) =>
+      items.some((item) => "room" in item && item.room === "not-mine")
+        ? "bad"
+        : "ok",
+    setRailFolder: async (id) => id === "fabc1234",
     orgRooms: async () => ({ domain: "example.com", rooms: [] }),
     seeOrgRooms: async () => {},
     decideRequest: async () => true,
@@ -2370,4 +2375,37 @@ test("leave: a member takes themself out; the owner and a DM can't; tracked as b
   });
   expect((await outsider.json("/api/books/room/leave", {})).status).toBe(403);
   expect(removed).toHaveLength(1);
+});
+
+test("the rail with folders: the body is checked, a room not yours or a folder not yours is refused", async () => {
+  const f = fixture();
+  for (const value of [
+    { items: [] },
+    { items: [{ folder: "NOT-OK", rooms: ["room"] }] },
+    { items: [{ room: "" }] },
+  ])
+    expect((await f.json("/api/rail", value)).status).toBe(400);
+  expect(
+    (await f.json("/api/rail", { items: [{ room: "not-mine" }] })).status,
+  ).toBe(400);
+  expect(
+    (
+      await f.json("/api/rail", {
+        items: [
+          { folder: "fabc1234", rooms: ["room", "other"] },
+          { room: "x" },
+        ],
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (await f.json("/api/rail/folders/fabc1234", { name: "A", tint: "blue" }))
+      .status,
+  ).toBe(200);
+  expect(
+    (await f.json("/api/rail/folders/fother00", { name: "A" })).status,
+  ).toBe(404);
+  expect((await f.json("/api/rail/folders/fabc1234", { name: 3 })).status).toBe(
+    400,
+  );
 });
