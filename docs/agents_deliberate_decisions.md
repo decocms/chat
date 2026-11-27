@@ -2897,3 +2897,35 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · JonasJesus42/calls-improvement · The live transcript of a call
+
+- Agent: Claude Opus 5.5
+- Context: Jonas approved a live transcript in the thread of the call. Speech must never become an instruction to an agent.
+- Decision:
+  - A part is 15 seconds (`LIVE_S`). The page records each part with a new audio `MediaRecorder`, so each part is a file of its own. A word at the edge of a part can be cut.
+  - The transcript at the end of the call is the text of the live parts: Whisper gets each minute of audio only one time. If a live part failed, the container transcribes all the audio again in parts of 5 minutes, as before. Whisper has less context on a part of 15 seconds, so the final text can be a little less good than on parts of 5 minutes.
+  - A line has the kind `transcript`. The server checks for "typed by this person" changed from `kind !== "agent"` to "no kind" (`agentRead`, `roleWake`), so a new kind never counts as an instruction.
+  - The chat finds the person by the first name that the stage shows (`Book.callTranscript`). A name that is not one person of the call (or two people with that first name): @vibe posts the line with the name.
+  - The lines are quiet: no unread mark, no wake, no router, no mention mail.
+  - The person who spoke can edit or delete their line, as any message of theirs. It keeps its kind.
+  - The `track()` event `call_transcript` comes from the Worker, because the browser app has no event path.
+- Other options: Cut the parts from the growing webm with ffmpeg (each cut decodes the file from the start). The person's email on the call tiles (a change to the stage). Lines as @vibe only (not as the person).
+- Risk: low (only rooms in `CALL_RECORD_ROOMS`)
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-27 · JonasJesus42/calls-improvement · Call settings: audio cleanups, volume per person, camera, sound test
+
+- Agent: Claude Opus 5.5
+- Context: Jonas (#6630, #6644): configure the microphone and its cleanups, adjust the camera, and set the volume of each person past 100%, as on Discord.
+- Decision:
+  - The three browser cleanups (noise reduction, echo cancellation, automatic gain) are each on by default, with a switch in "Mais opções" › "Tratamento do áudio". A change in a call opens the microphone again with the new constraints (`useMic`), because Chrome does not apply them to a live track.
+  - The volume per person is 0% to 200%, from the tile's right-click menu. Up to 100% it is the element's `volume`. Past 100% the voice goes through a Web Audio `GainNode`, and a muted element keeps the remote track alive (Chrome gives Web Audio silence otherwise). No limiter: a voice past 100% can clip, as on Discord.
+  - The camera's dialog lists the cameras when there is more than one, and "Espelhar minha imagem na call" mirrors only my own tile, for me. The preview is not mirrored: it shows what the others get.
+  - No camera quality option: a higher camera resolution costs SFU bandwidth for each person in the call. Jonas decides.
+  - The level meter is my raw microphone's RMS in dB, -50 to 0, on the existing speaking timer (200 ms). "Ouvir meu microfone" plays the track that the call sends, after the cleanups.
+- Other options: Always route every voice through Web Audio (one path, but a risk to the voice of every call). `applyConstraints` for the cleanups (Chrome ignores it for these).
+- Risk: medium (the microphone path of every call)
+- Undo: Revert the commits.
+- Status: open
