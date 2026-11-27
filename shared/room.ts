@@ -209,6 +209,8 @@ export const ReceiptSchema = z.object({
   delivered: num,
   agent: opt(str),
   ts: opt(num),
+  /** A person's read point (no agent): the face has no agent badge and reads "Ana", not "Claude de Ana". */
+  person: opt(bool),
 });
 
 /** "O que precisa de mim aqui" asked by a person, answered by their own Claude (Gui #3011): only that person's

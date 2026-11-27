@@ -242,6 +242,61 @@ test("receipt reconnect rows coalesce logical readers without duplicate keys or 
   expect(r.receipts).toHaveLength(2);
 });
 
+test("people's read points: one face per person beside agents, never yourself, never on their own message", () => {
+  const by = (id: number, author: string, kind?: "agent") => ({
+    ...message(id),
+    author,
+    ...(kind ? { kind } : {}),
+  });
+  // 1 Ana, 2 me, 3 me (one run), 4 Ana's Claude, 5 Bia
+  const r = room([
+    by(1, "ana@test"),
+    by(2, "me@test"),
+    by(3, "me@test"),
+    by(4, "ana@test", "agent"),
+    by(5, "bia@test"),
+  ]);
+  r.receipts = [
+    { email: "me@test", who: "", read: 5, delivered: 5, person: true },
+    // Ana read up to 2: her face moves to the end of my run (3), as having read part of it.
+    { email: "ana@test", who: "", read: 2, delivered: 2, person: true },
+    // Bia read everything, but 5 is hers: her face sits on 4, the last message of someone else.
+    { email: "bia@test", who: "", read: 5, delivered: 5, person: true },
+    { email: "ana@test", who: "Claude", read: 4, delivered: 4 },
+  ];
+  const footers = messageFooters(r, "main", 10);
+  const at = (id: number) =>
+    (footers.get(id)?.readers ?? []).map(
+      (x) => `${x.receipt.person ? "p" : "a"}:${x.receipt.email}:${x.read}`,
+    );
+  expect(at(1)).toEqual([]);
+  expect(at(2)).toEqual([]);
+  // One seen per run: Ana moved to the run's last message (read in part); her Claude never sits on its own reply (4).
+  expect(at(3)).toEqual(["a:ana@test:true", "p:ana@test:false"]);
+  expect(at(4)).toEqual(["p:bia@test:true"]);
+  expect(at(5)).toEqual([]);
+  // Nobody shows you your own read point.
+  expect(
+    [...footers.values()]
+      .flatMap((f) => f.readers)
+      .some((x) => x.receipt.email === "me@test"),
+  ).toBe(false);
+});
+
+test("read faces sort people before agents, read before delivered", () => {
+  const r = room([{ ...message(1), author: "x@test" }]);
+  r.receipts = [
+    { email: "c@test", who: "Claude", read: 1, delivered: 1 },
+    { email: "b@test", who: "", read: 1, delivered: 1, person: true },
+    { email: "d@test", who: "Codex", read: 0, delivered: 1 },
+  ];
+  expect(
+    messageFooters(r, "main", 2)
+      .get(1)
+      ?.readers.map((x) => x.receipt.email),
+  ).toEqual(["b@test", "c@test", "d@test"]);
+});
+
 test("Fire transcript pieces stay canonical while visible rows and receipt placement exclude them", () => {
   const ordinary = message(1, "Public"),
     fire = { ...message(2, "Spoken private working piece"), tag: "fire" },

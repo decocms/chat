@@ -211,11 +211,16 @@ export function messageFooters(
     );
   }
   for (const receipt of readers.values()) {
+    // Your own read point is not news to you; a person's face never sits on their own message (an agent's never on
+    // its own reply either): it goes to the last message of someone else they saw.
+    if (receipt.person && receipt.email === room.me) continue;
     const message = lastWhere(
       list,
       (m) =>
         m.id <= Math.max(receipt.read, receipt.delivered) &&
-        !(m.kind === "agent" && m.author === receipt.email),
+        !(receipt.person
+          ? m.author === receipt.email && m.kind !== "agent"
+          : m.kind === "agent" && m.author === receipt.email),
     );
     if (!message || seen.has(`${message.id}|${receipt.who}|${receipt.email}`))
       continue;
@@ -241,8 +246,13 @@ export function messageFooters(
     from.passed = [];
     if (!from.statuses.length) footers.delete(list[i].id);
   }
+  // Read before delivered; people before agents ("Visto por Ana, Bia e Claude de Ana").
   for (const footer of footers.values())
-    footer.readers.sort((a, b) => Number(b.read) - Number(a.read));
+    footer.readers.sort(
+      (a, b) =>
+        Number(b.read) - Number(a.read) ||
+        Number(!!b.receipt.person) - Number(!!a.receipt.person),
+    );
   return footers;
 }
 export type Worker = {

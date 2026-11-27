@@ -3280,6 +3280,100 @@ describe("chat", () => {
     ).toBe("visto por 1");
     expect(target.querySelectorAll("[data-message-footer]")).toHaveLength(1);
   }, 30_000);
+  test("the read receipts setting is on by default, saves the switch and goes back when saving fails", async () => {
+    const target = window.document.createElement("div");
+    window.document.body.append(target);
+    const saved: boolean[] = [];
+    let fail = false;
+    const view = mountView("readReceipts", target, {
+      on: true,
+      lang: "pt",
+      save: async (on: boolean) => {
+        saved.push(on);
+        return fail ? null : on;
+      },
+    });
+    active.push(view);
+    const row = target.querySelector<HTMLElement>(
+      "[data-read-receipts-setting]",
+    )!;
+    expect(row.textContent).toContain("Confirmação de leitura");
+    expect(row.textContent).toContain("Nas salas aparece sempre");
+    const toggle = row.querySelector<HTMLButtonElement>('[role="switch"]')!;
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    toggle.click();
+    await tick();
+    flushSync();
+    expect(saved).toEqual([false]);
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    fail = true;
+    toggle.click();
+    await tick();
+    flushSync();
+    expect(saved).toEqual([false, true]);
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    expect(row.querySelector('[role="alert"]') === null).toBe(false);
+  });
+  test("people and agents share one seen stack: no badge on a person, not yourself, names in the tooltip", async () => {
+    const person = (id: number, author: string, text: string) => ({
+      ...message(id, text),
+      author,
+      kind: undefined,
+    });
+    const room: Room = {
+      ...fixture(),
+      messages: [person(1, "bia@test", "Oi"), person(2, "you@test", "Olá")],
+    };
+    room.receipts = [
+      { email: "ana@test", who: "", read: 2, delivered: 2, person: true },
+      { email: "bia@test", who: "", read: 2, delivered: 2, person: true },
+      { email: "me@test", who: "", read: 2, delivered: 2, person: true },
+      { email: "ana@test", who: "Claude", read: 2, delivered: 2 },
+    ];
+    const { target, update } = renderChat(room);
+    expect(target.querySelector("#m1 [data-reader-read]") === null).toBe(true);
+    const footer = target.querySelector<HTMLElement>(
+      "#m2 [data-message-footer]",
+    )!;
+    const faces = [...footer.querySelectorAll("[data-reader-read]")];
+    expect(faces).toHaveLength(3);
+    // People first, then the agent; only the agent's face has the badge.
+    expect(faces.map((f) => f.hasAttribute("data-reader-person"))).toEqual([
+      true,
+      true,
+      false,
+    ]);
+    expect(faces[0].querySelector('[data-avatar="agent"]') === null).toBe(true);
+    expect(faces[2].querySelector('[data-avatar="agent"]') === null).toBe(
+      false,
+    );
+    expect(footer.innerHTML).not.toContain("me@test");
+    const seen = footer.querySelector<HTMLButtonElement>(
+      "button[aria-expanded]",
+    )!;
+    expect(seen.getAttribute("aria-label")).toBe("visto por 3");
+    seen.focus();
+    await tick();
+    flushSync();
+    const tip = footer.querySelector('[role="tooltip"]')!;
+    const names =
+      tip.querySelector("[data-readers-seen-by]")?.textContent ?? "";
+    expect(names).toMatch(
+      /^\s*Visto por ana@test, bia@test,? (and|e) Claude de ana@test\s*$/,
+    );
+    // Live: the second person reads the new message and their face moves there, with no new footer row elsewhere.
+    const next = {
+      ...room,
+      messages: [...room.messages, person(3, "ana@test", "E aí")],
+      receipts: room.receipts.map((r) =>
+        r.email === "bia@test" ? { ...r, read: 3, delivered: 3 } : r,
+      ),
+    };
+    update(next);
+    flushSync();
+    expect(target.querySelectorAll("#m3 [data-reader-person]")).toHaveLength(1);
+    expect(target.querySelectorAll("#m2 [data-reader-read]")).toHaveLength(2);
+  }, 30_000);
   test("quiet rows retain folding, status ownership and canonical thread cards", async () => {
     const reminder = {
       ...message(1, "⏰ **daily** report\n\nDetails"),

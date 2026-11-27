@@ -105,7 +105,7 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
          JOIN books k ON k.id = x.book_id AND k.dm IS NULL LEFT JOIN users u ON u.email = y.email
         WHERE x.email = ?1 GROUP BY y.email ORDER BY last DESC LIMIT 200`,
     ).bind(email).all<{ email: string; name: string | null; avatar: number | null; rooms: string }>(),
-    db.prepare(`SELECT name, avatar, lang FROM users WHERE email = ?`).bind(email).first<Record<string, unknown>>(),
+    db.prepare(`SELECT name, avatar, lang, read_receipts FROM users WHERE email = ?`).bind(email).first<Record<string, unknown>>(),
     waitsFor(db, email),
     domain
       ? db.prepare(`SELECT email, name, avatar FROM users WHERE email LIKE '%@' || ?2 AND email != ?1 ORDER BY coalesce(name, email) LIMIT 200`)
@@ -151,6 +151,7 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
       ...colleagues.filter((r) => !inRooms.has(r.email)).map((r) => ({ ...r, rooms: [], domain: true })),
     ]),
     folders: keep("folders", MeFolder, folders),
+    read_receipts: me?.read_receipts !== 0,
     waits: keep("waits", MeWait, waits.map((w) => ({ ...w, room: w.room ?? "", thread: w.thread ?? "main", author: w.author ?? "", text: w.text ?? "", ts: w.ts ?? 0 }))),
   });
   if (dropped.length) console.error("/api/me dropped rows off schema", dropped);
@@ -387,6 +388,14 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     consentContext: () => consentContext(env, req0, email),
     routerStats: (room) => routerStats(env.DB, email, room),
     setProfilePublic: (on) => setProfilePublic(env.DB, email, on),
+    setReadReceipts: async (on) => {
+      await env.DB.prepare(`UPDATE users SET read_receipts = ? WHERE email = ?`).bind(on ? 1 : 0, email).run();
+      // Your DMs push their receipts again: the other person's tab drops (or gets back) your face and theirs at once.
+      const dms = await env.DB.prepare(`SELECT m.book_id FROM members m JOIN books b ON b.id = m.book_id WHERE m.email = ? AND b.dm IS NOT NULL`).bind(email).all<{ book_id: string }>();
+      ctx.waitUntil(Promise.all(dms.results.map((r) => bookStub(env, r.book_id).pushReceipts().catch(() => {}))));
+      ctx.waitUntil(poke(env, [email], { t: "me" }));
+      return { on };
+    },
     setHandle: (handle) => setHandle(env.DB, email, handle),
     reportRoom: (room) => (env.METRICS_ROOMS ?? "").split(",").map((x) => x.trim()).includes(room),
     aiSpend: () => aiSpend(env),

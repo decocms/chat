@@ -20,6 +20,7 @@
       who: r.receipt.who,
       email: r.receipt.email,
       read: r.read as boolean | undefined,
+      person: !!r.receipt.person,
     })),
     ...footer.passed
       .filter(
@@ -33,6 +34,7 @@
         who: p.ack.who,
         email: p.ack.email,
         read: undefined as boolean | undefined,
+        person: false,
       })),
   ]);
   const STACK = 3;
@@ -47,6 +49,25 @@
   );
   const who = (model: string, email: string) =>
     vb.t("{via} de {who}", { via: prettyModel(model), who: vb.name(email) });
+  /** A reader's name: a person's own ("Ana"), an agent's with its person ("Claude Opus 5.5 de Ana"). */
+  const readerName = (reader: MessageFooter["readers"][number]) =>
+    reader.receipt.person
+      ? vb.name(reader.receipt.email)
+      : who(reader.receipt.who, reader.receipt.email);
+  // "Visto por Ana, Bia e Claude de Ana": who read it, people first (the model's order), in the app's language.
+  const seenBy = $derived.by(() => {
+    const names = footer.readers.filter((r) => r.read).map(readerName);
+    if (!names.length) return "";
+    let list: string;
+    try {
+      list = new Intl.ListFormat(vb.locale, { type: "conjunction" }).format(
+        names,
+      );
+    } catch {
+      list = names.join(", ");
+    }
+    return vb.t("Visto por {names}", { names: list });
+  });
 </script>
 
 {#snippet check()}<span
@@ -145,6 +166,7 @@
           after={footer.readers.length ? check : undefined}
           >{#snippet face(face)}<span
               data-reader-read={face.read}
+              data-reader-person={face.person || undefined}
               class="relative inline-flex"
               ><PersonAvatar
                 data-avatar="person"
@@ -152,12 +174,12 @@
                 class="size-5 ring-2 ring-background"
                 email={face.email}
                 version={vb.avatarVersion(face.email)}
-              /><AgentMark
-                size="3xs"
-                tint
-                via={face.who}
-                class="absolute -bottom-0.5 -left-0.5 size-2.5 rounded-full text-[6px] ring-[1.5px] ring-background"
-              /></span
+              />{#if !face.person}<AgentMark
+                  size="3xs"
+                  tint
+                  via={face.who}
+                  class="absolute -bottom-0.5 -left-0.5 size-2.5 rounded-full text-[6px] ring-[1.5px] ring-background"
+                />{/if}</span
             >{/snippet}</AvatarStack
         >
       </Button>
@@ -166,6 +188,9 @@
           role="tooltip"
           class="absolute bottom-full right-0 z-20 mb-2 w-72 max-w-[80vw] space-y-2 rounded-surface border border-border bg-popover p-3 text-popover-foreground shadow-md"
         >
+          {#if seenBy}<p data-readers-seen-by class="m-0 font-medium">
+              {seenBy}
+            </p>{/if}
           {#each footer.readers as reader (`${reader.receipt.who}|${reader.receipt.email}`)}<div
               class="flex items-center gap-2"
             >
@@ -175,8 +200,16 @@
                 email={reader.receipt.email}
                 version={vb.avatarVersion(reader.receipt.email)}
               /><span class="min-w-0 flex-1 break-words"
-                >{who(reader.receipt.who, reader.receipt.email)}</span
-              ><span>{vb.t(reader.read ? "leu" : "recebeu")}</span>
+                >{readerName(reader)}</span
+              ><span
+                >{vb.t(
+                  reader.read
+                    ? "leu"
+                    : reader.receipt.person
+                      ? "leu em parte"
+                      : "recebeu",
+                )}</span
+              >
             </div>{/each}{#each footer.passed as status (`${status.ack.who}|${status.ack.email}`)}<div
               data-ack-state="idle"
               class="flex items-center gap-2"

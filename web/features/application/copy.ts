@@ -160,8 +160,10 @@ const EN: Readonly<Record<string, string>> = {
   Offline: "Offline",
   "visto por {n}": "seen by {n}",
   "visto por {n} de {m}": "seen by {n} of {m}",
+  "Visto por {names}": "Seen by {names}",
   leu: "read",
   recebeu: "delivered",
+  "leu em parte": "read part",
   "Email inválido.": "Invalid email.",
   "Esta pessoa já está na sala.": "This person is already in the room.",
   "Não deu pra enviar agora. Tente de novo.":
