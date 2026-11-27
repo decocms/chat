@@ -2687,3 +2687,10 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Options:** (a) a space of the app when the app is open; (b) always `hc run`, and the person attaches with `hc attach`; (c) always `hc run`, then `terminal.keep` to give it a pane.
 - **Why:** Gimenes wants to see all the room Claudes in the Herdr app (#6208). A terminal from `hc run` has no pane in the app. Option (c) gives a pane in the shown space, not a space for the room.
 - **Reviewer can change:** use `terminal.keep` instead of a restart, if a space for each room is not necessary.
+
+## 2026-11-27 · feat/mobile-drawer
+
+- **Decision:** One phone drawer: `web/lib/studio/drawer.ts` (timing, curve, drag math, `dragToClose`, `drawerPanel`), `DrawerHandle` (atom), and `Drawer` + `DrawerContent` (molecule, on bits-ui Dialog). The four bits-ui Sheets on phones use it. The room drawer keeps its own controller (history entry, `inert`, the slide that swaps to the doc sheet), but it takes its timing, its panel shape and its grab bar from the same files.
+- **Options:** (a) a new drawer on bits-ui Dialog, and the room drawer shares the engine; (b) move the room drawer onto bits-ui Dialog too; (c) add drag to `SheetContent`.
+- **Why:** New components, because no existing one has a drag to close or a side-independent drag (the room's drag works only from the top). Option (b) would rewrite the room's history and `inert` logic and its seeked slide, with a large risk for a small gain. Option (c) changes the desktop sheets too.
+- **Reviewer can change:** move the room drawer onto `DrawerContent` later, if its controller can live with a dialog.

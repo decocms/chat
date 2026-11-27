@@ -721,6 +721,8 @@
 @theme {
   --breakpoint-*: initial;
   --breakpoint-md: 901px;
+  /* Every phone drawer's slide (web/lib/studio/drawer.ts): the room drawer and the Drawer molecule. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --animate-room-sheet: vb-room-sheet 1s linear both paused;
   --animate-room-pane: vb-room-pane 1s linear both paused;
   --animate-room-scrim: vb-room-scrim 1s linear both paused;

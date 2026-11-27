@@ -1,5 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import { fromAction } from "svelte/attachments";
+  import DrawerHandle from "../../lib/studio/DrawerHandle.svelte";
+  import { drawerPanel } from "../../lib/studio/drawer";
   import { COMPOSER_SLOT } from "../composer/shape";
   import Button from "../../lib/studio/Button.svelte";
   import { paneFocus } from "./focus";
@@ -172,7 +175,11 @@
         "flex min-h-0 min-w-0 flex-col overflow-x-clip bg-sidebar text-sidebar-foreground",
         $view.mobile
           ? [
-              "absolute inset-x-0 top-0 z-50 h-[88%] w-full animate-room-sheet rounded-b-surface pt-[env(safe-area-inset-top)] shadow-lg",
+              // The shape of every phone drawer from the top (web/lib/studio/drawer.ts), on the sidebar's colors.
+              drawerPanel({ side: "top" }).surface({
+                class:
+                  "absolute inset-x-0 top-0 z-50 h-[88%] flex-none animate-room-sheet bg-sidebar text-sidebar-foreground",
+              }),
               sidePresented ? "visible" : "invisible",
             ]
           : [
@@ -187,17 +194,16 @@
       >
         {@render props.sidebar()}
       </div>
-      <button
-        type="button"
-        use:handle={{ sheet: "side", opening: false }}
-        aria-label={props.labels.closeSidebar}
+      <DrawerHandle
+        {@attach fromAction(handle, () => ({
+          sheet: "side" as const,
+          opening: false,
+        }))}
+        label={props.labels.closeSidebar}
         disabled={!$view.active || $view.sheet !== "side"}
         onclick={close}
-        class={$view.mobile
-          ? "flex shrink-0 touch-none items-center justify-center border-0 bg-background px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-          : "hidden"}
-        ><span class="h-1 w-10 rounded-full bg-border"></span></button
-      >
+        class={$view.mobile ? "" : "hidden"}
+      />
     </aside>
     {#if !$view.mobile}<div
         aria-hidden="true"

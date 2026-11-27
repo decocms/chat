@@ -7,8 +7,8 @@
   import Popover from "../../lib/studio/Popover.svelte";
   import PopoverContent from "../../lib/studio/PopoverContent.svelte";
   import PopoverTrigger from "../../lib/studio/PopoverTrigger.svelte";
-  import Sheet from "../../lib/studio/Sheet.svelte";
-  import SheetContent from "../../lib/studio/SheetContent.svelte";
+  import Drawer from "../../lib/studio/Drawer.svelte";
+  import DrawerContent from "../../lib/studio/DrawerContent.svelte";
   import SheetTitle from "../../lib/studio/SheetTitle.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { navRow } from "../../lib/components/navRow";
@@ -266,25 +266,18 @@
     "aria-expanded": open,
     onclick: () => (open = true),
   })}
-  <Sheet bind:open>
-    <SheetContent
+  <Drawer bind:open>
+    <DrawerContent
       side="bottom"
-      hideCloseButton
+      closeLabel={text("close")}
       data-new-message-panel
       data-new-message-sheet
-      class="max-h-[85dvh] gap-2 overflow-y-auto rounded-t-2xl px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] font-sans"
+      class="gap-2 overflow-y-auto px-3 font-sans"
     >
-      <button
-        type="button"
-        aria-label={text("close")}
-        class="mx-auto flex h-5 w-12 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent"
-        onclick={() => (open = false)}
-        ><span class="h-1.5 w-10 rounded-full bg-muted"></span></button
-      >
       <SheetTitle class="sr-only">{text("newMessage")}</SheetTitle>
       {@render panel()}
-    </SheetContent>
-  </Sheet>
+    </DrawerContent>
+  </Drawer>
 {:else}
   <Popover bind:open>
     <PopoverTrigger>

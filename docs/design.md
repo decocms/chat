@@ -89,6 +89,15 @@ The drawer has only the threads and the pinned items, like the desktop sidebar (
 3. Under the threads, Fixados (the pinned items). The Arquivos pane does not show them on a phone.
 4. The drawer has no room name, no ✎, no avatar and no tab row. Rename the room from the desktop sidebar. Your account is on the home.
 
+### All drawers on phones
+
+All drawers on a phone move in the same way (Gimenes #6174, #6175). The room drawer, New message, Salas da empresa, the room switcher and the actions of a message use these:
+
+1. One engine: `web/lib/studio/drawer.ts`. Open in 360 ms, close in 260 ms, with the `ease-drawer` curve. With reduced motion, there is no slide.
+2. One panel shape for each side (`drawerPanel`), and one grab bar (`DrawerHandle`). A tap on the grab bar closes the drawer.
+3. Drag a drawer towards its edge to close it. Past a quarter of its size, it closes. Else it goes back. A drag in content that you scrolled scrolls the content.
+4. For a new drawer, use `Drawer` and `DrawerContent` with `side` (top, bottom, left or right). Do not use `Sheet` for a drawer on a phone.
+
 ### Controls of the view
 
 A control of the view acts on all of the view, not on one item in it. Examples: the scope of a list, an action on all items, the actions of the open epic.

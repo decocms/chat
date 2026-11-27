@@ -989,6 +989,49 @@ try {
       await phone.waitForTimeout(400);
       await phone.screenshot({ path: join(out, "home-new-390.png") });
       shots.push("home-new-390.png");
+      // Every phone drawer is one Drawer (Gimenes #6174): a finger on it pulls it towards its edge.
+      const surface = phone.locator(
+        "[data-new-message-sheet] [data-drawer-surface]",
+      );
+      const box = await surface.boundingBox();
+      if (box) {
+        const x = box.x + box.width / 2;
+        await phone.mouse.move(x, box.y + 20);
+        await phone.mouse.down();
+        await phone.mouse.move(x, box.y + 60, { steps: 4 });
+        await phone.mouse.move(x, box.y + 20 + box.height * 0.2, {
+          steps: 4,
+        });
+        await phone.screenshot({ path: join(out, "home-new-drag-390.png") });
+        shots.push("home-new-drag-390.png");
+        await phone.mouse.move(x, box.y + box.height * 0.6, { steps: 4 });
+        await phone.mouse.up();
+        await phone
+          .locator("[data-new-message-sheet]")
+          .waitFor({ state: "detached" });
+      }
+      for (const [button, panel, file] of [
+        [
+          "[data-room-switcher]",
+          '[data-view="room-switcher"]',
+          "home-switcher-390.png",
+        ],
+        [
+          "[data-company-rooms-button]",
+          "[data-company-rooms]",
+          "home-company-390.png",
+        ],
+      ] as const) {
+        const open = phone.locator(button).first();
+        if (!(await open.isVisible())) continue;
+        await open.click();
+        await phone.locator(panel).waitFor();
+        await phone.waitForTimeout(450);
+        await phone.screenshot({ path: join(out, file) });
+        shots.push(file);
+        await phone.keyboard.press("Escape");
+        await phone.locator(panel).waitFor({ state: "detached" });
+      }
     }
   }
   if (flag("center")) {

@@ -1,10 +1,11 @@
+import { DRAWER_DRAG_THRESHOLD } from "../../lib/studio/drawer";
 export const TIMELINE_MS = 1000,
   DOCUMENT_MIN = 260,
   DOCUMENT_DEFAULT = 380,
   CHAT_MIN = 320,
   SIDEBAR_WIDTH = 272,
   SIDEBAR_RAIL_WIDTH = 68,
-  DRAG_THRESHOLD = 6;
+  DRAG_THRESHOLD = DRAWER_DRAG_THRESHOLD;
 export const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 export function hasSheetSurface(
@@ -75,48 +76,11 @@ export function documentClosedBefore(
     return false;
   }
 }
-export function sheetProgress(
-  initial: 0 | 1,
-  start: number,
-  position: number,
-  height: number,
-) {
-  return height > 0
-    ? clamp(initial + (position - start) / height, 0, 1)
-    : initial;
-}
-export function sheetEndpoint(
-  initial: 0 | 1,
-  start: number,
-  position: number,
-  height: number,
-): 0 | 1 {
-  if (!(height > 0) || Math.abs(position - start) < DRAG_THRESHOLD)
-    return initial;
-  return initial === 0
-    ? position - start > height / 4
-      ? 1
-      : 0
-    : position - start < -height / 4
-      ? 0
-      : 1;
-}
-/** A full open slide (ms). The sheet is most of the screen tall, so it needs a bit more than 300 ms to read as a slide. */
-export const SHEET_OPEN_MS = 360;
-/** A full close slide (ms): shorter than the open, so closing feels quick. */
-export const SHEET_CLOSE_MS = 260;
-/** Existing .32,.72,0,1 release curve, evaluated only for playback seeking. */
-export function sheetEasing(progress: number) {
-  const x = clamp(progress, 0, 1);
-  if (x === 0 || x === 1) return x;
-  const cubic = (t: number, a: number, b: number) =>
-    3 * (1 - t) ** 2 * t * a + 3 * (1 - t) * t ** 2 * b + t ** 3;
-  let low = 0,
-    high = 1;
-  for (let i = 0; i < 20; i++) {
-    const middle = (low + high) / 2;
-    if (cubic(middle, 0.32, 0) < x) low = middle;
-    else high = middle;
-  }
-  return cubic((low + high) / 2, 0.72, 1);
-}
+// The room drawer slides and drags like every phone drawer (web/lib/studio/drawer.ts).
+export {
+  drawerProgress as sheetProgress,
+  drawerEndpoint as sheetEndpoint,
+  drawerEasing as sheetEasing,
+  DRAWER_OPEN_MS as SHEET_OPEN_MS,
+  DRAWER_CLOSE_MS as SHEET_CLOSE_MS,
+} from "../../lib/studio/drawer";
