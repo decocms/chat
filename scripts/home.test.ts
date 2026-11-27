@@ -1157,6 +1157,37 @@ test("navigation account reset releases private rename draft and return-focus re
   personal.dispose();
 });
 
+test("Edit room on a room that is not open opens it, then its dialog (Gimenes #6163)", async () => {
+  const { createAppNavigationSession } =
+    await import("../web/features/app-navigation/controller");
+  const timer = manualClock();
+  const current = me({
+    books: [room("aaaaaa", { title: "A" }), room("bbbbbb", { title: "B" })],
+  });
+  const personal = createPersonalSession(homeApi({ me: async () => current }), {
+    clock: timer.clock,
+  });
+  await personal.refresh();
+  const went: unknown[] = [];
+  const rooms = createRoomsSession(personal, timer.clock),
+    controller = createAppNavigationSession(personal, rooms, {
+      navigate: (target) => went.push(target),
+      home: () => {},
+      archived: () => {},
+      rename: async () => ({ ok: true }),
+    });
+  controller.syncPath("https://vb.test/b/aaaaaa/");
+  controller.askRename("bbbbbb");
+  expect(went).toEqual([{ roomId: "bbbbbb" }]);
+  expect(get(controller.state).renameId).toBeNull();
+  controller.syncPath("https://vb.test/b/bbbbbb/");
+  expect(get(controller.state).renameId).toBe("bbbbbb");
+  expect(get(controller.state).renameDraft).toBe("B");
+  controller.dispose();
+  rooms.dispose();
+  personal.dispose();
+});
+
 test("a room's number counts the messages that ask you, not work: tasks and Claude's questions stay in the Inbox", () => {
   expect(waitCount([{ ref: "t1" }, { ref: "t2" }])).toBe(0);
   expect(

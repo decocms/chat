@@ -2643,4 +2643,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: An append log pruned at 7 days (a stale cursor needs a full state). Writes from each write path (one forgotten path loses changes). A server-only PR with no consumer (nothing proves it).
 - Risk: medium (a DO schema change: a new table and triggers). An app without `rev` resumes as before. A wrong `rev` falls back to the clocks.
 - Undo: Revert the commit. The table and the triggers stay in each DO, with no reader; drop them in a later migration if needed.
+
+### 2026-11-27 · feat/edit-room-single · One "Editar sala…" item, and the color in the edit dialog
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked to remove Cor, Ícone and Renomear from the room menu and keep one "edit room" item that opens the dialog (#6162, #6163, "Já implementa e sobe" #6166).
+- Decision:
+  - `RoomMenu` has Marcar como lido · Editar sala… · Mover ▸ · Copiar link · Arquivar · Sair da sala. A DM has no Editar sala.
+  - The edit dialog has the icon, then the color (no color + 6 dots, a click applies it at once, like the icon), then the name and Salvar.
+  - "Editar sala…" works on any room. The rename goes through the open room's socket, so a room that is not open is opened first, and the dialog opens when the path arrives (`controller.askRename` / `syncPath`).
+  - `tintDot` and `tintName` moved to `app-navigation/tints.ts`.
+- Other options: Save the color with the name on Salvar. Allow renaming a room that is not open through a new API.
+- Risk: low
+- Undo: Revert the commit.
 - Status: open

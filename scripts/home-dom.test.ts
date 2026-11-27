@@ -1461,8 +1461,7 @@ test("a right-click on a rail room opens its menu at the pointer; a tint and Arc
   );
   expect(items).toEqual([
     "Mark as read",
-    "Color",
-    "Icon",
+    "Edit room…",
     "Move",
     "Copy room link",
     "Archive",

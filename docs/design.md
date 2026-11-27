@@ -53,7 +53,7 @@ The top bar has one row on desktop. Its parts are in this order (Gimenes #6099, 
 
 People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. A click on the open pane's item in ⋮ (the Doc too), or on the chip's ×, closes the pane. ⌥⌘B (Ctrl+Alt+B) opens and closes the pane. The browser remembers which of the two you left open (and whether you closed the pane), so every room opens the same way. A DM always starts on its doc.
 
-The sidebar's top row is the room's name. It stays in place while the rest of the sidebar scrolls under it. The whole row opens the main thread: it has only the pointer, not a button's background. It has no ✎. To rename the room, right-click the room in the rail ("Renomear sala", `RoomMenu`).
+The sidebar's top row is the room's name. It stays in place while the rest of the sidebar scrolls under it. The whole row opens the main thread: it has only the pointer, not a button's background. It has no ✎. To edit the room, right-click it in the rail: "Editar sala…" (`RoomMenu`) opens one dialog with the icon, the color (7 dots, a click applies) and the name. The menu has no Cor or Ícone submenus. It works for any room: a room that is not open opens first, then the dialog.
 
 The separator divides two scopes. On its left, the controls change the view in the middle. On its right, the search and ⋮ open parts of the room.
 

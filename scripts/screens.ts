@@ -160,6 +160,23 @@ try {
     await desk.screenshot({ path: join(out, "hover-1440.png") });
     shots.push("hover-1440.png");
   }
+  if (flag("edit-room")) {
+    // One "Editar sala…" in the room menu, and its dialog with the icon, the color and the name (Gimenes #6163).
+    await desk
+      .locator(`[data-room-id="${room}"]`)
+      .first()
+      .click({ button: "right" });
+    await desk.locator(`[data-room-menu="${room}"]`).waitFor();
+    await desk.waitForTimeout(300);
+    await desk.screenshot({ path: join(out, "room-menu-1440.png") });
+    shots.push("room-menu-1440.png");
+    await desk.locator("[data-room-menu-edit]").click();
+    await desk.locator("[data-room-tints]").waitFor();
+    await desk.waitForTimeout(300);
+    await desk.screenshot({ path: join(out, "edit-room-1440.png") });
+    shots.push("edit-room-1440.png");
+    await desk.keyboard.press("Escape");
+  }
   if (flag("image")) {
     // The full-screen image viewer (Gimenes #5961, option B): fit, a click zooms at the click, ← goes to the
     // previous image of the thread. Two drawn images (test data only), with small text that needs the zoom.
