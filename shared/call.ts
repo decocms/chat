@@ -14,6 +14,11 @@ export const isRoomMember = (room: {
   me: string;
   members: readonly string[];
 }) => room.members.includes(room.me) || isRecorder(room.me);
+/** Who is in a room's call, for the rail and the phone list (books.in_call): the people, not the recorder, each once
+ *  and in a stable order, so a change of tracks or mute writes nothing. Empty = no call. */
+export const callRoster = (peers: readonly { email: string }[]) =>
+  [...new Set(peers.map((p) => p.email).filter((e) => !isRecorder(e)))].sort();
+
 /** The room's call chat: the thread id of the chat beside the call's stage, one per room for every call. It is not
  *  an epic: no listing of threads shows it (the sidebar, Open/Done, read_room's epics). A DM's call uses "main". */
 export const CALL_THREAD = "call";

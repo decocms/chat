@@ -49,7 +49,7 @@ import { decide, type Question } from "./jev";
 import { runRouterActions, waitQuestion, WAIT_PEOPLE_MAX, WAIT_THRESHOLD, type ActionMessage, type ActionRoom } from "./routerActions";
 import { track } from "./track";
 import { addCallUsage, callsOn, recorderOn, startRecorder } from "./calls";
-import { CALL_THREAD, RING_MS, callLineText, callMinutes, isRecorder } from "../shared/call";
+import { CALL_THREAD, RING_MS, callLineText, callMinutes, callRoster, isRecorder } from "../shared/call";
 import { mailFrom, publicOrigin } from "./host";
 import { studioAgentsIn } from "./sandbox";
 import { studioAuth, studioSend, studioWakeText } from "./studioSandbox";
@@ -877,6 +877,21 @@ export class Book extends DurableObject<Env> {
   private setCall(peers: CallPeer[]) {
     this.set("call", JSON.stringify(peers));
     this.broadcastCall();
+    this.saveCallRoster(peers);
+  }
+  /** books.in_call for the members' rail and phone list (the green speaker on the room): who is in the call, written
+   *  only when that changes (a person joins or leaves), then the members' apps refetch /api/me, like the busy ✻. */
+  private saveCallRoster(peers: CallPeer[]) {
+    const id = this.get("book_id");
+    const roster = callRoster(peers);
+    const stored = roster.length ? JSON.stringify(roster) : "";
+    if (!id || (this.get("call_roster") ?? "") === stored) return;
+    this.set("call_roster", stored);
+    this.ctx.waitUntil(
+      this.env.DB.prepare(`UPDATE books SET in_call = ? WHERE id = ?`).bind(stored || null, id).run()
+        .then(() => this.pokeMembers())
+        .catch((e) => console.error("call roster", String(e))),
+    );
   }
   private callEvent(): Extract<RoomEvent, { t: "call" }> {
     return { t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) };

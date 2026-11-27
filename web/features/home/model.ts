@@ -176,7 +176,7 @@ export function waitsByRoom<W extends { book_id: string }>(
   return map;
 }
 /**
- * A room's state in words, in the order of the avatar's three signals: what
+ * A room's state in words: a call that is on (the green speaker), then the order of the avatar's three signals: what
  * waits on you (the number), who wrote since you looked (the dot), an agent
  * working (the ✻); then a cloud sandbox running, which has no mark on the
  * avatar. The rail's tooltip lists them all; a DM row shows the first.
@@ -191,11 +191,39 @@ export function roomStatus(
   const news = unread(room, seen),
     waiting = waitCount(waits);
   return [
+    callText(room, lang),
     waiting ? homeText(lang, "waiting", { n: waiting }) : "",
     news ? homeText(lang, news === "human" ? "newHuman" : "newAgent") : "",
     (room.busy_until ?? 0) > now ? homeText(lang, "busy") : "",
     room.sandboxes_running ? homeText(lang, "cloud") : "",
   ].filter(Boolean);
+}
+/** Who is in the room's call now (MeBook.in_call, a JSON array of names): empty when no call is on. */
+export function callNames(room: Pick<RoomSummary, "in_call">): string[] {
+  if (!room.in_call) return [];
+  try {
+    const names: unknown = JSON.parse(room.in_call);
+    return Array.isArray(names)
+      ? names.filter((name): name is string => typeof name === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+/** "Na call: Ana, Bia" (the rail's tooltip, the phone's row); "" when no call is on. */
+export function callText(
+  room: Pick<RoomSummary, "in_call">,
+  lang: HomeLanguage,
+) {
+  const names = callNames(room);
+  if (!names.length) return "";
+  const shown = names.slice(0, 4).join(", ");
+  return homeText(lang, "inCall", {
+    names:
+      names.length > 4
+        ? `${shown} ${homeText(lang, "more", { n: names.length - 4 })}`
+        : shown,
+  });
 }
 export const recentRooms = (books: readonly RoomSummary[]) =>
   [...books].sort(

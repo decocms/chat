@@ -193,9 +193,25 @@ test("a closed folder's signals: the summed red number (asks only) and the stron
   ).toEqual({
     count: 2,
     unread: "human",
+    call: [],
   });
   expect(folderSignals(rooms, { b: 4 }, [])).toEqual({
     count: 0,
     unread: "agent",
+    call: [],
   });
+});
+
+test("a closed folder's green speaker: everyone in a call in any of its rooms, each once; none without a call", () => {
+  const rooms = [
+    room("a", { in_call: JSON.stringify(["Ana", "Bia"]) }),
+    room("b", { in_call: JSON.stringify(["Bia", "Caio"]) }),
+    room("c", { in_call: null }),
+  ];
+  expect(folderSignals(rooms, {}, []).call).toEqual(["Ana", "Bia", "Caio"]);
+  expect(folderSignals(rooms.slice(2), {}, []).call).toEqual([]);
+  // A broken value reads as no call, never as a crash.
+  expect(
+    folderSignals([room("d", { in_call: "not json" })], {}, []).call,
+  ).toEqual([]);
 });

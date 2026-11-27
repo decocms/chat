@@ -71,6 +71,8 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
          coalesce(r.last_id, 0) AS read_id, b.last_by, b.last_text, b.last_agent,
          (SELECT u.name FROM users u WHERE u.email = b.last_by) AS last_by_name,
          (SELECT count(*) FROM sandboxes s WHERE s.book_id = b.id AND s.state = 'running') AS sandboxes_running,
+         -- Who is in the room's call now (books.in_call, Book.saveCallRoster): their names, for the rail's speaker.
+         CASE WHEN b.in_call IS NULL THEN NULL ELSE (SELECT json_group_array(coalesce(u.name, substr(c.value, 1, instr(c.value, '@') - 1))) FROM json_each(b.in_call) c LEFT JOIN users u ON u.email = c.value) END AS in_call,
          (SELECT group_concat(email) FROM members m2 WHERE m2.book_id = b.id) AS members,
          -- A DM's other person, whom your other lists may not know (no shared room, no connection): name + picture.
          (SELECT u.name FROM members p JOIN users u ON u.email = p.email WHERE b.dm IS NOT NULL AND p.book_id = b.id AND p.email != m.email) AS peer_name,

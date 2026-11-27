@@ -6,6 +6,7 @@
   import { waitCount, type WaitReference } from "../waits/model";
   import { homeText, type HomeLanguage } from "../home/copy";
   import {
+    callText,
     roomIcon,
     roomStatus,
     targetHref,
@@ -111,5 +112,6 @@
       unread={selected || variant === "chats" ? null : unread(room, seen)}
       busy={(room.busy_until ?? 0) > now}
       {waits}
+      call={callText(room, lang) || null}
     />{/snippet}
 </RoomRow>
