@@ -4,6 +4,13 @@ import type { MeResult } from "../../../shared/schemas";
 import type { RoomTint } from "../home/api";
 import type { PersonalSession } from "../home/personal";
 import { orderedRooms, roomsOnly } from "../home/model";
+import {
+  railEntries,
+  railItems,
+  sameShape,
+  shapeOf,
+  type RailShape,
+} from "../app-navigation/railFolders";
 import { authClock, createAuthOwner, type AuthClock } from "../auth/owner";
 export function createRoomsSession(
   personal: PersonalSession,
@@ -192,6 +199,40 @@ export function createRoomsSession(
             .filter((room) => submitted.includes(room.id))
             .map((room) => room.id)
             .join("\0") === submitted.join("\0"),
+      );
+    },
+    /** Your rail with its folders in a new shape (a drop, a new folder, a room out of one): saved whole. */
+    rail(shape: RailShape) {
+      const me = get(personal.state).me;
+      if (!me) return;
+      const submitted = shape.map((item) =>
+        "room" in item ? item : { folder: item.folder, rooms: [...item.rooms] },
+      );
+      return run(
+        "rail",
+        (signal) => personal.api.rail(railItems(submitted), signal),
+        (me) =>
+          sameShape(
+            shapeOf(railEntries(me.books, me.folders ?? [])).filter(
+              (item) => "room" in item || item.rooms.length > 0,
+            ),
+            submitted.filter((item) => "room" in item || item.rooms.length > 0),
+          ),
+      );
+    },
+    /** "Configurações da pasta": a folder's name and color. */
+    folder(id: string, patch: { name: string | null; tint: RoomTint }) {
+      return run(
+        `folder:${id}`,
+        (signal) => personal.api.railFolder(id, patch, signal),
+        (me) => {
+          const folder = me.folders?.find((folder) => folder.id === id);
+          return (
+            !folder ||
+            ((folder.tint ?? null) === patch.tint &&
+              (folder.name ?? null) === (patch.name?.trim() || null))
+          );
+        },
       );
     },
     resolve(bookId: string, ref: string) {

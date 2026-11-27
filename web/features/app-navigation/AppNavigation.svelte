@@ -4,9 +4,7 @@
   import Count from "../../lib/components/Count.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import SortableItem from "../../lib/components/SortableItem.svelte";
-  import SortableList, {
-    type SortMove,
-  } from "../../lib/components/SortableList.svelte";
+  import SortableList from "../../lib/components/SortableList.svelte";
   import TitledDialog from "../../lib/components/TitledDialog.svelte";
   import { studioType } from "../../lib/components/type";
   import Button from "../../lib/studio/Button.svelte";
@@ -17,6 +15,23 @@
   import RailRoom from "./RailRoom.svelte";
   import RailDm from "./RailDm.svelte";
   import RoomMenu from "./RoomMenu.svelte";
+  import RailFolder from "./RailFolder.svelte";
+  import FolderMenu from "./FolderMenu.svelte";
+  import FolderSettings from "./FolderSettings.svelte";
+  import {
+    applyIntent,
+    dropIntent,
+    folderOf,
+    newFolderId,
+    previewable,
+    railEntries,
+    sameShape,
+    shapeOf,
+    type RailEntry,
+    type RailHit,
+    type RailIntent,
+    type RailShape,
+  } from "./railFolders";
   import RoomSwitcher from "./RoomSwitcher.svelte";
   import RailCube from "../home/RailCube.svelte";
   import AccountRow from "./AccountRow.svelte";
@@ -25,11 +40,9 @@
     switcherDms,
     unreadDms,
     dmIds,
-    orderedRooms,
     roomsOnly,
     waitsByRoom,
     roomRailTint,
-    type RoomSummary,
   } from "../home/model";
   import { homeText, type HomeLanguage } from "../home/copy";
   import { createNavigationPresentation } from "./presentation";
@@ -137,52 +150,165 @@
   const focusBack = () => controller.returnFocus(homeButton);
   // Neighbours of one colour stand as a group on a tinted backdrop; everything else stands alone.
   const waitsIn = $derived(waitsByRoom($personal.me?.waits ?? []));
-  // A room moved on the rail shows at its new place at once; the saved order
-  // takes over when it arrives (or after the save gives up, 10 s). While a
-  // room is dragged, the others make room (dragOrder).
-  let localOrder = $state<string[] | null>(null),
-    dragOrder = $state<string[] | null>(null),
-    localTimer: ReturnType<typeof setTimeout> | undefined;
-  const serverRooms = $derived(
-    orderedRooms(roomsOnly($personal.me?.books ?? [])),
-  );
-  const railRooms = $derived.by(() => {
-    const order = dragOrder ?? localOrder;
-    if (!order) return serverRooms;
-    const position = new Map(order.map((id, index) => [id, index]));
-    return [...serverRooms].sort(
-      (a, b) => (position.get(a.id) ?? 1e9) - (position.get(b.id) ?? 1e9),
-    );
-  });
+  // Your rail: rooms and your folders (railFolders.ts). A change shows at
+  // once; the saved rail takes over when it arrives (or after the save gives
+  // up, 10 s). While a tile is dragged, the rail shows where it would go in
+  // its own list (dragShape); a drop on a room, into a folder or out of one
+  // shows when it lands.
+  const books = $derived($personal.me?.books ?? []);
+  const folders = $derived($personal.me?.folders ?? []);
+  const serverShape = $derived(shapeOf(railEntries(books, folders)));
+  let localShape = $state<RailShape | null>(null),
+    dragShape = $state<RailShape | null>(null),
+    intent = $state<RailIntent | null>(null),
+    dragging = $state<string | null>(null),
+    localTimer: ReturnType<typeof setTimeout> | undefined,
+    railList = $state<HTMLElement | null>(null),
+    base: RailShape | null = null;
+  const shape = $derived(dragShape ?? localShape ?? serverShape);
   $effect(() => {
-    if (
-      localOrder &&
-      serverRooms.map((room) => room.id).join("\0") === localOrder.join("\0")
-    )
-      localOrder = null;
+    if (localShape && sameShape(serverShape, localShape)) localShape = null;
   });
-  // One flat list, so a room can move between colour runs: each tile carries
-  // its run's tint, with the run's corners on its first and last tile.
-  const tiles = $derived(
-    railRooms.map((room, index) => {
-      const tint = roomRailTint(room),
-        before = index > 0 ? roomRailTint(railRooms[index - 1]!) : undefined,
-        after = roomRailTint(railRooms[index + 1] ?? room);
-      const joinsBefore = !!tint && before === tint,
-        joinsAfter = !!tint && index < railRooms.length - 1 && after === tint;
-      return { room, tint, joinsBefore, joinsAfter, first: index === 0 };
+  const roomById = $derived(new Map(books.map((room) => [room.id, room])));
+  const folderById = $derived(
+    new Map(folders.map((folder) => [folder.id, folder])),
+  );
+  const openFolders = $derived(controller.openFolders);
+  // What the rail draws, from `shape` (a folder made by a drop a moment ago is drawn before the server knows it).
+  const entries = $derived(
+    shape.flatMap((item): RailEntry[] => {
+      if ("room" in item) {
+        const room = roomById.get(item.room);
+        return room ? [{ kind: "room", room }] : [];
+      }
+      const rooms = item.rooms.flatMap((id) => roomById.get(id) ?? []);
+      if (!rooms.length) return [];
+      const folder = folderById.get(item.folder) ?? {
+        id: item.folder,
+        name: null,
+        tint: null,
+        position: null,
+      };
+      return [{ kind: "folder", folder, rooms }];
     }),
   );
-  const railIds = $derived(railRooms.map((room) => room.id));
-  // Press and move a room (a mouse moves 6 px; a finger holds 250 ms): it follows the pointer and the
-  // others make room (SortableList, Gimenes #3997 #4020). The whole new order is saved, so a second
-  // drop before the first is confirmed builds on it.
-  function moved(move: SortMove) {
-    localOrder = move.order;
-    clearTimeout(localTimer);
-    localTimer = setTimeout(() => (localOrder = null), 10_000);
-    controller.order(move.order);
+  // Neighbours of one colour stand as a group on a tinted backdrop; a folder breaks the run. Each tile carries its
+  // run's tint, with the run's corners on its first and last tile.
+  const tiles = $derived(
+    entries.map((entry, index) => {
+      const tintOf = (other: RailEntry | undefined) =>
+        other?.kind === "room" ? roomRailTint(other.room) : undefined;
+      const tint = tintOf(entry),
+        before = tintOf(entries[index - 1]),
+        after = tintOf(entries[index + 1]);
+      const joinsBefore = !!tint && before === tint,
+        joinsAfter = !!tint && after === tint;
+      return {
+        entry,
+        id: entry.kind === "room" ? entry.room.id : entry.folder.id,
+        tint,
+        joinsBefore,
+        joinsAfter,
+        first: index === 0,
+      };
+    }),
+  );
+  const railIds = $derived(
+    entries.flatMap((entry) =>
+      entry.kind === "room"
+        ? [entry.room.id]
+        : [entry.folder.id, ...entry.rooms.map((room) => room.id)],
+    ),
+  );
+  const folderIds = $derived(
+    new Set(shape.flatMap((item) => ("folder" in item ? [item.folder] : []))),
+  );
+  /** The tiles under the pointer, read from the rail as drawn now (not the dragged one, nor dnd-kit's placeholder). */
+  function hits(source: string): RailHit[] {
+    if (!railList) return [];
+    const list: RailHit[] = [];
+    for (const element of railList.querySelectorAll<HTMLElement>(
+      "[data-rail-item], [data-rail-member]",
+    )) {
+      if (element.closest("[data-dnd-placeholder]")) continue;
+      const box = element.getBoundingClientRect();
+      if (!box.height) continue;
+      const member = element.dataset.railMember;
+      if (member) {
+        const folder = element.dataset.railIn ?? "";
+        if (member !== source && folder !== source)
+          list.push({
+            id: member,
+            kind: "room",
+            in: folder,
+            top: box.top,
+            bottom: box.bottom,
+          });
+        continue;
+      }
+      const id = element.dataset.railItem ?? "";
+      if (id === source) continue;
+      const kind = element.dataset.railKind === "folder" ? "folder" : "room";
+      const head =
+        kind === "folder" && $openFolders.has(id)
+          ? element
+              .querySelector("[data-rail-folder-head]")
+              ?.getBoundingClientRect()
+          : undefined;
+      list.push({
+        id,
+        kind,
+        in: null,
+        top: box.top,
+        bottom: box.bottom,
+        ...(head ? { head: { top: head.top, bottom: head.bottom } } : {}),
+      });
+    }
+    return list;
   }
+  // Press and move a tile (a mouse moves 6 px; a finger holds 250 ms): it follows the pointer (SortableList, Gimenes
+  // #3997 #4020). On another room's middle it makes a folder with it; on a folder's, it joins it; at an edge, it goes
+  // before or after; out of a folder's block, it leaves the folder (like Discord).
+  const drag = {
+    move(id: string, _x: number, y: number) {
+      base ??= shape;
+      dragging = id;
+      const source = {
+        id,
+        kind: folderIds.has(id) ? ("folder" as const) : ("room" as const),
+        in: folderOf(base, id),
+      };
+      const next = dropIntent(source, y, hits(id));
+      intent = next;
+      if (next && previewable(base, id, next))
+        dragShape = applyIntent(base, id, next, id);
+    },
+    drop(id: string, canceled: boolean) {
+      const from = base,
+        last = intent;
+      base = null;
+      intent = null;
+      dragging = null;
+      dragShape = null;
+      if (canceled || !from || !last) return;
+      const next = applyIntent(from, id, last, newFolderId());
+      if (sameShape(next, from)) return;
+      localShape = next;
+      clearTimeout(localTimer);
+      localTimer = setTimeout(() => (localShape = null), 10_000);
+      controller.rail(next);
+    },
+  };
+  // What the drop would do, drawn on the rail: the room or folder it would go into gets an outline.
+  const into = $derived(
+    !dragging || !intent
+      ? null
+      : intent.kind === "combine"
+        ? intent.target
+        : intent.in !== null && intent.in !== folderOf(base ?? shape, dragging)
+          ? intent.in
+          : null,
+  );
   onDestroy(() => clearTimeout(localTimer));
   // A DM belongs to your home: there the home logo is the current one.
   const atHome = $derived(
@@ -284,12 +410,15 @@
     class="flex min-h-0 min-w-0 flex-1 flex-row items-center self-stretch overflow-x-auto max-md:hidden px-1 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-2 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:px-2"
     role="list"
     aria-label={text("home")}
+    bind:this={railList}
   >
-    <SortableList ids={railIds} bind:order={dragOrder} onmove={moved}>
-      {#each tiles as tile, index (tile.room.id)}<SortableItem
-          sortId={tile.room.id}
+    <SortableList ids={railIds} onmove={() => {}} manual={drag}>
+      {#each tiles as tile, index (tile.id)}<SortableItem
+          sortId={tile.id}
           {index}
           role="listitem"
+          data-rail-item={tile.id}
+          data-rail-kind={tile.entry.kind}
           data-tint-run={tile.tint ? "" : undefined}
           class={cn(
             "shrink-0",
@@ -300,16 +429,62 @@
             tile.joinsAfter && "pb-2.5",
           )}
         >
-          <RailRoom
-            room={tile.room}
-            {lang}
-            now={$personal.now}
-            selected={$nav.roomId === tile.room.id}
-            seen={$personal.seen[tile.room.id] ?? 0}
-            waits={waitsIn.get(tile.room.id) ?? []}
-            onnavigate={controller.callbacks.navigate}
-            onmenu={controller.openMenu}
-          />
+          {#if tile.entry.kind === "room"}<div
+              data-rail-target={into === tile.id || undefined}
+              class={cn(
+                "rounded-xl outline-offset-2",
+                into === tile.id &&
+                  "outline-2 outline-solid outline-foreground",
+              )}
+            >
+              <RailRoom
+                room={tile.entry.room}
+                {lang}
+                now={$personal.now}
+                selected={$nav.roomId === tile.entry.room.id}
+                seen={$personal.seen[tile.entry.room.id] ?? 0}
+                waits={waitsIn.get(tile.entry.room.id) ?? []}
+                onnavigate={controller.callbacks.navigate}
+                onmenu={controller.openMenu}
+              />
+            </div>{:else}{@const folder = tile.entry.folder}{@const open =
+              $openFolders.has(folder.id)}<RailFolder
+              {folder}
+              rooms={tile.entry.rooms}
+              {open}
+              {lang}
+              seen={$personal.seen}
+              waits={$personal.me?.waits ?? []}
+              selected={tile.entry.rooms.some(
+                (room) => room.id === $nav.roomId,
+              )}
+              target={into === folder.id}
+              ontoggle={() => controller.toggleFolder(folder.id)}
+              onmenu={(trigger, point) =>
+                controller.openFolderMenu(folder.id, trigger, point)}
+            >
+              {#each tile.entry.rooms as room, at (room.id)}<SortableItem
+                  sortId={room.id}
+                  index={at}
+                  group={folder.id}
+                  disabled={!open}
+                  role="listitem"
+                  data-rail-member={room.id}
+                  data-rail-in={folder.id}
+                  class="mt-2.5 shrink-0"
+                >
+                  <RailRoom
+                    {room}
+                    {lang}
+                    now={$personal.now}
+                    selected={$nav.roomId === room.id}
+                    seen={$personal.seen[room.id] ?? 0}
+                    waits={waitsIn.get(room.id) ?? []}
+                    onnavigate={controller.callbacks.navigate}
+                    onmenu={controller.openMenu}
+                  />
+                </SortableItem>{/each}
+            </RailFolder>{/if}
         </SortableItem>{/each}
     </SortableList>
   </div>
@@ -372,6 +547,8 @@
     />{/if}
 </div>
 <RoomMenu {controller} {lang} />
+<FolderMenu {controller} {lang} />
+<FolderSettings {controller} {lang} />
 {#if Dialogs}<Dialogs
     {controller}
     {lang}

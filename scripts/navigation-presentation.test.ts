@@ -229,17 +229,17 @@ test("a drop on the rail reaches the server when you also have DMs, which are no
   }
 });
 
-test("a room moved one place leaves the DMs out of the saved order", async () => {
+test("a room moved one place leaves the DMs out of the saved rail", async () => {
   const timer = manualClock();
-  const sent: string[][] = [];
+  const sent: unknown[] = [];
   const personal = createPersonalSession(
     homeApi({
       me: async () =>
         me({
           books: [room("aaaaaa"), room("dm1", { dm: 1 }), room("bbbbbb")],
         }),
-      order: async (ids) => {
-        sent.push(ids);
+      rail: async (items) => {
+        sent.push(items);
         return { ok: true };
       },
     }),
@@ -256,7 +256,7 @@ test("a room moved one place leaves the DMs out of the saved order", async () =>
   try {
     controller.move("aaaaaa", 1);
     await settle();
-    expect(sent).toEqual([["bbbbbb", "aaaaaa"]]);
+    expect(sent).toEqual([[{ room: "bbbbbb" }, { room: "aaaaaa" }]]);
   } finally {
     controller.dispose();
     rooms.dispose();

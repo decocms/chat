@@ -80,6 +80,8 @@ export function homeApi(overrides: Partial<HomeApi> = {}): HomeApi {
     read: async () => ({ ok: true }),
     icon: async () => ({ ok: true, icon: 1 }),
     order: async () => ({ ok: true }),
+    rail: async () => ({ ok: true }),
+    railFolder: async () => ({ ok: true }),
     resolve: async () => ({ ok: true }),
     resolveMany: async () => ({ ok: true }),
     ...overrides,

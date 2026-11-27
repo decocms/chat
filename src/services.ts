@@ -7,7 +7,7 @@ import * as z from "zod/mini";
 import { LISTEN_FRESH, poke, pokeRoommates } from "./person";
 import { EMAIL_RE } from "./auth";
 import { cookieLang, reqLang } from "./lang";
-import { MeBook, MeData, MeFriend, MeFriendRequest, MeInvite, MePerson, MeResult, MeSentRequest, MeWait } from "../shared/schemas";
+import { MeBook, MeData, MeFolder, MeFriend, MeFriendRequest, MeInvite, MePerson, MeResult, MeSentRequest, MeWait } from "../shared/schemas";
 import { routeMessage } from "./route-home";
 import { startRoom } from "./start-room";
 import { canDm, dmIds, openDmWith } from "./dm";
@@ -28,6 +28,7 @@ import { aiSpend, infraMonitor } from "./reports";
 import { resolveLink } from "./linkTarget";
 import { createPersona, deletePersona, renamePersona, setPersonaRoom } from "./personas";
 import { orgRooms, requestAccess, roomOrg, seeOrgRooms, setRoomOrg } from "./orgRooms";
+import { railFolders, saveRail, setRailFolder } from "./railFolders";
 
 // The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
 let appVersion: string | undefined;
@@ -64,9 +65,9 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
   // people from your rooms. Free providers (gmail.com…) have none (Gimenes #5006).
   const domain = corporateDomain(email);
   // One round trip's worth: the reads run together.
-  const [books, friends, requests, sent, invites, people, me, waits, colleagues] = await Promise.all([
+  const [books, friends, requests, sent, invites, people, me, waits, colleagues, folders] = await Promise.all([
     db.prepare(
-      `SELECT b.id, b.title, b.folder, b.summary, b.owner, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
+      `SELECT b.id, b.title, b.folder, b.summary, b.owner, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.rail_folder, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
          coalesce(r.last_id, 0) AS read_id, b.last_by, b.last_text, b.last_agent,
          (SELECT u.name FROM users u WHERE u.email = b.last_by) AS last_by_name,
          (SELECT count(*) FROM sandboxes s WHERE s.book_id = b.id AND s.state = 'running') AS sandboxes_running,
@@ -108,6 +109,7 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
       ? db.prepare(`SELECT email, name, avatar FROM users WHERE email LIKE '%@' || ?2 AND email != ?1 ORDER BY coalesce(name, email) LIMIT 200`)
           .bind(email, domain).all<{ email: string; name: string | null; avatar: number | null }>().then((r) => r.results)
       : Promise.resolve([]),
+    railFolders(db, email),
   ]);
   const inRooms = new Set(people.results.map((r) => r.email));
   // Remember the language for emails sent later (mentions, invites): an explicit choice wins, else the browser's, once.
@@ -146,6 +148,7 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
       ...people.results.map((r) => ({ ...r, rooms: roomTitles(r.rooms) })),
       ...colleagues.filter((r) => !inRooms.has(r.email)).map((r) => ({ ...r, rooms: [], domain: true })),
     ]),
+    folders: keep("folders", MeFolder, folders),
     waits: keep("waits", MeWait, waits.map((w) => ({ ...w, room: w.room ?? "", thread: w.thread ?? "main", author: w.author ?? "", text: w.text ?? "", ts: w.ts ?? 0 }))),
   });
   if (dropped.length) console.error("/api/me dropped rows off schema", dropped);
@@ -322,6 +325,8 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       ),
     roomOrg: (roomId) => roomOrg(env.DB, roomId, email),
     setRoomOrg: (roomId, open) => setRoomOrg(env.DB, roomId, email, open),
+    saveRail: (items) => saveRail(env.DB, email, items),
+    setRailFolder: (id, patch) => setRailFolder(env.DB, email, id, patch),
     orgRooms: () => orgRooms(env.DB, email),
     seeOrgRooms: (until) => seeOrgRooms(env.DB, email, until),
     decideRequest: async (roomId, who, approve) => {

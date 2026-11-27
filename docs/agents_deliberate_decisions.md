@@ -2760,3 +2760,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Why:** (a) works in every mode (herdr terminal, herdr-core, Herdr app) and needs no change in the app. Keeping the old files for the main agent keeps every open Claude and its conversation. (c) needs a rewrite of the three sync loops.
 - **Reviewer can change:** move the start to the app (b) if the herdr tab mode goes away.
 
+
+## 2026-11-27 · feat/rail-folders
+
+- **Decision:** Rail folders are a new table `rail_folders` (per email) and a new column `members.rail_folder`. `books.folder` is not used: it is the room's project folder, the same for all members. One write, `POST /api/rail`, saves the whole rail (rooms and folders, in order), so a drop that makes, joins or leaves a folder is one request.
+- **Options:** (a) the whole rail in one write; (b) one endpoint for each change (create, add, remove, delete, reorder).
+- **Why:** (a) keeps the order and the folders always together. The old `POST /api/rooms/order` stays for older tabs.
+- **Reviewer can change:** split into small endpoints if a rail gets too big for one write.
+
+- **Decision:** New molecules `RailFolder.svelte`, `FolderMenu.svelte`, `FolderSettings.svelte` and `TintPicker.svelte` (the color swatches, moved out of the room's edit dialog so the folder dialog uses the same). `SortableList` gets a `manual` mode: the rail decides what a drag does from the pointer (the middle of a tile = together, an edge = before or after).
+- **Options:** (a) a manual mode on `SortableList`; (b) a second drag component for the rail.
+- **Why:** dnd-kit's sort cannot tell "on a room" from "next to a room". (a) keeps one drag component.
+- **Reviewer can change:** the 25% / 50% / 25% zones of a tile.
+
+- **Decision:** "Mover ▸ Nova pasta" in the room menu makes a folder with that one room. A folder that a drag leaves with one room dissolves.
+- **Options:** (a) allow a one-room folder from the menu; (b) no "Nova pasta" in the menu.
+- **Why:** the request asks for "Nova pasta" in the menu. A room needs a folder to go into before another room can join it.
+- **Reviewer can change:** dissolve one-room folders always.

@@ -98,6 +98,29 @@ export const ResolveWaitsBody = z.object({
   items: z.array(ResolveWaitBody).check(z.minLength(1), z.maxLength(200)),
 });
 export const RoomOrderBody = z.object({ ids: z.array(z.unknown()) });
+/** A folder on your rail (POST /api/rail): its id is made by the browser, and it is yours only (per person). */
+export const RAIL_FOLDER_ID = /^f[a-z0-9]{6,23}$/;
+/** One item of your rail, in order: a room alone, or a folder with its rooms. */
+export const RailItem = z.union([
+  z.object({ room: z.string().check(z.minLength(1), z.maxLength(64)) }),
+  z.object({
+    folder: z.string().check(z.regex(RAIL_FOLDER_ID)),
+    rooms: z
+      .array(z.string().check(z.minLength(1), z.maxLength(64)))
+      .check(z.maxLength(300)),
+  }),
+]);
+export type RailItem = z.infer<typeof RailItem>;
+/** Your whole rail (rooms and folders) in a new order: a drop, a new folder, a room out of a folder. */
+export const RailBody = z.object({
+  items: z.array(RailItem).check(z.minLength(1), z.maxLength(300)),
+});
+export type RailBody = z.infer<typeof RailBody>;
+/** "Configurações da pasta": its name (empty = none) and color (an unknown one is none). */
+export const RailFolderBody = z.object({
+  name: z.optional(z.nullable(z.string().check(z.maxLength(200)))),
+  tint: z.optional(z.nullable(z.string())),
+});
 export const TintBody = z.object({ tint: z.optional(z.nullable(z.string())) });
 export const ArchiveBody = z.object({ archived: z.optional(z.boolean()) });
 /** "Encaminhar" (web/features/forward): how many messages and files went, and where. Only counts, never the text.
@@ -664,7 +687,17 @@ export const MeBook = z.object({
   last_text: z.optional(str),
   /** 1 = that person's agent wrote it. */
   last_agent: z.optional(num),
+  /** The folder on your rail this room is in (yours only, `folders`). */
+  rail_folder: z.optional(str),
 });
+/** A folder on your rail (like Discord's server folders): only you see it. Its rooms name it (MeBook.rail_folder). */
+export const MeFolder = z.object({
+  id: z.string(),
+  name: str,
+  tint: str,
+  position: num,
+});
+export type MeFolder = z.infer<typeof MeFolder>;
 export const MeFriend = z.object({
   email: z.string(),
   name: str,
@@ -761,6 +794,8 @@ export const MeData = z.object({
   /** People you share a room with (the new-message search), most recent rooms first, ≤200. */
   people: z.array(MePerson),
   waits: z.array(MeWait),
+  /** Your folders on the rail (absent from a cache written before folders). */
+  folders: z.optional(z.array(MeFolder)),
 });
 export type MeData = z.infer<typeof MeData>;
 /** v = the app shell's version (a new deploy makes open tabs reload); cached = served from the Person DO. */

@@ -2524,3 +2524,196 @@ test("home Inbox keeps the item you answered open on the right after it leaves t
   await flush();
   expect(workspace().dataset.item).toBe("t:aaaaaa:t2");
 });
+
+// Folders on the rail (like Discord's): per person, from /api/me's `folders` and each room's `rail_folder`.
+const wait = (book_id: string, ref: string) => ({
+  book_id,
+  room: "Room " + book_id,
+  ref,
+  thread: "main",
+  topic: null,
+  author: "ana@test.com",
+  author_name: "Ana",
+  text: "?",
+  ts: 1,
+});
+async function folderRail(overrides: Parameters<typeof shellFixture>[0] = {}) {
+  const nav = await pendingNavigation(overrides);
+  nav.h.canonical(
+    me({
+      books: [
+        room("aaaaaa", { position: 0 }),
+        room("bbbbbb", {
+          position: 2,
+          rail_folder: "ffolder01",
+          last_human_id: 5,
+        }),
+        room("cccccc", { position: 3, rail_folder: "ffolder01" }),
+        room("dddddd", { position: 4, rail_folder: "ffolder01" }),
+        room("eeeeee", { position: 5 }),
+      ],
+      folders: [
+        { id: "ffolder01", name: "Clientes", tint: "purple", position: 1 },
+      ],
+      waits: [
+        wait("bbbbbb", "m1"),
+        wait("cccccc", "m2"),
+        wait("cccccc", "m3"),
+        wait("aaaaaa", "m4"),
+      ],
+    }),
+  );
+  await nav.h.services.personal.refresh();
+  await flush();
+  const folder = () =>
+    document.querySelector<HTMLElement>('[data-rail-folder="ffolder01"]')!;
+  const tile = () =>
+    folder().querySelector<HTMLButtonElement>("[data-rail-folder-tile]")!;
+  return { ...nav, folder, tile };
+}
+
+test("a closed folder on the rail: one tile with its rooms' mini icons, the sum of their red numbers and the news dot", async () => {
+  const { folder, tile } = await folderRail();
+  // The rail: a room, the folder (in its place), a room. The folder's rooms are not root tiles.
+  expect(
+    [...document.querySelectorAll<HTMLElement>("[data-rail-item]")].map(
+      (item) => item.dataset.railItem,
+    ),
+  ).toEqual(["aaaaaa", "ffolder01", "eeeeee"]);
+  expect(folder().hasAttribute("data-open")).toBe(false);
+  expect(tile().getAttribute("aria-expanded")).toBe("false");
+  // 2×2 grid of the rooms' icons (three rooms: three marks).
+  expect(
+    folder().querySelectorAll("[data-rail-folder-icons] [data-room-mark]"),
+  ).toHaveLength(3);
+  // The red number: what waits on you in its rooms (1 + 2), not the room outside it.
+  expect(tile().querySelector<HTMLElement>("[data-count]")?.dataset.count).toBe(
+    "3",
+  );
+  // A person wrote in one of them: the strong edge dot.
+  expect(
+    tile().querySelector<HTMLElement>("[data-rail-pill]")?.dataset.railPill,
+  ).toBe("human");
+  expect(tile().getAttribute("aria-label")).toContain("Clientes · 3 rooms");
+  // Closed: its rooms are out of reach (inert) until it opens.
+  expect(
+    folder().querySelector("[data-rail-folder-rooms]")!.hasAttribute("inert"),
+  ).toBe(true);
+});
+
+test("a click opens the folder (header tile in its color, its rooms on one block) and closes it; the choice is kept per person", async () => {
+  const { folder, tile, controller } = await folderRail();
+  tile().click();
+  await flush();
+  expect(folder().hasAttribute("data-open")).toBe(true);
+  expect(tile().getAttribute("aria-expanded")).toBe("true");
+  expect(folder().className).toContain("bg-sidebar-accent");
+  expect(tile().querySelector("[data-rail-folder-icons]")).toBeNull();
+  expect(tile().querySelector("svg")?.getAttribute("class")).toContain(
+    "text-room-tint-purple",
+  );
+  // Open, the rooms show their own numbers: the header has none.
+  expect(tile().querySelector("[data-count]")).toBeNull();
+  const rooms = folder().querySelector("[data-rail-folder-rooms]")!;
+  expect(rooms.hasAttribute("inert")).toBe(false);
+  expect(
+    [...rooms.querySelectorAll<HTMLElement>("[data-rail-member]")].map(
+      (item) => item.dataset.railMember,
+    ),
+  ).toEqual(["bbbbbb", "cccccc", "dddddd"]);
+  expect(rooms.className).toContain("duration-200");
+  expect(rooms.className).toContain("motion-reduce:transition-none");
+  expect(JSON.parse(localStorage.getItem("vb_rail_open:me@test.com")!)).toEqual(
+    ["ffolder01"],
+  );
+  tile().click();
+  await flush();
+  expect(folder().hasAttribute("data-open")).toBe(false);
+  expect(get(controller.openFolders).size).toBe(0);
+  expect(localStorage.getItem("vb_rail_open:me@test.com")).toBe("[]");
+});
+
+test("a right-click on a folder opens its menu: mark as read, settings, move, close all", async () => {
+  const reads: string[] = [];
+  const { folder, controller } = await folderRail({
+    read: async (id) => {
+      reads.push(id);
+      return { ok: true };
+    },
+  });
+  controller.toggleFolder("ffolder01");
+  folder()
+    .querySelector("[data-rail-folder-head]")!
+    .dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 20,
+        clientY: 40,
+      }),
+    );
+  expect(get(controller.state).folderMenu).toEqual({
+    id: "ffolder01",
+    x: 20,
+    y: 40,
+  });
+  await flush();
+  await waitForView(document, '[data-folder-menu="ffolder01"]');
+  const menu = document.querySelector('[data-folder-menu="ffolder01"]')!;
+  expect(
+    [...menu.querySelectorAll('[role="menuitem"]')].map((item) =>
+      item.textContent?.trim(),
+    ),
+  ).toEqual([
+    "Mark folder as read",
+    "Folder settings…",
+    "Move",
+    "Close all folders",
+  ]);
+  const item = (label: string) =>
+    [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+      (item) => item.textContent?.trim() === label,
+    )!;
+  item("Mark folder as read").click();
+  await flush();
+  expect(reads.sort()).toEqual(["bbbbbb", "cccccc", "dddddd"]);
+  controller.openFolderMenu("ffolder01", folder());
+  await flush();
+  await waitForView(document, '[data-folder-menu="ffolder01"]');
+  [
+    ...document
+      .querySelector('[data-folder-menu="ffolder01"]')!
+      .querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ]
+    .find((item) => item.textContent?.trim() === "Close all folders")!
+    .click();
+  await flush();
+  expect(get(controller.openFolders).size).toBe(0);
+});
+
+test("Folder settings saves the name and color of your folder only", async () => {
+  const saved: unknown[] = [];
+  const { controller } = await folderRail({
+    railFolder: async (id, patch) => {
+      saved.push([id, patch]);
+      return { ok: true };
+    },
+  });
+  controller.askFolderSettings("ffolder01");
+  await flush();
+  await waitForView(document, '[data-folder-settings="ffolder01"]');
+  const form = document.querySelector<HTMLFormElement>(
+    '[data-folder-settings="ffolder01"]',
+  )!;
+  const input = form.querySelector<HTMLInputElement>("#folder-name")!;
+  expect(input.value).toBe("Clientes");
+  input.value = "  Time   de produto ";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  form.querySelector<HTMLButtonElement>('[data-tint="green"]')!.click();
+  await flush();
+  form.requestSubmit();
+  await flush();
+  expect(saved).toEqual([
+    ["ffolder01", { name: "Time de produto", tint: "green" }],
+  ]);
+});

@@ -13,13 +13,8 @@
   import { createApplicationCopy } from "../application/copy";
   import { copyChatText } from "../chat/clipboard";
   import { homeIssue, type HomeLanguage } from "../home/copy";
-  import {
-    dmEntry,
-    orderedRooms,
-    roomsOnly,
-    targetHref,
-    unread,
-  } from "../home/model";
+  import { dmEntry, targetHref, unread } from "../home/model";
+  import { knownTint, tintText } from "./tints";
   import type { AppNavigationSession } from "./controller";
   /**
    * A room's menu (like Discord's server menu): a right-click, a long press or
@@ -43,9 +38,8 @@
   const room = $derived(
     anchor ? $personal.me?.books.find((room) => room.id === anchor.id) : null,
   );
-  const rail = $derived(
-    orderedRooms(roomsOnly($personal.me?.books ?? [])).map((room) => room.id),
-  );
+  const folders = $derived($personal.me?.folders ?? []);
+  const moving = $derived(!!$mutations.pending.rail);
   const title = $derived(
     room
       ? room.dm
@@ -105,7 +99,7 @@
 </script>
 
 {#key anchor}{#if room && point}{@const id = room.id}
-    {@const position = rail.indexOf(id)}
+    {@const inFolder = room.dm ? null : controller.folderOf(id)}
     <DropdownMenu
       open
       onOpenChange={(open) => {
@@ -151,25 +145,60 @@
                 "Mover",
               )}</DropdownMenuSubTrigger
             >
-            <DropdownMenuSubContent class="w-44">
+            <DropdownMenuSubContent class="w-52" data-room-menu-move>
               <DropdownMenuItem
                 class={itemClass}
-                disabled={position <= 0 || !!$mutations.pending.order}
+                disabled={!controller.canMove(id, -1) || moving}
                 onSelect={() => {
-                  watching = "order";
+                  watching = "rail";
                   controller.move(id, -1);
                 }}><Icon icon="arrow-up" />{t("Para cima")}</DropdownMenuItem
               >
               <DropdownMenuItem
                 class={itemClass}
-                disabled={position < 0 ||
-                  position >= rail.length - 1 ||
-                  !!$mutations.pending.order}
+                disabled={!controller.canMove(id, 1) || moving}
                 onSelect={() => {
-                  watching = "order";
+                  watching = "rail";
                   controller.move(id, 1);
                 }}><Icon icon="arrow-down" />{t("Para baixo")}</DropdownMenuItem
               >
+              <DropdownMenuSeparator />
+              {#each folders as folder (folder.id)}{#if folder.id !== inFolder}<DropdownMenuItem
+                    class={itemClass}
+                    disabled={moving}
+                    data-room-menu-folder={folder.id}
+                    onSelect={() => {
+                      watching = "rail";
+                      controller.moveToFolder(id, folder.id);
+                    }}
+                    ><Icon
+                      icon="folder"
+                      class={tintText(knownTint(folder.tint))}
+                    /><span class="truncate">{folder.name || t("Pasta")}</span
+                    ></DropdownMenuItem
+                  >{/if}{/each}
+              <DropdownMenuItem
+                class={itemClass}
+                disabled={moving}
+                data-room-menu-new-folder
+                onSelect={() => {
+                  watching = "rail";
+                  controller.newFolder(id);
+                }}
+                ><Icon icon="folder-plus" />{t("Nova pasta")}</DropdownMenuItem
+              >
+              {#if inFolder}<DropdownMenuItem
+                  class={itemClass}
+                  disabled={moving}
+                  data-room-menu-take-out
+                  onSelect={() => {
+                    watching = "rail";
+                    controller.takeOut(id);
+                  }}
+                  ><Icon icon="log-out-01" />{t(
+                    "Tirar da pasta",
+                  )}</DropdownMenuItem
+                >{/if}
             </DropdownMenuSubContent>
           </DropdownMenuSub>{/if}
         <DropdownMenuSeparator />
