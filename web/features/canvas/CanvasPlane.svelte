@@ -43,13 +43,21 @@
   let width = $state(0),
     height = $state(0),
     moved = $state<{ x: number; y: number; zoom: number } | null>(null);
+  /** An element's box on the plane: an arrow's w and h can be negative. */
+  const box = (c: CanvasCard) => ({
+    x: Math.min(c.x, c.x + c.w),
+    y: Math.min(c.y, c.y + c.h),
+    w: Math.max(Math.abs(c.w), 1),
+    h: Math.max(Math.abs(c.h), 1),
+  });
   const fit = $derived.by(() => {
     if (view) return view;
     if (!cards.length || !width || !height) return { x: 0, y: 0, zoom: 1 };
-    const left = Math.min(...cards.map((c) => c.x)),
-      top = Math.min(...cards.map((c) => c.y)),
-      right = Math.max(...cards.map((c) => c.x + c.w)),
-      bottom = Math.max(...cards.map((c) => c.y + c.h));
+    const boxes = cards.map(box);
+    const left = Math.min(...boxes.map((c) => c.x)),
+      top = Math.min(...boxes.map((c) => c.y)),
+      right = Math.max(...boxes.map((c) => c.x + c.w)),
+      bottom = Math.max(...boxes.map((c) => c.y + c.h));
     const pad = 32,
       zoom = Math.min(
         1,
@@ -80,7 +88,7 @@
     CLAUDE_COLORS[color(card)] ?? CLAUDE_COLORS[0];
   let drag: { px: number; py: number; x: number; y: number } | null = null;
   function down(event: PointerEvent) {
-    if (!interactive || event.button !== 0) return;
+    if (event.button !== 0) return;
     // A card's own content (a link, a selection, an html card) keeps its clicks; the plane around it pans.
     if ((event.target as HTMLElement).closest("[data-canvas-card]")) return;
     drag = { px: event.clientX, py: event.clientY, x: at.x, y: at.y };
@@ -107,8 +115,10 @@
   // The wheel zooms the plane, not the page: a listener that may preventDefault (Svelte's onwheel is passive).
   $effect(() => {
     const host = plane;
-    if (!host || !interactive) return;
+    if (!host) return;
     const wheel = (event: WheelEvent) => {
+      // In a doc the wheel scrolls the doc; a pinch (ctrl + wheel) zooms the canvas.
+      if (!interactive && !event.ctrlKey) return;
       event.preventDefault();
       const box = host.getBoundingClientRect();
       zoomBy(
@@ -132,9 +142,7 @@
   bind:this={plane}
   bind:clientWidth={width}
   bind:clientHeight={height}
-  class="relative overflow-hidden rounded-xl bg-muted {interactive
-    ? 'cursor-grab touch-none active:cursor-grabbing'
-    : ''} {className}"
+  class="relative cursor-grab touch-none overflow-hidden rounded-xl bg-muted active:cursor-grabbing {className}"
   onpointerdown={down}
   onpointermove={move}
   onpointerup={() => (drag = null)}
@@ -154,41 +162,90 @@
   >
     <!-- One shared plane, no window per card (Gui #6627): each card is its content beside a bar in its Claude's
          color, with that Claude's name on top. -->
-    {#each cards as card (card.id)}<article
-        data-canvas-card={card.id}
-        data-canvas-color={color(card)}
-        use:cardStyle={card}
-        class="absolute top-(--cv-t) left-(--cv-l) flex h-(--cv-h) w-(--cv-w) flex-col gap-1 border-l-4 pl-3 {tone(
-          card,
-        ).bar}"
-      >
-        <header
-          class="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
+    {#each cards as card (card.id)}{@const t =
+        tone(card)}{#if card.kind === "arrow"}<svg
+          data-canvas-card={card.id}
+          data-canvas-color={color(card)}
+          use:cardStyle={{
+            ...box(card),
+            x: box(card).x - 12,
+            y: box(card).y - 12,
+            w: box(card).w + 24,
+            h: box(card).h + 24,
+          }}
+          class="pointer-events-none absolute top-(--cv-t) left-(--cv-l) h-(--cv-h) w-(--cv-w) overflow-visible {t.stroke} {t.fill}"
+          aria-label={card.body || who(card)}
+          ><title>{who(card)}</title><defs
+            ><marker
+              id="{idPrefix}-{card.id}"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="8"
+              markerHeight="8"
+              orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" /></marker
+            ></defs
+          ><line
+            x1={card.x - box(card).x + 12}
+            y1={card.y - box(card).y + 12}
+            x2={card.x + card.w - box(card).x + 12}
+            y2={card.y + card.h - box(card).y + 12}
+            stroke-width="2.5"
+            stroke-linecap="round"
+            marker-end="url(#{idPrefix}-{card.id})"
+          />{#if card.body}<text
+              x={card.w / 2 + card.x - box(card).x + 12}
+              y={card.h / 2 + card.y - box(card).y + 4}
+              text-anchor="middle"
+              class="fill-foreground stroke-none text-xs">{card.body}</text
+            >{/if}</svg
+        >{:else if card.kind === "rect" || card.kind === "ellipse" || card.kind === "text"}<div
+          data-canvas-card={card.id}
+          data-canvas-color={color(card)}
+          use:cardStyle={card}
+          title={who(card)}
+          class="absolute top-(--cv-t) left-(--cv-l) flex h-(--cv-h) w-(--cv-w) items-center p-2 text-sm text-foreground {card.kind ===
+          'text'
+            ? 'justify-start text-left text-base font-medium'
+            : 'justify-center border-2 bg-background text-center'} {card.kind ===
+          'text'
+            ? ''
+            : t.bar} {card.kind === 'ellipse' ? 'rounded-full' : 'rounded-lg'}"
         >
-          <span class="size-2 shrink-0 rounded-full {tone(card).dot}"></span>
-          <span class="truncate">{who(card)}</span>
-        </header>
-        {#if card.title}<h3
-            class="m-0 shrink-0 truncate text-sm font-semibold text-foreground"
+          <span class="line-clamp-6 break-words">{card.body}</span>
+        </div>{:else}<article
+          data-canvas-card={card.id}
+          data-canvas-color={color(card)}
+          use:cardStyle={card}
+          class="absolute top-(--cv-t) left-(--cv-l) flex h-(--cv-h) w-(--cv-w) flex-col gap-1 border-l-4 pl-3 {t.bar}"
+        >
+          <header
+            class="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
           >
-            {card.title}
-          </h3>{/if}
-        <div class="min-h-0 flex-1 overflow-auto text-sm text-foreground">
-          {#if card.kind === "html"}<iframe
-              title={card.title ?? "html"}
-              sandbox="allow-scripts"
-              srcdoc={srcdoc(card)}
-              class="size-full rounded-lg border-0 bg-background"
-            ></iframe>{:else if card.kind === "mermaid"}<Mermaid
-              source={card.body}
-              {context}
-              {actions}
-              {lang}
-            />{:else}<RichContent text={card.body} {room} {actions} />{/if}
-        </div>
-      </article>{/each}
+            <span class="size-2 shrink-0 rounded-full {t.dot}"></span>
+            <span class="truncate">{who(card)}</span>
+          </header>
+          {#if card.title}<h3
+              class="m-0 shrink-0 truncate text-sm font-semibold text-foreground"
+            >
+              {card.title}
+            </h3>{/if}
+          <div class="min-h-0 flex-1 overflow-auto text-sm text-foreground">
+            {#if card.kind === "html"}<iframe
+                title={card.title ?? "html"}
+                sandbox="allow-scripts"
+                srcdoc={srcdoc(card)}
+                class="size-full rounded-lg border-0 bg-background"
+              ></iframe>{:else if card.kind === "mermaid"}<Mermaid
+                source={card.body}
+                {context}
+                {actions}
+                {lang}
+              />{:else}<RichContent text={card.body} {room} {actions} />{/if}
+          </div>
+        </article>{/if}{/each}
   </div>
-  {#if interactive && cards.length}<div
+  {#if cards.length}<div
       class="absolute right-2 bottom-2 flex items-center gap-1 rounded-full border border-border bg-card p-1 text-foreground shadow-sm"
     >
       <IconButton

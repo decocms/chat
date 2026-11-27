@@ -50,7 +50,7 @@ import { runRouterActions, waitQuestion, WAIT_PEOPLE_MAX, WAIT_THRESHOLD, type A
 import { track } from "./track";
 import { addCallUsage, callsOn, recorderOn, startRecorder } from "./calls";
 import { CALL_THREAD, RING_MS, callLineText, callMinutes, callRoster, isRecorder } from "../shared/call";
-import { CanvasSchema, canvasKey, putCard, type Canvas, type CardInput } from "../shared/canvas";
+import { CanvasSchema, canvasKey, putCards, type Canvas, type CardInput } from "../shared/canvas";
 import { mailFrom, publicOrigin } from "./host";
 import { studioAgentsIn } from "./sandbox";
 import { studioAuth, studioSend, studioWakeText } from "./studioSandbox";
@@ -970,7 +970,7 @@ export class Book extends DurableObject<Env> {
     this.setCanvas("", { ...this.canvas(""), open });
   }
   /** canvas_read / canvas_put / canvas_delete of an agent (src/agent.ts). An html card was checked there. */
-  async canvasEdit(bookId: string, email: string, op: "read" | "put" | "delete", scope: string, a: CardInput, agent?: string) {
+  async canvasEdit(bookId: string, email: string, op: "read" | "put" | "delete", scope: string, a: CardInput, agent?: string, many?: CardInput[]) {
     this.bind(bookId);
     if (!(await this.members()).includes(email)) return { ok: false as const, error: "forbidden" };
     if (scope && !this.epics().some((e) => e.id === scope)) return { ok: false as const, error: "epic not found" };
@@ -981,12 +981,13 @@ export class Book extends DurableObject<Env> {
       this.setCanvas(scope, { ...now, cards: now.cards.filter((c) => c.id !== a.id) });
       return { ok: true as const };
     }
-    const secret = findSecret(`${a.title ?? ""}\n${a.body ?? ""}`);
+    const inputs = many ?? [a];
+    const secret = findSecret(inputs.map((x) => `${x.title ?? ""}\n${x.body ?? ""}`).join("\n"));
     if (secret) return { ok: false as const, error: `blocked: looks like a secret (${secret})` };
-    const r = putCard(now, a, email, Date.now(), agent);
+    const r = putCards(now, inputs, email, Date.now(), agent);
     if ("error" in r) return { ok: false as const, error: r.error };
     this.setCanvas(scope, r.canvas);
-    return { ok: true as const, card: r.card };
+    return many ? { ok: true as const, cards: r.cards } : { ok: true as const, card: r.cards[0] };
   }
   /** The chat of the call that is on (beside the stage); none while nobody is in a call. */
   liveCallThread(): string | undefined {

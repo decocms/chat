@@ -4,9 +4,32 @@
 // Browser-safe: zod/mini only.
 import * as z from "zod/mini";
 
-export const CANVAS_KINDS = ["markdown", "mermaid", "html"] as const;
+// A whiteboard (Gui #6669): shapes drawn in the color of their Claude (rect, ellipse, text, arrow), and blocks that
+// carry content (mermaid, markdown, html). Every element is a box x, y, w, h on an infinite plane; an arrow goes from
+// x, y to x + w, y + h (w and h can be negative).
+export const CANVAS_SHAPES = ["rect", "ellipse", "text", "arrow"] as const;
+export const CANVAS_KINDS = [
+  ...CANVAS_SHAPES,
+  "markdown",
+  "mermaid",
+  "html",
+] as const;
 export type CanvasKind = (typeof CANVAS_KINDS)[number];
-export const CANVAS_MAX_CARDS = 60;
+export const isShape = (kind: string) =>
+  (CANVAS_SHAPES as readonly string[]).includes(kind);
+export const CANVAS_MAX_CARDS = 300;
+/** canvas_put with `elements`: at most this many in one call. */
+export const CANVAS_MAX_BATCH = 50;
+/** The size of a new element of each kind, when the call gives none. */
+const DEFAULT_SIZE: Record<CanvasKind, { w: number; h: number }> = {
+  rect: { w: 160, h: 80 },
+  ellipse: { w: 120, h: 120 },
+  text: { w: 200, h: 32 },
+  arrow: { w: 160, h: 0 },
+  markdown: { w: 360, h: 240 },
+  mermaid: { w: 360, h: 240 },
+  html: { w: 360, h: 240 },
+};
 /** markdown and mermaid; html cards go through the same check as HTML in a post (src/embed.ts) and up to EMBED_MAX. */
 export const CANVAS_MAX_TEXT = 8_000;
 export const CANVAS_CARD_W = 360;
@@ -73,8 +96,9 @@ export type CardInput = {
 };
 const num = (v: unknown) =>
   typeof v === "number" && Number.isFinite(v) ? Math.round(v) : undefined;
-const size = (v: unknown, fallback: number) =>
-  Math.min(2000, Math.max(120, num(v) ?? fallback));
+/** A box's side: 8 to 4000 px; an arrow's offset: -4000 to 4000. */
+const size = (v: unknown, fallback: number, arrow = false) =>
+  Math.min(4000, Math.max(arrow ? -4000 : 8, num(v) ?? fallback));
 
 /** canvas_put: create or replace ONE card by id. A new card without x/y gets a free place; a replaced one keeps its
  *  place unless x/y come. Answers the new canvas, or an error for the agent. */
@@ -89,7 +113,9 @@ export function putCard(
   if (!(CANVAS_KINDS as readonly string[]).includes(kind))
     return { error: `kind must be one of ${CANVAS_KINDS.join(", ")}` };
   const body = typeof input.body === "string" ? input.body : "";
-  if (!body.trim()) return { error: "body is required" };
+  // A rect, an ellipse or an arrow can have no text; the others are their text.
+  if (!body.trim() && !["rect", "ellipse", "arrow"].includes(kind))
+    return { error: "body is required" };
   if (kind !== "html" && body.length > CANVAS_MAX_TEXT)
     return { error: `body is longer than ${CANVAS_MAX_TEXT} characters` };
   const id = (input.id ?? "").trim() || crypto.randomUUID().slice(0, 8);
@@ -100,8 +126,9 @@ export function putCard(
     return {
       error: `the canvas has ${CANVAS_MAX_CARDS} cards: replace or delete one`,
     };
-  const w = size(input.w, old?.w ?? CANVAS_CARD_W),
-    h = size(input.h, old?.h ?? CANVAS_CARD_H);
+  const base = DEFAULT_SIZE[kind as CanvasKind];
+  const w = size(input.w, old?.w ?? base.w, kind === "arrow"),
+    h = size(input.h, old?.h ?? base.h, kind === "arrow");
   const others = canvas.cards.filter((c) => c.id !== id);
   const x = num(input.x),
     y = num(input.y);
@@ -110,7 +137,7 @@ export function putCard(
       ? { x, y }
       : old
         ? { x: x ?? old.x, y: y ?? old.y }
-        : placeCard(others, w, h);
+        : placeCard(others, Math.abs(w) || 1, Math.abs(h) || 1);
   const title = input.title?.trim().slice(0, 120) || undefined;
   const card: CanvasCard = {
     id,
@@ -167,6 +194,26 @@ export function claudeColors(
     out.set(key, index);
   }
   return out;
+}
+
+/** canvas_put with `elements`: each one in order, as one change (all or none). */
+export function putCards(
+  canvas: Canvas,
+  inputs: readonly CardInput[],
+  author: string,
+  now: number,
+  agent?: string,
+): { canvas: Canvas; cards: CanvasCard[] } | { error: string } {
+  if (inputs.length > CANVAS_MAX_BATCH)
+    return { error: `at most ${CANVAS_MAX_BATCH} elements in one call` };
+  const cards: CanvasCard[] = [];
+  for (const [i, input] of inputs.entries()) {
+    const r = putCard(canvas, input, author, now, agent);
+    if ("error" in r) return { error: `elements[${i}]: ${r.error}` };
+    canvas = r.canvas;
+    cards.push(r.card);
+  }
+  return { canvas, cards };
 }
 
 /** A ```canvas block of a doc: "x=0 y=0 zoom=1" (each optional), the viewport on the plane. */

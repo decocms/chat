@@ -958,7 +958,7 @@ const TOOLS = [
   {
     name: "canvas_read",
     description:
-      "Read a canvas: the room's (no epic_id) or an epic's. One plane of cards, each { id, kind, title, body, author, x, y, w, h }. The call's stage and ```canvas blocks in docs show it live. Read it before you put, so you build on what is there.",
+      "Read a canvas: the room's (no epic_id) or an epic's. A whiteboard of elements, each { id, kind, title, body, author, agent, x, y, w, h }. The call's stage and ```canvas blocks in docs show it live. Read it before you draw, so you build on what is there.",
     inputSchema: {
       type: "object",
       properties: { room_id: { type: "string" }, epic_id: { type: "string" } },
@@ -968,22 +968,27 @@ const TOOLS = [
   {
     name: "canvas_put",
     description:
-      "Create or replace ONE card on a canvas (the room's, or an epic's with epic_id), by id: people see it appear live on the call's stage and in docs. Small edits: one card per call, never the whole canvas. kind: markdown (default), mermaid (a diagram's source) or html (inline only, no network; the same safety check as html in post). Without x/y a new card gets a free place, a replaced one keeps its place. The canvas is shared: build on, move, rewrite or delete any card, also another Claude's. Each Claude has its own fixed color there; a card takes the color of the Claude that wrote it last.",
+      "Draw on a canvas (the room's, or an epic's with epic_id): an infinite whiteboard that people see live on the call's stage and in docs. Create or replace elements by id: ONE (the fields below) or up to 50 at once (`elements`: an array of them), for a whole drawing in one call. Kinds: rect, ellipse (a circle when w = h), text (body = the text), arrow (from x,y to x+w,y+h; w and h can be negative), and blocks with content: mermaid (a diagram's source), markdown, html (inline only, no network; the same safety check as html in post). A rect or ellipse can have a short label in body. Coordinates are px on the plane; leave room between elements. Shapes are drawn in your own color. The canvas is shared: build on, move, rewrite or delete any element, also another Claude's.",
     inputSchema: {
       type: "object",
       properties: {
         room_id: { type: "string" },
         epic_id: { type: "string" },
-        id: { type: "string", description: "the card's id (1-40 of a-z 0-9 _ -); a new id makes a new card, an existing one replaces it; omit for a new card" },
-        kind: { type: "string", enum: ["markdown", "mermaid", "html"] },
-        title: { type: "string" },
-        body: { type: "string", description: "markdown, mermaid source or html (≤8000 characters for markdown and mermaid)" },
-        x: { type: "number", description: "optional: left edge on the plane (px)" },
-        y: { type: "number", description: "optional: top edge on the plane (px)" },
-        w: { type: "number", description: "optional: width (120-2000, default 360)" },
-        h: { type: "number", description: "optional: height (120-2000, default 240)" },
+        elements: {
+          type: "array",
+          description: "optional: up to 50 elements, each with the fields id, kind, title, body, x, y, w, h below",
+          items: { type: "object" },
+        },
+        id: { type: "string", description: "the element's id (1-40 of a-z 0-9 _ -); a new id makes a new element, an existing one replaces it; omit for a new one" },
+        kind: { type: "string", enum: ["rect", "ellipse", "text", "arrow", "mermaid", "markdown", "html"] },
+        title: { type: "string", description: "optional: a title above a mermaid, markdown or html block" },
+        body: { type: "string", description: "text, label, mermaid source, markdown or html (≤8000 characters except html)" },
+        x: { type: "number", description: "left edge on the plane (px); without x/y a new element gets a free place" },
+        y: { type: "number", description: "top edge on the plane (px)" },
+        w: { type: "number", description: "width (default by kind: rect 160, ellipse 120, text 200, blocks 360); an arrow's x offset" },
+        h: { type: "number", description: "height (rect 80, ellipse 120, text 32, blocks 240); an arrow's y offset" },
       },
-      required: ["room_id", "body"],
+      required: ["room_id"],
     },
   },
   {
@@ -2961,16 +2966,21 @@ async function call(
       if (name !== "canvas_read" && !(await env.AGENT_LIMIT.limit({ key: me.email })).success)
         throw new Error("rate limited. Wait a bit.");
       const op = name === "canvas_read" ? "read" : name === "canvas_put" ? "put" : "delete";
-      // An html card passes the same check as html in a post (no credential asks, no fake logins), before it is kept.
-      if (op === "put" && a.kind === "html") await checkEmbed(env, str(a.body), me.email);
-      const r = await bookStub(env, id).canvasEdit(id, me.email, op, str(a.epic_id), {
-        id: a.id === undefined ? undefined : str(a.id),
-        kind: a.kind === undefined ? undefined : str(a.kind),
-        title: a.title === undefined ? undefined : str(a.title),
-        body: a.body === undefined ? undefined : str(a.body),
-        x: a.x as number | undefined, y: a.y as number | undefined, w: a.w as number | undefined, h: a.h as number | undefined,
-        // Its @name here gives the card its Claude's color (shared/canvas.ts claudeColors).
-      }, op === "put" ? (me.sandbox ?? (await selfIn(db, me, id)).name) : undefined);
+      const element = (e: Record<string, unknown>) => ({
+        id: e.id === undefined ? undefined : str(e.id),
+        kind: e.kind === undefined ? undefined : str(e.kind),
+        title: e.title === undefined ? undefined : str(e.title),
+        body: e.body === undefined ? undefined : str(e.body),
+        x: e.x as number | undefined, y: e.y as number | undefined, w: e.w as number | undefined, h: e.h as number | undefined,
+      });
+      const many = op === "put" && Array.isArray(a.elements)
+        ? (a.elements as unknown[]).filter((e): e is Record<string, unknown> => !!e && typeof e === "object").map(element)
+        : undefined;
+      // An html block passes the same check as html in a post (no credential asks, no fake logins), before it is kept.
+      if (op === "put") for (const e of many ?? [element(a)]) if (e.kind === "html") await checkEmbed(env, e.body ?? "", me.email);
+      // Its @name here gives each element its Claude's color (shared/canvas.ts claudeColors).
+      const r = await bookStub(env, id).canvasEdit(id, me.email, op, str(a.epic_id), element(a),
+        op === "put" ? (me.sandbox ?? (await selfIn(db, me, id)).name) : undefined, many);
       if (!r.ok) throw new Error(r.error);
       if (op === "put") ctx.waitUntil(track(env, "canvas_put", { user: me.email, dims: { book: id, kind: str(a.kind) || "markdown" } }));
       return r;

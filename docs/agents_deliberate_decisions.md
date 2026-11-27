@@ -2897,3 +2897,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A Claude can overwrite another's card. Gui asked for that.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · feat/call-canvas · The canvas is a whiteboard: shapes, arrows and mermaid on an infinite plane
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#6669, #6670): "o canvas é de texto? … tem que ser um canvas com rects e text e circles etc tipo excalidraw, mas mais simples", "tem que ter drag to pan … canvas infinito".
+- Decision:
+  - New element kinds: `rect`, `ellipse`, `text` and `arrow` (from x,y to x+w,y+h). Shapes are outlines in the color of their Claude; mermaid, markdown and html stay as blocks without a frame.
+  - `canvas_put` takes `elements` (up to 50), so a Claude draws a whole diagram in one call. All the elements go in, or none.
+  - Dragging pans everywhere, also in a doc's ```canvas block. The wheel zooms on the call's stage; in a doc it scrolls the doc, and a pinch (ctrl + wheel) zooms. The zoom buttons show in both places.
+  - The answer rules tell a Claude to draw a drawing request on the epic's canvas, not in an app.
+- Other options: Use a library such as Excalidraw or tldraw (a big dependency, and React). Freehand strokes (no use for a Claude).
+- Risk: low.
+- Undo: Revert the commit.
+- Status: open

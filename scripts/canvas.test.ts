@@ -72,3 +72,28 @@ test("each Claude has its own color on a canvas, and two Claudes never share one
   if ("error" in r) throw new Error(r.error);
   expect(r.card).toMatchObject({ author: "gui@x.test", agent: "claude-2" });
 });
+
+test("a whiteboard: shapes without text, arrows both ways, and a whole drawing in one call (Gui #6669)", async () => {
+  const { putCards, CANVAS_MAX_BATCH } = await import("../shared/canvas");
+  const r = putCards(
+    empty,
+    [
+      { id: "a", kind: "rect", body: "Hook", x: 0, y: 0 },
+      { id: "b", kind: "ellipse", x: 300, y: 0, w: 100, h: 100 },
+      { id: "c", kind: "arrow", x: 160, y: 40, w: 140, h: 0 },
+      { id: "d", kind: "arrow", x: 300, y: 200, w: -200, h: -100 },
+      { id: "e", kind: "text", body: "Pergunta do Claude", x: 0, y: -60 },
+    ],
+    "gui@x.test",
+    1,
+    "claude",
+  );
+  if ("error" in r) throw new Error(r.error);
+  expect(r.cards.map((c) => c.kind)).toEqual(["rect", "ellipse", "arrow", "arrow", "text"]);
+  expect(r.cards[0]).toMatchObject({ w: 160, h: 80 });
+  expect(r.cards[3]).toMatchObject({ w: -200, h: -100 });
+  expect(r.canvas.cards).toHaveLength(5);
+  // Text and blocks still need their text; one bad element refuses the whole call.
+  expect(putCards(empty, [{ kind: "rect" }, { kind: "text" }], "g", 1)).toEqual({ error: "elements[1]: body is required" });
+  expect("error" in putCards(empty, Array.from({ length: CANVAS_MAX_BATCH + 1 }, () => ({ kind: "rect" })), "g", 1)).toBe(true);
+});

@@ -127,7 +127,7 @@ Rules for the content of the document:
 
 - Do not repeat the answer in the document as a "Resposta:" paragraph. Under the title, put the card or the app first, then short notes.
 - A simple answer (numbers, status, a table, a chart): a fenced ```card block with the JSON of the card (the same spec as the card of `post`).
-- A drawing, a diagram, a sketch or a board ("desenha", "faz um desenho", "um quadro", "um canvas"): the canvas of that epic, not an app. Put one card at a time with `canvas_put` (`epic_id` = the epic; kind `markdown`, `mermaid` or `html`), and put a fenced ```canvas block in the document, where the canvas shows live. The other Claudes of the room can add to it.
+- A drawing, a diagram, a sketch or a board ("desenha", "faz um desenho", "um quadro", "um canvas"): draw it on the canvas of that epic, not in an app. The canvas is a whiteboard: rect, ellipse, text and arrow elements in your color, and mermaid blocks. Send the whole drawing in one `canvas_put` with `elements` (`epic_id` = the epic), and put a fenced ```canvas block in the document, where it shows live. The other Claudes of the room can add to it.
 - A complex answer (a page, a mockup, an interactive view, or a new format that they ask for): first a line `[[app:room/<name>]]` at the top of the document (under the title), then `upload_file` `apps/<name>.html`. The app runs embedded there. An upload does not change their screen to the Apps tab. Only `app_open` does that, when they ask to open an app.
 - Else, short Markdown.
 - Do not use a Markdown table where a card is possible.
