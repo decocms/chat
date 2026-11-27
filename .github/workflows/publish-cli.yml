@@ -1,7 +1,10 @@
-# Publishes the vibebook CLI (npm package vibebook.dev) when a tag cli-v<version> is pushed.
+# Publishes the deco.chat CLI when a tag cli-v<version> is pushed: npm package @decocms/chat (commands deco-chat and
+# vibebook), and the same build as the old package vibebook.dev, so that old installs and the app's update still get it
+# (the new CLI then moves them to @decocms/chat).
 # npm Trusted Publishing: GitHub's OIDC token proves this workflow is publishing, so there is no npm token stored
-# anywhere and nobody logs in. One-time setup on npmjs.com: package vibebook.dev → Settings → Trusted Publisher →
+# anywhere and nobody logs in. One-time setup on npmjs.com, for each package: Settings → Trusted Publisher →
 # GitHub Actions, repository decocms/chat, workflow publish-cli.yml.
+# A version that is already on npm is skipped (for example the first @decocms/chat, published by hand).
 name: Publish CLI
 on:
   push:
@@ -26,5 +29,16 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm install -g npm@latest # Trusted Publishing needs npm 11.5.1+
-      - run: npm publish --access public --provenance
+      - name: Publish @decocms/chat
         working-directory: cli
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if npm view "@decocms/chat@$v" version >/dev/null 2>&1; then echo "@decocms/chat@$v is already on npm"; exit 0; fi
+          npm publish --access public --provenance
+      - name: Publish the same build as vibebook.dev
+        working-directory: cli
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if npm view "vibebook.dev@$v" version >/dev/null 2>&1; then echo "vibebook.dev@$v is already on npm"; exit 0; fi
+          npm pkg set name=vibebook.dev
+          npm publish --access public --provenance

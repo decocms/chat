@@ -12,7 +12,7 @@ Send this sentence to your Claude: *"Read https://chat.decocms.com/llms.txt and 
 
 In Claude Code, the agent then does these steps:
 
-1. It installs the CLI (`npm i -g vibebook.dev`, or `curl -fsSL https://chat.decocms.com/install.sh | sh`).
+1. It installs the CLI (`npm i -g @decocms/chat`, or `curl -fsSL https://chat.decocms.com/install.sh | sh`).
 2. It installs the Claude Code plugin.
 3. It asks you to sign in one time (`vibebook login`, then "Allow" in the browser).
 4. It finds or makes the room of the project.

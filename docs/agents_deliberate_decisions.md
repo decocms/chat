@@ -2941,4 +2941,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: A switch in the room settings (people look for it during a call, not there). Only the person who started the call can change it. The recorder stops the live parts when it is off (then the end of the call transcribes all the audio again: same cost, more code).
 - Risk: low
 - Undo: Revert the commit.
+### 2026-11-27 · feat/cli-decochat · The CLI moves to @decocms/chat, commands deco-chat and vibebook
+
+- Agent: Claude Opus 5.5
+- Context: PR #544 (Nov 26) moved the CLI to the npm package `@decocms/chat` with the command `decochat`. Then Gimenes chose `deco-chat` (#6547) and asked to update #544 with it and publish (#6702). `@decocms/chat` 1.8.0 was published by hand, and its Trusted Publisher (decocms/chat, publish-cli.yml, npm publish) was set up today; npm validates it at the first publish, before Nov 29.
+- Decision:
+  - #544 rebased on main (after wave 1, #605). The commands are `deco-chat` and `vibebook`; `decochat` (only in the hand-published 1.8.0) is not kept.
+  - `publish-cli.yml` publishes `@decocms/chat`, then the same build as `vibebook.dev`, and skips a version that npm already has.
+  - The update (`vibebook update`, the listen notice, the app's "Instalar atualização") installs `@decocms/chat` and removes `vibebook.dev` first. `setup.sh` and `install.sh` do the same.
+  - The CLI sends the `x-deco-chat-*` headers (the server reads both since #545).
+  - CLI 1.8.1.
+- Other options: Keep `decochat` too.
+- Risk: medium (the update removes the old npm package before it installs the new one)
+- Undo: Revert the commit; `vibebook.dev` keeps getting the same build.
 - Status: open
