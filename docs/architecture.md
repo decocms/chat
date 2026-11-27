@@ -75,6 +75,7 @@ Rules:
 - If the HTTP read fails, the app opens the socket again without `lite`. That socket sends `state` as before.
 - A socket without `lite` (an old cached app, the CLI) gets `state` as before.
 - `ws_state` measures the first frame of the socket (`lite: true` for `hello`). `room_state` measures the HTTP answer (bytes before compression, ms).
+- `room_size` measures the room's SQLite: `bytes` (`databaseSize`), `messages` and `doc_versions` (row counts). The Book sends it when a person opens the room, at most one time in 6 hours (the `size_at` key in `meta`). A Durable Object holds 10 GB.
 
 ### A reconnect resumes
 

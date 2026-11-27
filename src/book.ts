@@ -3230,7 +3230,17 @@ export class Book extends DurableObject<Env> {
 
   /** The room as one person opens it: the `state` event. The socket sends it (without lite) and GET
    *  /api/books/:id/room answers it (roomState). q = the socket's params: t = the open thread; since, at, eh = resume. */
+  /** How big this room's SQLite is (Gimenes #6148): a `room_size` event at most every 6 hours, on a room open. A DO
+   *  holds 10 GB; this shows which rooms grow, and from which tables, before one gets near it. */
+  private trackSize(bookId: string) {
+    const now = Date.now();
+    if (now - Number(this.get("size_at") ?? 0) < 6 * 3600_000) return;
+    this.set("size_at", String(now));
+    const count = (table: string) => Number(this.sql.exec(`SELECT count(*) AS n FROM ${table}`).one().n);
+    this.ctx.waitUntil(track(this.env, "room_size", { dims: { book: bookId, bytes: this.ctx.storage.sql.databaseSize, messages: count("messages"), doc_versions: count("doc_versions") } }));
+  }
   async roomSnapshot(email: string, bookId: string, q: URLSearchParams) {
+    this.trackSize(bookId);
     // The D1 reads in parallel (each is a round trip): opening a room waited on six of them in a row.
     const [book, people, requests, names, avatars, handles] = await Promise.all([
       this.env.DB.prepare(`SELECT title, folder, summary, owner, dm FROM books WHERE id = ?`).bind(bookId).first<Omit<BookMeta, "dm"> & { dm: string | null }>(),
