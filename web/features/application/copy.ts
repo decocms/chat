@@ -946,6 +946,10 @@ const EN: Readonly<Record<string, string>> = {
   "Voltar para a call": "Back to the call",
   "Entrar na call: {people}": "Join the call: {people}",
   "Câmera e desfoque": "Camera and blur",
+  Câmera: "Camera",
+  "Câmera {n}": "Camera {n}",
+  "Espelhar minha imagem na call (só para mim)":
+    "Mirror my picture in the call (for me only)",
   "Supressão de ruído": "Noise suppression",
   "Tratamento do áudio": "Audio processing",
   "Volume pra mim": "Volume for me",

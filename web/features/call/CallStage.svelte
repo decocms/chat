@@ -24,7 +24,7 @@
   import { SYSTEM_DEVICE } from "./devices";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { meetLink, meetMessage } from "./meet";
-  import CameraDialog from "./CameraDialog.svelte";
+  import CameraDialog, { mirrored } from "./CameraDialog.svelte";
   import { isRecorder } from "../../../shared/call";
   import Slider from "../../lib/studio/Slider.svelte";
   import {
@@ -343,6 +343,7 @@
         class={[
           "size-full bg-call-chip",
           size === "big" ? "object-contain" : "object-cover",
+          peer.email === room.me && $mirrored && "-scale-x-100",
         ]}
       ></video>{:else}<PersonAvatar
         email={peer.email}

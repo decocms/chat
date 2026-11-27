@@ -1354,6 +1354,54 @@ try {
       await phone.screenshot({ path: join(out, "audio-menu-390.png") });
       shots.push("audio-menu-390.png");
       await small.close();
+
+      // The camera's dialog: a fake camera (Chrome's test device) and a second one in the list, the choice of the
+      // camera, and "Espelhar minha imagem na call" on.
+      const cams = await chromium.launch({
+        args: [
+          "--use-fake-ui-for-media-stream",
+          "--use-fake-device-for-media-stream",
+        ],
+      });
+      try {
+        const page = await (
+          await cams.newContext({
+            viewport: { width: 1440, height: 900 },
+            permissions: ["camera"],
+          })
+        ).newPage();
+        await page.addInitScript(() => {
+          const list = navigator.mediaDevices.enumerateDevices.bind(
+            navigator.mediaDevices,
+          );
+          navigator.mediaDevices.enumerateDevices = async () => [
+            ...(await list()),
+            {
+              kind: "videoinput",
+              deviceId: "cam-usb",
+              label: "Webcam USB de teste",
+              groupId: "g9",
+            } as MediaDeviceInfo,
+          ];
+        });
+        await page.goto(fixture, { waitUntil: "networkidle" });
+        await page.locator("[data-call-more]").click();
+        await page.locator("[data-call-camera-settings]").click();
+        await page.locator("[data-camera-choice]").waitFor();
+        await page.locator("[data-camera-mirror]").click();
+        await page
+          .locator('[data-camera-mirror][data-state="checked"]')
+          .waitFor();
+        await page.waitForTimeout(800);
+        await page.screenshot({ path: join(out, "camera-dialog-1440.png") });
+        shots.push("camera-dialog-1440.png");
+        await page.locator("[data-camera-choice]").click();
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: join(out, "camera-choice-1440.png") });
+        shots.push("camera-choice-1440.png");
+      } finally {
+        await cams.close();
+      }
     } finally {
       gallery.server.stop(true);
     }
