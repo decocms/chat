@@ -173,8 +173,11 @@ function agentVersion(raw) {
 }
 
 // cli/vibebook.ts
-var VERSION = "1.7.15";
-var HOME = process.env.VIBEBOOK_HOME || join2(homedir(), ".vibebook");
+var VERSION = "1.7.16";
+for (const [k, v] of Object.entries(process.env))
+  if (k.startsWith("DECO_CHAT_") && v !== undefined)
+    process.env[`VIBEBOOK_${k.slice(10)}`] = v;
+var HOME = process.env.VIBEBOOK_HOME || (existsSync2(join2(homedir(), ".deco-chat")) ? join2(homedir(), ".deco-chat") : join2(homedir(), ".vibebook"));
 var SESSION = join2(HOME, "session.json");
 var AGENTS = join2(HOME, "agents.json");
 var DEFAULT_ORIGIN = "https://chat.decocms.com";
@@ -257,7 +260,11 @@ function repoRoot() {
     return process.cwd();
   }
 }
-var linkedRoom = (root) => readFileSync(join2(root, ".vibebook"), "utf8").match(/^room_id=([a-z0-9]+)/m)?.[1];
+var ROOM_FILES = [".deco-chat", ".vibebook"];
+var linkedRoom = (root) => {
+  const f = ROOM_FILES.map((n) => join2(root, n)).find((p) => existsSync2(p)) ?? join2(root, ".vibebook");
+  return readFileSync(f, "utf8").match(/^room_id=([a-z0-9]+)/m)?.[1];
+};
 function roomHere(root) {
   try {
     const r = linkedRoom(root);
@@ -840,7 +847,7 @@ function roomFolder(room, title) {
     } catch {
       return;
     }
-    if (names.includes(".vibebook")) {
+    if (ROOM_FILES.some((n) => names.includes(n))) {
       try {
         if (linkedRoom(dir) === room)
           return dir;
@@ -859,7 +866,7 @@ function roomFolder(room, title) {
 }
 function linkFolder(folder, room) {
   mkdirSync(folder, { recursive: true });
-  const f = join2(folder, ".vibebook");
+  const f = join2(folder, existsSync2(join2(folder, ".deco-chat")) ? ".deco-chat" : ".vibebook");
   let linked = false;
   try {
     linked = linkedRoom(folder) === room;

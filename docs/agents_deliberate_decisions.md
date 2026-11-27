@@ -2852,3 +2852,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium (it types into the agent's terminal, only the option the person picked)
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · feat/deco-chat-names-wave1 · The CLI and hooks accept the deco-chat names (wave 1)
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes chose to move the `vibebook` names to `deco-chat` in 4 waves (#6527, #6547, #6556: wave 1, package `@decocms/chat`). Wave 1: both names work and nothing breaks. The server already reads `x-deco-chat-*` and `x-vibebook-*` (#545).
+- Decision:
+  - The CLI copies each `DECO_CHAT_<X>` onto `VIBEBOOK_<X>` at start, so the new name wins in every read and every child process (hooks, runner, tray).
+  - Home: `~/.deco-chat` when it exists, else `~/.vibebook`. Nothing creates `~/.deco-chat` yet; wave 2 moves it.
+  - A folder's room: `.deco-chat`, else `.vibebook`, in the CLI (`ROOM_FILES`) and in the hooks. New links still write `.vibebook` unless `.deco-chat` is there.
+  - The hooks take `DECO_CHAT_ROOM` and `DECO_CHAT_HOME` too.
+  - `vibebook.dev` also installs a `deco-chat` command (the same file). The `@decocms/chat` package needs npm Trusted Publishing set up for that name by a person with access to the npm org, so it is not published here.
+  - CLI 1.7.16, plugin 0.25.10.
+- Other options: Rename everything at once (breaks every installed CLI, hook and linked repo).
+- Risk: low
+- Undo: Revert the commit.
+- Status: open

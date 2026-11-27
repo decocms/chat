@@ -1,6 +1,6 @@
 #!/bin/sh
 # PostToolUse(Bash): after a push, a PR or a deploy in a repo linked to a room, remind Claude to report it there.
-room=$(sed -n 's/^room_id=//p' "${CLAUDE_PROJECT_DIR:-.}/.vibebook" 2>/dev/null | head -n 1)
+room=$(sed -n 's/^room_id=//p' "${CLAUDE_PROJECT_DIR:-.}/.deco-chat" "${CLAUDE_PROJECT_DIR:-.}/.vibebook" 2>/dev/null | head -n 1)
 # No .vibebook? A room link in README/AGENTS/CLAUDE (the vibebook badge) links the repo too.
 [ -n "$room" ] || room=$(cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null && cat README.md AGENTS.md CLAUDE.md 2>/dev/null | grep -oE 'vibebook\.dev/b/[a-z0-9]{12}' | head -n 1 | cut -d/ -f3)
 [ -n "$room" ] || exit 0

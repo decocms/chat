@@ -4,7 +4,7 @@
 // is no longer running, the hook keeps the turn going with that instruction. A session that never ran listen is left
 // alone, and a second stop in a row (stop_hook_active) is never blocked, so it cannot loop.
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -66,7 +66,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
     let j = {};
     try { j = JSON.parse(d); } catch {}
     if (j.stop_hook_active || typeof j.session_id !== "string") return;
-    const home = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
+    const home = process.env.DECO_CHAT_HOME || process.env.VIBEBOOK_HOME || (existsSync(join(homedir(), ".deco-chat")) ? join(homedir(), ".deco-chat") : join(homedir(), ".vibebook"));
     // A listen started in this same turn may not have written its pid yet: look again a moment later before blocking.
     if (!stoppedRoom(home, j.session_id)) return;
     await new Promise((r) => setTimeout(r, 1500));
