@@ -1798,7 +1798,8 @@ async function call(
           : "";
       let machine = "",
         persona = "",
-        runKind: AgentKind | null = null;
+        runKind: AgentKind | null = null,
+        mainOnly = 0;
       if (mid) {
         const name =
           (typeof mc!.name === "string" ? mc!.name : "")
@@ -1845,8 +1846,13 @@ async function call(
               ? personas.results.find((p) => p.id === a.persona)
               : undefined;
           if (own) persona = own.id;
+          else if (typeof a.persona === "string" && a.persona)
+            // A runner of an agent that is gone (removed, or not this machine's): every room is off for it, never
+            // the rooms of its kind. Its main runner stops it at its next pass.
+            persona = "gone";
           else {
             runKind = isKind(mc!.agent) ? mc!.agent : null;
+            mainOnly = runKind && mc!.main === true ? 1 : 0;
             const kind =
               runKind ??
               (ids.length &&
@@ -1860,16 +1866,19 @@ async function call(
               )
                 ? "codex"
                 : "claude");
-            await ensurePersonas(db, me.email, mid, kind);
+            // A runner from step 4 on (it says its kind) starts one runner per agent: it makes an agent only on a
+            // machine with none, so an agent the person removed does not come back.
+            if (!runKind || !personas.results.length)
+              await ensurePersonas(db, me.email, mid, kind);
           }
-          if (ids.length)
+          if (ids.length && persona !== "gone")
             await db
               .prepare(
                 `UPDATE agents SET machine_id = ?1, persona_id = coalesce(?2, (SELECT p.id FROM agent_personas p WHERE p.machine_id = ?1 AND p.email = ?3
                    AND p.kind = coalesce(?4, CASE WHEN agents.client LIKE '%codex%' THEN 'codex' ELSE 'claude' END) ORDER BY p.main DESC, p.created_at LIMIT 1))
                  WHERE email = ?3 AND id IN (${ids.map((_, i) => `?${i + 5}`).join(",")})`,
               )
-              .bind(mid, persona || null, me.email, runKind, ...ids)
+              .bind(mid, own?.id ?? null, me.email, runKind, ...ids)
               .run();
           // Back online (or new): the person's open Agents views refetch.
           if (
@@ -1886,13 +1895,13 @@ async function call(
       if (machine) {
         const r = await db
           .prepare(MACHINE_ROOMS_SQL)
-          .bind(Date.now() - LISTEN_FRESH, me.email, machine, persona, persona ? "" : (runKind ?? ""))
+          .bind(Date.now() - LISTEN_FRESH, me.email, machine, persona, persona ? "" : (runKind ?? ""), mainOnly)
           .all<{ id: string; title: string; claude_on: number; listening: number }>();
         const agents = (
           await db
-            .prepare(`SELECT id, name, kind FROM agent_personas WHERE machine_id = ? AND email = ? ORDER BY created_at`)
+            .prepare(`SELECT id, name, kind, main FROM agent_personas WHERE machine_id = ? AND email = ? ORDER BY created_at`)
             .bind(machine, me.email)
-            .all<{ id: string; name: string; kind: string }>()
+            .all<{ id: string; name: string; kind: string; main: number }>()
         ).results;
         return {
           rooms: r.results.map((b) => ({
