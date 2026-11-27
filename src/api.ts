@@ -1,5 +1,17 @@
 import { AgentDbRow, MachineDbRow, UploadHeaders } from "./apiServerSchemas";
-import { APP_FRESH, APP_SQL, DELIVERS, deliveryJoins, MACHINE_FRESH, sandboxMachine } from "./delivery";
+import { APP_FRESH, APP_SQL, DELIVERS, deliveryJoins, MACHINE_FRESH, PERSONA_ON, sandboxMachine } from "./delivery";
+import { machineKinds } from "../shared/agentKinds";
+import { isKind } from "./personas";
+
+/** A machine's agent kinds (machines.kinds) for the Agents view; none when an older CLI sent none. */
+const kindsOf = (raw: unknown) => {
+  try {
+    const k = typeof raw === "string" ? machineKinds(JSON.parse(raw)) : null;
+    return k ? { kinds: k as Record<string, string> } : {};
+  } catch {
+    return {};
+  }
+};
 import { requestBytes, RequestBytesError } from "./requestBytes";
 import { SttQuery, SttResult, CallJoinResult, CallTracksBody, CallAnswerBody, CallCloseBody, CallLeaveBody, CALL_LIMIT, type CallSfuResult, type CallDescription, type CallTracksBody as CallTracksBodyType, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
@@ -66,6 +78,9 @@ import {
   type LinkResolution,
   ClaudeToggleBody,
   DeliveryBody,
+  PersonaCreateBody,
+  PersonaRenameBody,
+  PersonaResult,
   type DeliveryResult,
   ClaudeToggleResult,
   DecideRequestBody,
@@ -186,6 +201,13 @@ export interface ApiServices {
   removeMember(roomId: string, email: string): Promise<{ error: string; status: 400 | 403 } | null>;
   /** Tell the person's tabs to refetch this room's agents (after the response). */
   pokeAgents(roomId: string): void;
+  /** Your agents (src/personas.ts): add, rename, remove, and one agent's switch in one room. */
+  personas: {
+    create(input: { machine: string; kind: string; name?: string; book?: string }): Promise<{ id: string; name: string } | { error: string; status: 400 | 404 | 409 }>;
+    rename(id: string, name: string): Promise<{ ok: true } | { error: string; status: 400 | 404 | 409 }>;
+    remove(id: string): Promise<{ ok: true } | { error: string; status: 400 | 404 | 409 }>;
+    setRoom(id: string, book: string, on: boolean): Promise<boolean>;
+  };
   /** Wake the person's listeners for this room (their CLI hub waits on {t:"me", book}). */
   pokeListeners(roomId: string): void;
   /** The room's ↗: ask this person's CLI hub (any machine) to focus the room's Claude in herdr. */
@@ -607,7 +629,7 @@ export const roomApi = accountApi
   .post("/api/books/:id/delivery", body(DeliveryBody), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id"), email = c.get("email");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
-    const { on, machine, agent, all } = c.req.valid("json");
+    const { on, persona, machine, agent, all } = c.req.valid("json");
     const v = on ? 1 : 0;
     const sandboxes = await svc.sqlAll(`SELECT id FROM sandboxes WHERE book_id = ? AND email = ?`, id, email);
     const sbIds = sandboxes.map((r) => sandboxMachine(String((r as { id: string }).id)));
@@ -623,21 +645,58 @@ export const roomApi = accountApi
          ON CONFLICT(agent, book_id) DO UPDATE SET delivery = excluded.delivery`,
         id, email, v,
       );
+      // And every agent of yours (src/personas.ts).
+      await svc.sql(`INSERT OR REPLACE INTO persona_rooms (persona_id, book_id, on_) SELECT id, ?1, ?3 FROM agent_personas WHERE email = ?2`, id, email, v);
+    } else if (persona) {
+      if (!(await svc.personas.setRoom(persona, id, on))) return c.json({ error: "not your agent" } satisfies ErrorBody, 404);
     } else if (machine) {
       const owned = sbIds.includes(machine) || (await svc.sqlAll(`SELECT 1 FROM machines WHERE id = ? AND email = ?`, machine, email)).length > 0;
       if (!owned) return c.json({ error: "not your machine" } satisfies ErrorBody, 404);
       await svc.sql(`INSERT OR REPLACE INTO machine_rooms (machine_id, book_id, on_) VALUES (?, ?, ?)`, machine, id, v);
+      // The machine's switch covers every agent it runs (an app from before agents as people).
+      await svc.sql(`INSERT OR REPLACE INTO persona_rooms (persona_id, book_id, on_) SELECT id, ?2, ?3 FROM agent_personas WHERE machine_id = ?1 AND email = ?4`, machine, id, v, email);
     } else if (agent) {
       const mine = await svc.sqlAll(`SELECT machine_id FROM agents WHERE id = ? AND email = ?`, agent, email);
       if (!mine.length) return c.json({ error: "not your agent" } satisfies ErrorBody, 404);
       if ((mine[0] as { machine_id: string | null }).machine_id) return c.json({ error: "this agent follows its machine's switch" } satisfies ErrorBody, 400);
       // An upsert: the row also keeps the agent's @name in the room (src/agentNames.ts).
       await svc.sql(`INSERT INTO agent_rooms (agent, book_id, delivery) VALUES (?, ?, ?) ON CONFLICT(agent, book_id) DO UPDATE SET delivery = excluded.delivery`, agent, id, v);
-    } else return c.json({ error: "say which: machine, agent or all" } satisfies ErrorBody, 400);
+    } else return c.json({ error: "say which: persona, machine, agent or all" } satisfies ErrorBody, 400);
     svc.pokeAgents(id);
     if (on) svc.pokeListeners(id);
-    svc.track(on ? "delivery_on" : "delivery_off", { book: id, which: all ? "all" : machine ? "machine" : "agent" });
+    svc.track(on ? "delivery_on" : "delivery_off", { book: id, which: all ? "all" : persona ? "persona" : machine ? "machine" : "agent" });
     return c.json({ ok: true as const } satisfies DeliveryResult, 200);
+  })
+  // Your agents (src/personas.ts, Gimenes #6283): add one (machine, kind, name), rename it, remove it. Its switch per
+  // room is the delivery switch above ({ persona }).
+  .post("/api/personas", body(PersonaCreateBody), async (c) => {
+    const svc = c.get("svc"), input = c.req.valid("json");
+    if (input.book && !(await svc.isMember(input.book))) return c.json(forbidden, 403);
+    const r = await svc.personas.create(input);
+    if ("error" in r) return c.json({ error: r.error } satisfies ErrorBody, r.status);
+    if (input.book) {
+      svc.pokeAgents(input.book);
+      svc.pokeListeners(input.book);
+    }
+    svc.pokeMe();
+    svc.track("agent_add", { kind: input.kind, ...(input.book ? { book: input.book } : {}) });
+    return c.json({ ok: true as const, id: r.id, name: r.name } satisfies PersonaResult, 200);
+  })
+  .patch("/api/personas/:aid", body(PersonaRenameBody), async (c) => {
+    const svc = c.get("svc");
+    const r = await svc.personas.rename(c.req.param("aid"), c.req.valid("json").name);
+    if ("error" in r) return c.json({ error: r.error } satisfies ErrorBody, r.status);
+    svc.pokeMe();
+    svc.track("agent_rename");
+    return c.json({ ok: true as const } satisfies PersonaResult, 200);
+  })
+  .delete("/api/personas/:aid", async (c) => {
+    const svc = c.get("svc");
+    const r = await svc.personas.remove(c.req.param("aid"));
+    if ("error" in r) return c.json({ error: r.error } satisfies ErrorBody, r.status);
+    svc.pokeMe();
+    svc.track("agent_remove");
+    return c.json({ ok: true as const } satisfies PersonaResult, 200);
   })
   // The room's call (src/calls.ts): the browser negotiates WebRTC with the SFU through these routes.
   .post("/api/books/:id/call/join", validator("query", (value) => ({ thread: (Array.isArray(value.thread) ? value.thread[0] : value.thread) ?? "main" })), async (c) => {
@@ -894,7 +953,7 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
   const svc = c.get("svc"), id = c.req.param("id"), now = Date.now();
   // In parallel; your own members row is also the membership check.
   const me0 = c.get("email");
-  const [rows, machines, mine, sbx] = await Promise.all([
+  const [rows, machines, mine, sbx, personas] = await Promise.all([
     // The sessions connected to this room: listening to it (or to all their rooms), or that read/posted here in the
     // last hour. Yours also when they were here in the last 14 days: a Claude of yours that stopped (or now listens in
     // another room) shows as "seen …", not as "no agent here yet" with the setup. Not every Claude of yours listening
@@ -916,7 +975,7 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     ),
     // Your computers that ran `vibebook herdr` in the last 14 days, with their switch here.
     svc.sqlAll(
-      `SELECT x.id, x.name, x.kind, x.seen_at, coalesce(mr.on_, m.claude_on, 0) AS on_
+      `SELECT x.id, x.name, x.kind, x.seen_at, x.kinds, coalesce(mr.on_, m.claude_on, 0) AS on_
        FROM machines x JOIN members m ON m.email = x.email AND m.book_id = ?1
        LEFT JOIN machine_rooms mr ON mr.machine_id = x.id AND mr.book_id = ?1
        WHERE x.email = ?2 AND x.seen_at > ?3 ORDER BY x.created_at`,
@@ -927,6 +986,18 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     svc.sqlAll(`SELECT claude_on FROM members WHERE book_id = ? AND email = ?`, id, c.get("email")),
     // Everyone's cloud sandboxes in this room, as last seen by their owner's list (src/sandbox.ts): they cost money.
     svc.sqlAll(`SELECT s.id, s.email, s.name, s.state, s.run_s, s.rate, s.disk_rate, s.checked_at, s.created_at, coalesce(mr.on_, 1) AS on_ FROM sandboxes s LEFT JOIN machine_rooms mr ON mr.machine_id = 'sb_' || s.id AND mr.book_id = s.book_id WHERE s.book_id = ? ORDER BY s.created_at`, id),
+    // Your agents (src/personas.ts), with their switch here and whether one of their processes listens to this room.
+    svc.sqlAll(
+      `SELECT p.id, p.name, p.kind, p.machine_id, x.name AS machine_name, x.seen_at, ${PERSONA_ON} AS on_,
+         EXISTS (SELECT 1 FROM agents a WHERE a.persona_id = p.id AND a.listening_at > ?3 AND (a.listen_room = ?1 OR a.listen_room IS NULL)) AS listening
+       FROM agent_personas p JOIN members m ON m.email = p.email AND m.book_id = ?1
+       LEFT JOIN persona_rooms pr ON pr.persona_id = p.id AND pr.book_id = ?1
+       LEFT JOIN machines x ON x.id = p.machine_id
+       WHERE p.email = ?2 ORDER BY p.created_at`,
+      id,
+      me0,
+      now - svc.listenFresh,
+    ),
   ]);
   const me=zm.object({claude_on:zm.optional(zm.unknown())}).safeParse(mine[0]);
   if(!me.success)return c.json(forbidden,403);
@@ -966,13 +1037,18 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     machines: [
       ...machines.map((row) => {
         const x = MachineDbRow.parse(row);
-        return { id: x.id, name: x.name || "computer", kind: x.kind === "herdr-app" ? ("herdr-app" as const) : ("herdr" as const), online: !!x.seen_at && now - x.seen_at < MACHINE_FRESH, seen_at: x.seen_at, on: x.on_ === 1 };
+        return { id: x.id, name: x.name || "computer", kind: x.kind === "herdr-app" ? ("herdr-app" as const) : ("herdr" as const), online: !!x.seen_at && now - x.seen_at < MACHINE_FRESH, seen_at: x.seen_at, on: x.on_ === 1, ...kindsOf((row as { kinds?: unknown }).kinds) };
       }),
       ...sbx.flatMap((row) => {
         const s = row as { id: string; email: string; name: string | null; state: string | null; checked_at: number | null; on_: number };
         return s.email === me0 ? [{ id: sandboxMachine(s.id), name: s.name || "sandbox", kind: "sandbox" as const, online: s.state === "running", seen_at: s.checked_at, on: s.on_ !== 0 }] : [];
       }),
     ],
+    personas: personas.flatMap((row) => {
+      const p = row as { id: string; name: string; kind: string; machine_id: string; machine_name: string | null; seen_at: number | null; on_: number; listening: number };
+      if (!isKind(p.kind)) return [];
+      return [{ id: p.id, name: p.name, kind: p.kind, machine: p.machine_id, machine_name: p.machine_name || "computer", online: !!p.seen_at && now - p.seen_at < MACHINE_FRESH, on: p.on_ === 1, listening: p.listening === 1 }];
+    }),
   };
   return c.json(out, 200);
 });

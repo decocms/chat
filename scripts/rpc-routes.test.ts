@@ -73,6 +73,28 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     allowStt: async () => true,
     transcribe: async () => ({ ok: true, text: "spoken" }),
     pokeFocus: () => {},
+    personas: {
+      create: async (input) => {
+        saved.push({
+          table: "persona",
+          value: `${input.machine}:${input.kind}:${input.name ?? ""}:${input.book ?? ""}`,
+        });
+        return input.kind === "vim"
+          ? { error: "unknown kind", status: 400 }
+          : { id: "p_1", name: input.name ?? input.kind };
+      },
+      rename: async (id, name) =>
+        id === "p_1"
+          ? (saved.push({ table: "persona_name", value: name }), { ok: true })
+          : { error: "not your agent", status: 404 },
+      remove: async (id) =>
+        id === "p_1" ? { ok: true } : { error: "not your agent", status: 404 },
+      setRoom: async (id, book, on) =>
+        id === "p_1"
+          ? (saved.push({ table: "persona_room", value: `${book}:${on}` }),
+            true)
+          : false,
+    },
     roomMessages: async (room, query) => {
       pages.push({ room, ...query });
       return { thread: query.thread, messages: [], acks: [], more: false };
@@ -1280,6 +1302,43 @@ test("raw-body adapters (icon, avatar) go through the typed routes and check the
   await expect(
     me.uploadAvatar({ type: "image/svg+xml", body: png }),
   ).rejects.toThrow("Use uma imagem PNG, JPEG ou WebP.");
+});
+
+test("your agents (src/personas.ts): add, rename, remove, and each one's switch in a room", async () => {
+  const { app, json, saved } = fixture();
+  const made = await json("/api/personas", {
+    machine: "m_1",
+    kind: "codex",
+    name: "reviewer",
+    book: "r1",
+  });
+  expect(await made.json()).toEqual({ ok: true, id: "p_1", name: "reviewer" });
+  expect(
+    (await json("/api/personas", { machine: "m_1", kind: "vim" })).status,
+  ).toBe(400);
+  expect((await json("/api/personas", { kind: "codex" })).status).toBe(400);
+  const renamed = await app.request("/api/personas/p_1", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "boss" }),
+  });
+  expect(renamed.status).toBe(200);
+  expect(
+    (await app.request("/api/personas/p_9", { method: "DELETE" })).status,
+  ).toBe(404);
+  expect(
+    (await app.request("/api/personas/p_1", { method: "DELETE" })).status,
+  ).toBe(200);
+  expect(
+    (await json("/api/books/r1/delivery", { on: false, persona: "p_1" }))
+      .status,
+  ).toBe(200);
+  expect(
+    (await json("/api/books/r1/delivery", { on: true, persona: "p_9" })).status,
+  ).toBe(404);
+  expect(
+    saved.filter((x) => x.table.startsWith("persona")).map((x) => x.value),
+  ).toEqual(["m_1:codex:reviewer:r1", "m_1:vim::", "boss", "r1:false"]);
 });
 
 test("connected Claudes (OAuth grants): list, revoke a list, revoke one; bad bodies and other origins refused", async () => {

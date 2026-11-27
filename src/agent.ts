@@ -1,5 +1,6 @@
 import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
-import { machineKinds } from "../shared/agentKinds";
+import { type AgentKind, machineKinds } from "../shared/agentKinds";
+import { ensurePersonas, isKind, MACHINE_ROOMS_SQL, PERSONA_ID } from "./personas";
 import { threadWait, threadWaitLine } from "../shared/threadWait";
 // The agents' MCP: a person's own agent (Claude Code, Claude.ai…) acting for them in their rooms.
 // JSON-RPC over POST like the admin MCP. Auth is the OAuth token checked by workers-oauth-provider,
@@ -1795,7 +1796,9 @@ async function call(
         mc && typeof mc.id === "string" && MACHINE_ID.test(mc.id)
           ? await ownMachine(db, mc.id, me.email)
           : "";
-      let machine = "";
+      let machine = "",
+        persona = "",
+        runKind: AgentKind | null = null;
       if (mid) {
         const name =
           (typeof mc!.name === "string" ? mc!.name : "")
@@ -1831,12 +1834,42 @@ async function call(
                 typeof x === "string" && /^s_[a-f0-9]{32}$/.test(x),
             )
             .slice(0, 50);
+          // The person's agents on this machine (src/personas.ts). A runner that runs one agent says which (persona);
+          // else it says its kind (machine.agent), and an older one says nothing: its Claudes' client tells.
+          const personas = await db
+            .prepare(`SELECT id, kind FROM agent_personas WHERE machine_id = ? AND email = ?`)
+            .bind(mid, me.email)
+            .all<{ id: string; kind: string }>();
+          const own =
+            typeof a.persona === "string" && PERSONA_ID.test(a.persona)
+              ? personas.results.find((p) => p.id === a.persona)
+              : undefined;
+          if (own) persona = own.id;
+          else {
+            runKind = isKind(mc!.agent) ? mc!.agent : null;
+            const kind =
+              runKind ??
+              (ids.length &&
+              (
+                await db
+                  .prepare(
+                    `SELECT 1 FROM agents WHERE email = ? AND client LIKE '%codex%' AND id IN (${ids.map(() => "?").join(",")}) LIMIT 1`,
+                  )
+                  .bind(me.email, ...ids)
+                  .first()
+              )
+                ? "codex"
+                : "claude");
+            await ensurePersonas(db, me.email, mid, kind);
+          }
           if (ids.length)
             await db
               .prepare(
-                `UPDATE agents SET machine_id = ? WHERE email = ? AND id IN (${ids.map(() => "?").join(",")})`,
+                `UPDATE agents SET machine_id = ?1, persona_id = coalesce(?2, (SELECT p.id FROM agent_personas p WHERE p.machine_id = ?1 AND p.email = ?3
+                   AND p.kind = coalesce(?4, CASE WHEN agents.client LIKE '%codex%' THEN 'codex' ELSE 'claude' END) ORDER BY p.main DESC, p.created_at LIMIT 1))
+                 WHERE email = ?3 AND id IN (${ids.map((_, i) => `?${i + 5}`).join(",")})`,
               )
-              .bind(mid, me.email, ...ids)
+              .bind(mid, persona || null, me.email, runKind, ...ids)
               .run();
           // Back online (or new): the person's open Agents views refetch.
           if (
@@ -1846,6 +1879,32 @@ async function call(
           )
             ctx.waitUntil(poke(env, [me.email], { t: "me" }));
         }
+      }
+      // A machine: each room is on when one of its agents is on there (src/personas.ts): the one this runner runs
+      // (persona), else the ones of its kind, else all of them (an older runner). listening: that agent, or any of the
+      // person's, waited on the room lately.
+      if (machine) {
+        const r = await db
+          .prepare(MACHINE_ROOMS_SQL)
+          .bind(Date.now() - LISTEN_FRESH, me.email, machine, persona, persona ? "" : (runKind ?? ""))
+          .all<{ id: string; title: string; claude_on: number; listening: number }>();
+        const agents = (
+          await db
+            .prepare(`SELECT id, name, kind FROM agent_personas WHERE machine_id = ? AND email = ? ORDER BY created_at`)
+            .bind(machine, me.email)
+            .all<{ id: string; name: string; kind: string }>()
+        ).results;
+        return {
+          rooms: r.results.map((b) => ({
+            room_id: b.id,
+            title: b.title,
+            url: `${origin}/b/${b.id}`,
+            on: !!b.claude_on,
+            listening: !!b.listening,
+          })),
+          // This machine's agents, for a runner that opens one process per agent.
+          agents,
+        };
       }
       const r = await db
         .prepare(
