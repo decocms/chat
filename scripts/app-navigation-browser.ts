@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import { MeResult } from "../shared/schemas";
-import { browserFixtures } from "./browser-fixtures";
+import { browserFixtures, pickDesktopPane } from "./browser-fixtures";
 import {
   auditAppNavigation,
   type AppNavigationFixture,
@@ -60,13 +60,8 @@ try {
       );
       const layout = page.locator("[data-room-layout]");
       await expect(layout).toBeVisible();
-      const tab = page.locator(
-        '[data-room-document-toolbar] [data-document-pane="apps"]',
-      );
-      if (!(await tab.isVisible()))
-        await page.locator("[data-document-toggle]").click();
       if ((await layout.getAttribute("data-pane")) !== "apps")
-        await tab.click();
+        await pickDesktopPane(page, "apps");
       await expect(layout).toHaveAttribute("data-pane", "apps");
     },
     async step(name, run) {
