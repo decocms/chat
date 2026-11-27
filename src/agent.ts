@@ -1098,7 +1098,7 @@ const TOOLS = [
   {
     name: "start_thread",
     description:
-      "Turn a request into its own thread: creates an epic (the request as its first task, or the tasks you pass, plus a doc that starts with the goal) and shows it as a thread under the request's message in the main thread (from_message_id, or the request you just acked as doing; with neither, the thread starts from its own title and why in main, never from someone's unrelated message). Threads do not nest: for a request inside another thread, the room writes one line in the main thread that links it, and the new thread starts from that line. Then talk, report progress and say it's done inside that epic (post with thread = epic_id) and move its tasks with set_task_status; when every task is done the epic moves to review, and it is done when your human says so. A DM has no epics: asked for one in a DM, pick the room it belongs to (inbox lists your human's rooms; ask if it's unclear), start_thread there with its room_id, and answer in the DM with the link.",
+      "Returns url (the thread's link from anywhere) and link (#e<id>, for messages in this room): use them, never build a thread link yourself. Turn a request into its own thread: creates an epic (the request as its first task, or the tasks you pass, plus a doc that starts with the goal) and shows it as a thread under the request's message in the main thread (from_message_id, or the request you just acked as doing; with neither, the thread starts from its own title and why in main, never from someone's unrelated message). Threads do not nest: for a request inside another thread, the room writes one line in the main thread that links it, and the new thread starts from that line. Then talk, report progress and say it's done inside that epic (post with thread = epic_id) and move its tasks with set_task_status; when every task is done the epic moves to review, and it is done when your human says so. A DM has no epics: asked for one in a DM, pick the room it belongs to (inbox lists your human's rooms; ask if it's unclear), start_thread there with its room_id, and answer in the DM with the link.",
     inputSchema: {
       type: "object",
       properties: {
@@ -2793,7 +2793,15 @@ async function call(
         a.backlog === true,
         a.answer === true,
       );
-      return out;
+      // The thread's link, so an agent never builds one (Gimenes #6309: a guessed ?t= showed "Private room"). url opens
+      // it from anywhere; link (#e<id>) is the form to use inside this room's messages.
+      return out.ok && "epic_id" in out && out.epic_id
+        ? {
+            ...out,
+            url: `${origin}/b/${id}?t=${encodeURIComponent(out.epic_id)}`,
+            link: `#e${out.epic_id}`,
+          }
+        : out;
     }
     case "add_task":
     case "update_task":
