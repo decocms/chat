@@ -4403,11 +4403,9 @@ describe("stable sidebar integration", () => {
       name.querySelector("[data-wait-badge] [data-count]")?.textContent,
     ).toBe("1");
     expect(name.getAttribute("aria-current")).toBeNull();
-    // The room's own row is for phones only; nothing in the sidebar opens a task board.
+    // The room's chat row in the thread list is for phones only; nothing in the sidebar opens a task board.
     expect(
-      h.target
-        .querySelector("button[data-room-title]")!
-        .parentElement!.className.split(/\s+/),
+      h.target.querySelector("button[data-room-title]")!.className.split(/\s+/),
     ).toContain("md:hidden");
     expect(h.target.querySelector("[data-board-toggle]")).toBeNull();
     expect(h.target.textContent).not.toContain("Sala principal");
@@ -4418,7 +4416,7 @@ describe("stable sidebar integration", () => {
     flushSync();
     expect(name.getAttribute("aria-current")).toBe("page");
   });
-  test("the room row is the room's mark, title and what waits on you in its main thread, with ✎ right after the title (Gimenes #4108)", async () => {
+  test("phone drawer (Gimenes #6117): the room's chat is the first row of the thread list, with its mark and what waits on you; no ✎, no avatar", async () => {
     const room = fixture();
     const h = sidebar(room, {
       thread: "main",
@@ -4442,28 +4440,12 @@ describe("stable sidebar integration", () => {
     ).toBe("2");
     // The Inbox is global (the rail, or the phone Home's bar): a room has no entry to it.
     expect(h.target.querySelector("[data-inbox-toggle]")).toBeNull();
-    const rename = title.parentElement!.querySelector(
-      'button[aria-label="Editar sala"]',
-    );
-    expect(rename).not.toBeNull();
-    expect(title.nextElementSibling).toBe(rename);
-    expect(rename!.className.split(/\s+/)).not.toContain("opacity-0");
-  });
-  test("phone drawer: the room's row is the first item, and the open thread's title and status are gone (Gimenes #4065)", () => {
-    const room = fixture();
-    const h = sidebar(room, { thread: "e" });
+    // It sits in the list, right before the thread rows, under the Mine/Open/Done tabs.
+    const list = h.target.querySelector('[data-view="epics"] ul')!;
+    expect(title.nextElementSibling).toBe(list);
+    expect(h.target.querySelector("[data-drawer-account]")).toBeNull();
+    expect(h.target.querySelector("[data-phone-menu]")).toBeNull();
     const panel = h.target.querySelector("[data-room-sidebar-panel]")!;
-    const row = panel.querySelector("button[data-room-title]")!.parentElement!;
-    // Before the shortcuts, the tabs and the threads: nothing but the sheet's handle comes first.
-    const before = [...panel.children].slice(
-      0,
-      [...panel.children].indexOf(row),
-    );
-    expect(
-      before.every((node) =>
-        node.matches("button[use\\:sheetHandle], button[aria-label='Fechar']"),
-      ),
-    ).toBe(true);
     expect(panel.querySelector("[data-thread-header]")).toBeNull();
     expect(panel.querySelector("[data-epic-status]")).toBeNull();
   });

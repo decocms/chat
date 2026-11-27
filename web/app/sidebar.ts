@@ -39,10 +39,6 @@ export type SidebarProps = {
   mountSheetHandle?: (node: HTMLElement) => () => void;
   /** RoomLayout draws the phone grab handle itself. */
   hideSheetHandle?: boolean;
-  /** Phones: the room's shortcuts (Doc, Board, Files, Agents, Search) at the top of the title menu. */
-  phoneMenu?: import("svelte").Snippet;
-  /** Phones: your avatar (a link to Settings) at the end of the room's row in the drawer. */
-  phoneAccount?: import("svelte").Snippet;
   /** The room's call while one is on: a row under the room's name (a green phone in the narrow rail). */
   call?: import("svelte").Snippet<[collapsed: boolean]>;
   /** The call I am in, right above the foot (CallPanel); in the narrow rail, a green phone over the foot. */
