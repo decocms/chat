@@ -1009,6 +1009,24 @@ try {
         await phone
           .locator("[data-new-message-sheet]")
           .waitFor({ state: "detached" });
+        // The same drag from the scrim above it (Gimenes #6221): every part of a drawer drags it.
+        await phone.locator("[data-home-new]").click();
+        await phone.locator("[data-new-message-sheet]").waitFor();
+        await phone.waitForTimeout(450);
+        const top = (await surface.boundingBox())?.y ?? 400;
+        await phone.mouse.move(x, top - 120);
+        await phone.mouse.down();
+        await phone.mouse.move(x, top - 60, { steps: 4 });
+        await phone.mouse.move(x, top + 80, { steps: 4 });
+        await phone.screenshot({
+          path: join(out, "home-new-scrim-drag-390.png"),
+        });
+        shots.push("home-new-scrim-drag-390.png");
+        await phone.mouse.move(x, top + box.height * 0.6, { steps: 4 });
+        await phone.mouse.up();
+        await phone
+          .locator("[data-new-message-sheet]")
+          .waitFor({ state: "detached" });
       }
       for (const [button, panel, file] of [
         [

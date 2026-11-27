@@ -10,10 +10,8 @@ export type RoomLayoutState = {
   sidebarCollapsed: boolean;
   mobile: boolean;
   closingUnconfirmed: boolean;
-  presentedSheet: RoomSheet | null;
-  draggingSheet: RoomSheet | null;
-  /** A sheet that slides out while another one slides in (side → doc). */
-  leavingSheet: RoomSheet | null;
+  /** The phone doc pane while it is shown or fading out (the threads drawer is a Drawer, not here). */
+  presentedSheet: "doc" | null;
   documentWidth: number;
   documentMaximum: number;
   resizing: boolean;
@@ -24,7 +22,6 @@ export type RoomLayoutState = {
 export type RoomLayoutCells = {
   root: HTMLElement;
   viewport: HTMLElement;
-  sidebar: HTMLElement;
   header: HTMLElement;
   peek: HTMLElement;
   attention: HTMLElement;
@@ -32,7 +29,6 @@ export type RoomLayoutCells = {
   composer: HTMLElement;
   documentToolbar: HTMLElement;
   document: HTMLElement;
-  scrim: HTMLElement;
 };
 export type RoomLayoutController = {
   readonly state: Readable<RoomLayoutState>;
@@ -57,7 +53,6 @@ export type RoomLayoutController = {
   deferNavigation(callback: () => void): boolean;
   retryHistory(): void;
   mount(cells: RoomLayoutCells): () => void;
-  bindHandle(node: HTMLElement, sheet: RoomSheet, opening: boolean): () => void;
   bindWidthInput(node: HTMLInputElement): () => void;
   /** Additional owned document surface, using the same preferred width. */
   bindDocumentWidth(node: HTMLElement): () => void;

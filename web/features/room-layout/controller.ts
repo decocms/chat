@@ -10,7 +10,6 @@ import type {
   RoomLayoutOptions,
   RoomLayoutState,
   RoomLayoutCells,
-  RoomSheet,
 } from "./types";
 export type {
   RoomLayoutController,
@@ -98,8 +97,6 @@ export function createRoomLayout(
     mobile: false,
     closingUnconfirmed: false,
     presentedSheet: null,
-    draggingSheet: null,
-    leavingSheet: null,
     documentWidth: 380,
     documentMaximum: 380,
     resizing: false,
@@ -107,10 +104,6 @@ export function createRoomLayout(
     animationUnavailable: false,
   };
   const state = writable(value),
-    handles = new Map<
-      HTMLElement,
-      { sheet: RoomSheet; opening: boolean; stop: (() => void) | null }
-    >(),
     inputs = new Map<HTMLInputElement, { stop: (() => void) | null }>(),
     widths = new Map<HTMLElement, { stop: (() => void) | null }>();
   const current = () =>
@@ -153,10 +146,6 @@ export function createRoomLayout(
       entry.stop = null;
     }
     mountRevision++;
-    for (const entry of handles.values()) {
-      entry.stop?.();
-      entry.stop = null;
-    }
     for (const entry of inputs.values()) {
       entry.stop?.();
       entry.stop = null;
@@ -257,22 +246,6 @@ export function createRoomLayout(
     setViewerGate(gate) {
       return intents.setViewerGate(gate);
     },
-    bindHandle(node, sheet, opening) {
-      if (!active) return () => {};
-      handles.get(node)?.stop?.();
-      const entry = {
-        sheet,
-        opening,
-        stop: geometry?.bindHandle(node, sheet, opening) ?? null,
-      };
-      handles.set(node, entry);
-      return () => {
-        if (handles.get(node) === entry) {
-          entry.stop?.();
-          handles.delete(node);
-        }
-      };
-    },
     bindWidthInput(node) {
       if (!active) return () => {};
       inputs.get(node)?.stop?.();
@@ -309,12 +282,8 @@ export function createRoomLayout(
         changed: (patch) => {
           if (active && mountRevision === ticket) publish(patch);
         },
-        settled: (which, open) => {
-          if (current())
-            intent(() => {
-              if (open) history.open(which);
-              else history.close();
-            });
+        escaped: () => {
+          if (current()) intent(() => history.close());
         },
         mobile(mobile) {
           if (!current() || value.mobile === mobile) return;
@@ -323,8 +292,6 @@ export function createRoomLayout(
           if (!mobile && wasMobile) history.beforeNavigation();
         },
       });
-      for (const [node, entry] of handles)
-        entry.stop = geometry.bindHandle(node, entry.sheet, entry.opening);
       for (const [node, entry] of inputs)
         entry.stop = geometry.bindWidthInput(node);
       for (const [node, entry] of widths)
@@ -340,15 +307,12 @@ export function createRoomLayout(
       intents.dispose();
       history.dispose();
       stopMount();
-      handles.clear();
       inputs.clear();
       widths.clear();
       publish({
         active: false,
         sheet: null,
         presentedSheet: null,
-        draggingSheet: null,
-        leavingSheet: null,
         closingUnconfirmed: false,
         resizing: false,
       });

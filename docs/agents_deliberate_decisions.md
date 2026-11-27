@@ -2694,3 +2694,11 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Options:** (a) a new drawer on bits-ui Dialog, and the room drawer shares the engine; (b) move the room drawer onto bits-ui Dialog too; (c) add drag to `SheetContent`.
 - **Why:** New components, because no existing one has a drag to close or a side-independent drag (the room's drag works only from the top). Option (b) would rewrite the room's history and `inert` logic and its seeked slide, with a large risk for a small gain. Option (c) changes the desktop sheets too.
 - **Reviewer can change:** move the room drawer onto `DrawerContent` later, if its controller can live with a dialog.
+
+## 2026-11-27 · feat/drawer-one-flow
+
+- **Decision:** The threads drawer of the room is a `Drawer` (portal, bits-ui dialog) like the four other phone drawers. One engine (`createDrawerMotion`) seeks paused CSS keyframes from one progress value, and one gesture binder serves the panel, the grab bar and the scrim. `geometry.ts` and `controller.ts` lose the side sheet: its drag, its scrim, its Escape, its swap with the doc pane and `bindHandle`. The doc pane stays a pane.
+- **Options:** (a) the room's engine (seeked keyframes) for every drawer, with bits-ui only for focus and Escape; (b) a separate state machine file; (c) no bits-ui, with focus and Escape by hand.
+- **Why:** Gimenes approved (a) (#6228) after three proposals (#6221). Seeked keyframes keep the look in the stylesheet (no inline style, no Web Animations). bits-ui keeps the focus trap and the layered Escape. A separate state machine adds a file for five states that fit in the engine.
+- **Reviewer can change:** add history entries to the four other drawers (Back closes them) through the same `onOpenChange`.
+

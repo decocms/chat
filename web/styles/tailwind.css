@@ -723,19 +723,55 @@
   --breakpoint-md: 901px;
   /* Every phone drawer's slide (web/lib/studio/drawer.ts): the room drawer and the Drawer molecule. */
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  --animate-room-sheet: vb-room-sheet 1s linear both paused;
+  /* Every phone drawer: progress 0 (closed) to 1 (open), seeked by web/lib/studio/drawer.ts. */
+  --animate-drawer-top: vb-drawer-top 1s linear both paused;
+  --animate-drawer-bottom: vb-drawer-bottom 1s linear both paused;
+  --animate-drawer-left: vb-drawer-left 1s linear both paused;
+  --animate-drawer-right: vb-drawer-right 1s linear both paused;
+  --animate-drawer-scrim: vb-drawer-scrim 1s linear both paused;
   --animate-room-pane: vb-room-pane 1s linear both paused;
-  --animate-room-scrim: vb-room-scrim 1s linear both paused;
   --animate-room-document-width: vb-room-document-width 1s linear both paused;
   --animate-room-document-width-rail: vb-room-document-width-rail 1s linear both
     paused;
   --animate-room-viewport: vb-room-viewport 1s linear both paused;
-  @keyframes vb-room-sheet {
+  @keyframes vb-drawer-top {
     from {
       transform: translateY(-100%);
     }
     to {
       transform: translateY(0);
+    }
+  }
+  @keyframes vb-drawer-bottom {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @keyframes vb-drawer-left {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes vb-drawer-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes vb-drawer-scrim {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
   /* Phones: a pane fades in where the chat was, with a short rise. */
@@ -747,14 +783,6 @@
     to {
       opacity: 1;
       transform: translateY(0);
-    }
-  }
-  @keyframes vb-room-scrim {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
     }
   }
   @keyframes vb-room-document-width {

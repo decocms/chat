@@ -91,12 +91,15 @@ The drawer has only the threads and the pinned items, like the desktop sidebar (
 
 ### All drawers on phones
 
-All drawers on a phone move in the same way (Gimenes #6174, #6175). The room drawer, New message, Salas da empresa, the room switcher and the actions of a message use these:
+All drawers on a phone are one component with one flow in the code (Gimenes #6174, #6175, #6221). Only `side` changes the look. The threads drawer of the room, New message, Salas da empresa, the room switcher and the actions of a message are all `Drawer` + `DrawerContent`:
 
-1. One engine: `web/lib/studio/drawer.ts`. Open in 360 ms, close in 260 ms, with the `ease-drawer` curve. With reduced motion, there is no slide.
-2. One panel shape for each side (`drawerPanel`), and one grab bar (`DrawerHandle`). A tap on the grab bar closes the drawer.
-3. Drag a drawer towards its edge to close it. Past a quarter of its size, it closes. Else it goes back. A drag in content that you scrolled scrolls the content.
-4. For a new drawer, use `Drawer` and `DrawerContent` with `side` (top, bottom, left or right). Do not use `Sheet` for a drawer on a phone.
+1. One engine: `createDrawerMotion` in `web/lib/studio/drawer.ts`. One progress value (0 closed, 1 open) moves the panel's keyframe (`animate-drawer-<side>`) and the scrim's (`animate-drawer-scrim`). Open in 360 ms, close in 260 ms, with the `ease-drawer` curve. A slide lasts in proportion to the distance that is left. With reduced motion, there is no slide.
+2. One gesture: a finger on the panel, the grab bar or the scrim drags the drawer towards its edge, on every side. Past a quarter of its size, it closes. Else it goes back. A drag in content that you scrolled scrolls the content. A finger can catch a drawer while it slides.
+3. A tap on the grab bar or on the scrim closes the drawer. Escape closes it.
+4. The owner decides. The drawer asks to close (`onOpenChange(false)`), and the owner closes it. The room sends this through its history, so Back closes the threads drawer.
+5. One panel shape for each side (`drawerPanel`), and one grab bar (`DrawerHandle`). `fill` makes the drawer as tall as it can be (the threads).
+6. The phone doc pane is not a drawer: it takes the place of the chat, under the top bar, with no scrim.
+7. For a new drawer, use `Drawer` and `DrawerContent` with `side` (top, bottom, left or right). Do not use `Sheet` for a drawer on a phone.
 
 ### Controls of the view
 
