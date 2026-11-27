@@ -12,6 +12,7 @@
   import type { ApplicationRoomPresentation } from "../application/shellTypes";
   import type { RoomLayoutController } from "../room-layout/types";
   import IconButton from "../../lib/studio/IconButton.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import { threadTitle } from "../room-sidebar/model";
@@ -169,13 +170,21 @@
       ? (header.room.names?.[peer] ?? peer.split("@")[0] ?? "").split(" ")[0]
       : "",
   );
-  // Phone ⋮: the call first, then the room's panes (a DM has no doc or people).
-  const phoneMenu = $derived(
+  // Never hide the room's main actions in ⋮ (Gui #6295): Doc and Pessoas are always buttons in the bar.
+  const BAR_PANES: readonly DocumentPane[] = ["doc", "people"];
+  const phonePanes = $derived(
     phoneMenuPanes(!!header.room.book.dm).map((pane) => ({
       pane,
       label: paneLabel(pane, en),
       icon: paneIcons[pane],
     })),
+  );
+  const phoneBar = $derived(
+    phonePanes.filter((item) => BAR_PANES.includes(item.pane)),
+  );
+  // Phone ⋮: the call first, then the other panes (a DM has no doc or people).
+  const phoneMenu = $derived(
+    phonePanes.filter((item) => !BAR_PANES.includes(item.pane)),
   );
   const phoneSubtitle = $derived(
     header.room.book.dm
@@ -258,7 +267,14 @@
             : "",
     }));
   });
-  // The pane open beside the chat, for the ✓ in ⋮ and the chip.
+  // Desktop: Doc and Pessoas are buttons in the bar (Gui #6295); ⋮ keeps the other panes.
+  const desktopBar = $derived(
+    desktopMenu.filter((item) => BAR_PANES.includes(item.pane)),
+  );
+  const desktopMore = $derived(
+    desktopMenu.filter((item) => !BAR_PANES.includes(item.pane)),
+  );
+  // The pane open beside the chat, for the pressed button, the ✓ in ⋮ and the chip.
   const openPane = $derived(
     split ? desktopMenu.find((item) => item.pane === tabs?.pane) : undefined,
   );
@@ -430,7 +446,30 @@
       )}{/if}
     {#if tabs}<!-- Desktop (Gimenes #6099): the panes and the call sit in ⋮, like the phone's; the bar keeps the search and ⋮. -->
       <div data-header-more class="hidden shrink-0 items-center gap-1 md:flex">
-        {#if openPane}<!-- B (Gimenes #6113, #6133): the open pane's chip, × closes it. --><span
+        {#each desktopBar as item (item.pane)}<Button
+            variant="tab"
+            data-room-pane-button={item.pane}
+            aria-pressed={openPane?.pane === item.pane}
+            onclick={(event) => {
+              if (live(event)) pickPane(item.pane);
+            }}
+            ><Icon icon={item.icon} />{item.label}{#if item.count}<span
+                class="text-xs text-muted-foreground tabular-nums"
+                >{item.count}</span
+              >{/if}</Button
+          >{/each}{#if onstartcall}<IconButton
+            label={peerName
+              ? t("Ligar para {name}", { name: peerName })
+              : t("Iniciar chamada")}
+            tooltipSide="bottom"
+            data-room-call-button
+            size="icon"
+            class="shrink-0 text-muted-foreground hover:text-foreground"
+            onclick={(event) => {
+              if (live(event) && current()) onstartcall();
+            }}><Icon icon="phone" size={18} /></IconButton
+          >{/if}
+        {#if openPane && !BAR_PANES.includes(openPane.pane)}<!-- B (Gimenes #6113, #6133): the open pane's chip, × closes it. --><span
             data-header-pane-chip
             class="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-accent pr-0.5 pl-2.5 text-sm font-medium text-foreground"
             ><span class="max-w-40 truncate">{openPane.label}</span
@@ -466,16 +505,7 @@
               // Like ThreadMenu: no focus back on ⋮, so its tooltip does not open over the pane's bar or the chip.
               event.preventDefault();
             }}
-            >{#if onstartcall}<DropdownMenuItem
-                data-desktop-more-item="call"
-                onSelect={() => {
-                  if (current()) onstartcall();
-                }}
-                ><Icon icon="phone" />{peerName
-                  ? t("Ligar para {name}", { name: peerName })
-                  : t("Iniciar chamada")}</DropdownMenuItem
-              ><DropdownMenuSeparator
-              />{/if}{#each desktopMenu as item (item.pane)}<DropdownMenuItem
+            >{#each desktopMore as item (item.pane)}<DropdownMenuItem
                 data-desktop-more-item={item.pane}
                 onSelect={() => pickPane(item.pane)}
                 ><Icon icon={item.icon} /><span class="min-w-0 flex-1 truncate"
@@ -491,6 +521,17 @@
           ></DropdownMenu
         >
       </div>{/if}
+    {#if $geometry.mobile}{#each phoneBar as item (item.pane)}<IconButton
+          label={item.label}
+          tooltipSide="bottom"
+          data-room-pane-button={item.pane}
+          aria-current={sheetPane === item.pane ? "page" : undefined}
+          size="icon"
+          class="size-10 shrink-0 rounded-full aria-[current=page]:bg-accent md:hidden"
+          onclick={(event) => {
+            if (live(event) && current()) onPane?.(item.pane);
+          }}><Icon icon={item.icon} size={20} /></IconButton
+        >{/each}{/if}
     {#if $geometry.mobile}<!-- Phone: the search opens its pane in the sheet, with the field at its top. --><IconButton
         label={searchLabel}
         tooltipSide="bottom"

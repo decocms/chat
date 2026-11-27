@@ -777,6 +777,18 @@ test("real RoomShell uses genuine loading/terminal states and directly renders c
   expect(h.target.querySelector("[data-composer]")).toBe(null);
   expect(h.target.textContent).not.toContain("Canonical visible message");
 });
+test("the room's top bar shows Doc and Pessoas as buttons, not only in ⋮ (Gui #6295)", async () => {
+  const h = await actualRoomShell();
+  h.publish(h.canonical);
+  await flush();
+  for (const pane of ["doc", "people"]) {
+    const button = h.target.querySelector<HTMLElement>(
+      `[data-room-bar] [data-room-pane-button="${pane}"]`,
+    );
+    expect(button !== null).toBe(true);
+    expect(button!.closest('[role="menu"]')).toBe(null);
+  }
+});
 test("real RoomShell revokes connected outgoing Composer controls before a removed frame reaches the DOM", async () => {
   const h = await actualRoomShell();
   h.publish(h.canonical);

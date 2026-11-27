@@ -1805,10 +1805,10 @@ async function threadMenuScreens(
 }
 
 /**
- * The desktop top bar (--topbar, Gimenes #6099, #6113, #6122) at 1440 x 700 px: the room's name stays on top while
- * the sidebar scrolls, ⋮ holds the call and the panes, the chip names the open pane and × closes it, and in a thread
- * ← goes back to the main thread.
- * The run fails if the name scrolls away, the chip does not close the pane, or ← does not open the main thread.
+ * The top bar (--topbar, Gimenes #6099, #6122, Gui #6295) at 1440 x 700 px and on a 390 px phone: the room's name
+ * stays on top while the sidebar scrolls, Doc and Pessoas are buttons in the bar (a second click closes the pane), ⋮
+ * holds the other panes, and in a thread ← goes back to the main thread.
+ * The run fails if the name scrolls away, a button does not open or close its pane, or ← does not open the main thread.
  */
 async function topbarScreens(
   browser: import("playwright").Browser,
@@ -1878,14 +1878,35 @@ async function topbarScreens(
   if (Math.abs(after - top) > 1)
     throw new Error(`the room's name scrolled from ${top} to ${after}`);
   await shot("topbar-sidebar-scrolled-1440.png");
+  // Doc and Pessoas are buttons in the bar (Gui #6295); ⋮ keeps only the other panes.
+  const doc = desk.locator(
+    '[data-room-bar] [data-room-pane-button="doc"]:visible',
+  );
+  const people = desk.locator(
+    '[data-room-bar] [data-room-pane-button="people"]:visible',
+  );
   await desk.locator("[data-desktop-more]").click();
   await desk.locator("[data-desktop-more-menu]").waitFor();
   await shot("topbar-more-open-1440.png");
-  await desk.locator('[data-desktop-more-item="doc"]').click();
-  await chip.waitFor();
-  await shot("topbar-doc-chip-1440.png");
-  await chip.getByRole("button").click();
-  await chip.waitFor({ state: "hidden" });
+  await desk.keyboard.press("Escape");
+  await people.click();
+  await desk
+    .locator(
+      '[data-room-bar] [data-room-pane-button="people"][aria-pressed="true"]:visible',
+    )
+    .waitFor();
+  await desk.locator("[data-pane-people]").waitFor();
+  await shot("topbar-people-open-1440.png");
+  // A second click on the open pane's button closes the pane.
+  await people.click();
+  await desk.locator("[data-pane-people]").waitFor({ state: "hidden" });
+  await shot("topbar-no-pane-1440.png");
+  await doc.click();
+  await desk
+    .locator(
+      '[data-room-bar] [data-room-pane-button="doc"][aria-pressed="true"]:visible',
+    )
+    .waitFor();
   await desk.locator("[data-threads-tab=open]").click();
   await desk
     .locator(`[data-room-sidebar] [data-epic-thread="${thread}"]`)
@@ -1893,12 +1914,30 @@ async function topbarScreens(
   await desk.waitForURL((url) => url.href.includes(thread));
   await desk.locator("[data-phone-back]").waitFor();
   await shot("topbar-thread-1440.png");
-  await desk.locator("[data-desktop-more]").click();
-  await desk.locator('[data-desktop-more-item="doc"]').click();
-  await chip.waitFor();
-  await shot("topbar-thread-doc-chip-1440.png");
   await desk.locator("[data-phone-back]").click();
   await desk.waitForURL((url) => !url.href.includes(thread));
   await shot("topbar-back-main-1440.png");
   await context.close();
+  const phoneContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: "pt-BR",
+    isMobile: true,
+    hasTouch: true,
+  });
+  const phone = await phoneContext.newPage();
+  await phone.goto(`${base}/b/${id}`, { waitUntil: "networkidle" });
+  await phone
+    .locator('[data-room-bar] [data-room-pane-button="people"]:visible')
+    .waitFor();
+  await phone.waitForTimeout(400);
+  await phone.screenshot({ path: join(out, "topbar-phone-390.png") });
+  shots.push("topbar-phone-390.png");
+  await phone
+    .locator('[data-room-bar] [data-room-pane-button="people"]:visible')
+    .click();
+  await phone.locator("[data-pane-people]").waitFor();
+  await phone.waitForTimeout(400);
+  await phone.screenshot({ path: join(out, "topbar-phone-people-390.png") });
+  shots.push("topbar-phone-people-390.png");
+  await phoneContext.close();
 }

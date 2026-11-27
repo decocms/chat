@@ -6,15 +6,27 @@ This document gives the layout rules of the browser app (`web/`). Read it before
 
 The room screen has five areas, from left to right.
 
-| Area | Component | Contents |
-|---|---|---|
-| Rail | `AppNavigation` | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room. |
-| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), which is also the main thread, then the epics in three tabs (Mine, Open, Done; `EpicTree`) and the people. At the bottom: the user center (`UserCenter`). |
-| Top bar | `RoomHeader` (room-shell) | ← in a thread, the name of the view, the controls of the view, the search, ⋮ with the call and the panes. |
-| Main view | `RoomScene` | The chat of a thread. |
-| Pane | `DocumentToolbar` and the pane | The doc, the files, the apps, beside the main view. |
+| Area      | Component                      | Contents                                                                                                                                                                                     |
+| --------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rail      | `AppNavigation`                | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room.                                                                                                           |
+| Sidebar   | `Sidebar` (room-sidebar)       | The room's name (`SidebarHeader`), which is also the main thread, then the epics in three tabs (Mine, Open, Done; `EpicTree`) and the people. At the bottom: the user center (`UserCenter`). |
+| Top bar   | `RoomHeader` (room-shell)      | ← in a thread, the name of the view, the controls of the view, the search, the Doc and Pessoas buttons, the call, ⋮ with the other panes.                                                    |
+| Main view | `RoomScene`                    | The chat of a thread.                                                                                                                                                                        |
+| Pane      | `DocumentToolbar` and the pane | The doc, the files, the apps, beside the main view.                                                                                                                                          |
 
 The sidebar names the room. The top bar names the view. Do not show the room's name two times.
+
+## Obvious before clean
+
+Gui decided this (#6295). Being obvious is more important than being clean.
+
+1. Do not put all the actions of a screen in a ⋮ menu. A person must see the main actions without a click.
+2. The main actions of a room are the Doc and Pessoas. They are always visible buttons in the top bar, on desktop and on phones.
+3. ⋮ is only for the secondary actions. If ⋮ holds every action of the screen, the design is wrong.
+4. Before you move an action into ⋮, ask: "Can a new person find it in five seconds?" If not, keep it visible.
+5. A request to make a bar "clean" does not cancel this rule. Ask Gui first.
+
+A test (`scripts/home-dom.test.ts`, "the room's top bar shows Doc and Pessoas as buttons") fails when the Doc or Pessoas button leaves the bar.
 
 A right-click, a long press or Shift+F10 on a thread row in the sidebar opens the row's menu (`ThreadMenu`). It has "Copiar link da thread", then "Marcar como feita" (an open thread) or "Reabrir thread" (a done thread). The two status items send `epic.status`, as the status pill does. The room's notice confirms each item.
 
@@ -48,14 +60,16 @@ The top bar has one row on desktop. Its parts are in this order (Gimenes #6099, 
 3. The controls of the view. A call with people in it shows its green phone here (`CallControls`).
 4. A vertical `Separator`.
 5. In other views, the room's search field. Typing opens the Search pane beside the chat with the matches. Its placeholder is "Buscar em {room}". In a DM it is "Buscar na conversa".
-6. While a pane is open, a chip with its name (the Doc of an epic: with its tasks, "Doc 2/4") and × to close it.
-7. ⋮ ("Mais opções"). The menu has "Iniciar chamada" ("Ligar para <name>" in a DM) while the room has no call, then Doc, Arquivos, Apps, Decisões, Lembretes and Pessoas, and the file open beside the chat. The open pane has ✓. A DM has no Doc and no Pessoas.
+6. The Doc button (the Doc of an epic: with its tasks, "Doc 2/4") and the Pessoas button, with their text (Gui #6295). The button of the open pane shows pressed. A DM has no Doc and no Pessoas.
+7. The call button ("Iniciar chamada", "Ligar para <name>" in a DM) while the room has no call.
+8. While a pane from ⋮ is open, a chip with its name and × to close it.
+9. ⋮ ("Mais opções"). The menu has Arquivos, Apps, Decisões and Lembretes, and the file open beside the chat. The open pane has ✓.
 
-People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. A click on the open pane's item in ⋮ (the Doc too), or on the chip's ×, closes the pane. ⌥⌘B (Ctrl+Alt+B) opens and closes the pane. The browser remembers which of the two you left open (and whether you closed the pane), so every room opens the same way. A DM always starts on its doc.
+People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. A click on the open pane's button or item in ⋮, or on the chip's ×, closes the pane. ⌥⌘B (Ctrl+Alt+B) opens and closes the pane. The browser remembers which of the two you left open (and whether you closed the pane), so every room opens the same way. A DM always starts on its doc.
 
 The sidebar's top row is the room's name. It stays in place while the rest of the sidebar scrolls under it. The whole row opens the main thread: it has only the pointer, not a button's background. It has no ✎. To edit the room, right-click it in the rail: "Editar sala…" (`RoomMenu`) opens one dialog with the icon, the color (7 dots, a click applies) and the name. The menu has no Cor or Ícone submenus. It works for any room: a room that is not open opens first, then the dialog.
 
-The separator divides two scopes. On its left, the controls change the view in the middle. On its right, the search and ⋮ open parts of the room.
+The separator divides two scopes. On its left, the controls change the view in the middle. On its right, the search, the Doc and Pessoas buttons, the call and ⋮ open parts of the room.
 
 ### The room's search
 
@@ -77,8 +91,8 @@ The phone layout is B: one line, like WhatsApp (Gimenes #6016, #6030, #6032, #60
    - A room's main thread: "3 online · 2 agentes" when other people are online, "2 agentes trabalhando" when only agents listen, else the first names of the members.
    - A thread: the room's name and the epic's progress.
    - A DM: "online" when the person is online.
-3. At the end of the bar: the search icon (it opens the Search pane), then ⋮. The ⋮ menu has "Iniciar chamada" ("Ligar para <name>" in a DM) while the room has no call, then all the panes of the room: Doc, Arquivos, Apps, Decisões, Lembretes, Pessoas and Agents (`phoneMenuPanes`, Gimenes #6117). A DM has no Doc, no Pessoas and no Agents. An item opens that pane in the doc sheet. The item of the open pane has the accent background.
-4. When a pane is open in the doc sheet, the bar shows the name of the pane, with the room's name under it. ← closes the sheet and goes back to the chat. There is no strip of pane tabs under the bar: use ⋮ to go to a different pane.
+3. At the end of the bar: the Doc and Pessoas icons (Gui #6295), the search icon (it opens the Search pane), then ⋮. The ⋮ menu has "Iniciar chamada" ("Ligar para <name>" in a DM) while the room has no call, then the other panes of the room: Arquivos, Apps, Decisões, Lembretes and Agents (`phoneMenuPanes`, Gimenes #6117). A DM has no Doc, no Pessoas and no Agents. A button or an item opens that pane in the doc sheet. The button or item of the open pane has the accent background.
+4. When a pane is open in the doc sheet, the bar shows the name of the pane, with the room's name under it. ← closes the sheet and goes back to the chat. There is no strip of pane tabs under the bar: use the Doc and Pessoas buttons or ⋮ to go to a different pane.
 
 ### The drawer on phones
 
@@ -122,11 +136,11 @@ To add controls for a view:
 
 The top bar on phones has no space for the controls of a view. That is why the view draws them on phones. Use one component for the two places, so that they stay the same.
 
-| View | Controls of the view | Component |
-|---|---|---|
-| Epic thread | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions`, in `RoomBarTitle`. Phones have no status control (Gimenes #4065). |
-| Home Inbox (`/?inbox`, all rooms) | "Resolver todos os pedidos (n)" | `InboxControls`, in the bar of `HomeInbox` |
-| Each thread of a room, while people are in the room's call | The green phone with how many are in it | `CallControls`, from `RoomScene`. With no call, "Iniciar chamada" is in ⋮. |
+| View                                                       | Controls of the view                                                   | Component                                                                                                                |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Epic thread                                                | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions`, in `RoomBarTitle`. Phones have no status control (Gimenes #4065).                                         |
+| Home Inbox (`/?inbox`, all rooms)                          | "Resolver todos os pedidos (n)"                                        | `InboxControls`, in the bar of `HomeInbox`                                                                               |
+| Each thread of a room, while people are in the room's call | The green phone with how many are in it                                | `CallControls`, from `RoomScene`. With no call, "Iniciar chamada" is a button in the bar on desktop, and in ⋮ on phones. |
 
 ### The call
 

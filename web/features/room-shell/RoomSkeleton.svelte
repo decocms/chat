@@ -9,6 +9,7 @@
   } from "../composer/shape";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
+  import { paneIcons, paneLabel } from "../documents/paneIcons";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
   import { isDmId } from "../../../shared/dm";
@@ -194,7 +195,17 @@
               >{:else}{@render line("w-40")}{/if}</span
           >{/if}
       </div>
-      <!-- RoomHeader's end of the bar (Gimenes #6099): ⋮ with the call and the panes. -->
+      <!-- RoomHeader's end of the bar: Doc and Pessoas (Gui #6295), the call, then ⋮ with the other panes. -->
+      {#if !dm}{#each ["doc", "people"] as const as pane (pane)}<span
+            class="inline-flex h-8 shrink-0 items-center gap-2 px-3 text-sm font-medium text-muted-foreground"
+            ><Icon icon={paneIcons[pane]} size={16} />{paneLabel(
+              pane,
+              en,
+            )}</span
+          >{/each}{/if}
+      <span class="grid size-8 shrink-0 place-items-center"
+        ><Icon icon="phone" size={18} class="text-muted-foreground" /></span
+      >
       <span class="grid size-8 shrink-0 place-items-center"
         ><Icon
           icon="dots-vertical"
@@ -255,9 +266,15 @@
                 >{/if}{/if}
           </span>
         </div>
-        <!-- RoomHeader's end of the bar: the search and ⋮, in their places (B, Gimenes #6052). -->
+        <!-- RoomHeader's end of the bar: Doc, Pessoas (Gui #6295), the search and ⋮, in their places (B, Gimenes #6052). -->
         <span aria-hidden="true" class="flex shrink-0 items-center gap-1"
-          ><IconButton
+          >{#if !dm}{#each ["doc", "people"] as const as pane (pane)}<IconButton
+                label={paneLabel(pane, en)}
+                size="icon"
+                tabindex={-1}
+                class="size-10 shrink-0 rounded-full"
+                ><Icon icon={paneIcons[pane]} size={20} /></IconButton
+              >{/each}{/if}<IconButton
             label={searchLabel}
             size="icon"
             tabindex={-1}
