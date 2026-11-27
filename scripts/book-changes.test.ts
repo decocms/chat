@@ -3,8 +3,10 @@
 import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
 import {
+  CHANGED_SINCE_REV_SQL,
   CHANGES_SQL,
   CURRENT_REV_SQL,
+  changedSince,
   MESSAGES_SINCE_REV_SQL,
   validRev,
 } from "../src/bookChanges";
@@ -148,6 +150,37 @@ test("a resume finds the messages changed after a rev, and only those", () => {
     .map(([id]) => id)
     .sort();
   expect(ids).toEqual([2, 4]);
+});
+
+test("a resume knows which other lists and which docs changed after a rev", () => {
+  const { db, rev } = room();
+  db.exec("INSERT INTO messages (thread, text) VALUES ('main', 'a')");
+  db.exec("INSERT INTO reminders (id, text) VALUES ('r1', 'x')");
+  db.exec("INSERT INTO meta (k, v) VALUES ('doc:e1', 'old')");
+  const cursor = rev();
+  db.exec("INSERT INTO pins (id, kind, ref) VALUES ('p1', 'file', 'f1')");
+  db.exec("UPDATE meta SET v = 'new' WHERE k = 'doc:e1'");
+  db.exec("INSERT INTO messages (thread, text) VALUES ('main', 'b')");
+  db.exec("INSERT INTO acks (msg_id, agent, status) VALUES (1, 'x', 'doing')");
+  const changed = changedSince(
+    db.query(CHANGED_SINCE_REV_SQL).all(cursor) as {
+      kind: string;
+      ref: string;
+    }[],
+  );
+  expect(changed.has("pin")).toBe(true);
+  expect(changed.has("reminder")).toBe(false); // changed before the cursor
+  expect(changed.has("message")).toBe(false); // messages and acks resume apart
+  expect(changed.has("ack")).toBe(false);
+  expect(changed.doc("doc:e1")).toBe(true);
+  expect(changed.doc("doc")).toBe(false);
+  const none = changedSince(
+    db.query(CHANGED_SINCE_REV_SQL).all(rev()) as {
+      kind: string;
+      ref: string;
+    }[],
+  );
+  expect(none.has("pin")).toBe(false);
 });
 
 test("validRev takes a whole number up to the room's newest rev", () => {
