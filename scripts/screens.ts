@@ -948,9 +948,8 @@ try {
       await shot("7-message-link");
       await openThread(c);
       if (phone) {
-        // A phone has no rail in a room: the room's row on top of the drawer opens main.
-        await drawer();
-        await page.locator("[data-room-sidebar] [data-room-title]").click();
+        // A phone has no rail in a room, and the drawer has only threads (Gimenes #6187): ← in the thread opens main.
+        await page.locator("[data-phone-back]").click();
       } else
         await page
           .locator(`[data-app-navigation] [data-room-id="${room}"] a`)

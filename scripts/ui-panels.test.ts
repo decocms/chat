@@ -4365,25 +4365,6 @@ describe("stable sidebar integration", () => {
       true,
     );
   });
-  test("the room title is a button that opens the main thread and shows when it is selected", async () => {
-    const room = fixture();
-    const h = sidebar(room, { thread: "e" });
-    const title = h.target.querySelector<HTMLButtonElement>(
-      "button[data-room-title]",
-    );
-    expect(title).not.toBeNull();
-    expect(title!.textContent).toContain(room.book.title);
-    expect(title!.hasAttribute("title")).toBe(false);
-    // No hover tooltip on the main thread row (it repeated the room's name and summary).
-    expect(title!.hasAttribute("data-state")).toBe(false);
-    expect(title!.getAttribute("aria-current")).toBeNull();
-    title!.click();
-    expect(h.opened).toEqual(["main"]);
-    h.view.update({ ...h.props, thread: "main" });
-    await tick();
-    flushSync();
-    expect(title!.getAttribute("aria-current")).toBe("page");
-  });
   test("on a desktop the room's name is the main thread: no separate row, no message count, what waits on you (Gimenes #3989)", async () => {
     const room = fixture();
     const h = sidebar(room, {
@@ -4403,10 +4384,8 @@ describe("stable sidebar integration", () => {
       name.querySelector("[data-wait-badge] [data-count]")?.textContent,
     ).toBe("1");
     expect(name.getAttribute("aria-current")).toBeNull();
-    // The room's chat row in the thread list is for phones only; nothing in the sidebar opens a task board.
-    expect(
-      h.target.querySelector("button[data-room-title]")!.className.split(/\s+/),
-    ).toContain("md:hidden");
+    // No row for the room in the thread list, on any screen; nothing in the sidebar opens a task board.
+    expect(h.target.querySelector("button[data-room-title]")).toBeNull();
     expect(h.target.querySelector("[data-board-toggle]")).toBeNull();
     expect(h.target.textContent).not.toContain("Sala principal");
     name.click();
@@ -4416,44 +4395,22 @@ describe("stable sidebar integration", () => {
     flushSync();
     expect(name.getAttribute("aria-current")).toBe("page");
   });
-  test("phone drawer (Gimenes #6117): the room's chat is the first row of the thread list, with its mark and what waits on you; no ✎, no avatar", async () => {
-    const room = fixture();
-    const h = sidebar(room, {
-      thread: "main",
-      vb: {
-        ...vb,
-        epicBusy: () => null,
-        waitsIn: (id: string) =>
-          id === "main"
-            ? [{ ref: "m1" }, { ref: "m4" }, { ref: "a2" }, { ref: "t3" }]
-            : [],
-        waitsInRoom: () => [{ ref: "m9" }],
-      },
-    });
-    const title = h.target.querySelector<HTMLButtonElement>(
-      "button[data-room-title]",
-    )!;
-    expect(title.querySelector("[data-room-mark]")).not.toBeNull();
-    // Only the unread messages that ask you: the task and Claude's question are in the Inbox.
-    expect(
-      title.querySelector("[data-wait-badge] [data-count]")?.textContent,
-    ).toBe("2");
-    // The Inbox is global (the rail, or the phone Home's bar): a room has no entry to it.
-    expect(h.target.querySelector("[data-inbox-toggle]")).toBeNull();
-    // It sits in the list, right before the thread rows, under the Mine/Open/Done tabs.
-    const list = h.target.querySelector('[data-view="epics"] ul')!;
-    expect(title.nextElementSibling).toBe(list);
-    expect(h.target.querySelector("[data-drawer-account]")).toBeNull();
-    expect(h.target.querySelector("[data-phone-menu]")).toBeNull();
-    const panel = h.target.querySelector("[data-room-sidebar-panel]")!;
-    expect(panel.querySelector("[data-thread-header]")).toBeNull();
-    expect(panel.querySelector("[data-epic-status]")).toBeNull();
-  });
-  test("the room row shows no count when nothing waits in its main thread", () => {
+  test("phone drawer (Gimenes #6117, #6187): only the threads, no row and no name for the room; no ✎, no avatar", () => {
     const room = fixture();
     const h = sidebar(room, { thread: "main" });
-    const title = h.target.querySelector("button[data-room-title]")!;
-    expect(title.querySelector("[data-wait-badge]")).toBeNull();
+    const panel = h.target.querySelector("[data-room-sidebar-panel]")!;
+    expect(panel.querySelector("button[data-room-title]")).toBeNull();
+    // The list comes right after the Mine/Open/Done tabs: nothing above the thread rows.
+    const list = h.target.querySelector('[data-view="epics"] ul')!;
+    expect(
+      list.previousElementSibling?.querySelector("[data-room-mark]") ?? null,
+    ).toBeNull();
+    // The Inbox is global (the rail, or the phone Home's bar): a room has no entry to it.
+    expect(h.target.querySelector("[data-inbox-toggle]")).toBeNull();
+    expect(h.target.querySelector("[data-drawer-account]")).toBeNull();
+    expect(h.target.querySelector("[data-phone-menu]")).toBeNull();
+    expect(panel.querySelector("[data-thread-header]")).toBeNull();
+    expect(panel.querySelector("[data-epic-status]")).toBeNull();
   });
   test("epic and rail indicators count the unread asks in one red number; task reviews stay in the Inbox", async () => {
     const room = fixture();
