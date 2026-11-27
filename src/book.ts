@@ -2129,6 +2129,8 @@ export class Book extends DurableObject<Env> {
         ).bind(e, id, upto),
       ),
     );
+    // The same read point is the person's "seen" under the messages (MessageFooter), for the room's members.
+    for (const e of emails) if (e !== "ai" && !isRecorder(e)) this.receipt({ agent: `p:${e}`, email: e, who: "", read: upto, delivered: upto });
     if (waits) await this.readWaits(emails, upto);
   }
   /** Reading a message clears the notifications it made (PO #5172), like opening the thread and seeing it: what it
@@ -2652,9 +2654,27 @@ export class Book extends DurableObject<Env> {
     if (this.get("busy") !== busy) { this.set("busy", busy); this.pokeMembers(); }
   }
 
-  // "Delivered to / read by": each connected agent's cursor in this room (written by src/agent.ts from D1).
-  receiptsList() {
-    return this.sql.exec<NonNullable<Room["receipts"]>[number]>(`SELECT agent, email, who, read, delivered, ts FROM receipts WHERE ts > ? AND substr(agent, 1, 2) != 'n_' ORDER BY ts DESC LIMIT 20`, Date.now() - 14 * 864e5).toArray();
+  // "Delivered to / read by": each connected agent's cursor in this room (written by src/agent.ts from D1), and each
+  // person's read point (markRead: the room open, or a post while it is open), keyed p:<email>. People have no
+  // "delivered": what reached their open room is what they saw. Only the room's members get this list (its sockets).
+  async receiptsFor(): Promise<NonNullable<Room["receipts"]>> {
+    type Row = { agent: string; email: string; who: string; read: number; delivered: number; ts: number };
+    const since = Date.now() - 14 * 864e5;
+    const agents = this.sql.exec<Row>(`SELECT agent, email, who, read, delivered, ts FROM receipts WHERE ts > ? AND substr(agent, 1, 2) NOT IN ('n_', 'p:') ORDER BY ts DESC LIMIT 20`, since).toArray();
+    const people = this.sql.exec<Row>(`SELECT agent, email, who, read, delivered, ts FROM receipts WHERE ts > ? AND substr(agent, 1, 2) = 'p:' ORDER BY ts DESC LIMIT 50`, since).toArray();
+    // A DM is reciprocal, like WhatsApp: when either person turned read receipts off, neither sees the other's. Rooms
+    // always show them. Agents' reads are not a person's and always go.
+    return [...agents, ...((await this.peopleReceiptsHidden()) ? [] : people.map((r) => ({ ...r, person: true })))];
+  }
+  async peopleReceiptsHidden() {
+    const id = this.get("book_id");
+    if (!id || !this.isDm) return false;
+    const off = await this.env.DB.prepare(`SELECT 1 FROM members m JOIN users u ON u.email = m.email WHERE m.book_id = ? AND u.read_receipts = 0 LIMIT 1`).bind(id).first();
+    return !!off;
+  }
+  /** The list again to every tab: a ✓ moved, or someone in this DM turned read receipts on or off (/api/me/read-receipts). */
+  async pushReceipts() {
+    this.broadcast({ t: "receipts", receipts: await this.receiptsFor() });
   }
   receipt(r: { agent: string; email: string; who: string; read: number; delivered: number }) {
     const old = this.sql.exec<{ who: string; read: number; delivered: number }>(`SELECT who, read, delivered FROM receipts WHERE agent = ?`, r.agent).toArray()[0];
@@ -2666,7 +2686,8 @@ export class Book extends DurableObject<Env> {
     );
     // Every listener's wait/read lands here: push only when a ✓ moves (a busy room sent the same list 1000×/day), and
     // at most one push per ~2s per room (10 agents reading one message were 10 full lists to every tab: 118 MB in a day).
-    if (!same && !this.receiptsT) this.receiptsT = setTimeout(() => { this.receiptsT = 0; this.broadcast({ t: "receipts", receipts: this.receiptsList() }); }, 2000);
+    // People's reads ride the same push: a person scrolling or a burst of posts moves their face once per ~2s.
+    if (!same && !this.receiptsT) this.receiptsT = setTimeout(() => { this.receiptsT = 0; this.ctx.waitUntil(this.pushReceipts()); }, 2000);
   }
 
   // Pinned: what's always at hand in the room (the live site, the landing, the repo, an app or file of the room),
@@ -3319,7 +3340,7 @@ export class Book extends DurableObject<Env> {
         online: this.online(),
         // Present only where calls are set up: the app draws the call button from it.
         ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) } : {}),
-        receipts: this.receiptsList(),
+        receipts: await this.receiptsFor(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
     return { state, resume: resume && { ...resume, delta: !!delta }, win };

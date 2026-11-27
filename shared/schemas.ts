@@ -800,6 +800,8 @@ export const MeData = z.object({
   waits: z.array(MeWait),
   /** Your folders on the rail (absent from a cache written before folders). */
   folders: z.optional(z.array(MeFolder)),
+  /** Read receipts in DMs (Settings → Account), on unless turned off; rooms always show them. Absent from older caches. */
+  read_receipts: z.optional(z.boolean()),
 });
 export type MeData = z.infer<typeof MeData>;
 /** v = the app shell's version (a new deploy makes open tabs reload); cached = served from the Person DO. */
@@ -1158,6 +1160,10 @@ export const ProfileResult = z.object({
 });
 export type ProfileResult = z.infer<typeof ProfileResult>;
 export const ProfileSettingsBody = z.object({ public: z.boolean() });
+/** POST /api/me/read-receipts: read receipts in your DMs, reciprocal (off hides yours and theirs). */
+export const ReadReceiptsBody = z.object({ on: z.boolean() });
+export const ReadReceiptsResult = z.object({ on: z.boolean() });
+export type ReadReceiptsResult = z.infer<typeof ReadReceiptsResult>;
 export const ProfileSettingsResult = z.object({
   handle: z.string(),
   public: z.boolean(),

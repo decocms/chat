@@ -322,6 +322,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       note: "n",
     }),
     setProfilePublic: async (on) => ({ handle: "test", public: on }),
+    setReadReceipts: async (on) => ({ on }),
     setHandle: async (handle) =>
       handle === "taken" ? { error: "taken" as const } : { handle },
     routerStats: async (room) => {

@@ -56,6 +56,8 @@ import {
   type AgentsResult,
   type ProfileResult,
   ProfileSettingsBody,
+  ReadReceiptsBody,
+  ReadReceiptsResult,
   SetHandleBody,
   type SetHandleResult,
   type ProfileSettingsResult,
@@ -294,6 +296,8 @@ export interface ApiServices {
   routerStats(roomId?: string): Promise<RouterStats>;
   /** Turn your public profile page (/u/<handle>) on or off (src/profile.ts). */
   setProfilePublic(on: boolean): Promise<ProfileSettingsResult>;
+  /** Read receipts in your DMs (reciprocal); rooms always show them. */
+  setReadReceipts(on: boolean): Promise<ReadReceiptsResult>;
   /** Change your @handle (unique); "taken" when someone has it. */
   setHandle(handle: string): Promise<{ handle: string } | { error: "invalid" | "taken" }>;
   /** vibebook's model spend (src/reports.ts aiSpend), only for members of the report rooms (METRICS_ROOMS). */
@@ -1200,6 +1204,11 @@ export const meApi = connectionsApi
     const svc = c.get("svc"), on = c.req.valid("json").public;
     svc.track("profile_public", { on });
     return c.json((await svc.setProfilePublic(on)) satisfies ProfileSettingsResult, 200);
+  })
+  .post("/api/me/read-receipts", body(ReadReceiptsBody), async (c) => {
+    const svc = c.get("svc"), on = c.req.valid("json").on;
+    svc.track(on ? "read_receipts_on" : "read_receipts_off", {});
+    return c.json((await svc.setReadReceipts(on)) satisfies ReadReceiptsResult, 200);
   })
   .post("/api/me/handle", body(SetHandleBody), async (c) => {
     const r = await c.get("svc").setHandle(c.req.valid("json").handle);

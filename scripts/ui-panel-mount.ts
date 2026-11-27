@@ -15,6 +15,7 @@ import AppsPanel from "../web/features/apps/AppsPanel.svelte";
 import AgentSettings from "../web/features/agents/AgentSettings.svelte";
 import SuggestionPreview from "../web/features/room-sidebar/SuggestionPreview.svelte";
 import RoomBarTitle from "../web/features/room-shell/RoomBarTitle.svelte";
+import ReadReceiptsSetting from "../web/features/account/ReadReceiptsSetting.svelte";
 export { dismissDialogs } from "../web/lib/studio/dialogController";
 const fixtures = {
   tasks: Tasks,
@@ -29,6 +30,7 @@ const fixtures = {
   agentSettings: AgentSettings,
   suggestionPreview: SuggestionPreview,
   roomBarTitle: RoomBarTitle,
+  readReceipts: ReadReceiptsSetting,
 };
 type FixtureName = keyof typeof fixtures;
 /** Preserve the existing checked test call-site relation and flush/update/cleanup

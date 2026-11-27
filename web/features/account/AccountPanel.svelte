@@ -10,6 +10,7 @@
   import Heading from "../../lib/ui/Heading.svelte";
   import Switch from "../../lib/studio/Switch.svelte";
   import ProfileSettings from "../profile/ProfileSettings.svelte";
+  import ReadReceiptsSetting from "./ReadReceiptsSetting.svelte";
   import ThemeIcon from "../app-navigation/ThemeIcon.svelte";
   import ToggleGroup from "../../lib/studio/ToggleGroup.svelte";
   import ToggleGroupItem from "../../lib/studio/ToggleGroupItem.svelte";
@@ -437,6 +438,10 @@
             <section class={section} aria-label={en ? "Account" : "Conta"}>
               {@render head(en ? "Account" : "Conta")}
               <div class={card}>
+                {#key $view.me.email}<ReadReceiptsSetting
+                    on={$view.me.read_receipts !== false}
+                    lang={en ? "en" : "pt"}
+                  />{/key}
                 <div class={rowClass}>
                   <span>{en ? "Archived rooms" : "Salas arquivadas"}</span>
                   <Button
