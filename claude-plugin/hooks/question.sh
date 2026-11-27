@@ -1,8 +1,10 @@
 #!/bin/sh
-# PreToolUse hook on AskUserQuestion: in a repo linked to a vibebook room, the Claude's questions go to the room as
-# clickable choices (only the person can pick; a typed reply counts as an "other" answer) and the answers come back to
-# Claude as the hook's reason, so it carries on without the terminal. Any question unanswered within
-# VIBEBOOK_QUESTION_WAIT seconds (default 600), or anything failing: no decision, and the terminal asks as usual.
+# PermissionRequest hook on AskUserQuestion: in a repo linked to a vibebook room, the Claude's questions also go to the
+# room as clickable choices (only the person can pick; a typed reply counts as an "other" answer). Claude Code shows its
+# own question at the same time, and the first answer wins: from the room, the hook fills `answers`; from the terminal
+# or the desktop app, Claude Code ends this hook and the room question closes. It was a PreToolUse hook, which held the
+# app's question until the room answered (Gabriele, Circulei: "ele só aceita se eu respondo no chat"). Any question
+# unanswered within VIBEBOOK_QUESTION_WAIT seconds (default 600), or anything failing: no decision.
 command -v vibebook >/dev/null 2>&1 || exit 0
 command -v node >/dev/null 2>&1 || exit 0
 root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
@@ -19,11 +21,21 @@ let d = ""; process.stdin.on("data", (c) => (d += c)).on("end", async () => {
   const qs = (j.tool_input?.questions || []).slice(0, 4);
   if (!qs.length) return;
   const end = Date.now() + (Number(process.env.VIBEBOOK_QUESTION_WAIT) || 600) * 1000;
-  const out = [];
+  const answers = {};
   // A question left unanswered in the room went to the terminal: close it there (also when Claude Code ends this hook).
   let open = null;
   const close = () => { if (open) call("permission_close", { message_id: open }); open = null; };
   process.on("SIGTERM", () => { close(); process.exit(0); });
+  // Claude Code does not end this hook when the person answers in the terminal or the app: it writes the tool_result to
+  // the transcript. Watch for the result of this question (the last AskUserQuestion call there) and close the room one.
+  // The call may reach the transcript after this hook starts: read from a little before the start, each time.
+  const fs = require("node:fs"), tp = String(j.transcript_path || "");
+  const since = (() => { try { return Math.max(0, fs.statSync(tp).size - 262144); } catch { return -1; } })();
+  if (since >= 0) setInterval(() => {
+    let t = ""; try { const fd = fs.openSync(tp, "r"), b = Buffer.alloc(Math.max(0, fs.fstatSync(fd).size - since)); fs.readSync(fd, b, 0, b.length, since); fs.closeSync(fd); t = b.toString("utf8"); } catch { return; }
+    const ids = [...t.matchAll(/"type":"tool_use","id":"([^"]+)","name":"AskUserQuestion"/g)];
+    if (ids.length && t.includes(`"tool_use_id":"${ids[ids.length - 1][1]}"`)) { close(); process.exit(0); }
+  }, 2000).unref();
   for (const q of qs) {
     const opts = (q.options || []).map((o) => String(o.label ?? o).slice(0, 120)).filter(Boolean).slice(0, 8);
     const notes = (q.options || []).filter((o) => o.description).map((o) => `- **${o.label}**: ${String(o.description).slice(0, 200)}`).join("\n");
@@ -39,8 +51,10 @@ let d = ""; process.stdin.on("data", (c) => (d += c)).on("end", async () => {
     }
     if (!answer) return close(); // the terminal asks as usual
     open = null;
-    out.push(`"${q.question}" → ${answer}`);
+    answers[String(q.question)] = answer;
   }
-  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny",
-    permissionDecisionReason: `Your human answered in the vibebook room instead of the terminal (do not ask again; go on with these answers):\n${out.join("\n")}` } }));
+  // The documented way to answer AskUserQuestion from a hook: allow, with the answers (question text to label; a typed
+  // reply is the text itself) in the tool input.
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PermissionRequest",
+    decision: { behavior: "allow", updatedInput: { ...j.tool_input, answers } } } }));
 });'

@@ -2812,5 +2812,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Decision: The two icon buttons sit between the name and the switch. They take no space until the row has the pointer or keyboard focus (`group-hover`, `group-has-focus-visible`), so the machine name is not cut at rest. On a device with no hover they always show. The trash removes at once, as the old menu item did. A session opened by hand has neither: it ends with its terminal.
 - Other options: Keep the space for the icons at all times (cuts the machine name). Show the icons over the text.
 - Risk: low
+### 2026-11-27 · fix/question-answer-locally · A Claude's question goes to the room and to the app at the same time
+
+- Agent: Claude Opus 5.5
+- Context: Gabriele (Circulei) uses the Claude desktop app. When her Claude asked a question (AskUserQuestion), she could answer only in the room: "ele só aceita se eu respondo no chat". `question.sh` was a PreToolUse hook. Claude Code showed its own question only after the hook ended, which took up to 10 minutes.
+- Decision:
+  - `question.sh` is a PermissionRequest hook now (matcher `AskUserQuestion`). Claude Code shows its question while this hook runs (tested: it shows in 2 s). The first answer wins.
+  - An answer from the room: the hook returns `allow` with `updatedInput.answers`. This is the documented way to answer AskUserQuestion from a hook. Before, the hook returned a `deny` with the answer as the reason.
+  - An answer in the terminal or the app: Claude Code does not end the hook (tested). The hook reads the session transcript every 2 s. When the result of the question is there, it closes the question in the room ("foi pro terminal") and exits.
+  - `permission.sh` (matcher `.*`) skips AskUserQuestion, so the room never shows "Aprovar / Negar" for a question.
+- Other options: Post to the room only when nobody uses the app (no signal for that). A shorter wait in the room before the app asks.
+- Risk: low. If Claude Code changes the transcript format, the room question stays open until the wait ends, the same as before.
 - Undo: Revert the commit.
 - Status: open
