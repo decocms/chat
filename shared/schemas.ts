@@ -275,6 +275,8 @@ export const RoomStateQuery = z.object({
   since: z.optional(z.coerce.number().check(z.positive())),
   at: z.optional(z.coerce.number().check(z.positive())),
   eh: z.optional(z.string().check(z.maxLength(64), z.regex(/^[\w-]*$/))),
+  /** The change log position of the room the app has (src/bookChanges.ts). */
+  rev: z.optional(z.coerce.number().check(z.nonnegative())),
   /** ed=1: the app merges epics by id, so a resume sends only the changed ones (Book.epicsDelta). */
   ed: z.optional(z.literal("1")),
 });

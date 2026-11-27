@@ -42,7 +42,7 @@ export function createMessagesApi(fetcher?: FetchLike) {
       roomId: string,
       query: {
         thread: string;
-        resume?: { since: number; at: number; eh?: string };
+        resume?: { since: number; at: number; eh?: string; rev?: number };
       },
     ): Promise<RoomStateEvent | null> {
       try {
@@ -59,6 +59,7 @@ export function createMessagesApi(fetcher?: FetchLike) {
                     since: resume.since,
                     at: resume.at,
                     ...(resume.eh ? { eh: resume.eh } : {}),
+                    ...(resume.rev !== undefined ? { rev: resume.rev } : {}),
                   }
                 : {}),
             },

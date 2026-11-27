@@ -34,7 +34,7 @@ export function createRootRoomSession(options: {
     roomId: string,
     thread: string,
     lastCloseCode: string,
-    resume?: { since: number; at: number; eh?: string },
+    resume?: { since: number; at: number; eh?: string; rev?: number },
     /** lite=1: the socket sends hello, not state, and the room comes from `room` over HTTP. */
     lite?: boolean,
   ): string;
@@ -65,7 +65,7 @@ export function createRootRoomSession(options: {
   room?: (
     roomId: string,
     thread: string,
-    resume?: { since: number; at: number; eh?: string },
+    resume?: { since: number; at: number; eh?: string; rev?: number },
   ) => Promise<RoomStateEvent | null>;
 }) {
   const blank = (generation: number): RootRoomSnapshot => ({
@@ -225,7 +225,7 @@ export function createRootRoomSession(options: {
       let lite = !!options.room,
         asked: {
           thread: string;
-          resume?: { since: number; at: number; eh?: string };
+          resume?: { since: number; at: number; eh?: string; rev?: number };
         } = { thread: "main" },
         hello = 0,
         queue: RoomEvent[] | null = null;
@@ -256,7 +256,9 @@ export function createRootRoomSession(options: {
           asked = {
             thread: current.startsWith("pre:") ? "main" : current,
             resume:
-              had?.at && since ? { since, at: had.at, eh: had.eh } : undefined,
+              had?.at && since
+                ? { since, at: had.at, eh: had.eh, rev: had.rev }
+                : undefined,
           };
           return options.url(roomId, asked.thread, code, asked.resume, lite);
         },

@@ -274,6 +274,8 @@ export const RoomSnapshotSchema = z.object({
   /** When the Book built this state, and the hash of its epics: a reconnect sends them back (since/at/eh) to resume. */
   at: opt(num),
   eh: opt(str),
+  /** The Book's change log position (src/bookChanges.ts): a reconnect sends it back (rev=) to resume from the log. */
+  rev: opt(num),
   /** A resumed state (cache plan PR 2): only what changed since the app's last one, merged into the room it has.
    *  epicsSame = the threads did not change, so epics is empty and the app keeps its own. */
   resume: opt(bool),

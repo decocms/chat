@@ -81,6 +81,8 @@ Rules:
 - A socket that already has the room (a reconnect, or a cached room that opens again) sends `since` (its newest message id), `at` (the time of its last `state`) and `eh` (the hash of the threads that it got). The Book keeps nothing for each client (`Book.resumeOf`). The worker passes the three values on to the Book (`src/bookSocket.ts`). A light socket sends the same values in `GET /api/books/:id/room`.
 - The Book then sends a `state` with `resume: true`. It has the open thread's window and each message that is newer than `since`, or edited or deleted since `at`. When the threads have the same hash, it leaves them out (`epicsSame`). The app merges the messages and acks into the room that it has (`web/app/roomStore.ts`).
 - The Book sends the whole state when there are no params, the state is older than 6 hours, or more than 200 rows changed.
+- The room's change log (`changes`, `src/bookChanges.ts`) has one row for each thing that changed: a message, an ack, an epic (its tasks too), a file, a pin, a reminder, a poll (its votes too), a decision or a doc. Each row has the thing's newest `rev`, a counter that only goes up. SQLite triggers write the log, so a write path cannot forget it. The log has at most one row for each thing, so it does not need pruning.
+- Each `state` has the newest `rev`. A resume sends it back (`rev`). With a `rev`, the Book takes the messages that are newer than `since` or in the log after `rev`, in place of the `edited` and `deleted` clocks. Thus a resume also gets reactions. A `rev` that is higher than the room's newest (a room from somewhere else) resumes by the clocks.
 
 ### Rooms saved in the browser
 

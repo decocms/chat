@@ -1,6 +1,7 @@
 import "server-only";
 import { caughtMessage } from "./providerMetadata";
 import { askThread } from "./askThread";
+import { CHANGES_SQL, CURRENT_REV_SQL, MESSAGES_SINCE_REV_SQL, validRev } from "./bookChanges";
 import { matchesSuggestion } from "../shared/suggestions";
 import { storedNotes, storedHashes, storedFlags, storedProd, storedEpicFiles, storedSuggestions, storedFileRows, storedPollRows } from "./bookStored";
 import { storedMessageRows, storedChoices, storedCard, storedQuote, storedFileRefs, storedReactions, AccessRequested } from "./bookMessages";
@@ -189,6 +190,8 @@ export class Book extends DurableObject<Env> {
       } catch {}
     }
     this.migrateEpicStatus();
+    // The change log (src/bookChanges.ts): after the ALTERs, as its triggers name those columns' tables.
+    this.sql.exec(CHANGES_SQL);
     // Hook questions and their answers from before private_to: their human's alone too (src/privateAsk.ts).
     if (this.get("private_asks_v1") !== "1") { for (const q of BACKFILL_SQL) this.sql.exec(q); this.set("private_asks_v1", "1"); }
     // One send = one message: a retry with the same client_id finds the first one (byClientId).
@@ -435,11 +438,22 @@ export class Book extends DurableObject<Env> {
    * The answer: the open thread's window, every message newer than since or edited or deleted since at, and the
    * threads only when their hash differs. null = send the whole state (no params, too old, or too much changed).
    * Not caught up: a reaction or a card changed on an older message during the gap (live events carry those after). */
+  /** The room's newest change (src/bookChanges.ts). */
+  currentRev() {
+    return Number(this.sql.exec<{ rev: number }>(CURRENT_REV_SQL).one().rev);
+  }
   resumeOf(params: URL | URLSearchParams, open: string, window: Msg[], eh: string, viewer: string) {
     const q = params instanceof URL ? params.searchParams : params;
     const since = Number(q.get("since")), at = Number(q.get("at")), now = Date.now();
     if (!(Number.isSafeInteger(since) && since > 0 && at > now - RESUME_MAX_AGE_MS && at <= now)) return null;
-    const rows = this.sql.exec(`SELECT * FROM messages WHERE (id > ? OR edited >= ? OR deleted >= ?) AND ${VISIBLE_SQL()} ORDER BY id LIMIT ?`, since, at, at, viewer, RESUME_MAX_ROWS + 1).toArray();
+    // With the app's rev, the change log says which messages changed (reactions too, which no clock records). An app
+    // without one, or with a rev this room can't answer, resumes by the edited/deleted clocks as before.
+    const rev = validRev(q.get("rev"), this.currentRev());
+    const rows = (
+      rev === null
+        ? this.sql.exec(`SELECT * FROM messages WHERE (id > ? OR edited >= ? OR deleted >= ?) AND ${VISIBLE_SQL()} ORDER BY id LIMIT ?`, since, at, at, viewer, RESUME_MAX_ROWS + 1)
+        : this.sql.exec(`SELECT * FROM messages WHERE (id > ? OR id IN (${MESSAGES_SINCE_REV_SQL})) AND ${VISIBLE_SQL()} ORDER BY id LIMIT ?`, since, rev, viewer, RESUME_MAX_ROWS + 1)
+    ).toArray();
     if (rows.length > RESUME_MAX_ROWS) return null;
     const messages = new Map(window.filter((m) => m.thread === open).map((m) => [m.id, m]));
     for (const m of this.messageRows(rows)) messages.set(m.id, m);
@@ -3246,6 +3260,8 @@ export class Book extends DurableObject<Env> {
         ...(resume ? { messages: resume.messages, resume: true, ...(resume.epicsSame ? { epicsSame: true } : delta ? { epicsOrder: delta.order } : {}) } : {}),
         at: Date.now(),
         eh,
+        // The change log's position: a reconnect sends it back (rev=) and resumes from the log.
+        rev: this.currentRev(),
         complete: false,
         // The newest 12 and the pinned ones; the whole list (~100 KB in the product room) when Arquivos opens ("files.get").
         files: storedFileRows(this.sql.exec(`SELECT * FROM files WHERE deleted IS NULL AND (id IN (SELECT id FROM files WHERE deleted IS NULL ORDER BY ts DESC LIMIT 12) OR id IN (SELECT ref FROM pins WHERE kind = 'file')) ORDER BY ts DESC`).toArray(), (kind) => console.warn("book stored projection", kind)),
@@ -3294,13 +3310,14 @@ export class Book extends DurableObject<Env> {
     return { epics: epics.filter((e) => prev[e.id] !== hashes[e.id]), order: epics.map((e) => e.id) };
   }
   /** GET /api/books/:id/room (a light socket's first read). The route checks membership first. */
-  async roomState(bookId: string, email: string, query: { t: string; since?: number; at?: number; eh?: string; ed?: string }): Promise<RoomStateEvent> {
+  async roomState(bookId: string, email: string, query: { t: string; since?: number; at?: number; eh?: string; ed?: string; rev?: number }): Promise<RoomStateEvent> {
     this.bind(bookId);
     const q = new URLSearchParams({ t: query.t });
     if (query.since && query.at) {
       q.set("since", String(query.since));
       q.set("at", String(query.at));
       if (query.eh) q.set("eh", query.eh);
+      if (query.rev !== undefined) q.set("rev", String(query.rev));
     }
     if (query.ed) q.set("ed", "1");
     return (await this.roomSnapshot(email, bookId, q)).state;

@@ -2630,3 +2630,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · feat/book-change-log · The change log has one row for each thing, written by triggers
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes approved the change log in the room's DO (#6148, #6170). The plan in thread 2d8bcbba said "prune the log at 7 days" and "the 9 write paths". It did not say how the log is written or what the first consumer is.
+- Decision:
+  - One row for each thing (`UNIQUE (kind, ref)`): a change deletes the thing's row and inserts a new `rev`. The log is never longer than the room's things, so there is no pruning, and an old `rev` still finds every change after it.
+  - SQLite triggers write the log (messages, acks, epics, tasks, files, pins, reminders, polls, votes, decisions, and the doc keys of meta). A new write path cannot forget it.
+  - The trigger deletes, then inserts. Inside a trigger, the outer statement's conflict policy replaces the trigger's own, so `INSERT OR REPLACE` aborted under an upsert of meta.
+  - The first consumer is the resume: with `rev`, the Book takes the changed messages from the log, not from the `edited` and `deleted` clocks. That also brings reactions back, which no clock records. The web app sends `rev` back.
+- Other options: An append log pruned at 7 days (a stale cursor needs a full state). Writes from each write path (one forgotten path loses changes). A server-only PR with no consumer (nothing proves it).
+- Risk: medium (a DO schema change: a new table and triggers). An app without `rev` resumes as before. A wrong `rev` falls back to the clocks.
+- Undo: Revert the commit. The table and the triggers stay in each DO, with no reader; drop them in a later migration if needed.
+- Status: open
