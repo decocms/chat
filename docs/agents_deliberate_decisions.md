@@ -2664,6 +2664,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Save the color with the name on Salvar. Allow renaming a room that is not open through a new API.
 - Risk: low
 - Undo: Revert the commit.
+
 ### 2026-11-27 · feat/runner-herdr-core · The app's runner uses herdr-core, an installed hc first, and moves the old herdr Claudes
 
 - Agent: Claude Opus 5.5
@@ -2702,7 +2703,6 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Why:** Gimenes approved (a) (#6228) after three proposals (#6221). Seeked keyframes keep the look in the stylesheet (no inline style, no Web Animations). bits-ui keeps the focus trap and the layered Escape. A separate state machine adds a file for five states that fit in the engine.
 - **Reviewer can change:** add history entries to the four other drawers (Back closes them) through the same `onOpenChange`.
 
-
 ## 2026-11-27 · fix/topbar-obvious
 
 - **Decision:** Gui decided (#6295) that the Doc and Pessoas are always visible in the top bar. My choices: on desktop they are buttons with their text (`tab` variant, pressed when open), and the call is a phone icon in the bar too. ⋮ keeps Arquivos, Apps, Decisões and Lembretes. On phones, the Doc and Pessoas are icons before the search, and the call stays in ⋮, because the phone bar has little space. The rule is in `AGENTS.md` (rule 14) and in "Obvious before clean" in `docs/design.md`, with a DOM test.
@@ -2734,3 +2734,14 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Why:** `/api/agents` and `DELETE /api/agents/:id` already list and revoke the connected Claudes (OAuth grants).
 - **Reviewer can change:** rename both if the grants move.
 
+## 2026-11-27 · feat/agent-personas-ui
+
+- **Decision:** A new organism `web/features/agents/AgentPersonas.svelte` shows your agents in the "Your agents" popover (`AgentFoot.svelte`). When you have agents, it replaces the machine rows. Cloud sandboxes keep their machine rows.
+- **Options:** (a) a new organism inside the popover; (b) more branches in `AgentFoot.svelte`; (c) a new pane.
+- **Why:** `AgentFoot.svelte` was already 430 lines with the machine rows. Gimenes asked to keep this popover (#6269).
+- **Reviewer can change:** remove the machine rows from `AgentFoot.svelte` when every person has agents.
+
+- **Decision:** In "Adicionar agent", the machine and the agent are lists of option rows, not Select menus. Rename and Remove are in a ⋮ menu on each row. The switch stays visible.
+- **Options:** (a) option rows; (b) Select menus inside the popover.
+- **Why:** a menu inside a popover inside the phone drawer is three layers. Option rows show each agent's version, and "not installed" or "soon", at once.
+- **Reviewer can change:** use Select menus if the list of machines gets long.

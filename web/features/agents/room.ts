@@ -125,6 +125,24 @@ export function createRoomAgentSession(
   const scoped = () => active && attached && member;
   const current = () => scoped() && !denied;
   const mutable = () => current() && (options.allowMutation?.() ?? true);
+  /** One change to your agents, then the room's agents are read again. The error's status, or null. */
+  async function personaCall(
+    run: () => Promise<unknown>,
+  ): Promise<number | null> {
+    if (!mutable()) return 0;
+    try {
+      await run();
+      options.onChanged?.();
+      if (attached && current()) await refresh(true);
+      return null;
+    } catch (error) {
+      if (agentsUnauthenticated(error)) {
+        deny(true);
+        options.onUnauthorized?.();
+      }
+      return error instanceof AgentsFailure ? error.status : 0;
+    }
+  }
   function feedback(
     kind: "setupFeedback" | "listeningFeedback",
     milliseconds: number,
@@ -408,16 +426,24 @@ export function createRoomAgentSession(
       }
     },
     /**
-     * A delivery switch (src/delivery.ts): a machine, a one-off agent, or everything of yours here. Shown at once,
-     * then the room's agents are read again (an error reads them again too, which puts the switch back).
+     * A delivery switch (src/delivery.ts): one of your agents, a machine, a one-off agent, or everything of yours
+     * here. Shown at once, then the room's agents are read again (an error reads them again too, which puts the
+     * switch back).
      */
     async delivery(
-      target: { machine: string } | { agent: string } | { all: true },
+      target:
+        | { persona: string }
+        | { machine: string }
+        | { agent: string }
+        | { all: true },
       on: boolean,
     ) {
       const before = get(state);
       if (!mutable() || !before.data) return;
-      const hit = (id: string | undefined, key: "machine" | "agent") =>
+      const hit = (
+        id: string | undefined,
+        key: "persona" | "machine" | "agent",
+      ) =>
         "all" in target ||
         (key in target && (target as Record<string, string>)[key] === id);
       state.update((value) =>
@@ -429,6 +455,11 @@ export function createRoomAgentSession(
                 ...("all" in target ? { claude_on: on } : {}),
                 machines: value.data.machines?.map((m) =>
                   hit(m.id, "machine") ? { ...m, on } : m,
+                ),
+                personas: value.data.personas?.map((p) =>
+                  hit(p.id, "persona") || hit(p.machine, "machine")
+                    ? { ...p, on }
+                    : p,
                 ),
                 agents: value.data.agents.map((a) =>
                   a.id &&
@@ -452,6 +483,24 @@ export function createRoomAgentSession(
         }
       }
       if (attached && current()) await refresh(true);
+    },
+    /**
+     * Your agents (src/personas.ts): add one (on in this room), rename it, remove it. The room's agents are read
+     * again after each. Returns the server's error status (400 bad name or kind, 404 not yours, 409 name taken), or
+     * null when it worked.
+     */
+    async addPersona(input: {
+      machine: string;
+      kind: string;
+      name?: string;
+    }): Promise<number | null> {
+      return personaCall(() => api.addPersona({ ...input, book: roomId }));
+    },
+    async renamePersona(id: string, name: string): Promise<number | null> {
+      return personaCall(() => api.renamePersona(id, name));
+    },
+    async removePersona(id: string): Promise<number | null> {
+      return personaCall(() => api.removePersona(id));
     },
     reviewToggle() {
       if (!active || get(state).togglePhase !== "unconfirmed") return;
