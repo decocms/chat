@@ -2615,6 +2615,14 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The room's name bar is `sticky` in the sidebar's scroll. The sticky section titles (Fixados) stick under it (`--sidebar-sticky-top`).
 - Other options: The green phone in ⋮ too. A count on ⋮. A separate scroll area under the name.
 - Risk: low
+
+### 2026-11-26 · fix/runner-no-automode-prompt · The runner's Claude starts with auto mode off
+
+- Agent: Claude Opus 5.5
+- Context: After a restart, the room's Claude stopped at Claude Code's one-time question "Make auto mode your default permission mode?" and waited for an answer that nobody could give (Gimenes #6125: business users cannot open a terminal). The Claude Code docs have no setting that hides this question.
+- Decision: The runner starts each Claude with `--settings '{"permissions":{"disableAutoMode":"disable"}}'` (a documented setting), only for that session. Tested on 2026-11-26 in the same account: the start with it did not ask, and the same start without it stopped at the question. The runner never answers the question for the person.
+- Other options: Write the setting into `~/.claude/settings.json` (changes the person's own Claude too). Make the runner press "No" when it sees the question (the runner never answers a permission prompt). Answer it once by hand (each new machine asks again).
+- Risk: low. In these sessions, shift+tab no longer offers auto mode; they run in bypass mode.
 - Undo: Revert the commit.
 - Status: open
 

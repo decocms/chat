@@ -580,10 +580,19 @@ const listenWords = () => (RUN_AGENT === "codex" ? CODEX_LISTEN_PROMPT : LISTEN_
  *  #5959, #5966). Thus each one starts with its bypass flag, its folder is trusted before the start, and the one-time
  *  "accept bypass mode?" question of Claude Code is accepted in its settings. */
 const BYPASS = { claude: "--dangerously-skip-permissions", codex: "--dangerously-bypass-approvals-and-sandbox" } as const;
-/** The agent's arguments before the first prompt: the bypass flag, and the conversation to resume (`claude
- *  --resume <id>`, `codex resume <id>`; Codex takes its flags after the subcommand). */
+/** Claude Code asks once "Make auto mode your default permission mode?" in a bypass session, and the runner's Claude
+ *  waited there for an answer nobody could give (Gimenes #6125). With auto mode off for that session, the question does
+ *  not come (tested on 2026-11-26: the same start without it stopped at the question). Only these sessions: the
+ *  person's own settings do not change. */
+const NO_AUTO_MODE = JSON.stringify({ permissions: { disableAutoMode: "disable" } });
+/** The agent's arguments before the first prompt: the bypass flag, Claude's session settings, and the conversation to
+ *  resume (`claude --resume <id>`, `codex resume <id>`; Codex takes its flags after the subcommand). */
 const agentArgs = (session?: string) =>
-  RUN_AGENT === "codex" ? (session ? ["resume", BYPASS.codex, session] : [BYPASS.codex]) : [BYPASS.claude, ...(session ? ["--resume", session] : [])];
+  RUN_AGENT === "codex"
+    ? session
+      ? ["resume", BYPASS.codex, session]
+      : [BYPASS.codex]
+    : [BYPASS.claude, "--settings", NO_AUTO_MODE, ...(session ? ["--resume", session] : [])];
 /** Rewrite a JSON file through a temporary file and a rename. Never throws. */
 function editJson(file: string, edit: (cfg: Record<string, unknown>) => boolean) {
   try {

@@ -661,7 +661,8 @@ var HERDR_FILE = join2(HOME, RUN_AGENT === "codex" ? "herdr-codex.json" : "herdr
 var roomLabel = (title) => RUN_AGENT === "codex" ? `${title.slice(0, 32)} · Codex` : title.slice(0, 40);
 var listenWords = () => RUN_AGENT === "codex" ? CODEX_LISTEN_PROMPT : LISTEN_PROMPT;
 var BYPASS = { claude: "--dangerously-skip-permissions", codex: "--dangerously-bypass-approvals-and-sandbox" };
-var agentArgs = (session) => RUN_AGENT === "codex" ? session ? ["resume", BYPASS.codex, session] : [BYPASS.codex] : [BYPASS.claude, ...session ? ["--resume", session] : []];
+var NO_AUTO_MODE = JSON.stringify({ permissions: { disableAutoMode: "disable" } });
+var agentArgs = (session) => RUN_AGENT === "codex" ? session ? ["resume", BYPASS.codex, session] : [BYPASS.codex] : [BYPASS.claude, "--settings", NO_AUTO_MODE, ...session ? ["--resume", session] : []];
 function editJson(file, edit) {
   try {
     const cfg = existsSync2(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
