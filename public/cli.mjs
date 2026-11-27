@@ -1319,7 +1319,7 @@ function hc(...args) {
   const env = { ...process.env };
   for (const k of ["HC_TERMINAL_ID", "HC_TERMINAL_SOCKET", "HC_SCOPE"])
     delete env[k];
-  const out = execFileSync(process.env.VIBEBOOK_HC || "hc", [...args, "--json"], { stdio: ["ignore", "pipe", "pipe"], env, windowsHide: true }).toString();
+  const out = execFileSync(process.env.VIBEBOOK_HC || "hc", [args[0], "--json", ...args.slice(1)], { stdio: ["ignore", "pipe", "pipe"], env, windowsHide: true }).toString();
   try {
     return JSON.parse(out);
   } catch {
@@ -1492,6 +1492,12 @@ async function herdrCoreSync(agent, tools) {
           const shown = execFileSync("herdr", ["pane", "read", pane.pane_id, "--source", "visible", "--lines", "15"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
           if (/Background work is running/.test(shown))
             herdr("agent", "send-keys", pane.pane_id, "Enter");
+        } catch {}
+      }
+      if (e.restarting_at && Date.now() - e.restarting_at > 2 * 60000 && pane.agent_status !== "working") {
+        try {
+          herdr("pane", "close", pane.pane_id);
+          log("info", "herdr", `${title}: its ${RUN_NAME} in herdr did not exit, closed its pane`, { room, session: short(e.session) });
         } catch {}
       }
       continue;

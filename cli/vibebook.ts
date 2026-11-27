@@ -1237,7 +1237,8 @@ type CoreRoom = HerdrRoom & { terminal?: string };
 function hc(...args: string[]): any {
   const env = { ...process.env };
   for (const k of ["HC_TERMINAL_ID", "HC_TERMINAL_SOCKET", "HC_SCOPE"]) delete env[k];
-  const out = execFileSync(process.env.VIBEBOOK_HC || "hc", [...args, "--json"], { stdio: ["ignore", "pipe", "pipe"], env, windowsHide: true }).toString();
+  // --json right after the command: at the end it went past `run`'s `--`, into the agent's own arguments.
+  const out = execFileSync(process.env.VIBEBOOK_HC || "hc", [args[0], "--json", ...args.slice(1)], { stdio: ["ignore", "pipe", "pipe"], env, windowsHide: true }).toString();
   try { return JSON.parse(out); } catch { return {}; }
 }
 /** hc's name for the runner's agent. */
@@ -1407,6 +1408,14 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
         try {
           const shown = execFileSync("herdr", ["pane", "read", pane.pane_id, "--source", "visible", "--lines", "15"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
           if (/Background work is running/.test(shown)) herdr("agent", "send-keys", pane.pane_id, "Enter");
+        } catch {}
+      }
+      // /exit did not take in 2 minutes (it sat on a question, as Claude Code's "Make auto mode your default?", which
+      // nobody here answers) and it is not working: close its pane. Its conversation reopens here with --resume.
+      if (e.restarting_at && Date.now() - e.restarting_at > 2 * 60_000 && pane.agent_status !== "working") {
+        try {
+          herdr("pane", "close", pane.pane_id);
+          log("info", "herdr", `${title}: its ${RUN_NAME} in herdr did not exit, closed its pane`, { room, session: short(e.session) });
         } catch {}
       }
       continue;
