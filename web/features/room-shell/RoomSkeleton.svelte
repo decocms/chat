@@ -23,8 +23,8 @@
   /** A room that is still connecting, drawn in the room's own frame (the cells of
    * RoomLayoutFrame: sidebar, chat with its header and composer, the doc on the
    * right) with the name and icon the home already knows, so nothing moves when
-   * the state lands. On a phone it is RoomHeader's one row (back, the thread
-   * over the room, centered, you) and the composer alone at the bottom. */
+   * the state lands. On a phone it is RoomHeader's one row (back, the room's
+   * icon, the title over its subtitle, the search and ⋮) and the composer alone at the bottom. */
   let {
     roomId,
     thread = "main",
@@ -229,13 +229,15 @@
               person={peer}
               lang={en ? "en" : "pt"}
               surface="background"
-            />{:else if roomMain && title}<RoomAvatar
+            />{:else if !dm && title}<RoomAvatar
               {title}
               {icon}
               lang={en ? "en" : "pt"}
               surface="background"
-            />{/if}
-          <!-- Left, right after ←, like RoomHeader's title (Gimenes #3796). -->
+            />{:else}<Skeleton class="size-8 shrink-0 rounded-md" />{/if}
+          <!-- Left, right after ←, like RoomHeader's title (Gimenes #3796). The title is the room (or the person)
+               in the main thread, the thread's name in a thread (not known yet). The subtitle: in a thread the room;
+               in the main thread who is online, not known yet (Gimenes #6077). -->
           <span class="flex min-w-0 flex-col items-start">
             <span
               class="flex max-w-full min-w-0 items-center gap-1 text-base leading-5 font-semibold"
@@ -249,22 +251,29 @@
                 class="shrink-0"
               /></span
             >
-            {#if !dm && !roomMain}{#if title}<span
+            {#if !dm}{#if !roomMain && title}<span
                   class="max-w-full truncate text-xs leading-4 text-muted-foreground"
                   >{title}</span
                 >{:else}<span class="flex h-4 items-center"
-                  >{@render line("w-20", "h-2.5")}</span
+                  >{@render line("w-24", "h-2.5")}</span
                 >{/if}{/if}
           </span>
         </div>
-        <span
-          aria-hidden="true"
-          class="grid size-10 shrink-0 place-items-center"
-          >{#if me}<PersonAvatar
-              email={me.email}
-              version={me.avatar}
-              size="sm"
-            />{:else}<Skeleton class="size-8 rounded-full" />{/if}</span
+        <!-- RoomHeader's end of the bar: the search and ⋮, in their places (B, Gimenes #6052). -->
+        <span aria-hidden="true" class="flex shrink-0 items-center gap-1"
+          ><IconButton
+            label={searchLabel}
+            size="icon"
+            tabindex={-1}
+            class="size-10 shrink-0 rounded-full"
+            ><Icon icon="search-md" size={20} /></IconButton
+          ><IconButton
+            label={t("Mais opções")}
+            size="icon"
+            tabindex={-1}
+            class="size-10 shrink-0 rounded-full"
+            ><Icon icon="dots-vertical" size={20} /></IconButton
+          ></span
         >
       </header>
 
