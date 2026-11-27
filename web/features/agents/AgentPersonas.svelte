@@ -5,10 +5,6 @@
   import Button from "../../lib/studio/Button.svelte";
   import Input from "../../lib/studio/Input.svelte";
   import Switch from "../../lib/studio/Switch.svelte";
-  import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
-  import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
-  import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
-  import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
   import { cn } from "../../lib/studio/utils";
   import {
     AGENT_TILES,
@@ -238,7 +234,7 @@
       <div
         data-agent-persona={p.id}
         data-agent-persona-on={p.on}
-        class="flex min-w-0 items-center gap-1 rounded-lg pr-1 hover:bg-accent"
+        class="group flex min-w-0 items-center gap-1 rounded-lg pr-1 hover:bg-accent"
       >
         <div class={cn(ROW, !p.on && "text-muted-foreground")}>
           <span class="relative shrink-0"
@@ -258,6 +254,30 @@
             ></span
           >
         </div>
+        <!-- Rename and remove on hover or focus, no ⋮ (Gimenes #6487); always shown where there is no hover. -->
+        <span
+          class="hidden shrink-0 items-center group-hover:flex group-has-focus-visible:flex [@media(hover:none)]:flex"
+        >
+          <IconButton
+            variant="ghost"
+            size="icon-sm"
+            label={`${text("personaRename")} @${p.name}`}
+            data-agent-persona-rename-button={p.id}
+            onclick={() => {
+              error = "";
+              newName = p.name;
+              renaming = p.id;
+            }}><Icon icon="pencil-01" /></IconButton
+          ><IconButton
+            variant="ghost"
+            size="icon-sm"
+            label={`${text("personaRemove")} @${p.name}`}
+            data-agent-persona-remove={p.id}
+            disabled={busy}
+            class="hover:text-destructive"
+            onclick={() => void remove(p)}><Icon icon="trash-01" /></IconButton
+          >
+        </span>
         <Switch
           checked={p.on}
           onCheckedChange={(on) => {
@@ -265,40 +285,6 @@
           }}
           aria-label={text("personaSwitch", { name: `@${p.name}` })}
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger>
-            {#snippet child({ props })}<IconButton
-                {...props}
-                variant="ghost"
-                size="icon-sm"
-                label={text("personaMenu", { name: `@${p.name}` })}
-                data-agent-persona-menu={p.id}
-                ><Icon icon="dots-vertical" /></IconButton
-              >{/snippet}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            sideOffset={6}
-            class="w-44 font-sans"
-          >
-            <DropdownMenuItem
-              onSelect={() => {
-                error = "";
-                newName = p.name;
-                renaming = p.id;
-              }}
-              ><Icon icon="pencil-01" />{text(
-                "personaRename",
-              )}</DropdownMenuItem
-            >
-            <DropdownMenuItem
-              variant="destructive"
-              data-agent-persona-remove={p.id}
-              onSelect={() => void remove(p)}
-              ><Icon icon="trash-01" />{text("personaRemove")}</DropdownMenuItem
-            >
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     {/if}
   {/each}
@@ -328,6 +314,7 @@
           ></span
         >
       </div>
+      <!-- Nothing to rename or remove: a session opened by hand ends with its terminal. -->
       <Switch
         checked={a.delivery !== false}
         onCheckedChange={(on) => {
@@ -335,8 +322,6 @@
         }}
         aria-label={text("personaSwitch", { name: `@${a.name}` })}
       />
-      <!-- No menu: a session opened by hand has no agent to rename or remove; it ends with its terminal. -->
-      <span aria-hidden="true" class="size-7 shrink-0"></span>
     </div>
   {/each}
 

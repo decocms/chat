@@ -233,6 +233,11 @@ try {
     await page.waitForTimeout(300);
     await page.screenshot({ path: join(out, "agents-1440.png") });
     shots.push("agents-1440.png");
+    // Rename and remove show on hover, no ⋮ (Gimenes #6487).
+    await page.locator("[data-agent-persona]").first().hover();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(out, "agents-hover-1440.png") });
+    shots.push("agents-hover-1440.png");
     await page.close();
   }
   if (flag("edit-room")) {
