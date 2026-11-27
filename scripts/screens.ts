@@ -3,13 +3,14 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--threadmenu] [--topbar] [--choices] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--threadmenu] [--topbar] [--choices] [--receipts] [--name <folder>]
 import { chromium, type Locator, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { $ } from "bun";
 import { galleryPath, serveBuiltGallery } from "./browser-static-gallery";
+import { dmId } from "../src/dm";
 
 const base = process.env.SCREENS_ORIGIN ?? "http://127.0.0.1:8797";
 const args = process.argv.slice(2);
@@ -1050,6 +1051,7 @@ try {
   if (flag("threadmenu")) await threadMenuScreens(browser, shots);
   if (flag("topbar")) await topbarScreens(browser, shots);
   if (flag("choices")) await choicesScreens(browser, shots);
+  if (flag("receipts")) await receiptsScreens(browser, shots);
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
     ["/", "home-390.png"],
@@ -2028,13 +2030,8 @@ async function topbarScreens(
  * as answered, and their Claude waited forever). The test agent connects with OAuth as the dev email (like
  * scripts/agent-check.ts). The run fails if the line does not show, if the click alone answers, or if the typed answer
  * does not reach permission_wait. 1440 px (Portuguese) and 390 px (English). */
-async function choicesScreens(
-  browser: import("playwright").Browser,
-  shots: string[],
-) {
-  const email = (
-    (await (await fetch(`${base}/api/me`)).json()) as { email: string }
-  ).email;
+/** A test agent of `email` (OAuth as that person, then an MCP session): returns its tool call. */
+async function connectTestAgent(email: string, clientName: string) {
   const redirect = "http://127.0.0.1:9/cb";
   const b64 = (b: ArrayBuffer | Uint8Array) =>
     Buffer.from(b instanceof Uint8Array ? b : new Uint8Array(b)).toString(
@@ -2045,7 +2042,7 @@ async function choicesScreens(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        client_name: "Claude Code (test)",
+        client_name: clientName,
         redirect_uris: [redirect],
         token_endpoint_auth_method: "none",
         grant_types: ["authorization_code", "refresh_token"],
@@ -2087,7 +2084,7 @@ async function choicesScreens(
     approved.headers.get("location") ?? redirect,
   ).searchParams.get("code");
   if (!code)
-    throw new Error(`choices: consent gave no code (${approved.status})`);
+    throw new Error(`agent: consent gave no code (${approved.status})`);
   const token = (
     (await (
       await fetch(`${base}/oauth/token`, {
@@ -2125,6 +2122,17 @@ async function choicesScreens(
     (await rpc("tools/call", { name, arguments: args })).result
       ?.structuredContent ?? {};
   await rpc("initialize", { protocolVersion: "2025-06-18" });
+  return tool;
+}
+
+async function choicesScreens(
+  browser: import("playwright").Browser,
+  shots: string[],
+) {
+  const email = (
+    (await (await fetch(`${base}/api/me`)).json()) as { email: string }
+  ).email;
+  const tool = await connectTestAgent(email, "Claude Code (test)");
   const ask = async (page: Page, file: string, locale: "pt" | "en") => {
     const { room_id } = (await tool("create_room", {
       title: "Sala de teste",
@@ -2183,4 +2191,151 @@ async function choicesScreens(
   await phone.addCookies([{ name: "dev_as", value: email, url: base }]);
   await ask(await phone.newPage(), "choices-other-390", "en");
   await phone.close();
+}
+
+/**
+ * Read receipts (--receipts): people's "seen" faces beside agents', and the DM setting. In a new room, Ana (the test
+ * email) writes, her test agent reads it and Bruno opens the room: the message shows Bruno and the agent, and the
+ * popover names them. The agent then replies while Bruno is away, and Bruno's face moves to the reply live when he
+ * opens the room again. In their DM, Bruno turns "Confirmação de leitura" off: Ana sees no face on her message, and
+ * when he turns it back on his face comes back without a reload. The run fails if a face count is not the expected one.
+ */
+async function receiptsScreens(
+  browser: import("playwright").Browser,
+  shots: string[],
+) {
+  const ana = (
+    (await (await fetch(`${base}/api/me`)).json()) as { email: string }
+  ).email;
+  // A new second person each run: their DM with the test email starts empty.
+  const bruno = `bruno-${Date.now().toString(36)}@example.test`;
+  const post = async (path: string, body: unknown, email = ana) => {
+    const response = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: base,
+        cookie: `dev_as=${encodeURIComponent(email)}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`${path}: ${response.status}`);
+    return (await response.json()) as { id?: string };
+  };
+  await post("/api/me", { name: "Ana Souza" });
+  await post("/api/me", { name: "Bruno Lima" }, bruno);
+  await post("/api/me/read-receipts", { on: true }, bruno);
+  const { id: room } = await post("/api/books", { title: "Projeto Aurora" });
+  await post(`/api/books/${room}/members`, { email: bruno });
+  await post(`/api/books/${room}/invite`, { yes: true }, bruno);
+  // Earlier lines: the popover opens upward and needs the room above the message.
+  const say = (text: string, email = ana) =>
+    post(`/api/books/${room}/post`, { text, thread: "main" }, email);
+  await say("Bom dia! Hoje fecho a home nova.");
+  await say("Boa! Me avisa quando subir.", bruno);
+  await say("Combinado.");
+  await say("Subi o layout novo da home, dá uma olhada?");
+  const agent = await connectTestAgent(ana, "Claude Code");
+  await agent("read_room", { room_id: room });
+  const as = async (email: string, width: number) => {
+    const context = await browser.newContext({
+      viewport: { width, height: width < 500 ? 844 : 900 },
+      locale: "pt-BR",
+      ...(width < 500 ? { isMobile: true, hasTouch: true } : {}),
+    });
+    await context.addCookies([
+      { name: "dev_as", value: encodeURIComponent(email), url: base },
+    ]);
+    return context;
+  };
+  /** Opening a room reads it (the person's read point), then the tab goes away. */
+  const visit = async (path: string) => {
+    const page = await (await as(bruno, 1440)).newPage();
+    await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1500);
+    await page.context().close();
+  };
+  await visit(`/b/${room}`);
+  const shot = async (page: Page, file: string) => {
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(out, file) });
+    shots.push(file);
+  };
+  const faces = (page: Page, message: string) =>
+    page
+      .locator("[data-chat-message]", { hasText: message })
+      .last() // the DM stays between runs: its newest line
+      .locator("[data-reader-read]")
+      .count();
+  const expectFaces = async (page: Page, message: string, n: number) => {
+    // The room pushes receipts at most every ~2s.
+    for (let i = 0; i < 20 && (await faces(page, message)) !== n; i++)
+      await page.waitForTimeout(300);
+    if ((await faces(page, message)) !== n)
+      throw new Error(
+        `receipts: "${message}" has ${await faces(page, message)} faces, not ${n}`,
+      );
+  };
+  const desk = await (await as(ana, 1440)).newPage();
+  await desk.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+  await expectFaces(desk, "layout novo", 2);
+  // The room's "Começando a sala" card sits over the first message's popover: closed, as a used room has it.
+  await desk
+    .locator("[data-agent-banners]")
+    .getByRole("button", { name: "Fechar" })
+    .first()
+    .click();
+  await desk.mouse.move(0, 0);
+  await shot(desk, "receipts-person-agent-1440.png");
+  await desk
+    .locator("[data-message-footer] button[aria-expanded]")
+    .first()
+    .hover();
+  await desk.locator("[data-readers-seen-by]").waitFor();
+  await shot(desk, "receipts-popover-1440.png");
+  await desk.mouse.move(0, 0);
+  await agent("post", {
+    room_id: room,
+    text: "Revisei: no tema escuro os botões da home estão sem contraste. Ajusto?",
+  });
+  await expectFaces(desk, "sem contraste", 0);
+  await shot(desk, "receipts-live-before-1440.png");
+  await visit(`/b/${room}`);
+  await expectFaces(desk, "sem contraste", 1);
+  await expectFaces(desk, "layout novo", 1);
+  await shot(desk, "receipts-live-after-1440.png");
+  const phone = await (await as(ana, 390)).newPage();
+  await phone.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+  await expectFaces(phone, "sem contraste", 1);
+  await shot(phone, "receipts-390.png");
+  await phone.context().close();
+
+  // The DM: reciprocal, enforced by the server.
+  const secret = (await Bun.file(".dev.vars").text()).match(
+    /^SESSION_SECRET=["']?([^"'\n]+)/m,
+  )?.[1];
+  if (!secret) throw new Error("receipts: SESSION_SECRET is not in .dev.vars");
+  const dm = await dmId({ SESSION_SECRET: secret } as never, ana, bruno);
+  await post("/api/me/read-receipts", { on: false }, bruno);
+  const settings = await (await as(bruno, 1440)).newPage();
+  await settings.goto(`${base}/settings`, { waitUntil: "networkidle" });
+  const row = settings.locator("[data-read-receipts-setting]");
+  await row.scrollIntoViewIfNeeded();
+  if (
+    (await row.locator('[role="switch"]').getAttribute("aria-checked")) !==
+    "false"
+  )
+    throw new Error("receipts: the setting does not show off");
+  await shot(settings, "receipts-setting-1440.png");
+  await settings.context().close();
+  await desk.goto(`${base}/b/${dm}`, { waitUntil: "networkidle" });
+  await send(desk, "Bruno, te mandei o link do layout no grupo.");
+  await visit(`/b/${dm}`);
+  await desk.waitForTimeout(3000);
+  await expectFaces(desk, "link do layout", 0);
+  await shot(desk, "receipts-dm-off-1440.png");
+  await post("/api/me/read-receipts", { on: true }, bruno);
+  await expectFaces(desk, "link do layout", 1);
+  await shot(desk, "receipts-dm-on-1440.png");
+  await desk.context().close();
 }
