@@ -1,7 +1,6 @@
 <script lang="ts">
   import { get } from "svelte/store";
   import { onDestroy } from "svelte";
-  import { TINTS } from "../../../shared/schemas";
   import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
   import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
   import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
@@ -13,7 +12,6 @@
   import { cn } from "../../lib/studio/utils";
   import { createApplicationCopy } from "../application/copy";
   import { copyChatText } from "../chat/clipboard";
-  import type { RoomTint } from "../home/api";
   import { homeIssue, type HomeLanguage } from "../home/copy";
   import {
     dmEntry,
@@ -22,13 +20,12 @@
     targetHref,
     unread,
   } from "../home/model";
-  import { roomIconPng } from "../rooms/images";
   import type { AppNavigationSession } from "./controller";
   /**
    * A room's menu (like Discord's server menu): a right-click, a long press or
    * Shift+F10 on a room in the rail, the phone's grid and list, or a DM row
    * opens it at the pointer (controller.openMenu). One menu for the whole
-   * app; it is the only place to change a room's color, icon and order by hand.
+   * app; "Editar sala…" opens the dialog with the name, icon and color (Gimenes #6163).
    * A DM gets the items that apply to it: mark as read and copy its link.
    */
   let {
@@ -75,50 +72,6 @@
         }
       : null,
   );
-  const tintLabel = (tint: RoomTint) => {
-    switch (tint) {
-      case null:
-        return t("Sem cor");
-      case "blue":
-        return t("Azul");
-      case "green":
-        return t("Verde");
-      case "yellow":
-        return t("Amarelo");
-      case "orange":
-        return t("Laranja");
-      case "pink":
-        return t("Rosa");
-      case "purple":
-        return t("Roxo");
-      default: {
-        const unknown: never = tint;
-        return unknown;
-      }
-    }
-  };
-  const tintDot = (tint: RoomTint) => {
-    switch (tint) {
-      case null:
-        return "border border-muted-foreground bg-background";
-      case "blue":
-        return "bg-room-tint-blue";
-      case "green":
-        return "bg-room-tint-green";
-      case "yellow":
-        return "bg-room-tint-yellow";
-      case "orange":
-        return "bg-room-tint-orange";
-      case "pink":
-        return "bg-room-tint-pink";
-      case "purple":
-        return "bg-room-tint-purple";
-      default: {
-        const unknown: never = tint;
-        return unknown;
-      }
-    }
-  };
   // What an item did, said briefly at the screen's foot: "Copied", or why a change didn't go through.
   let notice = $state(""),
     noticeTimer: ReturnType<typeof setTimeout> | undefined,
@@ -135,30 +88,6 @@
     say(homeIssue(lang, issue));
   });
   onDestroy(() => clearTimeout(noticeTimer));
-  let iconInput = $state<HTMLInputElement | null>(null),
-    iconRoom: string | null = null,
-    iconSequence = 0;
-  async function upload(file: File) {
-    const id = iconRoom,
-      ticket = ++iconSequence,
-      identity = get(controller.personal.state).identityRevision;
-    if (!id) return;
-    try {
-      const image = await roomIconPng(file);
-      if (
-        ticket === iconSequence &&
-        identity === get(controller.personal.state).identityRevision
-      ) {
-        watching = `icon:${id}`;
-        await controller.rooms.icon(id, image);
-      }
-    } catch (error) {
-      if (ticket === iconSequence)
-        say(
-          homeIssue(lang, error instanceof Error ? error.message : "network"),
-        );
-    }
-  }
   async function copyLink(id: string) {
     try {
       await copyChatText(
@@ -175,20 +104,6 @@
     "data-[variant=destructive]:focus:bg-destructive data-[variant=destructive]:focus:text-destructive-foreground dark:data-[variant=destructive]:focus:bg-destructive data-[variant=destructive]:focus:*:[svg]:!text-destructive-foreground";
 </script>
 
-<input
-  bind:this={iconInput}
-  type="file"
-  accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,.ico"
-  class="hidden"
-  tabindex="-1"
-  aria-hidden="true"
-  data-room-menu-icon
-  onchange={(event) => {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
-    if (file) void upload(file);
-  }}
-/>
 {#key anchor}{#if room && point}{@const id = room.id}
     {@const position = rail.indexOf(id)}
     <DropdownMenu
@@ -224,63 +139,11 @@
           ><Icon icon="check-circle" />{t("Marcar como lido")}</DropdownMenuItem
         >
         {#if !room.dm}<DropdownMenuSeparator />
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger class={itemClass}
-              ><Icon icon="palette" />{t("Cor")}</DropdownMenuSubTrigger
-            >
-            <DropdownMenuSubContent class="w-44" data-room-menu-tints>
-              {#each [null, ...TINTS] as tint (tint ?? "none")}<DropdownMenuItem
-                  class={itemClass}
-                  data-tint={tint ?? "none"}
-                  disabled={!!$mutations.pending[`tint:${id}`]}
-                  onSelect={() => {
-                    watching = `tint:${id}`;
-                    void controller.rooms.tint(id, tint);
-                  }}
-                  ><span
-                    aria-hidden="true"
-                    class={cn("size-3 shrink-0 rounded-full", tintDot(tint))}
-                  ></span>{tintLabel(
-                    tint,
-                  )}{#if (room.tint ?? null) === tint}<Icon
-                      icon="check"
-                      class="ml-auto text-foreground"
-                    /><span class="sr-only">{t("(atual)")}</span
-                    >{/if}</DropdownMenuItem
-                >{/each}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger class={itemClass}
-              ><Icon icon="image-01" />{t("Ícone")}</DropdownMenuSubTrigger
-            >
-            <DropdownMenuSubContent class="w-44">
-              <DropdownMenuItem
-                class={itemClass}
-                disabled={!!$mutations.pending[`icon:${id}`]}
-                onSelect={() => {
-                  iconRoom = id;
-                  iconInput?.click();
-                }}
-                ><Icon icon="upload-01" />{t("Trocar ícone…")}</DropdownMenuItem
-              >
-              {#if room.icon}<DropdownMenuItem
-                  class={itemClass}
-                  disabled={!!$mutations.pending[`icon:${id}`]}
-                  onSelect={() => {
-                    watching = `icon:${id}`;
-                    void controller.rooms.icon(id, null);
-                  }}
-                  ><Icon icon="trash-01" />{t(
-                    "Remover ícone",
-                  )}</DropdownMenuItem
-                >{/if}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          {#if $nav.roomId === id && controller.callbacks.rename}<DropdownMenuItem
+          {#if controller.callbacks.rename}<DropdownMenuItem
               class={itemClass}
+              data-room-menu-edit
               onSelect={() => controller.askRename(id)}
-              ><Icon icon="pencil-01" />{t("Renomear sala")}</DropdownMenuItem
+              ><Icon icon="pencil-01" />{t("Editar sala…")}</DropdownMenuItem
             >{/if}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger class={itemClass}

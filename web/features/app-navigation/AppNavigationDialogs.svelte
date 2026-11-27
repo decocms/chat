@@ -13,6 +13,10 @@
   import { roomIconPng } from "../rooms/images";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
   import SearchPalette from "./SearchPalette.svelte";
+  import { tintDot, tintName } from "./tints";
+  import { TINTS } from "../../../shared/schemas";
+  import { createApplicationCopy } from "../application/copy";
+  import { cn } from "../../lib/studio/utils";
   import type {
     NavigationDialogOwners,
     NavigationDialogIntent,
@@ -47,6 +51,7 @@
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
   ) => homeText(lang, key, vars);
+  const t = $derived(createApplicationCopy(lang));
   const renameIdentity = $derived($bindings.rename);
   const archiveRoom = $derived(
     $personal.me?.books.find((room) => room.id === $nav.archiveId),
@@ -130,6 +135,40 @@
     }
   }
 </script>
+
+<!-- The room's color in the edit dialog: a click applies it, like the icon (Gimenes #6163). -->
+{#snippet tintField(room: RoomSummary)}
+  {@const pending = !!$mutations.pending[`tint:${room.id}`]}
+  <fieldset class="min-w-0 space-y-2 border-0 p-0" data-room-tints>
+    <legend class="mb-1 p-0 text-sm font-medium">{t("Cor")}</legend>
+    <div class="flex flex-wrap gap-2">
+      {#each [null, ...TINTS] as tint (tint ?? "none")}
+        {@const on = (room.tint ?? null) === tint}
+        <button
+          type="button"
+          data-tint={tint ?? "none"}
+          aria-label={t(tintName(tint))}
+          aria-pressed={on}
+          title={t(tintName(tint))}
+          disabled={pending}
+          class={cn(
+            "grid size-8 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 outline-offset-2 disabled:cursor-not-allowed",
+            on && "outline-2 outline-solid outline-foreground",
+          )}
+          onclick={() => void controller.rooms.tint(room.id, tint)}
+          ><span class={cn("size-6 rounded-full", tintDot(tint))}
+          ></span></button
+        >
+      {/each}
+    </div>
+    {#if $mutations.issues[`tint:${room.id}`]}<p
+        role="alert"
+        class="break-words text-destructive"
+      >
+        {homeIssue(lang, $mutations.issues[`tint:${room.id}`]!)}
+      </p>{/if}
+  </fieldset>
+{/snippet}
 
 <!-- The room's icon in the rename dialog: click or drop on it to change it, and remove. -->
 {#snippet iconField(room: RoomSummary, intent: NavigationDialogIntent)}
@@ -391,6 +430,7 @@
               }}
             >
               {@render iconField(renameRoom, intent)}
+              {@render tintField(renameRoom)}
               <Label for="room-name">{text("name")}</Label><Input
                 bind:ref={renameInput}
                 id="room-name"

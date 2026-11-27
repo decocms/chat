@@ -65,7 +65,9 @@ export function createAppNavigationSession(
     search = createSearchSession(personal, callbacks.navigate, clock);
   let trigger: HTMLElement | null = null,
     active = true,
-    path = "";
+    path = "",
+    // "Editar sala…" on a room that is not open: open it, then its dialog (a rename goes through the room's socket).
+    editAfterOpen: string | null = null;
   /** The rooms on the rail, in its order: your DMs are listed apart, so they are not there. */
   const railRooms = () =>
     orderedRooms(roomsOnly(get(personal.state).me?.books ?? []));
@@ -81,6 +83,18 @@ export function createAppNavigationSession(
       renameDraft: "",
       renameSubmitted: false,
     }));
+  function openEdit(id: string) {
+    const room = get(personal.state).me?.books.find((room) => room.id === id);
+    if (!room) return;
+    state.update((s) => ({
+      ...s,
+      menu: null,
+      renameId: id,
+      renameDraft: room.title ?? "",
+      renameError: "",
+      renameSubmitted: false,
+    }));
+  }
   let identityRevision = get(personal.state).identityRevision;
   const stopIdentity = personal.state.subscribe((value) => {
     if (value.identityRevision === identityRevision) return;
@@ -204,6 +218,9 @@ export function createAppNavigationSession(
         roomId: roomIdFromPath(url.pathname),
         inbox: url.pathname === "/" && url.searchParams.has("inbox"),
       }));
+      const edit = editAfterOpen;
+      editAfterOpen = null;
+      if (edit && roomIdFromPath(url.pathname) === edit) openEdit(edit);
     },
     openSearch(element?: HTMLElement) {
       trigger = element ?? null;
@@ -279,17 +296,17 @@ export function createAppNavigationSession(
         return;
       void rooms.order([...ids]);
     },
+    /** "Editar sala…" (Gimenes #6163, #6166): the dialog with the name, the icon and the color, for any room. */
     askRename(id: string) {
       const room = get(personal.state).me?.books.find((room) => room.id === id);
-      if (!room || get(state).roomId !== id || !callbacks.rename) return;
-      state.update((s) => ({
-        ...s,
-        menu: null,
-        renameId: id,
-        renameDraft: room.title ?? "",
-        renameError: "",
-        renameSubmitted: false,
-      }));
+      if (!room || !callbacks.rename) return;
+      if (get(state).roomId === id) {
+        openEdit(id);
+        return;
+      }
+      editAfterOpen = id;
+      state.update((s) => ({ ...s, menu: null }));
+      callbacks.navigate({ roomId: id });
     },
     editRename(value: string) {
       state.update((s) => ({ ...s, renameDraft: value }));
