@@ -2760,7 +2760,6 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Why:** (a) works in every mode (herdr terminal, herdr-core, Herdr app) and needs no change in the app. Keeping the old files for the main agent keeps every open Claude and its conversation. (c) needs a rewrite of the three sync loops.
 - **Reviewer can change:** move the start to the app (b) if the herdr tab mode goes away.
 
-
 ## 2026-11-27 · feat/rail-folders
 
 - **Decision:** Rail folders are a new table `rail_folders` (per email) and a new column `members.rail_folder`. `books.folder` is not used: it is the room's project folder, the same for all members. One write, `POST /api/rail`, saves the whole rail (rooms and folders, in order), so a drop that makes, joins or leaves a folder is one request.
@@ -2812,6 +2811,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Decision: The two icon buttons sit between the name and the switch. They take no space until the row has the pointer or keyboard focus (`group-hover`, `group-has-focus-visible`), so the machine name is not cut at rest. On a device with no hover they always show. The trash removes at once, as the old menu item did. A session opened by hand has neither: it ends with its terminal.
 - Other options: Keep the space for the icons at all times (cuts the machine name). Show the icons over the text.
 - Risk: low
+
 ### 2026-11-27 · fix/question-answer-locally · A Claude's question goes to the room and to the app at the same time
 
 - Agent: Claude Opus 5.5
@@ -2941,6 +2941,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: A switch in the room settings (people look for it during a call, not there). Only the person who started the call can change it. The recorder stops the live parts when it is off (then the end of the call transcribes all the audio again: same cost, more code).
 - Risk: low
 - Undo: Revert the commit.
+
 ### 2026-11-27 · feat/cli-decochat · The CLI moves to @decocms/chat, commands deco-chat and vibebook
 
 - Agent: Claude Opus 5.5
