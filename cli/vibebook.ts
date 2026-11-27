@@ -1288,6 +1288,22 @@ function claudeSessionAlive(sid: string): boolean {
   } catch {}
   return false;
 }
+/** The newest live Claude Code session in a folder (~/.claude/sessions): herdr 0.9.5 often reports no session for
+ *  a pane, and without it the move would reopen the room's Claude in a new conversation. */
+function claudeSessionIn(folder?: string): string | undefined {
+  if (!folder || RUN_AGENT !== "claude") return undefined;
+  const dir = join(homedir(), ".claude", "sessions");
+  let best: { sid: string; at: number } | undefined;
+  try {
+    for (const f of readdirSync(dir)) {
+      if (!/^\d+\.json$/.test(f)) continue;
+      const s = readJson<{ pid?: number; sessionId?: string; cwd?: string; startedAt?: number }>(join(dir, f), {});
+      if (s.cwd !== folder || !s.sessionId || !/^[0-9a-f-]{36}$/.test(s.sessionId) || !s.pid || !alive(s.pid)) continue;
+      if (!best || (s.startedAt ?? 0) > best.at) best = { sid: s.sessionId, at: s.startedAt ?? 0 };
+    }
+  } catch {}
+  return best?.sid;
+}
 async function herdrCoreSync(agent: string, tools: Tool[]) {
   const map = readJson<Record<string, CoreRoom>>(HERDR_CORE, {});
   const terms = ((hc("ls").terminals ?? []) as CoreTerminal[]).filter((t) => t.state === "live");
@@ -1380,7 +1396,7 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
     const pane = before?.workspace ? old?.panes.find((p) => p.workspace_id === before.workspace && p.agent === RUN_AGENT) : undefined;
     if (pane) {
       e.folder ??= before?.folder;
-      e.session = pane.agent_session?.value ?? before?.session ?? e.session;
+      e.session = pane.agent_session?.value ?? claudeSessionIn(pane.foreground_cwd ?? pane.cwd ?? e.folder) ?? before?.session ?? e.session;
       if ((pane.agent_status === "idle" || pane.agent_status === "done") && !e.restarting_at) {
         try {
           herdr("agent", "prompt", pane.pane_id, "/exit");

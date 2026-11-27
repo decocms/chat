@@ -1371,6 +1371,24 @@ function claudeSessionAlive(sid) {
   } catch {}
   return false;
 }
+function claudeSessionIn(folder) {
+  if (!folder || RUN_AGENT !== "claude")
+    return;
+  const dir = join2(homedir(), ".claude", "sessions");
+  let best;
+  try {
+    for (const f of readdirSync2(dir)) {
+      if (!/^\d+\.json$/.test(f))
+        continue;
+      const s = readJson(join2(dir, f), {});
+      if (s.cwd !== folder || !s.sessionId || !/^[0-9a-f-]{36}$/.test(s.sessionId) || !s.pid || !alive(s.pid))
+        continue;
+      if (!best || (s.startedAt ?? 0) > best.at)
+        best = { sid: s.sessionId, at: s.startedAt ?? 0 };
+    }
+  } catch {}
+  return best?.sid;
+}
 async function herdrCoreSync(agent, tools) {
   const map = readJson(HERDR_CORE, {});
   const terms = (hc("ls").terminals ?? []).filter((t) => t.state === "live");
@@ -1462,7 +1480,7 @@ async function herdrCoreSync(agent, tools) {
     const pane = before?.workspace ? old?.panes.find((p) => p.workspace_id === before.workspace && p.agent === RUN_AGENT) : undefined;
     if (pane) {
       e.folder ??= before?.folder;
-      e.session = pane.agent_session?.value ?? before?.session ?? e.session;
+      e.session = pane.agent_session?.value ?? claudeSessionIn(pane.foreground_cwd ?? pane.cwd ?? e.folder) ?? before?.session ?? e.session;
       if ((pane.agent_status === "idle" || pane.agent_status === "done") && !e.restarting_at) {
         try {
           herdr("agent", "prompt", pane.pane_id, "/exit");
