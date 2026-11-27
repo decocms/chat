@@ -1,8 +1,9 @@
-// One phone drawer for the whole app (Gimenes #6174): the same slide, curve and drag to close from any side. The room
-// drawer (web/features/room-layout) seeks its own playback with these numbers; the Drawer molecule (Drawer.svelte)
-// slides with the same durations and the `ease-drawer` token, and drags with `dragToClose`.
+// One phone drawer for the whole app (Gimenes #6174, #6221): one engine (createDrawerMotion), one gesture for the
+// panel, the grab bar and the scrim, on any side. Drawer + DrawerContent render it; the room's threads drawer is one
+// of them. Only the side changes the look.
 
 import { tv } from "tailwind-variants";
+import { createSeekPlayback } from "./seekPlayback";
 
 export type DrawerSide = "top" | "bottom" | "left" | "right";
 
@@ -36,12 +37,26 @@ export const drawerPanel = tv({
           "rounded-l-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
       },
     },
+    /** As tall as it may be, not as tall as its content (the room's threads). */
+    fill: { true: {}, false: {} },
   },
+  compoundVariants: [
+    { side: "top", fill: true, class: { place: "h-[88dvh]" } },
+    { side: "bottom", fill: true, class: { place: "h-[85dvh]" } },
+  ],
 });
 
-/** What `Drawer` gives its content: how to close it (the drag and the grab bar use it). */
+/** The paused keyframe of each side (web/styles/tailwind.css): progress 0 is closed, 1 is open. */
+export const DRAWER_ANIMATION = {
+  top: "animate-drawer-top",
+  bottom: "animate-drawer-bottom",
+  left: "animate-drawer-left",
+  right: "animate-drawer-right",
+} as const;
+
+/** What `Drawer` gives its content: whether it is open, and how to ask it to close. */
 export const DRAWER_CONTEXT = Symbol("drawer");
-export type DrawerContext = { close: () => void };
+export type DrawerContext = { open: () => boolean; close: () => void };
 
 /** A full open slide (ms). A drawer is most of the screen, so it needs a bit more than 300 ms to read as a slide. */
 export const DRAWER_OPEN_MS = 360;
@@ -49,9 +64,6 @@ export const DRAWER_OPEN_MS = 360;
 export const DRAWER_CLOSE_MS = 260;
 /** Pixels a finger moves before it is a drag and not a tap. */
 export const DRAWER_DRAG_THRESHOLD = 6;
-/** The curve of the `ease-drawer` token (web/styles/tailwind.css), for code that animates without a class. */
-export const DRAWER_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
-
 export const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
@@ -137,169 +149,234 @@ function scrolledAway(
   return false;
 }
 
-export type DragToCloseOptions = {
-  side: DrawerSide;
-  /** Called once the drawer has slid out under the finger. */
-  onclose: () => void;
-  /** Off: no drag (a desktop, or a drawer that must stay). */
-  enabled?: boolean;
-};
-
-const reduceMotion = () =>
-  typeof matchMedia === "function" &&
-  matchMedia("(prefers-reduced-motion: reduce)").matches;
+export type DrawerRole = "panel" | "handle" | "scrim";
 
 /**
- * Svelte action: drag the drawer towards its edge to close it. The node is the drawer panel. The panel follows the
- * finger (a paused Web Animation, so no inline style); past a quarter of its size it slides out and `onclose` runs,
- * with `data-drag-closed` set so the close animation does not play again. A drag that starts in scrolled content
- * scrolls instead. A click right after a drag is dropped.
+ * The engine of every phone drawer. One progress value (0 closed, 1 open) seeks the panel's keyframe and the scrim's.
+ * `sync(open)` slides it there; a finger on the panel, the grab bar or the scrim drags it the same way, and past a
+ * quarter of its size the release asks the owner to close (`request(false)`). The owner decides and calls `sync`
+ * again. `presented(false)` says it is fully closed, so the owner can unmount it.
  */
-export function dragToClose(node: HTMLElement, initial: DragToCloseOptions) {
-  let options = initial;
-  let pointer: number | null = null;
-  let start = { x: 0, y: 0 };
-  let size = 0;
-  let dragging = false;
-  let animation: Animation | null = null;
-  let quietUntil = 0;
+export function createDrawerMotion(options: {
+  side: () => DrawerSide;
+  panel: HTMLElement;
+  scrim: HTMLElement | null;
+  request(open: boolean): void;
+  presented(shown: boolean): void;
+}) {
+  const doc = options.panel.ownerDocument,
+    win = doc.defaultView;
+  if (!win) throw Error("Missing drawer window");
+  const reduced = win.matchMedia("(prefers-reduced-motion: reduce)");
+  // No CSS animation (a test DOM): the slide still runs in time; there is just nothing to seek.
+  const panel = createSeekPlayback(
+    options.panel,
+    () => `vb-drawer-${options.side()}`,
+    () => {},
+  );
+  const scrim = options.scrim
+    ? createSeekPlayback(
+        options.scrim,
+        () => "vb-drawer-scrim",
+        () => {},
+      )
+    : null;
+  let active = true,
+    progress = 0,
+    target: 0 | 1 | null = null,
+    frame: number | null = null,
+    shown = false;
+  let drag: {
+    id: number;
+    node: HTMLElement;
+    role: DrawerRole;
+    x: number;
+    y: number;
+    size: number;
+    initial: number;
+    distance: number;
+    moving: boolean;
+  } | null = null;
+  const quiet = new WeakMap<HTMLElement, number>();
+  const stops = new Set<() => void>();
 
-  const offset = (side: DrawerSide) =>
-    side === "top"
-      ? "0 -100%"
-      : side === "bottom"
-        ? "0 100%"
-        : side === "left"
-          ? "-100% 0"
-          : "100% 0";
+  function position(value: number) {
+    progress = clamp(value, 0, 1);
+    panel.set(progress);
+    scrim?.set(progress);
+  }
+  function show(value: boolean) {
+    if (shown === value) return;
+    shown = value;
+    options.presented(value);
+  }
+  function stop() {
+    if (frame !== null) win!.cancelAnimationFrame(frame);
+    frame = null;
+  }
+  // A slide lasts in proportion to the distance it has left, never under 0.4 of a full one.
+  function settle(to: 0 | 1) {
+    stop();
+    target = to;
+    if (to) show(true);
+    const from = progress,
+      start = win!.performance.now(),
+      duration = reduced.matches
+        ? 0
+        : (to ? DRAWER_OPEN_MS : DRAWER_CLOSE_MS) *
+          Math.max(0.4, Math.abs(to - from));
+    const run = () => {
+      frame = null;
+      if (!active || target !== to) return;
+      const fraction =
+        duration > 0
+          ? clamp((win!.performance.now() - start) / duration, 0, 1)
+          : 1;
+      position(from + (to - from) * drawerEasing(fraction));
+      if (fraction < 1) frame = win!.requestAnimationFrame(run);
+      else if (!to) show(false);
+    };
+    run();
+  }
 
-  const follow = (progress: number) => {
-    animation ??= node.animate(
-      [{ translate: "0 0" }, { translate: offset(options.side) }],
-      { duration: 1000, fill: "both" },
-    );
-    animation.pause();
-    animation.currentTime = progress * 1000;
-  };
-
-  const down = (event: PointerEvent) => {
-    if (options.enabled === false || pointer !== null || event.button > 0)
-      return;
-    if (scrolledAway(event.target, node, options.side)) return;
-    pointer = event.pointerId;
-    start = { x: event.clientX, y: event.clientY };
-    size = axisSize(options.side, node.getBoundingClientRect());
-    dragging = false;
-  };
-
-  const move = (event: PointerEvent) => {
-    if (event.pointerId !== pointer) return;
-    const distance = closingDistance(
-      options.side,
-      event.clientX - start.x,
-      event.clientY - start.y,
-    );
-    if (!dragging) {
-      const across = closingDistance(
-        options.side === "top" || options.side === "bottom"
-          ? "right"
-          : "bottom",
-        event.clientX - start.x,
-        event.clientY - start.y,
-      );
-      if (Math.abs(distance) < DRAWER_DRAG_THRESHOLD) return;
-      // Sideways, or towards opening: not ours (a scroll, or a swipe on a row).
-      if (distance < 0 || Math.abs(across) > Math.abs(distance)) {
-        pointer = null;
+  function release() {
+    const old = drag;
+    drag = null;
+    win!.removeEventListener("pointermove", move);
+    win!.removeEventListener("pointerup", up);
+    win!.removeEventListener("pointercancel", cancel);
+    if (old?.node.hasPointerCapture?.(old.id))
+      old.node.releasePointerCapture(old.id);
+    return old;
+  }
+  function move(event: PointerEvent) {
+    if (!drag || event.pointerId !== drag.id) return;
+    const side = options.side(),
+      dx = event.clientX - drag.x,
+      dy = event.clientY - drag.y,
+      distance = closingDistance(side, dx, dy),
+      across =
+        side === "top" || side === "bottom" ? Math.abs(dx) : Math.abs(dy);
+    if (!drag.moving) {
+      if (Math.max(Math.abs(distance), across) < DRAWER_DRAG_THRESHOLD) return;
+      // Sideways is not ours (a swipe on a row); in the panel, towards opening is a scroll.
+      if (
+        across > Math.abs(distance) ||
+        (drag.role === "panel" && distance < 0)
+      ) {
+        release();
         return;
       }
-      dragging = true;
+      stop();
+      drag.moving = true;
       try {
-        node.setPointerCapture(event.pointerId);
-      } catch {}
+        drag.node.setPointerCapture(drag.id);
+      } catch {
+        /* A synthetic pointer: window listeners still follow it. */
+      }
     }
-    event.preventDefault();
-    follow(drawerProgress(0, 0, Math.max(0, distance), size));
+    drag.distance = distance;
+    position(drag.initial - distance / drag.size);
+  }
+  function finish(event: PointerEvent, cancelled: boolean) {
+    if (!drag || event.pointerId !== drag.id) return;
+    const old = release();
+    if (!old?.moving || !active) return;
+    quiet.set(old.node, win!.performance.now() + 400);
+    const distance = cancelled
+      ? old.distance
+      : closingDistance(
+          options.side(),
+          event.clientX - old.x,
+          event.clientY - old.y,
+        );
+    if (drawerEndpoint(1, 0, -distance, old.size) === 0) {
+      settle(0);
+      options.request(false);
+    } else settle(1);
+  }
+  function up(event: PointerEvent) {
+    finish(event, false);
+  }
+  function cancel(event: PointerEvent) {
+    finish(event, true);
+  }
+  const motionChanged = () => {
+    if (active && reduced.matches && target !== null) settle(target);
   };
+  reduced.addEventListener("change", motionChanged);
 
-  const up = (event: PointerEvent) => {
-    if (event.pointerId !== pointer) return;
-    pointer = null;
-    if (!dragging || !animation) return;
-    dragging = false;
-    quietUntil = Date.now() + 400;
-    const distance = closingDistance(
-      options.side,
-      event.clientX - start.x,
-      event.clientY - start.y,
-    );
-    const progress = drawerProgress(0, 0, Math.max(0, distance), size);
-    const close = drawerEndpoint(0, 0, Math.max(0, distance), size) === 1;
-    const done = animation;
-    const time = reduceMotion()
-      ? 0
-      : close
-        ? DRAWER_CLOSE_MS * (1 - progress)
-        : DRAWER_CLOSE_MS * progress;
-    const from = progress;
-    const to = close ? 1 : 0;
-    done.cancel();
-    animation = null;
-    const slide = node.animate(
-      [
-        { translate: interpolate(options.side, from) },
-        { translate: interpolate(options.side, to) },
-      ],
-      { duration: time, easing: DRAWER_EASING, fill: "forwards" },
-    );
-    if (close) {
-      node.dataset.dragClosed = "";
-      slide.onfinish = () => options.onclose();
-    } else slide.onfinish = () => slide.cancel();
-  };
-
-  const interpolate = (side: DrawerSide, progress: number) => {
-    const p = `${Math.round(progress * 1000) / 10}%`;
-    return side === "top"
-      ? `0 -${p}`
-      : side === "bottom"
-        ? `0 ${p}`
-        : side === "left"
-          ? `-${p} 0`
-          : `${p} 0`;
-  };
-
-  const cancel = (event: PointerEvent) => {
-    if (event.pointerId !== pointer) return;
-    pointer = null;
-    dragging = false;
-    animation?.cancel();
-    animation = null;
-  };
-
-  const click = (event: MouseEvent) => {
-    if (Date.now() < quietUntil) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  };
-
-  node.addEventListener("pointerdown", down);
-  node.addEventListener("pointermove", move);
-  node.addEventListener("pointerup", up);
-  node.addEventListener("pointercancel", cancel);
-  node.addEventListener("click", click, true);
   return {
-    update(next: DragToCloseOptions) {
-      options = next;
+    /** Slide to open or closed; during a drag it waits for the release. */
+    sync(open: boolean) {
+      if (!active || drag?.moving) return;
+      const to = open ? 1 : 0;
+      if (to !== target) settle(to);
     },
-    destroy() {
-      node.removeEventListener("pointerdown", down);
-      node.removeEventListener("pointermove", move);
-      node.removeEventListener("pointerup", up);
-      node.removeEventListener("pointercancel", cancel);
-      node.removeEventListener("click", click, true);
-      animation?.cancel();
+    /** The same drag for every part of the drawer. A tap stays a tap (its own click handler acts). */
+    bind(node: HTMLElement, role: DrawerRole) {
+      const down = (event: PointerEvent) => {
+        if (
+          !active ||
+          drag ||
+          target !== 1 ||
+          event.button !== 0 ||
+          !event.isPrimary
+        )
+          return;
+        const side = options.side();
+        if (role === "panel" && scrolledAway(event.target, options.panel, side))
+          return;
+        const size = axisSize(side, options.panel.getBoundingClientRect());
+        if (!(size > 0)) return;
+        quiet.delete(node);
+        drag = {
+          id: event.pointerId,
+          node,
+          role,
+          x: event.clientX,
+          y: event.clientY,
+          size,
+          initial: progress,
+          distance: 0,
+          moving: false,
+        };
+        win!.addEventListener("pointermove", move);
+        win!.addEventListener("pointerup", up);
+        win!.addEventListener("pointercancel", cancel);
+      };
+      // The click that ends a drag is not a tap.
+      const click = (event: MouseEvent) => {
+        if (
+          (quiet.get(node) ?? 0) >= win!.performance.now() &&
+          event.detail > 0
+        ) {
+          quiet.delete(node);
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      };
+      node.addEventListener("pointerdown", down);
+      node.addEventListener("click", click, true);
+      const off = () => {
+        if (drag?.node === node) release();
+        node.removeEventListener("pointerdown", down);
+        node.removeEventListener("click", click, true);
+        stops.delete(off);
+      };
+      stops.add(off);
+      return off;
+    },
+    dispose() {
+      if (!active) return;
+      active = false;
+      stop();
+      release();
+      for (const off of [...stops]) off();
+      panel.dispose();
+      scrim?.dispose();
+      reduced.removeEventListener("change", motionChanged);
     },
   };
 }
+export type DrawerMotion = ReturnType<typeof createDrawerMotion>;

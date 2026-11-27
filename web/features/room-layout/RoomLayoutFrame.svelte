@@ -1,26 +1,23 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { fromAction } from "svelte/attachments";
-  import DrawerHandle from "../../lib/studio/DrawerHandle.svelte";
-  import { drawerPanel } from "../../lib/studio/drawer";
+  import Drawer from "../../lib/studio/Drawer.svelte";
+  import DrawerContent from "../../lib/studio/DrawerContent.svelte";
   import { COMPOSER_SLOT } from "../composer/shape";
   import Button from "../../lib/studio/Button.svelte";
   import { paneFocus } from "./focus";
-  import type { RoomLayoutProps, RoomLayoutCells, RoomSheet } from "./types";
+  import type { RoomLayoutProps, RoomLayoutCells } from "./types";
   let props: RoomLayoutProps = $props();
   const owner = untrack(() => props.controller),
     view = owner.state;
   let root = $state<HTMLDivElement>(),
     viewport = $state<HTMLDivElement>(),
-    sidebar = $state<HTMLElement>(),
     header = $state<HTMLElement>(),
     peek = $state<HTMLDivElement>(),
     attention = $state<HTMLDivElement>(),
     chat = $state<HTMLDivElement>(),
     composer = $state<HTMLDivElement>(),
     documentToolbar = $state<HTMLDivElement>(),
-    documentCell = $state<HTMLElement>(),
-    scrim = $state<HTMLButtonElement>();
+    documentCell = $state<HTMLElement>();
   const widthClass = $derived(
     $view.sidebarCollapsed
       ? "animate-room-document-width-rail"
@@ -28,22 +25,8 @@
   );
   // The phone room's bottom bar: a sixth grid row, absent on desktop.
   const tabs = $derived($view.mobile && !!props.tabbar);
-  const docPresented = $derived(
-    $view.presentedSheet === "doc" ||
-      $view.draggingSheet === "doc" ||
-      $view.leavingSheet === "doc",
-  );
-  const sidePresented = $derived(
-    $view.presentedSheet === "side" ||
-      $view.draggingSheet === "side" ||
-      $view.leavingSheet === "side",
-  );
-  const docLive = $derived(
-    !$view.mobile || $view.sheet === "doc" || $view.draggingSheet === "doc",
-  );
-  const sideLive = $derived(
-    !$view.mobile || $view.sheet === "side" || $view.draggingSheet === "side",
-  );
+  const docPresented = $derived($view.presentedSheet === "doc");
+  const docLive = $derived(!$view.mobile || $view.sheet === "doc");
   const rightVisible = $derived($view.documentVisible);
   // Desktop: one frame (sidebar, chat and the open pane on one surface, hairlines
   // between them); with the pane open the top bar runs across chat and pane.
@@ -71,7 +54,7 @@
   const paneClass = $derived(
     tabs
       ? // A tab, not a floor: it fills the space between the header and the bar.
-        "col-start-2 row-start-3 row-end-6 z-20 h-full w-full animate-room-sheet"
+        "col-start-2 row-start-3 row-end-6 z-20 h-full w-full animate-room-pane"
       : $view.mobile
         ? // Phones: the pane takes the chat's place (under the top bar and the files strip), not a drawer.
           "col-start-2 row-start-3 row-end-6 z-20 h-full w-full animate-room-pane pb-[env(safe-area-inset-bottom)]"
@@ -88,44 +71,25 @@
               people && "max-w-[330px]!",
             ],
   );
-  function handle(
-    node: HTMLElement,
-    settings: { sheet: RoomSheet; opening: boolean },
-  ) {
-    return {
-      destroy: owner.bindHandle(node, settings.sheet, settings.opening),
-    };
-  }
   function widthInput(node: HTMLInputElement) {
     return { destroy: owner.bindWidthInput(node) };
-  }
-  function close(event: MouseEvent) {
-    if (
-      event.currentTarget instanceof HTMLButtonElement &&
-      event.currentTarget.isConnected &&
-      !event.currentTarget.disabled
-    )
-      owner.closeSheet();
   }
   $effect(() => {
     if (
       !root ||
       !viewport ||
-      !sidebar ||
       !header ||
       !peek ||
       !attention ||
       !chat ||
       !composer ||
       !documentToolbar ||
-      !documentCell ||
-      !scrim
+      !documentCell
     )
       return;
     const cells: RoomLayoutCells = {
       root,
       viewport,
-      sidebar,
       header,
       peek,
       attention,
@@ -133,7 +97,6 @@
       composer,
       documentToolbar,
       document: documentCell,
-      scrim,
     };
     const stop = owner.mount(cells);
     const stopChat = untrack(() => props.onChatSurface?.(cells.chat)),
@@ -167,44 +130,50 @@
       $view.resizing && "cursor-col-resize select-none",
     ]}
   >
-    <aside
-      bind:this={sidebar}
-      inert={!sideLive}
-      data-room-sidebar
-      class={[
-        "flex min-h-0 min-w-0 flex-col overflow-x-clip bg-sidebar text-sidebar-foreground",
-        $view.mobile
-          ? [
-              // The shape of every phone drawer from the top (web/lib/studio/drawer.ts), on the sidebar's colors.
-              drawerPanel({ side: "top" }).surface({
-                class:
-                  "absolute inset-x-0 top-0 z-50 h-[88%] flex-none animate-room-sheet bg-sidebar text-sidebar-foreground",
-              }),
-              sidePresented ? "visible" : "invisible",
-            ]
-          : [
-              "relative z-10 col-start-1 row-start-1 row-end-6 my-2 ml-px overflow-hidden rounded-l-surface border-r border-border",
-              $view.sidebarCollapsed ? "w-room-sidebar-rail" : "w-room-sidebar",
-              (focus || (staged && props.stageFull)) && "hidden!",
-            ],
-      ]}
-    >
-      <div
-        class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
+    {#if $view.mobile}
+      <!-- Phones: the threads are a drawer from the top, the same Drawer as every phone drawer (Gimenes #6221).
+           Closing it goes through the room's history, so Back closes it too. -->
+      <Drawer
+        open={$view.active && $view.sheet === "side"}
+        onOpenChange={(open) => {
+          if (!open) owner.closeSheet();
+        }}
       >
-        {@render props.sidebar()}
-      </div>
-      <DrawerHandle
-        {@attach fromAction(handle, () => ({
-          sheet: "side" as const,
-          opening: false,
-        }))}
-        label={props.labels.closeSidebar}
-        disabled={!$view.active || $view.sheet !== "side"}
-        onclick={close}
-        class={$view.mobile ? "" : "hidden"}
-      />
-    </aside>
+        <DrawerContent
+          side="top"
+          fill
+          closeLabel={props.labels.closeSidebar}
+          aria-label={props.labels.closeSidebar}
+          data-room-sidebar
+          overlayProps={{
+            "data-room-scrim": "",
+            "aria-label": props.labels.closeSheet,
+          }}
+          surfaceClass="bg-sidebar text-sidebar-foreground"
+        >
+          <div
+            class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
+          >
+            {@render props.sidebar()}
+          </div>
+        </DrawerContent>
+      </Drawer>
+    {:else}
+      <aside
+        data-room-sidebar
+        class={[
+          "relative z-10 col-start-1 row-start-1 row-end-6 my-2 ml-px flex min-h-0 min-w-0 flex-col overflow-hidden overflow-x-clip rounded-l-surface border-r border-border bg-sidebar text-sidebar-foreground",
+          $view.sidebarCollapsed ? "w-room-sidebar-rail" : "w-room-sidebar",
+          (focus || (staged && props.stageFull)) && "hidden!",
+        ]}
+      >
+        <div
+          class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
+        >
+          {@render props.sidebar()}
+        </div>
+      </aside>
+    {/if}
     {#if !$view.mobile}<div
         aria-hidden="true"
         data-room-surface="chat"
@@ -233,7 +202,6 @@
     <!-- No strip under the bar in the sheet (Gimenes #6117): the ⋮ switches panes. The cell stays for the layout, empty. -->
     <div
       bind:this={peek}
-      use:handle={{ sheet: "doc", opening: true }}
       inert={props.overlayOpen || ($view.mobile && $view.sheet === "side")}
       data-room-peek
       class={"hidden"}
@@ -339,15 +307,6 @@
       >
         {@render props.document()}
       </div>
-      <button
-        type="button"
-        use:handle={{ sheet: "doc", opening: false }}
-        aria-label={props.labels.closeDocument}
-        disabled={!$view.active || $view.sheet !== "doc"}
-        onclick={close}
-        class="hidden"
-        ><span class="h-1 w-10 rounded-full bg-border"></span></button
-      >
     </section>
     {#if tabs}<div
         data-room-tabbar
@@ -387,28 +346,6 @@
         ? "z-30 col-start-3 row-start-2 row-end-6 mb-2 -ml-1 h-auto w-2 cursor-col-resize touch-none appearance-none rounded-full border-0 bg-transparent bg-clip-content px-[3px] py-0 outline-none transition-colors duration-150 hover:bg-ring/50 focus-visible:bg-ring [&::-moz-range-thumb]:size-0 [&::-moz-range-thumb]:border-0 [&::-webkit-slider-thumb]:size-0 [&::-webkit-slider-thumb]:appearance-none"
         : "hidden"}
     />
-    <button
-      bind:this={scrim}
-      type="button"
-      tabindex="-1"
-      aria-label={props.labels.closeSheet}
-      disabled={!$view.active || !$view.sheet}
-      onclick={close}
-      use:handle={{ sheet: "side", opening: false }}
-      data-room-scrim
-      class={!$view.mobile
-        ? "hidden"
-        : [
-            // Glass (Gimenes #3781): the room behind the title menu blurs as it dims; a tap on it closes the menu.
-            "col-start-2 row-start-3 animate-room-scrim touch-none border-0 bg-scrim p-0 backdrop-blur-sm",
-            // The thread sheet dims the bottom bar too.
-            tabs ? "row-end-7" : "row-end-6",
-            $view.presentedSheet === "side" ? "absolute inset-0 z-40" : "z-10",
-            // The doc pane covers the chat; only the side sheet dims the room.
-            sidePresented ? "visible" : "invisible",
-            $view.sheet ? "pointer-events-auto" : "pointer-events-none",
-          ]}
-    ></button>
   </div>
   {#if $view.closingUnconfirmed}<div
       role="status"

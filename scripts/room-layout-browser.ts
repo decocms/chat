@@ -103,8 +103,12 @@ try {
     scrim = page.locator("[data-room-scrim]");
   const width = () =>
     documentCell.evaluate((node) => node.getBoundingClientRect().width);
+  // The threads drawer's scrim exists only while the drawer is open (lib/studio/DrawerContent.svelte).
   const alpha = () =>
-    scrim.evaluate((node) => Number(getComputedStyle(node).opacity));
+    page!.evaluate(() => {
+      const node = document.querySelector("[data-room-scrim]");
+      return node ? Number(getComputedStyle(node).opacity) : 0;
+    });
   const sheet = () => page!.locator("[data-layout-sheet]").textContent();
   checkpoint("desktop/container-width-native-input");
   await expect.poll(width).toBeCloseTo(380, 1);
@@ -174,7 +178,8 @@ try {
     .getByRole("button", { name: "Open document", exact: true })
     .click();
   await expect.poll(sheet).toBe("doc");
-  await expect.poll(alpha).toBe(1);
+  // The doc pane is not a drawer: no scrim.
+  await expect.poll(alpha).toBe(0);
   assert.equal(await page.evaluate(() => history.length), initialHistory + 1);
   await page.getByRole("button", { name: "Open sidebar", exact: true }).click();
   await expect.poll(sheet).toBe("side");
@@ -239,7 +244,8 @@ try {
   await page
     .getByRole("button", { name: "Open document", exact: true })
     .click();
-  await expect.poll(alpha).toBe(1);
+  // The pane takes the chat's place: no drawer, so no scrim.
+  await expect.poll(alpha).toBe(0);
   await expect(
     page
       .getByRole("button", { name: "Close document", exact: true })
@@ -265,7 +271,7 @@ try {
     .getByRole("button", { name: "Open document", exact: true })
     .click();
   await expect.poll(sheet).toBe("doc");
-  await expect.poll(alpha).toBe(1);
+  await expect.poll(alpha).toBe(0);
   await page.getByRole("button", { name: "Edit form", exact: true }).click();
   await page.getByLabel("Document draft", { exact: true }).focus();
   const editingHeight = await documentCell.evaluate(
@@ -309,7 +315,10 @@ try {
   await expect(page).toHaveURL(/#layout-deferred$/);
   await page.getByRole("button", { name: "Open sidebar", exact: true }).click();
   const pickHistory = await page.evaluate(() => history.length);
-  await page.getByRole("button", { name: "Pick thread", exact: true }).click();
+  // A thread row inside the drawer (the drawer is modal: what is under it can't be clicked).
+  await page
+    .getByRole("button", { name: "Choose fixture thread", exact: true })
+    .click();
   await expect(page).toHaveURL(/#layout-picked$/);
   assert.equal(await page.evaluate(() => history.length), pickHistory);
   checkpoint("dispose/no-style-writes");
