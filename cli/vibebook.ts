@@ -10,9 +10,10 @@ import { homedir, hostname, tmpdir } from "node:os";
 import { basename, delimiter, dirname, join } from "node:path";
 import { scanTranscripts } from "./backfill";
 import { createAgentRunners, type MachineAgent } from "./agentRunners";
+import { menuOf } from "./menu";
 import { AGENT_KINDS, agentVersion as versionNumber, type MachineKinds } from "../shared/agentKinds";
 
-const VERSION = "1.7.14";
+const VERSION = "1.7.15";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -1270,7 +1271,7 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
 // looks at one with `hc attach vb-<room>`, or in the Herdr app. Off only mutes. ~/.vibebook/herdr-core.json maps them.
 const HERDR_CORE = join(HOME, `${RUN_AGENT === "codex" ? "herdr-core-codex" : "herdr-core"}${TAG}.json`);
 type CoreTerminal = { address: string; name?: string | null; agent?: string | null; cwd?: string; state?: string; status?: string | null };
-type CoreRoom = HerdrRoom & { terminal?: string; space?: string };
+type CoreRoom = HerdrRoom & { terminal?: string; space?: string; blocked_since?: number; ask?: { id: number; sig: string; options: string[] } };
 /** hc as this runner's own client: without the HC_* variables of a terminal that it may run in, so a send is not
  *  marked as from that terminal (Claude refused an `/exit` marked `<hc from=…>`) and a new terminal has no parent. */
 function hc(...args: string[]): any {
@@ -1305,6 +1306,45 @@ function coreArgv(session: string | undefined, room: string): string[] {
   // ended at once and each room stayed "Abrindo o Claude Code…" (Viktor #6423). fish passes the extra arguments in $argv.
   const exec = /(^|\/)fish$/.test(shell) ? "exec $argv" : 'exec "$0" "$@"';
   return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", `VIBEBOOK_ROOM=${room}`, shell, "-ilc", exec, ...argv];
+}
+/** How long a terminal sits at a menu before the runner asks in the room: the hooks post theirs at once, so a menu still
+ *  on the screen after this is one no hook saw. */
+const ASK_AFTER = 20_000;
+/** Menus the plugin's hooks already bring to the room (PermissionRequest, AskUserQuestion, a plan): not asked twice. */
+const HOOKED_MENU = /Do you want to (proceed|make this edit|create|allow|run|fetch)|Would you like to proceed|Submit answers|☐ |☒ /;
+/** One pass of the room-question fallback for a runner terminal (herdrCoreSync); true when `e` changed. */
+function screenAsk(e: CoreRoom, address: string, room: string): boolean {
+  const call = (tool: string, args: Record<string, unknown>) => {
+    try {
+      const env = { ...process.env, ...(e.session ? { CLAUDE_CODE_SESSION_ID: e.session } : {}), VIBEBOOK_ROOM: room };
+      return JSON.parse(execFileSync(process.execPath, [process.argv[1], "call", tool, JSON.stringify({ room_id: room, ...args })], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], env, timeout: 30_000 }));
+    } catch {
+      return {};
+    }
+  };
+  const menu = e.blocked_since ? menuOf(String(hc("read", address, "--lines", "30").text ?? "")) : null;
+  const sig = menu ? `${menu.question}|${menu.options.join("|")}` : "";
+  if (e.ask && e.ask.sig !== sig) {
+    // The terminal moved on (answered there, or another question): the room one closes.
+    call("permission_close", { message_id: e.ask.id });
+    delete e.ask;
+    return true;
+  }
+  if (e.ask) {
+    const answer = String(call("permission_wait", { message_id: e.ask.id, timeout_seconds: 1 }).text ?? "");
+    const i = e.ask.options.indexOf(answer);
+    if (i < 0) return false;
+    hc("keys", address, String(i + 1));
+    log("info", "claude", `answered "${short(menu?.question, 60)}" from the room: ${answer}`, { room });
+    delete e.ask;
+    return true;
+  }
+  if (!menu || HOOKED_MENU.test(menu.question) || Date.now() - (e.blocked_since ?? Date.now()) < ASK_AFTER) return false;
+  const posted = call("post", { text: `❓ Seu Claude pergunta no terminal: ${menu.question}`, choices: menu.options });
+  if (!posted.ok || !posted.id) return false;
+  e.ask = { id: posted.id, sig, options: menu.options };
+  log("info", "claude", `asked the room: "${short(menu.question, 60)}"`, { room });
+  return true;
 }
 /** The terminal-mode map, while it still has live herdr panes from before this mode: a room there is moved, not
  *  opened twice (its free Claude gets /exit, then its conversation reopens here with --resume). */
@@ -1406,6 +1446,16 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
               log("warn", "claude", `${title}: its ${RUN_NAME} waited at "trust this folder?"; trusted the folder and ended its terminal to open it again`, { room, folder: tilde(e.folder) });
               continue;
             }
+          } catch {}
+        }
+        // Stuck at a menu that no hook brings to the room (the Claude in Chrome site question, "auto mode"…): after
+        // ASK_AFTER it goes to the room as a question with the menu's options, and the answer comes back as the option's
+        // key (Gimenes #6508, #6514). Closed in the room when the terminal moves on without it.
+        if (t.name === `vb-${room}${TAG}`.slice(0, 32)) {
+          if (t.status === "blocked") e.blocked_since ??= Date.now();
+          else delete e.blocked_since;
+          try {
+            if (screenAsk(e, t.address, room)) writePrivate(HERDR_CORE, map);
           } catch {}
         }
         // A plugin update, as in the terminal mode: /exit once it is free (its session kept), then it reopens below with

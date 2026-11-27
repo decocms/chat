@@ -125,6 +125,47 @@ function createAgentRunners(opts) {
   };
 }
 
+// cli/menu.ts
+function menuOf(screen) {
+  const lines = screen.split(`
+`).map((l) => l.replace(/\s+$/, ""));
+  let last = -1;
+  for (let i = lines.length - 1;i >= 0; i--)
+    if (/^\s*(❯\s*)?\d\.\s+\S/.test(lines[i])) {
+      last = i;
+      break;
+    }
+  if (last < 0)
+    return null;
+  let first = last;
+  while (first > 0 && /^\s*(❯\s*)?\d\.\s+\S/.test(lines[first - 1]))
+    first--;
+  const options = lines.slice(first, last + 1).map((l) => l.replace(/^\s*(❯\s*)?\d\.\s+/, "").trim());
+  if (options.length < 2 || options.length > 9)
+    return null;
+  const above = [];
+  for (let i = first - 1;i >= 0 && above.length < 4; i--) {
+    const l = lines[i].trim();
+    if (/^[╌┄\-]{6,}$/.test(l))
+      continue;
+    if (/^[─━═]{6,}$/.test(l)) {
+      if (above.length)
+        break;
+      else
+        continue;
+    }
+    if (!l) {
+      if (above.length)
+        break;
+      else
+        continue;
+    }
+    above.unshift(l);
+  }
+  const question = above.join(" ").replace(/\s+/g, " ").slice(0, 400);
+  return question ? { question, options } : null;
+}
+
 // shared/agentKinds.ts
 var AGENT_KINDS = ["claude", "codex", "agy", "opencode"];
 function agentVersion(raw) {
@@ -132,7 +173,7 @@ function agentVersion(raw) {
 }
 
 // cli/vibebook.ts
-var VERSION = "1.7.14";
+var VERSION = "1.7.15";
 var HOME = process.env.VIBEBOOK_HOME || join2(homedir(), ".vibebook");
 var SESSION = join2(HOME, "session.json");
 var AGENTS = join2(HOME, "agents.json");
@@ -1435,6 +1476,43 @@ function coreArgv(session, room) {
   const exec = /(^|\/)fish$/.test(shell) ? "exec $argv" : 'exec "$0" "$@"';
   return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", `VIBEBOOK_ROOM=${room}`, shell, "-ilc", exec, ...argv];
 }
+var ASK_AFTER = 20000;
+var HOOKED_MENU = /Do you want to (proceed|make this edit|create|allow|run|fetch)|Would you like to proceed|Submit answers|☐ |☒ /;
+function screenAsk(e, address, room) {
+  const call = (tool, args) => {
+    try {
+      const env = { ...process.env, ...e.session ? { CLAUDE_CODE_SESSION_ID: e.session } : {}, VIBEBOOK_ROOM: room };
+      return JSON.parse(execFileSync(process.execPath, [process.argv[1], "call", tool, JSON.stringify({ room_id: room, ...args })], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], env, timeout: 30000 }));
+    } catch {
+      return {};
+    }
+  };
+  const menu = e.blocked_since ? menuOf(String(hc("read", address, "--lines", "30").text ?? "")) : null;
+  const sig = menu ? `${menu.question}|${menu.options.join("|")}` : "";
+  if (e.ask && e.ask.sig !== sig) {
+    call("permission_close", { message_id: e.ask.id });
+    delete e.ask;
+    return true;
+  }
+  if (e.ask) {
+    const answer = String(call("permission_wait", { message_id: e.ask.id, timeout_seconds: 1 }).text ?? "");
+    const i = e.ask.options.indexOf(answer);
+    if (i < 0)
+      return false;
+    hc("keys", address, String(i + 1));
+    log("info", "claude", `answered "${short(menu?.question, 60)}" from the room: ${answer}`, { room });
+    delete e.ask;
+    return true;
+  }
+  if (!menu || HOOKED_MENU.test(menu.question) || Date.now() - (e.blocked_since ?? Date.now()) < ASK_AFTER)
+    return false;
+  const posted = call("post", { text: `❓ Seu Claude pergunta no terminal: ${menu.question}`, choices: menu.options });
+  if (!posted.ok || !posted.id)
+    return false;
+  e.ask = { id: posted.id, sig, options: menu.options };
+  log("info", "claude", `asked the room: "${short(menu.question, 60)}"`, { room });
+  return true;
+}
 function herdrLeftovers() {
   const map = readJson(HERDR_FILE, {});
   if (!Object.values(map).some((e) => e.workspace))
@@ -1533,6 +1611,16 @@ async function herdrCoreSync(agent, tools) {
               log("warn", "claude", `${title}: its ${RUN_NAME} waited at "trust this folder?"; trusted the folder and ended its terminal to open it again`, { room, folder: tilde(e.folder) });
               continue;
             }
+          } catch {}
+        }
+        if (t.name === `vb-${room}${TAG}`.slice(0, 32)) {
+          if (t.status === "blocked")
+            e.blocked_since ??= Date.now();
+          else
+            delete e.blocked_since;
+          try {
+            if (screenAsk(e, t.address, room))
+              writePrivate(HERDR_CORE, map);
           } catch {}
         }
         if (pv && e.plugin_v && !e.plugin_v.startsWith("hooks:"))
