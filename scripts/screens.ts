@@ -1051,6 +1051,7 @@ try {
   if (flag("threadmenu")) await threadMenuScreens(browser, shots);
   if (flag("topbar")) await topbarScreens(browser, shots);
   if (flag("choices")) await choicesScreens(browser, shots);
+  if (flag("ask")) await askScreens(browser, shots);
   if (flag("receipts")) await receiptsScreens(browser, shots);
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
@@ -2190,6 +2191,89 @@ async function choicesScreens(
   });
   await phone.addCookies([{ name: "dev_as", value: email, url: base }]);
   await ask(await phone.newPage(), "choices-other-390", "en");
+  await phone.close();
+}
+
+/**
+ * Your agent waiting on you, in the user center (--ask, Gimenes #6617): the test agent posts a permission question in
+ * a new room, and the home's user center shows it with Aprovar / Negar. Aprovar there answers it: permission_wait
+ * gets "Aprovar" and the row goes. The phone's Chats list shows the same row in its box.
+ */
+async function askScreens(
+  browser: import("playwright").Browser,
+  shots: string[],
+) {
+  const email = (
+    (await (await fetch(`${base}/api/me`)).json()) as { email: string }
+  ).email;
+  const tool = await connectTestAgent(email, "Claude Code (test)");
+  const question = async () => {
+    const { room_id } = (await tool("create_room", {
+      title: "Loja Circulei",
+    })) as { room_id: string };
+    const { id } = (await tool("post", {
+      room_id,
+      text: "⏸ Seu Claude pede permissão: **Bash** · Publica o tema no Shopify\n`shopify theme push --live`\n\nSó vale a resposta da sua conta logada aqui.",
+      choices: ["Aprovar", "Negar"],
+    })) as { id: number };
+    return { room_id, id };
+  };
+  const desk = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    locale: "pt-BR",
+  });
+  await desk.addCookies([{ name: "dev_as", value: email, url: base }]);
+  const page = await desk.newPage();
+  await page.goto(`${base}/`, { waitUntil: "networkidle" });
+  // Questions left by an earlier run come first (the oldest shows): answer them, so the row shows this run's.
+  const left = page.locator("[data-agent-ask]:visible");
+  for (let i = 0; i < 20 && (await left.count()); i++) {
+    const ref = await left.getAttribute("data-agent-ask");
+    await left.getByRole("button", { name: "Negar" }).click();
+    await page
+      .locator(`[data-agent-ask="${ref}"]`)
+      .waitFor({ state: "detached", timeout: 15_000 });
+  }
+  const asked = await question();
+  await page.reload({ waitUntil: "networkidle" });
+  const row = page.locator(`[data-agent-ask="a${asked.id}"]:visible`);
+  await row.waitFor();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: join(out, "ask-center-1440.png") });
+  shots.push("ask-center-1440.png");
+  await row.getByRole("button", { name: "Aprovar" }).click();
+  const answer = await tool("permission_wait", {
+    room_id: asked.room_id,
+    message_id: asked.id,
+    timeout_seconds: 8,
+  });
+  if (answer.decision !== "allow" && answer.text !== "Aprovar")
+    throw new Error(
+      `ask: Aprovar in the user center did not reach permission_wait (${JSON.stringify(answer)})`,
+    );
+  await row.waitFor({ state: "detached", timeout: 15_000 });
+  await page.screenshot({ path: join(out, "ask-center-answered-1440.png") });
+  shots.push("ask-center-answered-1440.png");
+  await desk.close();
+  const phone = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: "pt-BR",
+    isMobile: true,
+    hasTouch: true,
+  });
+  await phone.addCookies([{ name: "dev_as", value: email, url: base }]);
+  const again = await question();
+  const mobile = await phone.newPage();
+  await mobile.goto(`${base}/`, { waitUntil: "networkidle" });
+  await mobile.locator(`[data-agent-ask="a${again.id}"]:visible`).waitFor();
+  await mobile.waitForTimeout(300);
+  await mobile.screenshot({ path: join(out, "ask-center-390.png") });
+  shots.push("ask-center-390.png");
+  await tool("post", {
+    room_id: again.room_id,
+    text: "ok",
+    reply_to: again.id,
+  });
   await phone.close();
 }
 

@@ -31,6 +31,7 @@
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
   import AppOffer from "../user-center/AppOffer.svelte";
+  import AskRow from "../user-center/AskRow.svelte";
   import Requests from "../app-navigation/Requests.svelte";
   import { roomAvatarVersion } from "../room-scope/model";
   import CallControls from "../call/CallControls.svelte";
@@ -520,6 +521,14 @@
                 lang={services.language === "en" ? "en" : "pt"}
                 onjoin={services.navigation.callbacks.answerInvite}
                 onanswer={services.navigation.callbacks.answerRequest}
+              /><AskRow
+                waits={$personal.me.waits}
+                lang={services.language === "en" ? "en" : "pt"}
+                onopen={(target) => services.actions.navigate(target)}
+                onanswered={() => {
+                  services.personal.invalidate();
+                  void services.personal.refresh();
+                }}
               />{/if}{/if}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
             <div
               data-document-pane="agents"

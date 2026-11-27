@@ -1,9 +1,11 @@
 import { notificationOffer } from "../notifications/device";
 import { installOffer } from "../pwa/platform";
+import { agentAsks } from "./asks";
 
 /**
  * How many rows the user center shows on a phone: a new version, the install
- * offer, the notifications offer, and each invite and message request. The
+ * offer, the notifications offer, each invite and message request, and one
+ * for your agents waiting on you (AskRow). The
  * phone's bar shows this number, so a room needs no banner over its chat.
  */
 export function userCenterCount(input: {
@@ -11,7 +13,11 @@ export function userCenterCount(input: {
   pwa: Parameters<typeof installOffer>[0] &
     Parameters<typeof notificationOffer>[0];
   me:
-    | { invites?: readonly unknown[]; requests: readonly unknown[] }
+    | {
+        invites?: readonly unknown[];
+        requests: readonly unknown[];
+        waits?: Parameters<typeof agentAsks>[0];
+      }
     | null
     | undefined;
 }) {
@@ -20,6 +26,7 @@ export function userCenterCount(input: {
     Number(installOffer(input.pwa)) +
     Number(notificationOffer(input.pwa)) +
     (input.me?.invites?.length ?? 0) +
-    (input.me?.requests.length ?? 0)
+    (input.me?.requests.length ?? 0) +
+    Number(agentAsks(input.me?.waits).length > 0)
   );
 }

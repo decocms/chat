@@ -2882,3 +2882,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · feat/ask-in-user-center · "Seu agent espera você" moves to the user center
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes #6602, #6617, #6647: move the "Your agent is waiting for you" card from the top of the chat to the user center, with the answer buttons. The card showed only in the room of the question, and only when the person was in another thread.
+- Decision:
+  - A new row, `AskRow` (`web/features/user-center/`), reads the `a<msg>` waits of `/api/me` (every room). It shows the oldest question, its room and thread, the options as buttons and "Ver". With more questions the title counts them ("3 agents esperam você"); the next one shows after an answer.
+  - A button sends the option as a reply to the question in its thread, as the room's buttons do (`answerAsk`, the same command as the Home's `inbox.answer`), then reads `/api/me` again.
+  - It sits after the invites and requests, before "Your agent" and the account, on the home and room sidebars and in the phone's Chats list. The phone's count adds one for it, however many questions wait.
+  - The card in `AgentBanners` and `pendingAsk` are removed.
+  - New component, because no existing row has buttons that come from data (`Requests` has fixed Aceitar / ×).
+- Other options: One row per question. Only "Ver", with no answer buttons (Gimenes chose the buttons).
+- Risk: low
+- Undo: Revert the commit.
+- Status: open

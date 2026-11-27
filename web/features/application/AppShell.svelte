@@ -20,6 +20,7 @@
   import UserCenter from "../user-center/UserCenter.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
   import AppOffer from "../user-center/AppOffer.svelte";
+  import AskRow from "../user-center/AskRow.svelte";
   import Requests from "../app-navigation/Requests.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
@@ -383,6 +384,14 @@
               lang={services.language === "en" ? "en" : "pt"}
               onjoin={services.navigation.callbacks.answerInvite}
               onanswer={services.navigation.callbacks.answerRequest}
+            /><AskRow
+              waits={$personal.me.waits}
+              lang={services.language === "en" ? "en" : "pt"}
+              onopen={(target) => services.actions.navigate(target)}
+              onanswered={() => {
+                services.personal.invalidate();
+                void services.personal.refresh();
+              }}
             />{/if}<AccountRow
             me={$personal.me}
             current={settings}

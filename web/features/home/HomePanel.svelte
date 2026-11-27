@@ -35,6 +35,7 @@
   import UpdateRow from "../user-center/UpdateRow.svelte";
   import UserCenter from "../user-center/UserCenter.svelte";
   import Requests from "../app-navigation/Requests.svelte";
+  import AskRow from "../user-center/AskRow.svelte";
   import CompanyRooms from "../app-navigation/CompanyRooms.svelte";
   import { corporateDomain } from "../../../shared/dm";
   import { userCenterCount } from "../user-center/count";
@@ -553,6 +554,14 @@
             {lang}
             {onjoin}
             {onanswer}
+          /><AskRow
+            waits={$account.me.waits}
+            {lang}
+            onopen={onnavigate}
+            onanswered={() => {
+              personal.invalidate();
+              void personal.refresh();
+            }}
           /></UserCenter
         >
       </div>{/if}
