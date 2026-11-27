@@ -12,7 +12,7 @@ import { scanTranscripts } from "./backfill";
 import { createAgentRunners, type MachineAgent } from "./agentRunners";
 import { AGENT_KINDS, agentVersion as versionNumber, type MachineKinds } from "../shared/agentKinds";
 
-const VERSION = "1.7.12";
+const VERSION = "1.7.13";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
