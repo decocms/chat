@@ -69,6 +69,12 @@ async function scanTranscripts(root, skip) {
   return { days, sessions };
 }
 
+// shared/agentKinds.ts
+var AGENT_KINDS = ["claude", "codex", "agy", "opencode"];
+function agentVersion(raw) {
+  return /\d+(?:\.\d+){0,3}(?:[-+][\w.]+)?/.exec(raw)?.[0]?.slice(0, 24) ?? "";
+}
+
 // cli/vibebook.ts
 var VERSION = "1.7.12";
 var HOME = process.env.VIBEBOOK_HOME || join2(homedir(), ".vibebook");
@@ -981,7 +987,7 @@ async function claudeRooms(agent, tools, kind = "herdr", managed = []) {
     return roomsCache.res;
   }
   const takes = !!tools.find((t) => t.name === "claude_rooms")?.inputSchema.properties?.machine;
-  const args = takes ? { machine: { id: machineId(), name: hostname().replace(/\.local$/, ""), kind }, agents: managed.slice(0, 50) } : {};
+  const args = takes ? { machine: { id: machineId(), name: hostname().replace(/\.local$/, ""), kind, kinds: await localKinds() }, agents: managed.slice(0, 50) } : {};
   const why = !port ? "no hub" : !roomsCache ? "first pass" : roomsCache.gen !== gen ? "a switch or listener changed" : roomsCache.key !== key ? "its Claudes changed" : "5 min passed";
   const res = await callTool("claude_rooms", args, agent, tools);
   roomsCache = { gen, at: Date.now(), key, res };
@@ -1710,7 +1716,19 @@ function findAgent(cmd) {
         return join2(d, n);
   return;
 }
-function agentVersion(bin) {
+var kindsMemo = null;
+async function localKinds() {
+  if (kindsMemo && Date.now() - kindsMemo.at < 3600000)
+    return kindsMemo.kinds;
+  const found = await Promise.all(AGENT_KINDS.map(async (kind) => {
+    const bin = findAgent(kind);
+    return bin ? [kind, agentVersion(await agentVersion2(bin))] : null;
+  }));
+  const kinds = Object.fromEntries(found.filter((x) => x !== null));
+  kindsMemo = { at: Date.now(), kinds };
+  return kinds;
+}
+function agentVersion2(bin) {
   return new Promise((done) => {
     const child = spawn(bin, ["--version"], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
     let out = "";
@@ -2287,7 +2305,7 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
         deco.cli = findAgent("vibebook") ?? "";
         await Promise.all([
           appVersion ? trayLatest().then((v) => deco.appLatest = v) : Promise.resolve(),
-          deco.cli ? agentVersion(deco.cli).then((v) => deco.cliVersion = v) : Promise.resolve(),
+          deco.cli ? agentVersion2(deco.cli).then((v) => deco.cliVersion = v) : Promise.resolve(),
           deco.cli ? npmLatest("vibebook.dev").then((v) => deco.cliLatest = v) : Promise.resolve()
         ]);
       };

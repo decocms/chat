@@ -2709,3 +2709,11 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Options:** (a) Doc and Pessoas visible, the rest in ⋮; (b) all the panes visible as tabs (the bar before #565); (c) a side rail with all the panes (Valls's T3 idea, #6297).
 - **Why:** (a) is the smallest change that does what Gui asked. (b) gives back the long row of tabs that #565 removed. (c) is a larger redesign that Gui and Gimenes must decide.
 - **Reviewer can change:** show more panes as buttons, or move to a side rail.
+
+## 2026-11-27 · feat/agent-kinds
+
+- **Decision:** A new file `shared/agentKinds.ts` holds the agent kinds (`claude`, `codex`, `agy`, `opencode`) and the parser of what a machine reports. The CLI, the server and (later) the app import it.
+- **Options:** (a) a new shared file; (b) put it in `src/delivery.ts` next to the machine ids; (c) one copy in the CLI and one in the server.
+- **Why:** The CLI, the server and the app need the same list. `src/delivery.ts` is server-only, and two copies can drift.
+- **Reviewer can change:** move it into an existing shared file if one fits better.
+
