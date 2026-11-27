@@ -125,6 +125,9 @@ function apiFixture() {
     removeToken: async () => ({ ok: true }),
     removeStudio: async () => ({ ok: true }),
     studioProjects: async () => ({ projects: [] }),
+    addPersona: async () => ({ ok: true as const }),
+    renamePersona: async () => ({ ok: true as const }),
+    removePersona: async () => ({ ok: true as const }),
   };
   return {
     api,

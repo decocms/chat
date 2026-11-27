@@ -11,6 +11,7 @@ import {
   CreateSandboxResult,
   ErrorBody,
   OkResult,
+  PersonaResult,
   RevokeAgentsResult,
   SandboxesResult,
   SandboxSetupResult,
@@ -92,7 +93,13 @@ export function createAgentsApi(fetcher?: FetchLike) {
         .then((response) => read(response, ClaudeToggleResult)),
     delivery: (
       id: string,
-      json: { on: boolean; machine?: string; agent?: string; all?: boolean },
+      json: {
+        on: boolean;
+        persona?: string;
+        machine?: string;
+        agent?: string;
+        all?: boolean;
+      },
       signal?: AbortSignal,
     ) =>
       room.delivery
@@ -101,6 +108,28 @@ export function createAgentsApi(fetcher?: FetchLike) {
           { init: { signal, cache: "no-store" } },
         )
         .then((response) => read(response, DeliveryResult)),
+    /** Your agents (src/personas.ts): add one, rename it, remove it. */
+    addPersona: (
+      json: { machine: string; kind: string; name?: string; book?: string },
+      signal?: AbortSignal,
+    ) =>
+      api.personas
+        .$post({ json }, { init: { signal, cache: "no-store" } })
+        .then((response) => read(response, PersonaResult)),
+    renamePersona: (aid: string, name: string, signal?: AbortSignal) =>
+      api.personas[":aid"]
+        .$patch(
+          { param: { aid: encodeURIComponent(aid) }, json: { name } },
+          { init: { signal, cache: "no-store" } },
+        )
+        .then((response) => read(response, PersonaResult)),
+    removePersona: (aid: string, signal?: AbortSignal) =>
+      api.personas[":aid"]
+        .$delete(
+          { param: { aid: encodeURIComponent(aid) } },
+          { init: { signal, cache: "no-store" } },
+        )
+        .then((response) => read(response, PersonaResult)),
     sandboxes: (id: string, signal?: AbortSignal) =>
       room.sandboxes
         .$get({ param: roomParam(id) }, { init: { signal, cache: "no-store" } })

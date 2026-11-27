@@ -17,6 +17,7 @@
     connectPrompt,
   } from "./model";
   import { runnerPath } from "./runner";
+  import AgentPersonas from "./AgentPersonas.svelte";
   import {
     AGENT_TILES,
     agentMark as AGENT_MARK_OF,
@@ -69,18 +70,30 @@
   /** The Claudes of a machine that are listening now (the ones that stopped are not listed). */
   const liveOf = (m: RoomMachine) =>
     mine.filter((a) => a.machine === m.id && a.listening);
-  const anyOn = $derived(machines.some((m) => m.on));
-  const empty = $derived(!machines.length);
+  /** Your agents (src/personas.ts). With them, the list is theirs (each with its switch here); the machine rows
+   *  stay only for cloud sandboxes. */
+  const personas = $derived(data?.personas ?? []);
+  const sandboxes = $derived(machines.filter((m) => m.kind === "sandbox"));
+  const listed = $derived(personas.length ? sandboxes : machines);
+  const empty = $derived(!machines.length && !personas.length);
   const live = $derived(
-    mine.filter(
-      (a) => a.listening && machines.some((m) => m.id === a.machine && m.on),
-    ),
+    personas.length
+      ? mine.filter((a) => a.listening && a.delivery !== false)
+      : mine.filter(
+          (a) =>
+            a.listening && machines.some((m) => m.id === a.machine && m.on),
+        ),
   );
   type Foot =
     "none" | "off" | "working" | "listening" | "opening" | "down" | "paused";
   const foot = $derived.by((): Foot => {
     if (empty) return "none";
-    const on = machines.filter((m) => m.on);
+    const on = [
+      ...(personas.length
+        ? personas.map((p) => ({ ...p, kind: "computer" }))
+        : []),
+      ...listed,
+    ].filter((m) => m.on);
     if (!on.length) return "off";
     if (live.length) return mark.state === "busy" ? "working" : "listening";
     if (on.some((m) => m.online)) return "opening";
@@ -260,13 +273,19 @@
         sideOffset={8}
         class="grid w-72 max-w-[calc(100vw-16px)] gap-1 p-1.5 font-sans text-sm text-foreground"
       >
-        {#if !empty}{#if machines.length > 1}<p
+        {#if personas.length}<AgentPersonas
+            {owner}
+            {data}
+            {lang}
+            onother={() => (more = true)}
+          />{/if}
+        {#if !empty}{#if !personas.length && machines.length > 1}<p
               class="m-0 px-2 pt-1.5 pb-0.5 text-xs font-medium text-muted-foreground"
             >
               {L("Ouvindo nesta sala", "Listening in this room")}
             </p>{/if}
           <!-- Your agents. With more than one, each is on or off in this room (any number can listen); with one, it opens its terminal. -->
-          {#each machines as m (m.id)}
+          {#each listed as m (m.id)}
             {@const kids = liveOf(m)}
             <!-- One agent: its row is the machine's row. Two or more (a Claude and a Codex on one computer): the machine's row, then one line for each agent. -->
             {@const a = kids.length === 1 ? kids[0] : undefined}
@@ -365,7 +384,7 @@
                 ></button
               >{/if}
           {/each}
-          {#if !more}<button
+          {#if !more && !personas.length}<button
               type="button"
               data-agent-more
               class="flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-2 text-left font-sans text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
