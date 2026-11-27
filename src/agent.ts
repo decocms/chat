@@ -1,4 +1,5 @@
 import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
+import { machineKinds } from "../shared/agentKinds";
 import { threadWait, threadWaitLine } from "../shared/threadWait";
 // The agents' MCP: a person's own agent (Claude Code, Claude.ai…) acting for them in their rooms.
 // JSON-RPC over POST like the admin MCP. Auth is the OAuth token checked by workers-oauth-provider,
@@ -241,7 +242,7 @@ const TOOLS = [
         machine: {
           type: "object",
           description:
-            "the runner's machine: id (m_ + 32 hex), name, kind herdr | herdr-app | app (the runner inside the deco.chat menu bar app)",
+            "the runner's machine: id (m_ + 32 hex), name, kind herdr | herdr-app | app (the runner inside the deco.chat menu bar app), and kinds: the agent CLIs found on it with their versions ({claude, codex, agy, opencode}: version)",
         },
         agents: {
           type: "array",
@@ -1815,6 +1816,14 @@ async function call(
             )
             .bind(mid, me.email, name, kind, Date.now())
             .run();
+          // The agent kinds this machine has (shared/agentKinds.ts): "Adicionar agent" offers only these. An older
+          // CLI sends none, and the machine keeps what it had.
+          const kinds = machineKinds(mc!.kinds);
+          if (kinds)
+            await db
+              .prepare(`UPDATE machines SET kinds = ? WHERE id = ? AND email = ?`)
+              .bind(JSON.stringify(kinds), mid, me.email)
+              .run();
           appCheckedIn(me.email);
           const ids = (Array.isArray(a.agents) ? a.agents : [])
             .filter(
