@@ -659,6 +659,8 @@ export const roomApi = accountApi
       // Claude), your sandboxes here, and every one-off agent of yours that has been in this room.
       await svc.sql(`UPDATE members SET claude_on = ? WHERE book_id = ? AND email = ?`, v, id, email);
       await svc.sql(`DELETE FROM machine_rooms WHERE book_id = ? AND machine_id IN (SELECT id FROM machines WHERE email = ?)`, id, email);
+      // A session's own switch on a computer (agent_rooms) gives way to the new default.
+      await svc.sql(`UPDATE agent_rooms SET delivery = NULL WHERE book_id = ? AND agent IN (SELECT id FROM agents WHERE email = ? AND machine_id IS NOT NULL)`, id, email);
       for (const m of sbIds) await svc.sql(`INSERT OR REPLACE INTO machine_rooms (machine_id, book_id, on_) VALUES (?, ?, ?)`, m, id, v);
       await svc.sql(
         `INSERT INTO agent_rooms (agent, book_id, delivery)
@@ -676,10 +678,15 @@ export const roomApi = accountApi
       await svc.sql(`INSERT OR REPLACE INTO machine_rooms (machine_id, book_id, on_) VALUES (?, ?, ?)`, machine, id, v);
       // The machine's switch covers every agent it runs (an app from before agents as people).
       await svc.sql(`INSERT OR REPLACE INTO persona_rooms (persona_id, book_id, on_) SELECT id, ?2, ?3 FROM agent_personas WHERE machine_id = ?1 AND email = ?4`, machine, id, v, email);
+      // And the sessions on it that had their own switch (agent_rooms).
+      await svc.sql(`UPDATE agent_rooms SET delivery = NULL WHERE book_id = ?2 AND agent IN (SELECT id FROM agents WHERE machine_id = ?1 AND email = ?3)`, machine, id, email);
     } else if (agent) {
-      const mine = await svc.sqlAll(`SELECT machine_id FROM agents WHERE id = ? AND email = ?`, agent, email);
+      const mine = await svc.sqlAll(`SELECT machine_id, persona_id FROM agents WHERE id = ? AND email = ?`, agent, email);
       if (!mine.length) return c.json({ error: "not your agent" } satisfies ErrorBody, 404);
-      if ((mine[0] as { machine_id: string | null }).machine_id) return c.json({ error: "this agent follows its machine's switch" } satisfies ErrorBody, 400);
+      const row = mine[0] as { machine_id: string | null; persona_id: string | null };
+      // A process of one of your agents follows that agent's switch, and a sandbox's Claude its sandbox's. A session
+      // opened by hand on a computer has its own (Gimenes #6453).
+      if (row.persona_id || row.machine_id?.startsWith("sb_")) return c.json({ error: "this agent follows its agent's or sandbox's switch" } satisfies ErrorBody, 400);
       // An upsert: the row also keeps the agent's @name in the room (src/agentNames.ts).
       await svc.sql(`INSERT INTO agent_rooms (agent, book_id, delivery) VALUES (?, ?, ?) ON CONFLICT(agent, book_id) DO UPDATE SET delivery = excluded.delivery`, agent, id, v);
     } else return c.json({ error: "say which: persona, machine, agent or all" } satisfies ErrorBody, 400);
@@ -980,7 +987,7 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     // another room) shows as "seen …", not as "no agent here yet" with the setup. Not every Claude of yours listening
     // anywhere: with herdr that's one per room, and every room listed all of them (Gui #3100, 17 rows).
     svc.sqlAll(
-      `SELECT ag.id, ag.client, ag.machine_id, ag.role, dr.name, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, lb.title AS listen_title, ${DELIVERS} AS delivers
+      `SELECT ag.id, ag.client, ag.machine_id, ag.persona_id, ag.role, dr.name, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, lb.title AS listen_title, ${DELIVERS} AS delivers
        FROM agents ag JOIN members m ON m.email = ag.email AND m.book_id = ?1
        LEFT JOIN agent_reads r ON r.agent = ag.id AND r.book_id = ?1
        LEFT JOIN books lb ON lb.id = ag.listen_room
@@ -1052,7 +1059,7 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
         context: a.ctx_tokens != null && a.ctx_window && now - (a.ctx_at ?? 0) < 3600_000 ? { tokens: a.ctx_tokens, window: a.ctx_window, at: a.ctx_at, limits: limitsOf(a.ctx_limits) } : null,
         // Yours also say which room each one listens to: the herdr tab is named after it (Gui #3120), clearer than
         // the folder when one folder serves several rooms. Only yours: another person's room titles aren't yours to see.
-        ...(a.email === me0 ? { id: a.id, client: a.client, machine: a.machine_id, delivery: a.delivers !== 0, room: a.listen_title ?? null } : {}),
+        ...(a.email === me0 ? { id: a.id, client: a.client, machine: a.machine_id, persona: a.persona_id ?? null, delivery: a.delivers !== 0, room: a.listen_title ?? null } : {}),
       };
     }),
     machines: [

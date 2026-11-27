@@ -26,6 +26,7 @@ export const AgentDbRow = z.object({
   id: z.string(),
   client: str,
   machine_id: str,
+  persona_id: z.optional(str),
   delivers: num,
   role: z.optional(str),
   name: z.optional(str),

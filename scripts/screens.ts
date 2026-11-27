@@ -160,6 +160,81 @@ try {
     await desk.screenshot({ path: join(out, "hover-1440.png") });
     shots.push("hover-1440.png");
   }
+  if (flag("agents")) {
+    // The "Seus agents nesta sala" list with a session opened by hand: it shows under its computer, like an agent
+    // (Gimenes #6444, #6453). The room's agents answer is faked here (test data only).
+    const page = await browser.newPage({
+      viewport: { width: 1440, height: 900 },
+    });
+    await page.route(/\/api\/books\/[^/]+\/agents(\?|$)/, async (route) => {
+      const response = await route.fetch();
+      const data = (await response.json()) as Record<string, unknown>;
+      const me = (
+        (await (await page.request.get(`${base}/api/me`)).json()) as {
+          email: string;
+        }
+      ).email;
+      const now = Date.now();
+      const machine = "m_" + "a".repeat(32);
+      const agent = (id: string, name: string, persona: string | null) => ({
+        email: me,
+        who: "claude-opus-5-5",
+        repo: null,
+        seen_at: now,
+        listening: true,
+        all_rooms: false,
+        context: null,
+        id,
+        client: "claude-code",
+        machine,
+        persona,
+        delivery: true,
+        room: null,
+        role: null,
+        name,
+      });
+      await route.fulfill({
+        response,
+        json: {
+          ...data,
+          agents: [
+            agent("s_" + "1".repeat(32), "claude", "p_main"),
+            agent("s_" + "2".repeat(32), "claude-3", null),
+          ],
+          machines: [
+            {
+              id: machine,
+              name: "bugmac",
+              kind: "herdr-app",
+              online: true,
+              seen_at: now,
+              on: true,
+              kinds: { claude: "2.1.332" },
+            },
+          ],
+          personas: [
+            {
+              id: "p_main",
+              name: "claude",
+              kind: "claude",
+              machine,
+              machine_name: "bugmac",
+              online: true,
+              on: true,
+              listening: true,
+            },
+          ],
+        },
+      });
+    });
+    await page.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+    await page.locator("[data-agent-summary]").first().click();
+    await page.locator("[data-agent-session]").waitFor();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(out, "agents-1440.png") });
+    shots.push("agents-1440.png");
+    await page.close();
+  }
   if (flag("edit-room")) {
     // One "Editar sala…" in the room menu, and its dialog with the icon, the color and the name (Gimenes #6163).
     await desk

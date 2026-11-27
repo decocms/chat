@@ -417,6 +417,8 @@ export const RoomAgent = z.object({
   id: z.optional(z.string()),
   client: z.optional(str),
   machine: z.optional(str),
+  /** Only on your own agents: the agent (src/personas.ts) it is a process of; null = a session opened by hand. */
+  persona: z.optional(str),
   delivery: z.optional(z.boolean()),
   /** Only on your own agents: the title of the room it listens to (null = all rooms or none). */
   room: z.optional(str),

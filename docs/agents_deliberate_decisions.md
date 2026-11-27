@@ -2791,3 +2791,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Options:** (a) a D1 column written on a change of people, read with the room list; (b) a new poke kind that carries the call; (c) the rail asks each room's DO.
 - **Why:** (a) uses the refresh that the rail already has, and needs no new message or polling. The recorder and changes of tracks write nothing. A new component because no badge had an icon: `PresenceDot` is a dot, `WaitBadge` a number. On a DM's avatar the badge takes the place of the online dot.
 - **Reviewer can change:** the lime brand green (the online dot) in place of the success green; a pulse.
+
+### 2026-11-27 · feat/agents-list-sessions · Sessions opened by hand are in "Seus agents nesta sala", with their own switch
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes saw "2 ouvindo" and two agents in the @ list, but one row in "Seus agents nesta sala" (#6415, #6444). The list showed only the saved agents (`personas`). A session opened by hand with `/vibebook:listen` also runs the CLI on a computer and gets a @name, but it was not listed. Gimenes: list every agent with its computer, no matter how it was opened (#6453).
+- Decision:
+  - `RoomAgent` gets `persona` (the saved agent it is a process of; null = opened by hand).
+  - The list adds a row for each of your sessions that listens here, has a computer, and is no saved agent's process: "@claude-3", "Claude Code · bugmac", and a switch. It has no ⋮ (nothing to rename or remove; it ends with its terminal).
+  - The switch is the session's own (`agent_rooms.delivery`). Before, a session on a computer always followed the computer's switch, and the server refused its own. Now its own switch wins when it is set. The computer's switch and "all" clear these overrides, so they still turn everything on or off.
+- Other options: Show the row without a switch ("segue o computador"). Make each session a saved agent when it starts.
+- Risk: medium (delivery rule)
+- Undo: Revert the commit.
+- Status: open

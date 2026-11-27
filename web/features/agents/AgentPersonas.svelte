@@ -59,6 +59,29 @@
     opencode: null,
   };
   const personas = $derived(data.personas ?? []);
+  /** Sessions of yours that listen here and are no agent's process (opened by hand with /vibebook:listen): they
+   *  also run the CLI on a computer, so they are listed with it (Gimenes #6444, #6453). */
+  const sessions = $derived(
+    data.agents.filter(
+      (a) =>
+        !!a.id &&
+        !!a.name &&
+        a.listening &&
+        !a.persona &&
+        !!a.machine &&
+        !a.machine.startsWith("sb_"),
+    ),
+  );
+  const sessionKind = (client: string | null | undefined): AgentKind =>
+    /codex/i.test(client ?? "") ? "codex" : "claude";
+  const sessionLine = (a: AgentsResult["agents"][number]) =>
+    [
+      KIND_NAME[sessionKind(a.client)],
+      machineName(
+        (data.machines ?? []).find((m) => m.id === a.machine)?.name ??
+          (lang === "en" ? "Computer" : "Computador"),
+      ),
+    ].join(" · ");
   const computers = $derived(
     (data.machines ?? []).filter((m) => m.kind !== "sandbox"),
   );
@@ -278,6 +301,43 @@
         </DropdownMenu>
       </div>
     {/if}
+  {/each}
+
+  {#each sessions as a (a.id)}
+    <div
+      data-agent-session={a.id}
+      data-agent-session-on={a.delivery !== false}
+      class="flex min-w-0 items-center gap-1 rounded-lg pr-1 hover:bg-accent"
+    >
+      <div class={cn(ROW, a.delivery === false && "text-muted-foreground")}>
+        <span class="relative shrink-0"
+          >{@render logo(
+            sessionKind(a.client),
+            "md",
+            a.delivery === false,
+          )}<span
+            class={cn(
+              "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-popover",
+              a.delivery !== false ? "bg-brand" : "bg-muted-foreground",
+            )}
+          ></span></span
+        ><span class="grid min-w-0 flex-1"
+          ><span class="truncate text-sm font-medium">@{a.name}</span><span
+            class="truncate text-xs text-muted-foreground"
+            >{sessionLine(a)}</span
+          ></span
+        >
+      </div>
+      <Switch
+        checked={a.delivery !== false}
+        onCheckedChange={(on) => {
+          if (owner.current() && a.id) void owner.delivery({ agent: a.id }, on);
+        }}
+        aria-label={text("personaSwitch", { name: `@${a.name}` })}
+      />
+      <!-- No menu: a session opened by hand has no agent to rename or remove; it ends with its terminal. -->
+      <span aria-hidden="true" class="size-7 shrink-0"></span>
+    </div>
   {/each}
 
   {#if adding}
