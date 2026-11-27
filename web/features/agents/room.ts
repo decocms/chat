@@ -30,7 +30,6 @@ export type RoomAgentState = {
   askedAt: number;
   now: number;
   hasAgent: boolean | null;
-  offerDismissed: boolean;
   startDismissed: boolean;
   welcome: boolean;
   setupFeedback: boolean;
@@ -98,7 +97,6 @@ export function createRoomAgentSession(
     askedAt: 0,
     now: clock.now(),
     hasAgent: null,
-    offerDismissed: stored("vb.claudeBar.off", "off"),
     startDismissed: stored(`vb.start.${roomId}`, "off"),
     welcome: false,
     setupFeedback: false,
@@ -542,9 +540,9 @@ export function createRoomAgentSession(
     setRequest(send: RequestRoomCommand) {
       if (active) request = send;
     },
-    dismissBanner(kind: "offer" | "start") {
+    dismissBanner(_kind: "start") {
       if (!current()) return;
-      const key = kind === "offer" ? "vb.claudeBar.off" : `vb.start.${roomId}`;
+      const key = `vb.start.${roomId}`;
       try {
         options.storage?.setItem(key, "off");
       } catch {
@@ -552,7 +550,7 @@ export function createRoomAgentSession(
       }
       state.update((value) => ({
         ...value,
-        [kind === "offer" ? "offerDismissed" : "startDismissed"]: true,
+        startDismissed: true,
       }));
     },
     closeWelcome() {

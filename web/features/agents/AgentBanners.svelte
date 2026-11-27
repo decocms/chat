@@ -8,7 +8,7 @@
   import { registerDialog } from "../../lib/studio/dialogController";
   import SetupInstructions from "./SetupInstructions.svelte";
   import type { RoomAgentSession } from "./room";
-  import { agentPresence, agentStatus, pendingAsk, askPreview } from "./model";
+  import { agentPresence, pendingAsk, askPreview } from "./model";
   import { roomAgentText } from "./roomCopy";
   let {
     owner,
@@ -16,7 +16,6 @@
     name,
     onopen,
     onnavigate,
-    agentsOpen = false,
     lang = "pt",
   }: {
     owner: RoomAgentSession;
@@ -24,8 +23,6 @@
     name(email: string): string;
     onopen(): void;
     onnavigate(id: number, thread: string): void;
-    /** The Agents pane is on screen: it says what the line would, with more room. */
-    agentsOpen?: boolean;
     lang?: "pt" | "en";
   } = $props();
   const view = untrack(() => owner.state);
@@ -51,22 +48,6 @@
       $view.thread === "main" &&
       !$view.startDismissed,
   );
-  const offer = $derived(
-    $view.data &&
-      $view.hasAgent !== false &&
-      !presence.around &&
-      (!$view.offerDismissed || !!$view.askedAt),
-  );
-  const status = $derived(
-    agentStatus(presence, $view.hasAgent, $view.askedAt, $view.now),
-  );
-  /** One quiet line, only while the agent is on but not listening. Off in this room has no line: the sidebar
-   * foot's delivery switch already shows it. */
-  const line = $derived(
-    !agentsOpen && offer && !start && status === "late"
-      ? ({ kind: "offer", lead: "late", help: "lateHelp" } as const)
-      : null,
-  );
   $effect(() => {
     if ($view.welcome && owner.current())
       return registerDialog(() => owner.closeWelcome());
@@ -84,30 +65,6 @@
 </script>
 
 <div data-agent-banners class="space-y-3 font-sans text-sm text-foreground">
-  {#if line}<div
-      data-agent-line
-      data-agent-status={status}
-      role="status"
-      class="flex items-center gap-2 border-b border-border bg-muted py-2.5 pr-2 pl-4 md:-mx-2"
-    >
-      <span aria-hidden="true" class="shrink-0 text-agent-claude-text">✻</span>
-      <p class="m-0 min-w-0 flex-1 leading-5">
-        <span class="font-medium">{text(line.lead)}</span>{#if line.help}<span
-            class="text-muted-foreground"
-          >
-            {" "}{text(line.help)}</span
-          >{/if}
-      </p>
-      <Button variant="link" size="sm" class="shrink-0" onclick={open}
-        >{text("details")}</Button
-      ><Button
-        variant="ghost"
-        size="sm"
-        class="shrink-0 text-muted-foreground"
-        aria-label={text("close")}
-        onclick={() => owner.dismissBanner(line.kind)}>×</Button
-      >
-    </div>{/if}
   {#if $view.setupFeedback || $view.listeningFeedback}<p
       role="status"
       class="mx-4 my-0 rounded-surface border border-border p-3 text-success"
