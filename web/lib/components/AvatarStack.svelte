@@ -5,7 +5,8 @@
    * the phone's room bar). Each item sits on top of the one to its left, with a
    * ring in the page's color so they separate cleanly; "+N" and anything after
    * it (the read check) sit on top of everything. The face itself, with any
-   * badge, comes from `face`.
+   * badge, comes from `face`. The stack is its own layer (`isolate`): its z values do not reach past it, so it never
+   * covers a hover bar or a menu of a message below or above (Gimenes #6069).
    */
   let {
     items,
@@ -41,7 +42,7 @@
   };
 </script>
 
-<span class={["flex items-end", className]}
+<span class={["isolate flex items-end", className]}
   >{#each items as item, i (key(item))}<span
       data-avatar-stack-item
       class={["relative flex", i > 0 && overlap[size]]}

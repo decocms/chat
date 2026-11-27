@@ -1749,7 +1749,9 @@ async function main() {
         if (!who) return out({ icon: "off", menu: [{ id: "login", label: tr.login }, { sep: true }, { id: "quit", label: tr.quit }] });
         const newest = [appBehind() && `deco.chat ${deco.appLatest}`, cliBehind() && `CLI ${deco.cliLatest}`].filter(Boolean).join(" · ");
         // As macOS apps do (Sparkle): "Procurar atualizações"; a click checks, then "Instalar atualização · <version>"
-        // or "Atualizado · <version>" (Gimenes #5640). Nothing is checked before the click.
+        // or "Atualizado" (Gimenes #5640). Nothing is checked before the click. The version line already names the
+        // version that runs: "Atualizado" adds only a version it does not show, the CLI after a CLI update (#6073).
+        const version = appVersion ? `deco.chat ${appVersion}` : `CLI ${VERSION}`;
         const waiting = deco.state === "updating" ? "" : onDisk();
         const item =
           waiting ? { id: "relaunch", label: `${tr.relaunch} · deco.chat ${waiting}` }
@@ -1757,14 +1759,14 @@ async function main() {
           : deco.state === "checking" ? { id: "check", label: tr.checking, enabled: false }
           : deco.state === "failed" ? { id: "update", label: tr.failed }
           : deco.state === "checked" && newest ? { id: "update", label: `${tr.install} · ${newest}` }
-          : deco.state === "checked" ? { id: "check", label: [tr.upToDate, deco.installed || appVersion || (deco.cliVersion && `CLI ${deco.cliVersion}`)].filter(Boolean).join(" · "), enabled: false }
+          : deco.state === "checked" ? { id: "check", label: [tr.upToDate, ...deco.installed.split(" · ").filter((part) => part && part !== version)].join(" · "), enabled: false }
           : { id: "check", label: tr.check };
         out({
           icon: "on",
           menu: [
             { id: "who", label: who, enabled: false },
             // The version that runs, as information only, like the account line (Gimenes #5976).
-            { id: "version", label: appVersion ? `deco.chat ${appVersion}` : `CLI ${VERSION}`, enabled: false },
+            { id: "version", label: version, enabled: false },
             { sep: true },
             item,
             { id: "open", label: tr.open },
