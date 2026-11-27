@@ -1324,6 +1324,52 @@ try {
       gallery.server.stop(true);
     }
   }
+  if (flag("canvas")) {
+    // The room's canvas on the call's stage (shared/canvas.ts), from the call's gallery fixture with test cards
+    // (`canvas=1`): open at 1440 px and 390 px, then closed and opened again with the stage's Canvas button.
+    await $`bun run build:gallery`.quiet();
+    const gallery = await serveBuiltGallery("dist-gallery");
+    const fixture = `${gallery.base}${galleryPath}?probe=call&n=3&speaking=2&canvas=1`;
+    const cards = (page: Page) =>
+      page.locator("[data-canvas-card]").first().waitFor();
+    try {
+      const context = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+      });
+      const wide = await context.newPage();
+      await wide.goto(fixture, { waitUntil: "networkidle" });
+      await cards(wide);
+      await wide.locator("[data-canvas] svg").first().waitFor();
+      await wide.waitForTimeout(600);
+      if ((await wide.locator("[data-canvas-card]").count()) !== 3)
+        throw new Error("the canvas does not show its three cards");
+      await wide.screenshot({ path: join(out, "canvas-stage-1440.png") });
+      shots.push("canvas-stage-1440.png");
+      await wide.locator("[data-call-canvas]").click();
+      if (await wide.locator("[data-canvas]").count())
+        throw new Error("the canvas stays after the Canvas button closed it");
+      await wide.screenshot({ path: join(out, "canvas-closed-1440.png") });
+      shots.push("canvas-closed-1440.png");
+      await wide.locator("[data-call-canvas]").click();
+      await cards(wide);
+      await context.close();
+
+      const small = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      const phone = await small.newPage();
+      await phone.goto(`${fixture}&phone=1`, { waitUntil: "networkidle" });
+      await cards(phone);
+      await phone.waitForTimeout(600);
+      await phone.screenshot({ path: join(out, "canvas-stage-390.png") });
+      shots.push("canvas-stage-390.png");
+      await small.close();
+    } finally {
+      gallery.server.stop(true);
+    }
+  }
 } finally {
   await browser.close();
 }

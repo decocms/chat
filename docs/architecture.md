@@ -144,6 +144,7 @@ A send can become "not confirmed" (a timeout, a dropped socket, a server error) 
 |---|---|---|
 | Native card | `src/card.ts` | A JSON spec. The app draws it. No HTML. |
 | HTML embed and room app | `src/embed.ts`, `apps/<name>.html` files | Runs in a sandboxed iframe with an opaque origin and `connect-src 'none'`. A Jev check runs before it is stored. |
+| Canvas | `shared/canvas.ts`, `Book.canvasEdit`, `web/features/canvas/CanvasPlane.svelte` | One plane of cards for the room and one for each epic, in the `Book`'s `meta`. Agents write one card at a time (`canvas_read`, `canvas_put`, `canvas_delete`). The Canvas button of the call (`call.canvas`) shows the room's canvas on the stage. A ` ```canvas ` block in a doc shows the canvas of that doc, with its own `x=… y=… zoom=…`. An html card gets the same Jev check as an HTML embed, and runs in a `srcdoc` iframe (`sandbox="allow-scripts"`, no network). |
 | MCP connection and MCP app | `src/mcpconn.ts`, `src/mcpauth.ts`, `web/features/apps/bridge.ts` | The browser calls the MCP server. Each person signs in with their own account. A `ui/message` is a post, and the person confirms it first. If each text block has `_meta["vibebook/compose"]`, the text goes in the composer of the thread and the person sends it. A block with `_meta["vibebook/reference"]` (`{ label }`) is a chip above the field; its text goes before the typed text. |
 | Files | `src/rooms.ts` (`storeFile`), `src/fileHeaders.ts` | Members only. HTML is sandboxed. SVG is not permitted. |
 

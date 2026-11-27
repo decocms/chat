@@ -956,6 +956,46 @@ const TOOLS = [
     },
   },
   {
+    name: "canvas_read",
+    description:
+      "Read a canvas: the room's (no epic_id) or an epic's. One plane of cards, each { id, kind, title, body, author, x, y, w, h }. The call's stage and ```canvas blocks in docs show it live. Read it before you put, so you build on what is there.",
+    inputSchema: {
+      type: "object",
+      properties: { room_id: { type: "string" }, epic_id: { type: "string" } },
+      required: ["room_id"],
+    },
+  },
+  {
+    name: "canvas_put",
+    description:
+      "Create or replace ONE card on a canvas (the room's, or an epic's with epic_id), by id: people see it appear live on the call's stage and in docs. Small edits: one card per call, never the whole canvas. kind: markdown (default), mermaid (a diagram's source) or html (inline only, no network; the same safety check as html in post). Without x/y a new card gets a free place, a replaced one keeps its place. Never replace or delete a card another Claude wrote unless your human asks.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        room_id: { type: "string" },
+        epic_id: { type: "string" },
+        id: { type: "string", description: "the card's id (1-40 of a-z 0-9 _ -); a new id makes a new card, an existing one replaces it; omit for a new card" },
+        kind: { type: "string", enum: ["markdown", "mermaid", "html"] },
+        title: { type: "string" },
+        body: { type: "string", description: "markdown, mermaid source or html (≤8000 characters for markdown and mermaid)" },
+        x: { type: "number", description: "optional: left edge on the plane (px)" },
+        y: { type: "number", description: "optional: top edge on the plane (px)" },
+        w: { type: "number", description: "optional: width (120-2000, default 360)" },
+        h: { type: "number", description: "optional: height (120-2000, default 240)" },
+      },
+      required: ["room_id", "body"],
+    },
+  },
+  {
+    name: "canvas_delete",
+    description: "Delete ONE card of a canvas (the room's, or an epic's with epic_id) by id. Only cards you wrote, unless your human asks.",
+    inputSchema: {
+      type: "object",
+      properties: { room_id: { type: "string" }, epic_id: { type: "string" }, id: { type: "string" } },
+      required: ["room_id", "id"],
+    },
+  },
+  {
     name: "move_message",
     description:
       'Move a message your human (or you) wrote to another thread: "main" or an epic id. For a request posted in the wrong thread.',
@@ -2912,6 +2952,26 @@ async function call(
       ctx.waitUntil(
         track(env, "fire_card", { user: me.email, dims: { book: id } }),
       );
+      return r;
+    }
+    case "canvas_read":
+    case "canvas_put":
+    case "canvas_delete": {
+      const id = await room();
+      if (name !== "canvas_read" && !(await env.AGENT_LIMIT.limit({ key: me.email })).success)
+        throw new Error("rate limited. Wait a bit.");
+      const op = name === "canvas_read" ? "read" : name === "canvas_put" ? "put" : "delete";
+      // An html card passes the same check as html in a post (no credential asks, no fake logins), before it is kept.
+      if (op === "put" && a.kind === "html") await checkEmbed(env, str(a.body), me.email);
+      const r = await bookStub(env, id).canvasEdit(id, me.email, op, str(a.epic_id), {
+        id: a.id === undefined ? undefined : str(a.id),
+        kind: a.kind === undefined ? undefined : str(a.kind),
+        title: a.title === undefined ? undefined : str(a.title),
+        body: a.body === undefined ? undefined : str(a.body),
+        x: a.x as number | undefined, y: a.y as number | undefined, w: a.w as number | undefined, h: a.h as number | undefined,
+      });
+      if (!r.ok) throw new Error(r.error);
+      if (op === "put") ctx.waitUntil(track(env, "canvas_put", { user: me.email, dims: { book: id, kind: str(a.kind) || "markdown" } }));
       return r;
     }
     case "open_file": {

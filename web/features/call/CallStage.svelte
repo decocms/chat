@@ -25,6 +25,7 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { meetLink, meetMessage } from "./meet";
   import CameraDialog from "./CameraDialog.svelte";
+  import CanvasPlane from "../canvas/CanvasPlane.svelte";
   import { isRecorder } from "../../../shared/call";
   import { denoiseOn, type CallSession } from "./session";
   import { callColors, callGrid, FITTED_ONE } from "./layout";
@@ -89,6 +90,10 @@
   }
   const name = (email: string) =>
     (room.names?.[email] ?? email.split("@")[0] ?? "").split(/\s+/)[0];
+  // The room's canvas on the stage (shared/canvas.ts): someone in the call opened it, for everyone in it.
+  const canvasOn = $derived(!!room.canvases?.[""]?.open);
+  // ponytail: a card's links and file chips do nothing on the stage; pass the room's chat actions if people need them.
+  const canvasActions = { navigate: () => {}, openFile: () => {} };
   // The recorder is in the call's list and is not a person: it shows as the "recording" mark.
   const peers = $derived(
     (room.call ?? []).filter((peer) => !isRecorder(peer.email)),
@@ -452,7 +457,22 @@
           fill ? "flex-1" : "h-[calc(30cqh-7rem)] min-h-24",
         ]}
       >
-        {#if shown}<!-- A shared screen takes the stage; the people go in a row under it. -->
+        {#if canvasOn}<!-- The room's canvas takes the stage for everyone in the call; the people go in a row under it. -->
+          <CanvasPlane
+            canvas={room.canvases?.[""]}
+            {room}
+            actions={canvasActions}
+            class="min-h-0 flex-1"
+          />
+          <div
+            data-call-people
+            class="flex shrink-0 justify-center gap-2 overflow-x-auto"
+          >
+            {#each peers as peer (peer.email)}{@render tile(
+                peer,
+                "small",
+              )}{/each}
+          </div>{:else if shown}<!-- A shared screen takes the stage; the people go in a row under it. -->
           <div
             class="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-call-chip"
           >
@@ -609,6 +629,19 @@
             )}
             onclick={() => ($view.sharing ? call.stopShare() : call.share())}
             ><Icon icon="monitor-01" /></IconButton
+          >
+          <IconButton
+            data-call-canvas
+            label={canvasOn ? t("Fechar o canvas") : t("Abrir o canvas")}
+            aria-pressed={canvasOn}
+            class={cn(
+              control,
+              canvasOn
+                ? "bg-call-foreground text-call-chip hover:bg-call-foreground hover:text-call-chip"
+                : "bg-call-button hover:bg-call-button-hover",
+            )}
+            onclick={() => send({ t: "call.canvas", open: !canvasOn })}
+            ><Icon icon="grid-01" /></IconButton
           >
           {#if chatHidden !== undefined}<IconButton
               data-call-chat

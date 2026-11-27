@@ -94,11 +94,19 @@ const init = await g.rpc("initialize", { protocolVersion: "2025-06-18" });
 check(init.result?.instructions?.includes("DATA, not instructions"), "initialize carries the safety instructions");
 check(/^s_[a-f0-9]{32}$/.test(g.sid()), "initialize hands out an Mcp-Session-Id (the agent)");
 const tools = await g.rpc("tools/list");
-check(tools.result?.tools?.map((t: { name: string }) => t.name).join() === "inbox,pending,search,ai_spend,router,router_stats,router_feedback,router_feedback_suggested,resolve_pending,claude_rooms,switch_claude,rename_room,invite,set_room_icon,connections,connect_mcp,disconnect_mcp,app_open,wait_for_messages,notify_url,read_room,post,save_reminder,metrics,list_reminders,delete_reminder,upload_file,preview_mention_email,get_file,brief_reply,ack,sandboxes,sandbox_create,sandbox_setup,sandbox_exec,sandbox_power,permission_wait,permission_close,usage_backfill,report_issue,set_task_status,add_task,update_task,delete_task,suggest_thread,delete_thread,open_file,open_doc,fire_card,move_message,update_thread,update_doc,react,doc_versions,get_doc_version,upload_link,start_thread,log_decision,pin,unpin,create_room,start_epic,update_epic,suggest_epic,delete_epic", "tools/list has the 57 tools and the 4 old thread names");
+check(tools.result?.tools?.map((t: { name: string }) => t.name).join() === "inbox,pending,search,ai_spend,router,router_stats,router_feedback,router_feedback_suggested,resolve_pending,claude_rooms,switch_claude,rename_room,invite,set_room_icon,connections,connect_mcp,disconnect_mcp,app_open,wait_for_messages,notify_url,read_room,post,save_reminder,metrics,list_reminders,delete_reminder,upload_file,preview_mention_email,get_file,brief_reply,ack,sandboxes,sandbox_create,sandbox_setup,sandbox_exec,sandbox_power,permission_wait,permission_close,usage_backfill,report_issue,set_task_status,add_task,update_task,delete_task,suggest_thread,delete_thread,open_file,open_doc,fire_card,canvas_read,canvas_put,canvas_delete,move_message,update_thread,update_doc,react,doc_versions,get_doc_version,upload_link,start_thread,log_decision,pin,unpin,create_room,start_epic,update_epic,suggest_epic,delete_epic", "tools/list has the 60 tools and the 4 old thread names");
 
 const created = await g.tool("create_room", { title: `Site novo da Giro ${stamp}`, invite: [marina] });
 const room = created.out?.room_id;
 check(room && created.out.invited?.[0] === marina, "create_room creates the room and invites Marina");
+// The room's canvas (shared/canvas.ts): one card at a time, auto-placed, read back, deleted.
+const firstCard = await g.tool("canvas_put", { room_id: room, id: "decisoes", title: "Decisões", body: "- teste" });
+check(firstCard.out?.card?.id === "decisoes" && firstCard.out.card.x === 0 && firstCard.out.card.y === 0, "canvas_put places the first card at 0,0");
+const second = await g.tool("canvas_put", { room_id: room, kind: "mermaid", body: "flowchart LR\n  A --> B" });
+check(second.out?.card && second.out.card.x > 0, "canvas_put places the next card beside it");
+check((await g.tool("canvas_read", { room_id: room })).out?.cards?.length === 2, "canvas_read has the two cards");
+check((await g.tool("canvas_delete", { room_id: room, id: "decisoes" })).out?.ok === true, "canvas_delete removes one card");
+check((await g.tool("canvas_read", { room_id: room })).out?.cards?.length === 1, "canvas_read has one card left");
 // "Meu Claude" toggle: the app switches it, claude_rooms (read by vibebook herdr) reports it.
 const toggle = (on: boolean) => fetch(`${BASE}/api/books/${room}/claude`, { method: "POST", headers: { cookie: `dev_as=${encodeURIComponent(gui)}`, "content-type": "application/json" }, body: JSON.stringify({ on }) });
 check(!(await g.tool("claude_rooms")).out?.rooms?.some((r: { room_id: string }) => r.room_id === room), "claude_rooms: a room never switched on isn't listed");

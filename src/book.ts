@@ -50,6 +50,7 @@ import { runRouterActions, waitQuestion, WAIT_PEOPLE_MAX, WAIT_THRESHOLD, type A
 import { track } from "./track";
 import { addCallUsage, callsOn, recorderOn, startRecorder } from "./calls";
 import { CALL_THREAD, RING_MS, callLineText, callMinutes, callRoster, isRecorder } from "../shared/call";
+import { CanvasSchema, canvasKey, putCard, type Canvas, type CardInput } from "../shared/canvas";
 import { mailFrom, publicOrigin } from "./host";
 import { studioAgentsIn } from "./sandbox";
 import { studioAuth, studioSend, studioWakeText } from "./studioSandbox";
@@ -948,6 +949,44 @@ export class Book extends DurableObject<Env> {
     // Everyone who was in this call, for the recording: Grain shares it with them (recorder/container/main.ts).
     if (!isRecorder(email)) this.set("call_people", JSON.stringify([...new Set([...this.callPeople(), email])].slice(0, 200)));
     return !isRecorder(email) && after.filter((p) => !isRecorder(p.email)).length >= 2 && !after.some((p) => isRecorder(p.email)) && this.recordAllowed(after);
+  }
+  // ---- the canvas (shared/canvas.ts): one per room ("") and per epic; agents write it, the app draws it ----
+  canvas(scope: string): Canvas {
+    const parsed = CanvasSchema.safeParse(JSON.parse(this.get(canvasKey(scope)) ?? "null"));
+    return parsed.success ? parsed.data : { cards: [] };
+  }
+  /** The canvases worth sending with the room: with cards, or open on the stage. */
+  canvases(): Record<string, Canvas> | undefined {
+    const rows = this.sql.exec<{ k: string }>(`SELECT k FROM meta WHERE k LIKE 'canvas:%'`).toArray();
+    const all = Object.fromEntries(rows.map((r) => [r.k.slice(7), this.canvas(r.k.slice(7))]).filter(([, c]) => (c as Canvas).cards.length || (c as Canvas).open));
+    return Object.keys(all).length ? all : undefined;
+  }
+  private setCanvas(scope: string, canvas: Canvas) {
+    this.set(canvasKey(scope), JSON.stringify(canvas));
+    this.broadcast({ t: "canvas", scope, canvas });
+  }
+  /** The Canvas button of the call: shows (or hides) the room's canvas on everyone's stage. */
+  canvasOpen(open: boolean) {
+    this.setCanvas("", { ...this.canvas(""), open });
+  }
+  /** canvas_read / canvas_put / canvas_delete of an agent (src/agent.ts). An html card was checked there. */
+  async canvasEdit(bookId: string, email: string, op: "read" | "put" | "delete", scope: string, a: CardInput) {
+    this.bind(bookId);
+    if (!(await this.members()).includes(email)) return { ok: false as const, error: "forbidden" };
+    if (scope && !this.epics().some((e) => e.id === scope)) return { ok: false as const, error: "epic not found" };
+    const now = this.canvas(scope);
+    if (op === "read") return { ok: true as const, ...now };
+    if (op === "delete") {
+      if (!now.cards.some((c) => c.id === a.id)) return { ok: false as const, error: "card not found" };
+      this.setCanvas(scope, { ...now, cards: now.cards.filter((c) => c.id !== a.id) });
+      return { ok: true as const };
+    }
+    const secret = findSecret(`${a.title ?? ""}\n${a.body ?? ""}`);
+    if (secret) return { ok: false as const, error: `blocked: looks like a secret (${secret})` };
+    const r = putCard(now, a, email, Date.now());
+    if ("error" in r) return { ok: false as const, error: r.error };
+    this.setCanvas(scope, r.canvas);
+    return { ok: true as const, card: r.card };
   }
   /** The chat of the call that is on (beside the stage); none while nobody is in a call. */
   liveCallThread(): string | undefined {
@@ -3319,6 +3358,7 @@ export class Book extends DurableObject<Env> {
         online: this.online(),
         // Present only where calls are set up: the app draws the call button from it.
         ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) } : {}),
+        canvases: this.canvases(),
         receipts: this.receiptsList(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
@@ -3555,6 +3595,10 @@ export class Book extends DurableObject<Env> {
           this.ctx.waitUntil(startRecorder(this.env, this.get("call_origin") ?? publicOrigin(this.env), bookId));
         return;
       }
+      case "call.canvas":
+        this.canvasOpen(m.open);
+        this.ctx.waitUntil(track(this.env, "canvas_open", { user: email, dims: { book: this.get("book_id") ?? "", open: m.open } }));
+        return;
       case "call.mute":
         return this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, muted: m.muted } : p)));
       case "call.usage":

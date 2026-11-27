@@ -2868,3 +2868,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · feat/call-canvas · The canvas is Book state, not Yjs
+
+- Agent: Claude Opus 5.5
+- Context: Gui (epic a4a8e7d8) asked for a canvas that opens in the call and that the room's Claudes write on. There is one canvas per room and one per epic. A doc can show it anywhere, many times, each with its own x, y and zoom. The plan said "a Yjs doc of `DocRoom`".
+- Decision:
+  - The canvas is JSON in the `meta` of the `Book` (`canvas:` for the room, `canvas:<epic>` for an epic). The room's snapshot sends it (`canvases`), and a `canvas` event sends each change, like the state of the call. There is no new Durable Object, table or binding.
+  - Agents write one card at a time (`canvas_put`, `canvas_delete`). The app only shows it. Thus nothing needs a CRDT merge. `DocRoom` keeps one markdown `Y.Text`, which does not fit cards with places.
+  - The cards are on a plane (x, y, w, h). `CanvasPlane` is the one viewport. On the stage of the call it fits all cards (drag moves, the wheel zooms). A ` ```canvas ` block in a doc shows `x=… y=… zoom=…` (an empty block fits all cards).
+  - An html card gets the same check as html in a post (`checkEmbed`). Then it runs in an `iframe` with `srcdoc`, `sandbox="allow-scripts"` (opaque origin) and a CSP without network.
+  - The Canvas button opens the room's canvas on the stage of each person in the call (`call.canvas`). While it is open, it is in the place of a shared screen.
+- Other options: A Yjs doc for each canvas (people can move cards by hand, but it needs a second socket and a CRDT for agent writes). Excalidraw. A grid without places.
+- Risk: low (new state only; a large canvas makes the room's snapshot larger: 60 cards at most, 8,000 characters of text each)
+- Undo: Revert the commit. The `canvas:` keys in `meta` stay and nothing reads them.
+- Status: open

@@ -118,6 +118,10 @@ export function documentBlocks(
 export function mermaidSource(node: RichNode): string | null {
   return fencedSource(node, "mermaid");
 }
+/** A ```canvas block: a viewport on the canvas of this doc's room or epic (shared/canvas.ts parseViewport). */
+export function canvasSource(node: RichNode): string | null {
+  return fencedSource(node, "canvas");
+}
 export function documentCardSource(node: RichNode): string | null {
   return fencedSource(node, "card");
 }

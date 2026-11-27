@@ -232,6 +232,11 @@ export function reduceRoom(
       return { ...s, polls: { ...s.polls, [event.poll.id]: event.poll } };
     case "online":
       return { ...s, online: event.online };
+    case "canvas":
+      return {
+        ...s,
+        canvases: { ...s.canvases, [event.scope]: event.canvas },
+      };
     case "call":
       return {
         ...s,

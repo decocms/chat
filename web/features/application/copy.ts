@@ -921,6 +921,8 @@ const EN: Readonly<Record<string, string>> = {
   Fechar: "Close",
   // The room's call (web/features/call).
   "Iniciar call": "Start call",
+  "Abrir o canvas": "Open the canvas",
+  "Fechar o canvas": "Close the canvas",
   "Entrar na call": "Join call",
   "Sair da call": "Leave call",
   "{name} está ligando": "{name} is calling",

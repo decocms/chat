@@ -16,9 +16,21 @@ export const HOLO_PROPERTIES = [
  *  same way. Nothing else. */
 export const ZOOM_SOURCE = "web/features/file-viewer/zoomStyle.ts";
 export const ZOOM_PROPERTIES = ["--zoom-x", "--zoom-y", "--zoom-s", "--zoom-w"];
+/** The canvas (shared/canvas.ts): this one file may set a viewport's offset and scale, and a card's place and size. */
+export const CANVAS_SOURCE = "web/features/canvas/canvasStyle.ts";
+export const CANVAS_PROPERTIES = [
+  "--cv-x",
+  "--cv-y",
+  "--cv-s",
+  "--cv-l",
+  "--cv-t",
+  "--cv-w",
+  "--cv-h",
+];
 const STYLE_PROPERTY_SOURCES: Record<string, string[]> = {
   [HOLO_SOURCE]: HOLO_PROPERTIES,
   [ZOOM_SOURCE]: ZOOM_PROPERTIES,
+  [CANVAS_SOURCE]: CANVAS_PROPERTIES,
 };
 import ts from "typescript";
 import { parse } from "svelte/compiler";

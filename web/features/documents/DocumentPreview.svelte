@@ -14,8 +14,11 @@
     documentBlocks,
     documentAppNodes,
     mermaidSource,
+    canvasSource,
     documentCardSource,
   } from "./preview";
+  import CanvasPlane from "../canvas/CanvasPlane.svelte";
+  import { parseViewport } from "../../../shared/canvas";
   import DeferredDocumentCard from "./DeferredDocumentCard.svelte";
   import {
     documentAppMarkers,
@@ -269,13 +272,20 @@
       <section data-document-tasks class="my-3">
         <Tasks {...taskProps} thread={epic ?? "main"} />
       </section>
-    {:else}{@const diagram = mermaidSource(
-        block.node,
-      )}{#if diagram !== null}<Mermaid
+    {:else}{@const diagram = mermaidSource(block.node)}{@const plane =
+        canvasSource(block.node)}{#if diagram !== null}<Mermaid
           source={diagram}
           {context}
           {actions}
           lang={props.lang}
+        />{:else if plane !== null}<!-- The canvas of this doc's room or epic, seen from where the block says. -->
+        <CanvasPlane
+          canvas={props.room.canvases?.[epic ?? ""]}
+          room={props.room}
+          {actions}
+          view={plane.trim() ? parseViewport(plane) : undefined}
+          interactive={false}
+          class="my-3 h-96"
         />{:else}<div
           class={block.node.kind === "text"
             ? "whitespace-pre-wrap break-words"

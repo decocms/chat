@@ -1,6 +1,7 @@
 // JSON DTOs shared by the Cloudflare Worker and browser: runtime schemas first, every type derived from them.
 // Browser-safe: zod/mini only, no backend imports. The events built from these live in events.ts.
 import * as z from "zod/mini";
+import { CanvasSchema } from "./canvas";
 
 const str = z.string();
 const num = z.number();
@@ -242,6 +243,8 @@ export const RoomSnapshotSchema = z.object({
   consent: opt(CallConsentSchema),
   /** This room's calls are recorded (CALL_RECORD_ROOMS): a call here without the recorder shows a warning. */
   callRecorded: opt(bool),
+  /** The room's canvas ("") and the epics' (by id), each sent only when it has cards or is open (shared/canvas.ts). */
+  canvases: opt(z.record(str, CanvasSchema)),
   names: opt(z.record(str, str)),
   /** email → @handle: what a mention picked from the list inserts (shared/mention.ts). */
   handles: opt(z.record(str, str)),

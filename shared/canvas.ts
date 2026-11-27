@@ -1,0 +1,149 @@
+// The room's canvas (Gui, 27/11): one plane per room and one per epic, where the Claudes of the room put cards while
+// people talk. The call's stage and each ```canvas block of a doc are viewports (x, y, zoom) on the same plane.
+// The Book keeps it (meta `canvas:<scope>`), agents write one card at a time (canvas_put), the app only draws it.
+// Browser-safe: zod/mini only.
+import * as z from "zod/mini";
+
+export const CANVAS_KINDS = ["markdown", "mermaid", "html"] as const;
+export type CanvasKind = (typeof CANVAS_KINDS)[number];
+export const CANVAS_MAX_CARDS = 60;
+/** markdown and mermaid; html cards go through the same check as HTML in a post (src/embed.ts) and up to EMBED_MAX. */
+export const CANVAS_MAX_TEXT = 8_000;
+export const CANVAS_CARD_W = 360;
+export const CANVAS_CARD_H = 240;
+const GAP = 40;
+/** Auto-placed cards fill rows of this width, left to right, then the next row. */
+const ROW_W = 4 * (CANVAS_CARD_W + GAP);
+
+export const CanvasCardSchema = z.object({
+  id: z.string(),
+  kind: z.enum(CANVAS_KINDS),
+  title: z.optional(z.string()),
+  body: z.string(),
+  /** Who wrote it: the email of the person whose Claude it is. */
+  author: z.string(),
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  at: z.number(),
+});
+export type CanvasCard = z.infer<typeof CanvasCardSchema>;
+export const CanvasSchema = z.object({
+  cards: z.array(CanvasCardSchema),
+  /** The room's canvas only: shown on the call's stage (the Canvas button). */
+  open: z.optional(z.boolean()),
+});
+export type Canvas = z.infer<typeof CanvasSchema>;
+/** "" = the room's canvas; else an epic's id. */
+export const canvasKey = (scope: string) => `canvas:${scope}`;
+
+const overlaps = (a: Box, b: Box) =>
+  a.x < b.x + b.w + GAP &&
+  b.x < a.x + a.w + GAP &&
+  a.y < b.y + b.h + GAP &&
+  b.y < a.y + a.h + GAP;
+type Box = { x: number; y: number; w: number; h: number };
+
+/** The first free place for a w×h card, in reading order on a grid of rows: never on top of another card. */
+export function placeCard(
+  cards: readonly Box[],
+  w = CANVAS_CARD_W,
+  h = CANVAS_CARD_H,
+): { x: number; y: number } {
+  const step = CANVAS_CARD_W + GAP;
+  // ponytail: linear scan over grid slots, fine for CANVAS_MAX_CARDS; a spatial index if canvases get large.
+  for (let row = 0; ; row++)
+    for (let x = 0; x + w <= ROW_W; x += step) {
+      const box = { x, y: row * (CANVAS_CARD_H + GAP), w, h };
+      if (!cards.some((c) => overlaps(box, c))) return { x: box.x, y: box.y };
+    }
+}
+
+export type CardInput = {
+  id?: string;
+  kind?: string;
+  title?: string;
+  body?: string;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+};
+const num = (v: unknown) =>
+  typeof v === "number" && Number.isFinite(v) ? Math.round(v) : undefined;
+const size = (v: unknown, fallback: number) =>
+  Math.min(2000, Math.max(120, num(v) ?? fallback));
+
+/** canvas_put: create or replace ONE card by id. A new card without x/y gets a free place; a replaced one keeps its
+ *  place unless x/y come. Answers the new canvas, or an error for the agent. */
+export function putCard(
+  canvas: Canvas,
+  input: CardInput,
+  author: string,
+  now: number,
+): { canvas: Canvas; card: CanvasCard } | { error: string } {
+  const kind = input.kind ?? "markdown";
+  if (!(CANVAS_KINDS as readonly string[]).includes(kind))
+    return { error: `kind must be one of ${CANVAS_KINDS.join(", ")}` };
+  const body = typeof input.body === "string" ? input.body : "";
+  if (!body.trim()) return { error: "body is required" };
+  if (kind !== "html" && body.length > CANVAS_MAX_TEXT)
+    return { error: `body is longer than ${CANVAS_MAX_TEXT} characters` };
+  const id = (input.id ?? "").trim() || crypto.randomUUID().slice(0, 8);
+  if (!/^[\w-]{1,40}$/.test(id))
+    return { error: "id: 1 to 40 letters, digits, _ or -" };
+  const old = canvas.cards.find((c) => c.id === id);
+  if (!old && canvas.cards.length >= CANVAS_MAX_CARDS)
+    return {
+      error: `the canvas has ${CANVAS_MAX_CARDS} cards: replace or delete one`,
+    };
+  const w = size(input.w, old?.w ?? CANVAS_CARD_W),
+    h = size(input.h, old?.h ?? CANVAS_CARD_H);
+  const others = canvas.cards.filter((c) => c.id !== id);
+  const x = num(input.x),
+    y = num(input.y);
+  const at =
+    x !== undefined && y !== undefined
+      ? { x, y }
+      : old
+        ? { x: x ?? old.x, y: y ?? old.y }
+        : placeCard(others, w, h);
+  const title = input.title?.trim().slice(0, 120) || undefined;
+  const card: CanvasCard = {
+    id,
+    kind: kind as CanvasKind,
+    ...(title ? { title } : {}),
+    body,
+    author,
+    ...at,
+    w,
+    h,
+    at: now,
+  };
+  return {
+    canvas: {
+      ...canvas,
+      cards: old
+        ? canvas.cards.map((c) => (c.id === id ? card : c))
+        : [...canvas.cards, card],
+    },
+    card,
+  };
+}
+
+/** A ```canvas block of a doc: "x=0 y=0 zoom=1" (each optional), the viewport on the plane. */
+export function parseViewport(source: string): {
+  x: number;
+  y: number;
+  zoom: number;
+} {
+  const get = (k: string) =>
+    Number(new RegExp(`${k}\\s*=\\s*(-?[\\d.]+)`).exec(source)?.[1]);
+  const zoom = get("zoom");
+  return {
+    x: get("x") || 0,
+    y: get("y") || 0,
+    zoom: zoom > 0 ? Math.min(4, Math.max(0.1, zoom)) : 1,
+  };
+}

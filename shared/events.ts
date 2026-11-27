@@ -22,6 +22,7 @@ import {
   CallConsentSchema,
   TaskSchema,
 } from "./room";
+import { CanvasSchema } from "./canvas";
 
 const str = z.string();
 const num = z.number();
@@ -158,6 +159,8 @@ export const RoomEventSchemas = {
     ring: z.optional(RingSchema),
     consent: z.optional(CallConsentSchema),
   }),
+  // One canvas changed (shared/canvas.ts): "" is the room's, else an epic's id.
+  canvas: event("canvas", { scope: str, canvas: CanvasSchema }),
   conns: event("conns", {}),
   error: event("error", { error: z.optional(str) }),
   blocked: event("blocked", { text: str, reason: str }),

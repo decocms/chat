@@ -101,8 +101,61 @@
     ],
     callRecorded: true,
     handles: {},
+    id: "fixture",
+    members: emails,
+    messages: [],
+    epics: [],
+    files: [],
     book: { title: "vibebook-product" },
   } as unknown as Room;
+  // `canvas=1`: the room's canvas, open on the stage, with one card of each kind (test data). The stage's Canvas
+  // button opens and closes it, as the room's `call.canvas` does.
+  const sample = (
+    id: string,
+    kind: "markdown" | "mermaid" | "html",
+    title: string,
+    body: string,
+    x: number,
+    y: number,
+    author: string,
+  ) => ({ id, kind, title, body, author, x, y, w: 360, h: 240, at: 0 });
+  let canvas = $state(
+    params.get("canvas") === "1"
+      ? {
+          open: true,
+          cards: [
+            sample(
+              "decisoes",
+              "markdown",
+              "Decisões",
+              "- Plano anual com 20% de desconto\n- Teste de 2 semanas no plano Pro\n- **Aberto:** preço por assento?",
+              0,
+              0,
+              me,
+            ),
+            sample(
+              "funil",
+              "mermaid",
+              "Funil",
+              "flowchart LR\n  A[Visita] --> B[Teste]\n  B --> C[Pro]\n  C --> D[Anual]",
+              400,
+              0,
+              emails[1] ?? me,
+            ),
+            sample(
+              "conta",
+              "html",
+              "Conta",
+              '<p><b>MRR</b> = assentos × preço</p><input type=range min=10 max=200 value=50 oninput="o.textContent=this.value*49"> <output id=o>2450</output>',
+              0,
+              280,
+              me,
+            ),
+          ],
+        }
+      : { cards: [] },
+  );
+  const staged = $derived({ ...room, canvases: { "": canvas } } as Room);
   const store = writable<CallView>({
     phase: params.get("phase") === "idle" ? "idle" : "in",
     muted: peers[0]?.muted ?? false,
@@ -264,9 +317,13 @@
     </aside>{/if}
   <div class="flex min-w-0 flex-1 flex-col">
     <CallStage
-      {room}
+      room={staged}
       {call}
-      send={() => true}
+      send={(command) => {
+        if (command.t === "call.canvas")
+          canvas = { ...canvas, open: command.open };
+        return true;
+      }}
       open={() => {}}
       avatar={() => null}
       fill={!phone}
