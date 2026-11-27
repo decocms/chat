@@ -2664,4 +2664,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Save the color with the name on Salvar. Allow renaming a room that is not open through a new API.
 - Risk: low
 - Undo: Revert the commit.
+### 2026-11-27 · feat/runner-herdr-core · The app's runner uses herdr-core, an installed hc first, and moves the old herdr Claudes
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked to migrate to herdr-core, with an `hc` in the app for people who do not have one (#6147). He did not say how the old herdr Claudes move, which `hc` wins, or what ↗ does with no window.
+- Decision:
+  - A new runner mode, `vibebook herdr --core`: one terminal `vb-<room>` for each room that is on, in the room's folder, started with `--rm` so that its name is free when its Claude exits. A Claude in a terminal in that folder is adopted. `vibebook watch` (the app) uses this mode when an `hc` starts, and then it does not start `herdr server`. `vibebook herdr` with no flag stays the terminal mode, for the herdr plugin's tab.
+  - An installed `hc` comes first (the Herdr app talks to it), else the app's `hc`. `watch` finds it in the usual folders, because an app opened from Finder has a short PATH, and gives it to the runner in `VIBEBOOK_HC`.
+  - A room whose Claude still runs in a herdr pane of the terminal mode is not opened twice. When that Claude is free, it gets `/exit`, and its conversation opens again in herdr-core with `--resume`. If no herdr client is there (the app no longer ships herdr), a room whose old Claude session still runs (`~/.claude/sessions`) is left alone until that Claude ends.
+  - The agent starts through the person's login shell (`$SHELL -ilc`), for their PATH.
+  - The runner calls `hc` without the `HC_*` variables. With them, `hc send` marked the text as from another terminal, and Claude refused an `/exit` marked that way.
+  - ↗ in core mode opens the Herdr app when it is installed. Else it answers with `hc attach vb-<room>`.
+  - The app ships `hc` in place of herdr. Its LICENSE and THIRD-PARTY-NOTICES come from the same archive.
+- Other options: Make `--core` the default of `vibebook herdr` (the herdr plugin's tab would then open a second Claude for each room). Ship both herdr and `hc`. Leave the old herdr Claudes running (two Claudes in a room).
+- Risk: medium. The first pass after the update closes free Claudes of the old mode and opens them again in herdr-core. A busy one is left until it is free.
+- Undo: Revert the commit and release the app again. The Claudes in herdr-core keep running; the terminal mode then opens new ones in herdr.
 - Status: open

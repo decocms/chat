@@ -15,8 +15,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/vibebook", "binaries/herdr"],
-    "resources": { "licenses/": "licenses/" },
+    "externalBin": ["binaries/vibebook", "binaries/hc"],
+    "resources": { "binaries/herdr-core-licenses/": "licenses/herdr-core/" },
     "category": "Productivity",
     "shortDescription": "deco.chat in the menu bar",
     "license": "MIT",

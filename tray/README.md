@@ -6,11 +6,11 @@ The menu bar app (the "tray") keeps a computer connected to deco.chat with no te
 
 The app is a Tauri 2 shell (`src/main.rs`). It only draws the menu. The logic is in the vibebook CLI (`cli/vibebook.ts`).
 
-1. The app starts the `vibebook` binary that is next to its executable: `vibebook watch --menu`. It sets `VIBEBOOK_HERDR_DIR` to that folder, so the CLI uses the `herdr` binary that the app ships.
-2. `vibebook watch` starts `herdr server` (herdr with no window) if `herdr status server` does not show `status: running`.
-3. `vibebook watch` runs the herdr runner (`vibebook herdr`) as a child. If the runner stops, it starts it again after 15 seconds. Only one runner runs on a computer: a second one stops at once.
+1. The app starts the `vibebook` binary that is next to its executable: `vibebook watch --menu`. It sets `VIBEBOOK_HERDR_DIR` to that folder, where the app ships `hc` (herdr-core).
+2. `vibebook watch` uses an installed `hc` first (the one that the Herdr app uses), else the `hc` that the app ships. It gives that path to the runner in `VIBEBOOK_HC`. If no `hc` starts, it starts `herdr server` as before, when herdr is installed.
+3. `vibebook watch` runs the runner (`vibebook herdr --core`) as a child. Each room whose Claude is on gets a terminal `vb-<room>` in herdr-core, in the room's folder. A Claude that already runs in a terminal in that folder is adopted. A Claude from the old herdr mode is closed when it is free and opens again in herdr-core with the same conversation. To look at a Claude, run `hc attach vb-<room>`, or open the Herdr app. If the runner stops, it starts it again after 15 seconds. Only one runner runs on a computer: a second one stops at once.
 4. With `--menu`, the CLI is also the core of the menu. It writes one JSON line for each menu and reads one JSON line for each click (see the comment at the top of `src/main.rs`).
-5. When the core stops ("Sair", or a crash), the app stops. herdr continues, with the Claudes in it.
+5. When the core stops ("Sair", or a crash), the app stops. herdr-core continues, with the Claudes in it.
 
 The words of the menu are in Portuguese or English. The CLI selects the language from `VIBEBOOK_LANG`, `LANG` or, on macOS, the system locale.
 
@@ -46,7 +46,7 @@ The app has no paid signature. On macOS it has an ad-hoc signature, because Appl
 
 You need Rust (`cargo`) and Bun.
 
-1. Run `bun scripts/tray-bins.ts`. It compiles the CLI for this computer and downloads herdr into `tray/binaries/`. It checks the SHA-256 of herdr.
+1. Run `bun scripts/tray-bins.ts`. It compiles the CLI for this computer and downloads herdr-core (`hc`) into `tray/binaries/`. It checks the SHA-256 of the herdr-core archive.
 2. Run `cargo build` in `tray/` to compile the app. To get the bundle, run `bunx @tauri-apps/cli@2.12.6 build --debug --bundles app` in `tray/`.
 3. On Linux, install the libraries first: `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`.
 
@@ -67,6 +67,6 @@ Do not commit `tray/target/`, `tray/gen/` or `tray/binaries/`.
 
 `public/setup.sh` downloads these files by name. If you change a name, change the script too.
 
-## herdr
+## herdr-core
 
-The app ships herdr 0.9.5 from https://github.com/herdrdev/herdr/releases (Apache-2.0). Its license is in `licenses/herdr-LICENSE.txt`, and the bundle contains it. On Windows, the bundle also contains herdr's `conpty/` folder and its notices. To update herdr, change `HERDR_VERSION` and the SHA-256 values in `scripts/tray-bins.ts`.
+The app ships herdr-core (`hc`) 0.1.22 from https://releases.herdr.dev/core/ (Apache-2.0). Its LICENSE and THIRD-PARTY-NOTICES come from the same archive, and the bundle contains them in `licenses/herdr-core/`. On Windows, the bundle also contains its `conpty/` folder. To update herdr-core, change `HC_VERSION` and the SHA-256 values in `scripts/tray-bins.ts` (from the release's `manifest.json`).

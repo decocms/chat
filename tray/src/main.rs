@@ -35,7 +35,7 @@ const ICON_ON: &[u8] = include_bytes!("../icons/tray-on.png");
 const ICON_OFF: &[u8] = include_bytes!("../icons/tray-off.png");
 
 /// The core's command: VIBEBOOK_TRAY_CORE (words split by spaces); else the `vibebook` binary shipped next to this
-/// app's executable, as `vibebook watch --menu`, with the shipped `herdr` beside it (VIBEBOOK_HERDR_DIR); else
+/// app's executable, as `vibebook watch --menu`, with the shipped `hc` (herdr-core) beside it (VIBEBOOK_HERDR_DIR); else
 /// `vibebook tray` from PATH.
 fn core_command() -> Command {
     if std::env::var("VIBEBOOK_TRAY_CORE").is_err() {
