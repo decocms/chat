@@ -10,6 +10,7 @@
   import { roomIcon, type RoomSummary, type Wait } from "../home/model";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
   import CallBadge from "../rooms/CallBadge.svelte";
+  import { RAIL_COUNT_AT } from "../rooms/railBadges";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import RailPill from "./RailPill.svelte";
   import { folderSignals, type RailFolder } from "./railFolders";
@@ -130,9 +131,8 @@
                 solid
                 waits={mine}
                 label={(n) => homeText(lang, "waiting", { n })}
-                class={call
-                  ? "absolute -right-1 bottom-0"
-                  : "absolute -top-1.5 -right-1.5"}
+                rail
+                class={RAIL_COUNT_AT}
               />{/if}
             {#if !open && call}<CallBadge label={call} corner="top" />{/if}
           </button>

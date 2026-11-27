@@ -86,7 +86,7 @@
           }}
         >
           <RailPill state={pill} />
-          <RoomAvatar {title} {icon} {lang} {busy} {waits} {call} stack />
+          <RoomAvatar {title} {icon} {lang} {busy} {waits} {call} rail />
         </a>
       {/snippet}
     </TooltipTrigger>

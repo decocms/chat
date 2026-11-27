@@ -6,11 +6,13 @@
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
   import { homeText, type HomeLanguage } from "../home/copy";
   import { targetHref, type DmEntry, type RoomTarget } from "../home/model";
+  import { cn } from "../../lib/studio/utils";
+  import { RAIL_COUNT, RAIL_COUNT_AT } from "../rooms/railBadges";
   import { roomMenuTrigger, type MenuPoint } from "./roomMenuTrigger";
   /**
    * A DM with something new, under Home in the rail (like Discord): the
-   * person's picture with the new messages as the one number at its top
-   * right, the same Count as a room's waits (a DM message is addressed to
+   * person's picture with the new messages as the one number inside its
+   * bottom right corner (where every rail number goes, railBadges.ts), the same Count as a room's waits (a DM message is addressed to
    * you). A click opens the DM.
    */
   let {
@@ -63,8 +65,12 @@
           }}
         >
           <PersonAvatar size="md" email={entry.email} version={entry.version} />
-          <span data-rail-dm-count class="absolute -top-1.5 -right-1.5 flex"
-            ><Count value={count} {label} class="ring-2 ring-sidebar" /></span
+          <span data-rail-dm-count class={cn(RAIL_COUNT_AT, "flex")}
+            ><Count
+              value={count}
+              {label}
+              class={cn("ring-2 ring-sidebar", RAIL_COUNT)}
+            /></span
           >
         </a>
       {/snippet}

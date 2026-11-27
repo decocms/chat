@@ -2718,7 +2718,7 @@ test("Folder settings saves the name and color of your folder only", async () =>
   ]);
 });
 
-test("a call on in a room: the green speaker inside the tile's top right, the red number moves under it, and the tooltip says who", async () => {
+test("a call on in a room: the green speaker inside the tile's top right, the red number inside the bottom right (always, on the rail), and the tooltip says who", async () => {
   const nav = await pendingNavigation();
   nav.h.canonical(
     me({
@@ -2745,24 +2745,36 @@ test("a call on in a room: the green speaker inside the tile's top right, the re
   expect(badge.className).toContain("bg-success");
   // As on Discord's rail: the speaker inside the top right corner, the red number inside the bottom right.
   expect(badge.dataset.corner).toBe("top");
-  expect(badge.className).toContain("-top-1");
-  expect(badge.className).toContain("-right-1");
+  expect(badge.className).toContain("-top-0.5");
+  expect(badge.className).toContain("-right-0.5");
   expect(badge.className).not.toContain("bottom");
   expect(badge.className).toContain("ring-sidebar");
   expect(badge.querySelector("use")?.getAttribute("href")).toContain(
     "volume-max",
   );
-  // The red number goes under it, the news stays on the left edge: three signals, three places.
+  // The red number sits under it, the news stays on the left edge: three signals, three places.
   expect(
     tile("aaaaaa").querySelector<HTMLElement>("[data-count]")?.dataset.count,
   ).toBe("1");
   const count = tile("aaaaaa").querySelector<HTMLElement>("[data-wait-badge]")!;
-  expect(count.className).toContain("bottom-0");
+  expect(count.className).toContain("-bottom-0.5");
   expect(count.className).not.toContain("top");
-  // No call: the red number stays where it always was, at the top right.
+  // No call: every red number on the rail is at the bottom right too, the smaller rail size.
   expect(
     tile("bbbbbb").querySelector<HTMLElement>("[data-wait-badge]")!.className,
-  ).toContain("-top-1.5");
+  ).toContain("-bottom-0.5");
+  expect(
+    tile("bbbbbb").querySelector<HTMLElement>("[data-count]")!.className,
+  ).toContain("h-4");
+  // The cube's total (Home) follows the same rule: bottom right, rail size.
+  const cube = [
+    ...document.querySelectorAll<HTMLElement>(
+      "[data-app-navigation] [data-count]",
+    ),
+  ].find((count) => count.className.includes("pointer-events-none"))!;
+  expect(cube.dataset.count).toBe("2");
+  expect(cube.className).toContain("-bottom-0.5");
+  expect(cube.className).toContain("-right-0.5");
   // The room's label (and tooltip) starts with who is in the call; a click still just opens the room.
   expect(tile("aaaaaa").querySelector("a")!.getAttribute("aria-label")).toBe(
     "Room aaaaaa · Call: Ana, Me · 1 waiting for you · new messages from people",
@@ -2804,7 +2816,7 @@ test("a closed folder shows the green speaker when a call is on in any of its ro
   expect(badge.dataset.corner).toBe("top");
   expect(
     tile.querySelector<HTMLElement>("[data-wait-badge]")!.className,
-  ).toContain("bottom-0");
+  ).toContain("-bottom-0.5");
   expect(tile.getAttribute("aria-label")).toBe(
     "Clientes · 2 rooms · Call: Bia · 1 waiting for you",
   );
@@ -2821,7 +2833,7 @@ test("a closed folder shows the green speaker when a call is on in any of its ro
   expect(quiet.querySelector('[data-room-badge="call"]')).toBeNull();
   expect(
     quiet.querySelector<HTMLElement>("[data-wait-badge]")!.className,
-  ).toContain("-top-1.5");
+  ).toContain("-bottom-0.5");
   expect(document.querySelector('[data-room-badge="call"]')).toBeNull();
 });
 
