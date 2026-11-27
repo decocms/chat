@@ -157,7 +157,10 @@ else
     Linux-x86_64|Linux-amd64) ASSET=linux-x86_64.AppImage;;
     *) ASSET="";;
   esac
-  TAG=$(curl -fsSL "https://api.github.com/repos/$TRAY_REPO/releases?per_page=50" 2>/dev/null | sed -n 's/.*"tag_name": *"\(tray-v[^"]*\)".*/\1/p' | head -1)
+  # The highest version, not the first one listed: GitHub does not list releases by version (it gave tray-v0.1.9
+  # before tray-v0.1.10, so 0.1.10 was never installed).
+  TAG=$(curl -fsSL "https://api.github.com/repos/$TRAY_REPO/releases?per_page=50" 2>/dev/null | sed -n 's/.*"tag_name": *"tray-v\([0-9][0-9.]*\)".*/\1/p' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+  [ -n "$TAG" ] && TAG="tray-v$TAG"
   if [ -z "$ASSET" ]; then echo "skipped: no app for $(uname -s) $(uname -m) yet"
   elif [ -z "$TAG" ]; then echo "skipped: no release of the app yet"
   else
