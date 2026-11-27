@@ -188,7 +188,7 @@
           role="tooltip"
           class="absolute bottom-full right-0 z-20 mb-2 w-72 max-w-[80vw] space-y-2 rounded-surface border border-border bg-popover p-3 text-popover-foreground shadow-md"
         >
-          {#if seenBy}<p data-readers-seen-by class="m-0 font-medium">
+          {#if seenBy}<p data-readers-seen-by class="m-0 mb-1 font-medium">
               {seenBy}
             </p>{/if}
           {#each footer.readers as reader (`${reader.receipt.who}|${reader.receipt.email}`)}<div
