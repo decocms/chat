@@ -8,10 +8,7 @@
     ChatMessage,
   } from "../../app/chatTypes";
   import Icon from "../../lib/studio/Icon.svelte";
-  import EmojiGrid from "../composer/EmojiGrid.svelte";
-  import Popover from "../../lib/studio/Popover.svelte";
-  import PopoverContent from "../../lib/studio/PopoverContent.svelte";
-  import PopoverTrigger from "../../lib/studio/PopoverTrigger.svelte";
+  import EmojiPicker from "../composer/EmojiPicker.svelte";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
@@ -29,9 +26,7 @@
   } = $props();
   // The emoji popover. While it is open the row stays as it was (the quick ones too): the pointer is in the popover,
   // not on the message, and nothing under it moves or disappears.
-  let open = $state(false),
-    search = $state<HTMLInputElement | null>(null),
-    grid = $state<HTMLDivElement | null>(null);
+  let open = $state(false);
   const all = $derived(
     Object.entries(message.reactions ?? {}).filter(([, who]) => who.length),
   );
@@ -63,7 +58,6 @@
   const HOVER_ONLY =
     "invisible opacity-0 transition-[opacity,visibility] duration-150 pointer-fine:group-hover:visible pointer-fine:group-hover:opacity-100 pointer-fine:group-has-focus-visible:visible pointer-fine:group-has-focus-visible:opacity-100 in-data-[picking]:visible in-data-[picking]:opacity-100 motion-reduce:transition-none";
   function react(emoji: string) {
-    open = false;
     void actions.request({ t: "react", id: message.id, emoji });
   }
 </script>
@@ -109,35 +103,22 @@
     </Tooltip>{/each}
   <!-- Every other emoji, in a popover next to this button (like Discord's and Slack's "add reaction"). Only on hover,
        also when the message has chips (Gimenes #5477); phones react from the long press. -->
-  <Popover bind:open>
-    <PopoverTrigger>
-      {#snippet child({ props })}<button
-          {...props}
-          type="button"
-          aria-label={vb.t("Reagir a esta mensagem")}
-          title={vb.t("Reagir a esta mensagem")}
-          data-add-reaction
-          class="{HOVER_ONLY} inline-flex h-6 pointer-coarse:hidden cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-muted px-2 text-muted-foreground transition-colors hover:border-border hover:text-foreground data-[state=open]:border-border data-[state=open]:text-foreground"
-          ><Icon icon="face-smile" size={16} /></button
-        >{/snippet}
-    </PopoverTrigger>
-    <PopoverContent
-      side="top"
-      align="start"
-      sideOffset={6}
-      data-emoji-popover={message.id}
-      class="flex w-80 flex-col gap-2 p-3 font-sans text-sm text-foreground"
-      onOpenAutoFocus={(event) => {
-        const target = window.matchMedia("(pointer: coarse)").matches
-          ? grid?.querySelector("button") || null
-          : search;
-        if (target) {
-          event.preventDefault();
-          target.focus();
-        }
-      }}
-    >
-      <EmojiGrid t={vb.t} bind:search bind:grid onpick={react} />
-    </PopoverContent>
-  </Popover>
+  <EmojiPicker
+    t={vb.t}
+    bind:open
+    onpick={react}
+    side="top"
+    align="start"
+    data-emoji-popover={String(message.id)}
+  >
+    {#snippet trigger(props)}<button
+        {...props}
+        type="button"
+        aria-label={vb.t("Reagir a esta mensagem")}
+        title={vb.t("Reagir a esta mensagem")}
+        data-add-reaction
+        class="{HOVER_ONLY} inline-flex h-6 pointer-coarse:hidden cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-muted px-2 text-muted-foreground transition-colors hover:border-border hover:text-foreground data-[state=open]:border-border data-[state=open]:text-foreground"
+        ><Icon icon="face-smile" size={16} /></button
+      >{/snippet}
+  </EmojiPicker>
 </div>
