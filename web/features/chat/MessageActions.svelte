@@ -267,7 +267,7 @@
       floating &&
         "pointer-events-none absolute -top-3 right-3 z-10 in-data-continuous:-top-8 origin-top-right translate-y-0.5 scale-[.98] rounded-full bg-card p-1 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,translate,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:translate-y-0 group-has-focus-visible:scale-100 group-has-focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:hidden",
       floating &&
-        menuOpen &&
+        (menuOpen || picking) &&
         "pointer-events-auto translate-y-0 scale-100 opacity-100",
     )}
   >
@@ -289,13 +289,22 @@
             )}
             onclick={() => react(emoji)}>{emoji}</IconButton
           >{/each}
-        {#if floating}<IconButton
-            label={vb.t("Mais reações")}
-            data-more-reactions={message.id}
-            class="rounded-full text-muted-foreground hover:text-foreground"
-            onclick={() => (picking = true)}
-            ><Icon icon="face-smile" size={16} /></IconButton
-          >{/if}
+        {#if floating}<EmojiPicker
+            t={vb.t}
+            bind:open={picking}
+            onpick={(emoji) => react(emoji)}
+            side="top"
+            align="end"
+            data-reactions-picker={String(message.id)}
+          >
+            {#snippet trigger(props)}<IconButton
+                {...props}
+                label={vb.t("Mais reações")}
+                data-more-reactions={message.id}
+                class="rounded-full text-muted-foreground hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
+                ><Icon icon="face-smile" size={16} /></IconButton
+              >{/snippet}
+          </EmojiPicker>{/if}
         <div
           aria-hidden="true"
           class="mx-0.5 h-4 w-px shrink-0 bg-border"
@@ -575,11 +584,6 @@
         >{/if}
     </DrawerContent>
   </Drawer>{/if}
-{#if floating && canReact}<EmojiPicker
-    t={vb.t}
-    bind:open={picking}
-    onpick={(emoji) => react(emoji)}
-  />{/if}
 {#if canDelete}<ConfirmDialog
     bind:open={deleting}
     title={vb.t("Apagar mensagem?")}

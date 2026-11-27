@@ -1,6 +1,5 @@
 <script lang="ts">
-  // The emoji search and grid: in a dialog (EmojiPicker, the composer and the phone's sheet) or in a popover next to
-  // a message's reactions (MessageReactions).
+  // The emoji search and grid, inside EmojiPicker: a popover next to the 🙂 that opened it, or a phone's sheet.
   import Input from "../../lib/studio/Input.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import { emojiPicks } from "./model";
