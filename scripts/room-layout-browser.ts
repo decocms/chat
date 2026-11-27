@@ -193,13 +193,14 @@ try {
     .click();
   await expect.poll(sheet).toBe("closed");
   await expect.poll(alpha).toBe(0);
-  // A tap on the blurred room under the title menu closes it (Gimenes #3781).
+  // A tap on the dimmed room under the title menu closes it (Gimenes #3781). The scrim only dims: a blur redrawn on
+  // every frame of a slide drops frames on phones (Gimenes #6252).
   await page.getByRole("button", { name: "Open sidebar", exact: true }).click();
   await expect.poll(sheet).toBe("side");
   await expect.poll(alpha).toBe(1);
-  assert.match(
+  assert.equal(
     await scrim.evaluate((node) => getComputedStyle(node).backdropFilter),
-    /blur/,
+    "none",
   );
   await page.mouse.click(195, 990);
   await expect.poll(sheet).toBe("closed");
