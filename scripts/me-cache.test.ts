@@ -148,7 +148,8 @@ test("an off-schema cache is recomputed, replaced, and the next request skips D1
   const before = f.reads.length;
   const second = await meFor(f.env, ctx, "a@x.com", req);
   expect(second.cached).toBe(true);
-  expect(second.v).toBe("v9");
+  // The app version is cached per isolate (src/services.ts), so another test file can set it first: compare, not "v9".
+  expect(second.v).toBe(first.v);
   expect(f.reads.length).toBe(before);
 });
 
