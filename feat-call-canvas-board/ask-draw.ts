@@ -1,0 +1,12 @@
+import { chromium } from "playwright";
+const BASE = "http://127.0.0.1:8797";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, locale: "pt-BR" });
+await page.context().addCookies([{ name: "dev_as", value: "ana@example.test", url: BASE }]);
+await page.goto(`${BASE}/b/5e6b7c3a76eb`);
+const editor = page.locator('[contenteditable="true"], textarea').first();
+await editor.click();
+await page.keyboard.type(process.argv[2]!);
+await page.keyboard.press("Enter");
+await page.waitForTimeout(1500);
+await browser.close();
