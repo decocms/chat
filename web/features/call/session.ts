@@ -360,6 +360,24 @@ export function createCallSession(
       { email: string; node: AnalyserNode; source: MediaStreamAudioSourceNode }
     >(),
     heard = new Map<string, number>();
+  /** How loud my microphone is now, 0 to 100 (a meter in "Mais opções": the person sees that it hears them).
+   *  It is in dB from -50 (silence) to 0, so a normal voice fills about half. */
+  const micLevel = writable(0);
+  // "Ouvir meu microfone": my microphone as the call sends it (after the cleanups), played to me, as a sound test.
+  const hearingMe = writable(false);
+  let echo: HTMLAudioElement | null = null;
+  function refreshEcho() {
+    if (!echo) return;
+    const [raw] = mic?.getAudioTracks() ?? [];
+    const sent = denoiser?.track ?? raw;
+    echo.srcObject = sent ? new MediaStream([sent]) : null;
+    void echo.play().catch(() => {});
+  }
+  function stopEcho() {
+    if (echo) echo.srcObject = null;
+    echo = null;
+    hearingMe.set(false);
+  }
   function listen(key: string, email: string, stream: MediaStream) {
     try {
       sound ??= new AudioContext();
@@ -384,8 +402,14 @@ export function createCallSession(
       meter.node.getByteTimeDomainData(samples);
       let sum = 0;
       for (const sample of samples) sum += ((sample - 128) / 128) ** 2;
-      if (Math.sqrt(sum / samples.length) > SPEAK_LEVEL)
-        heard.set(meter.email, now);
+      const rms = Math.sqrt(sum / samples.length);
+      if (rms > SPEAK_LEVEL) heard.set(meter.email, now);
+      if (meter === meters.get("mic"))
+        micLevel.set(
+          Math.round(
+            Math.min(100, Math.max(0, (20 * Math.log10(rms || 1e-6) + 50) * 2)),
+          ),
+        );
     }
     const speaking = [...heard]
       .filter(([, at]) => now - at < SPEAK_HOLD_MS)
@@ -451,6 +475,7 @@ export function createCallSession(
     for (const player of players.values()) player.srcObject = null;
     for (const boost of boosts.values()) boost.stop();
     boosts.clear();
+    stopEcho();
     for (const stream of [mic, screen])
       stream?.getTracks().forEach((track) => track.stop());
     pc?.close();
@@ -660,7 +685,7 @@ export function createCallSession(
   async function useSpeaker(id: string) {
     devices.update((value) => ({ ...value, speaker: id }));
     const done = await Promise.all(
-      [...players.values()].map((p) => sink(p, id)),
+      [...players.values(), ...(echo ? [echo] : [])].map((p) => sink(p, id)),
     );
     if (done.every(Boolean) || id === SYSTEM_DEVICE) return true;
     // The output went away while it was chosen: the system's plays everything.
@@ -702,6 +727,7 @@ export function createCallSession(
       mic.getTracks().forEach((one) => one.stop());
       mic = stream;
       denoiser = next;
+      refreshEcho();
       watchMic(track);
       unlisten("mic");
       listen("mic", self, stream);
@@ -874,6 +900,7 @@ export function createCallSession(
           denoiser?.stop();
           denoiser = null;
         }
+        refreshEcho();
       });
     },
     /** One of the browser's cleanups on or off: in the call now (the microphone opens again with it), and in the
@@ -889,6 +916,19 @@ export function createCallSession(
       saveCleanup(next);
       return true;
     },
+    /** Am I hearing my own microphone ("Ouvir meu microfone")? */
+    hearingMe: { subscribe: hearingMe.subscribe },
+    /** Hear my own microphone as the others get it, or stop. Only in a call. */
+    toggleHearMe() {
+      if (echo) return stopEcho();
+      if (get(state).phase !== "in") return;
+      echo = new Audio();
+      void sink(echo, get(devices).speaker);
+      refreshEcho();
+      hearingMe.set(true);
+    },
+    /** How loud my microphone is now, 0 to 100. */
+    micLevel: { subscribe: micLevel.subscribe },
     /** The devices of this machine and the ones in use (the stage's menu). */
     devices: { subscribe: devices.subscribe },
     /** Reads the devices again (the menu opens: a device may be new). */

@@ -27,6 +27,7 @@
   import CameraDialog, { mirrored } from "./CameraDialog.svelte";
   import { isRecorder } from "../../../shared/call";
   import Slider from "../../lib/studio/Slider.svelte";
+  import Progress from "../../lib/studio/Progress.svelte";
   import {
     callVolumes,
     MAX_VOLUME,
@@ -95,6 +96,8 @@
       );
   }
   const devices = $derived(call.devices);
+  const micLevel = $derived(call.micLevel);
+  const hearingMe = $derived(call.hearingMe);
   async function chooseMic(id: string) {
     if (!(await call.chooseMic(id)))
       showToast(
@@ -688,6 +691,13 @@
                   class="text-xs text-muted-foreground"
                   >{t("Microfone")}</DropdownMenuLabel
                 >
+                <!-- My microphone's level now: it moves when I speak (muted: it stays empty). -->
+                <Progress
+                  data-call-mic-level
+                  value={$micLevel}
+                  aria-label={t("Nível do microfone")}
+                  class="mx-2 mb-1 w-auto"
+                />
                 <DropdownMenuRadioGroup
                   data-call-mics
                   value={$devices.mic}
@@ -734,6 +744,13 @@
                 <DropdownMenuSeparator />{/if}
               <DropdownMenuLabel class="text-xs text-muted-foreground"
                 >{t("Tratamento do áudio")}</DropdownMenuLabel
+              >
+              <!-- A sound test: my voice as the others get it, to hear the cleanups below at work. -->
+              <DropdownMenuCheckboxItem
+                data-call-hear-me
+                checked={$hearingMe}
+                onCheckedChange={() => call.toggleHearMe()}
+                >{t("Ouvir meu microfone")}</DropdownMenuCheckboxItem
               >
               {#each CLEANUPS as [key, label] (key)}<DropdownMenuCheckboxItem
                   data-call-cleanup={key}

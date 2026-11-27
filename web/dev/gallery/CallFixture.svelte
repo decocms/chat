@@ -159,6 +159,7 @@
     });
   }
   void refreshDevices();
+  const hearingMe = writable(false);
   const call: CallSession = {
     state: { subscribe: store.subscribe },
     setPeers() {},
@@ -182,6 +183,10 @@
     },
     devices: { subscribe: devices.subscribe },
     refreshDevices: () => void refreshDevices(),
+    hearingMe: { subscribe: hearingMe.subscribe },
+    toggleHearMe: () => hearingMe.update((on) => !on),
+    // A voice at a normal level, so the meter shows.
+    micLevel: { subscribe: writable(45).subscribe },
     chooseMic: async (id) => {
       storeDevice("audioinput", id);
       devices.update((value) => ({ ...value, mic: id }));

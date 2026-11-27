@@ -479,3 +479,24 @@ test("a voice past 100% plays louder through Web Audio, and plays as sent again 
   });
   t.call.leave();
 });
+
+test("hearing my microphone plays what the call sends on my output, follows a new microphone, and stops on leave", async () => {
+  const t = await inCall({ plugged: ["mic-a", "mic-b"] });
+  await t.call.chooseSpeaker("out-b");
+  t.call.toggleHearMe();
+  expect(get(t.call.hearingMe)).toBe(true);
+  const echo = t.players.at(-1) as unknown as {
+    srcObject: { tracks: unknown[] } | null;
+    sinkId: string;
+  };
+  expect(echo.sinkId).toBe("out-b");
+  expect(echo.srcObject!.tracks).toEqual([t.opened[0]!.track]);
+  expect(await t.call.chooseMic("mic-b")).toBe(true);
+  expect(echo.srcObject!.tracks).toEqual([t.opened.at(-1)!.track]);
+  t.call.toggleHearMe();
+  expect(get(t.call.hearingMe)).toBe(false);
+  expect(echo.srcObject).toBe(null);
+  t.call.toggleHearMe();
+  t.call.leave();
+  expect(get(t.call.hearingMe)).toBe(false);
+});

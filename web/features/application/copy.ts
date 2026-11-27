@@ -952,6 +952,8 @@ const EN: Readonly<Record<string, string>> = {
     "Mirror my picture in the call (for me only)",
   "Supressão de ruído": "Noise suppression",
   "Tratamento do áudio": "Audio processing",
+  "Nível do microfone": "Microphone level",
+  "Ouvir meu microfone": "Hear my microphone",
   "Volume pra mim": "Volume for me",
   "Volume de {name}": "{name}'s volume",
   "Redução de ruído do navegador": "Browser noise reduction",
