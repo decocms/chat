@@ -26,6 +26,10 @@ await mkdir(output, { recursive: true });
 type Setting = {
   /** "maintain-framerate": the encoder lowers the size, never the frames a second. Not given: the app's "balanced". */
   keepFps?: boolean;
+  /** A codec that the camera prefers ("video/VP9"), set on its transceiver. Not given: the browser's default. */
+  codec?: string;
+  /** The app's layers (simulcast) with other ceilings, by rid. */
+  layers?: Record<string, number>;
   name: string;
   maxBitrate: number;
   scaleResolutionDownBy: number;
@@ -132,6 +136,30 @@ const settings: Setting[] = [
   },
   // The app's own setting (simulcast, CAM_LAYERS): no hook. TEST_SCALE=2 gives Bia a 2x screen (a big tile).
   { name: "app", maxBitrate: 0, scaleResolutionDownBy: 1, maxFramerate: 0 },
+  // The same layers in VP9, then VP9 with lower ceilings (the same sharpness for less?).
+  {
+    name: "app-vp9",
+    codec: "video/VP9",
+    maxBitrate: 0,
+    scaleResolutionDownBy: 1,
+    maxFramerate: 0,
+  },
+  {
+    name: "app-vp9-800-200",
+    codec: "video/VP9",
+    layers: { h: 800_000, q: 200_000 },
+    maxBitrate: 0,
+    scaleResolutionDownBy: 1,
+    maxFramerate: 0,
+  },
+  {
+    name: "app-vp9-600-150",
+    codec: "video/VP9",
+    layers: { h: 600_000, q: 150_000 },
+    maxBitrate: 0,
+    scaleResolutionDownBy: 1,
+    maxFramerate: 0,
+  },
 ].filter(
   (s) =>
     !process.env.TEST_ONLY || process.env.TEST_ONLY.split(",").includes(s.name),
@@ -165,6 +193,23 @@ async function person(email: string, setting: Setting) {
       if (!w.pcs.includes(this)) w.pcs.push(this);
       return (setLocal as (...a: unknown[]) => Promise<void>).apply(this, args);
     } as typeof setLocal;
+    // The camera's codec: the one wanted first, the others after (the SFU or the other side may not have it).
+    const addTransceiver = RTCPeerConnection.prototype.addTransceiver;
+    RTCPeerConnection.prototype.addTransceiver = function (
+      this: RTCPeerConnection,
+      ...args: Parameters<typeof addTransceiver>
+    ) {
+      const transceiver = addTransceiver.apply(this, args);
+      const kind = typeof args[0] === "string" ? args[0] : args[0].kind;
+      if (wanted.codec && kind === "video") {
+        const codecs = RTCRtpSender.getCapabilities("video")?.codecs ?? [];
+        transceiver.setCodecPreferences([
+          ...codecs.filter((c) => c.mimeType === wanted.codec),
+          ...codecs.filter((c) => c.mimeType !== wanted.codec),
+        ]);
+      }
+      return transceiver;
+    };
     // The camera's encoding is the only one with scaleResolutionDownBy (CAM_SEND): it takes the setting of this run.
     const setParameters = RTCRtpSender.prototype.setParameters;
     RTCRtpSender.prototype.setParameters = function (
@@ -173,7 +218,10 @@ async function person(email: string, setting: Setting) {
       ...rest: unknown[]
     ) {
       const encoding = params.encodings?.[0];
-      if (wanted.name !== "app" && encoding?.scaleResolutionDownBy) {
+      for (const one of params.encodings ?? [])
+        if (one.rid && wanted.layers?.[one.rid])
+          one.maxBitrate = wanted.layers[one.rid];
+      if (!wanted.name.startsWith("app") && encoding?.scaleResolutionDownBy) {
         encoding.maxBitrate = wanted.maxBitrate;
         encoding.scaleResolutionDownBy = wanted.scaleResolutionDownBy;
         encoding.maxFramerate = wanted.maxFramerate;
@@ -309,6 +357,10 @@ try {
     const a = await sent(ana),
       ra = await received(bia);
     await ana.waitForTimeout(6000);
+    const cpu = (await $`ps -A -o %cpu=,comm=`.text())
+      .split("\n")
+      .filter((l) => /chrom|headless/i.test(l))
+      .reduce((n, l) => n + (parseFloat(l) || 0), 0);
     const b = await sent(ana),
       rb = await received(bia);
     const png = await bia.evaluate(() => {
@@ -331,6 +383,7 @@ try {
       sent: `${b.width}×${b.height}`,
       fps: Math.round(b.fps),
       limited_by: b.limit,
+      cpu_pct: Math.round(cpu),
       bia_gets: `${rb.codec}, ${rb.width} wide, ${Math.round(rb.fps)} fps, ${Math.round(((rb.bytes - ra.bytes) * 8) / ((rb.at - ra.at) / 1000) / 1000)} kbps`,
       ssim_grid_640: +(await ssim(frame, 640, 360)).toFixed(4),
       ssim_big_1280: +(await ssim(frame, 1280, 720)).toFixed(4),
