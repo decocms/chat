@@ -16,7 +16,11 @@ import {
   type Page,
 } from "@playwright/test";
 import { startupTimeout, DEVELOPMENT_READY_URLS } from "./dev-app";
-import { browserFixtures, localBrowserError } from "./browser-fixtures";
+import {
+  browserFixtures,
+  localBrowserError,
+  pickDesktopPane,
+} from "./browser-fixtures";
 import {
   MeResult,
   CreateRoomResult,
@@ -712,11 +716,8 @@ try {
     textFile && markdownFile,
     "Both canonical fixture file types must exist",
   );
-  const filesTab = page.locator(
-    '[data-room-document-toolbar] [data-document-pane="files"]',
-  );
-  if (!(await filesTab.isVisible()))
-    await page.locator("[data-document-toggle]").click();
+  const roomPage = page;
+  const filesTab = { click: () => pickDesktopPane(roomPage, "files") };
   await filesTab.click();
   const filesView = page.locator('[data-view="files"]');
   await expect(filesView).toBeVisible();
@@ -751,9 +752,7 @@ try {
   const retainedFiles = await filesView.elementHandle();
   assert(retainedFiles, "Updated lazy Files view must have a real DOM root");
   try {
-    await page
-      .locator('[data-room-document-toolbar] [data-document-pane="doc"]')
-      .click();
+    await pickDesktopPane(page, "doc");
     await expect(filesView).toBeHidden();
     await filesTab.click();
     await expect(filesView).toBeVisible();
@@ -880,13 +879,9 @@ try {
   // Verify the real current document's app-owned bank after any automatic reload.
   const generationDraft = `After generation draft ${token}`;
   await composer.fill(generationDraft);
-  if (!(await filesTab.isVisible()))
-    await page.locator("[data-document-toggle]").click();
   await filesTab.click();
   await expect(filesView).toBeVisible();
-  await page
-    .locator('[data-room-document-toolbar] [data-document-pane="doc"]')
-    .click();
+  await pickDesktopPane(page, "doc");
   await expect(filesView).toBeHidden();
   await expect(composer).toHaveValue(generationDraft);
   await filesTab.click();

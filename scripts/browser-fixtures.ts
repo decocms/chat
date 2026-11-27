@@ -93,7 +93,7 @@ export async function openRoomPane(
     await expect(layout).toHaveAttribute("data-sheet", "doc");
     await expect(layout).toHaveAttribute("data-pane", pane);
   } else {
-    // The tabs live in the room's top bar and open the pane when it's closed;
+    // The top bar's ⋮ holds the panes (Gimenes #6099) and opens the pane when it's closed;
     // your Claude (the Agents pane) opens from its row at the foot of the
     // sidebar. With no agent the foot has only setup options (the cloud one
     // links to /settings), so callers skip the pane: see desktopAgentsPane.
@@ -104,19 +104,30 @@ export async function openRoomPane(
               "[data-agent-footer] [data-agent-row] button, [data-agent-footer] > button",
             )
             .first()
-        : page.locator(
-            `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
-          );
+        : null;
     if (
       (await layout.getAttribute("data-pane")) !== pane ||
       !(await page.locator(content[pane]).isVisible())
-    )
-      await button.click();
+    ) {
+      if (button) await button.click();
+      else await pickDesktopPane(page, pane);
+    }
   }
   await expect(layout).toHaveAttribute("data-pane", pane);
   // A selected pane or a loading placeholder is not feature readiness. Include
   // its actual first module load before font/a11y/history assertions continue.
   await expect(page.locator(content[pane])).toBeVisible();
+}
+/**
+ * Desktop: picks a pane in the top bar's ⋮ (Gimenes #6099). Like the old tab, it opens the pane, switches to it, or
+ * closes it when it is the open one.
+ */
+export async function pickDesktopPane(
+  page: Page,
+  pane: Exclude<DocumentPane, "view">,
+) {
+  await page.locator("[data-room-bar] [data-desktop-more]").click();
+  await page.locator(`[data-desktop-more-item="${pane}"]`).click();
 }
 /** Preview-mode AST slot, never a hidden #tasks placeholder. */
 export function tasksRegion(page: Page, name = "Tasks") {

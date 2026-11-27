@@ -462,6 +462,10 @@
             sideOffset={6}
             data-desktop-more-menu
             class={[studioType, "w-56"].join(" ")}
+            onCloseAutoFocus={(event) => {
+              // Like ThreadMenu: no focus back on ⋮, so its tooltip does not open over the pane's bar or the chip.
+              event.preventDefault();
+            }}
             >{#if onstartcall}<DropdownMenuItem
                 data-desktop-more-item="call"
                 onSelect={() => {
