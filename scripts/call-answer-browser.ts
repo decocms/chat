@@ -100,7 +100,7 @@ try {
   ]);
   await Promise.all([dismiss(ana), dismiss(bia)]);
   await ana
-    .getByRole("button", { name: /Iniciar call/ })
+    .getByRole("button", { name: /Iniciar (call|chamada)/ })
     .first()
     .click();
   const card = bia.locator("[data-incoming-call]");
@@ -165,7 +165,7 @@ try {
   await ana.goto(`${base}/b/${group}`);
   await dismiss(ana);
   await ana
-    .getByRole("button", { name: /Iniciar call/ })
+    .getByRole("button", { name: /Iniciar (call|chamada)/ })
     .first()
     .click();
   await inCall(ana);

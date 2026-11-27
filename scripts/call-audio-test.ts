@@ -80,12 +80,14 @@ try {
     await ana.waitForTimeout(1500);
     if (await ana.getByRole("dialog").count()) await ana.keyboard.press("Escape");
     // Ana starts the call (microphone on) and speaks the test audio.
-    await ana.getByRole("button", { name: /Iniciar call/ }).first().click();
+    await ana.getByRole("button", { name: /Iniciar (call|chamada)/ }).first().click();
   }
   await bia.waitForTimeout(1500);
   if (await bia.getByRole("dialog").count()) await bia.keyboard.press("Escape");
-  // Bia joins by herself, microphone off.
-  await bia.getByRole("button", { name: "Ativar o microfone" }).first().waitFor({ timeout: live ? 10 * 60_000 : 30_000 });
+  // Bia joins with a click (a person's page never joins by itself). What she sends is not measured.
+  await bia.locator("[data-call-start]").first().waitFor({ timeout: live ? 10 * 60_000 : 30_000 });
+  await bia.locator("[data-call-start]").first().click();
+  await bia.getByRole("button", { name: /Silenciar o microfone|Ativar o microfone/ }).first().waitFor({ timeout: 30_000 });
   await bia.waitForFunction(() => (window as unknown as { pcs: RTCPeerConnection[] }).pcs.at(-1)?.getReceivers().some((r) => r.track.kind === "audio" && r.track.readyState === "live"), null, { timeout: 30_000 });
   await bia.waitForTimeout(2000);
   const data = await bia.evaluate(async (ms) => {

@@ -45,10 +45,10 @@ try {
   await Promise.all([ana.goto(`${base}/b/${room}`), bia.goto(`${base}/b/${room}`)]);
   await Promise.all([dismiss(ana), dismiss(bia)]);
 
-  await ana.getByRole("button", { name: /Iniciar call/ }).first().click();
+  await ana.getByRole("button", { name: /Iniciar (call|chamada)/ }).first().click();
   // Bia has the room open: she is not pulled in. She joins with a click.
   await bia.locator("[data-call-start]").first().click();
-  await bia.getByRole("button", { name: /Desativar o microfone|Ativar o microfone/ }).first().waitFor({ timeout: 30_000 });
+  await bia.getByRole("button", { name: /Silenciar o microfone|Desativar o microfone|Ativar o microfone/ }).first().waitFor({ timeout: 30_000 });
   if (withRecorder) {
     
     
@@ -58,6 +58,9 @@ try {
     await ana.waitForTimeout(25_000);
   } else await shot(ana, "call");
 
+  // The session hears that Bia is in from the call's own socket, a moment after her tile shows: alone, the share
+  // is refused ("Só você está na call").
+  await ana.waitForTimeout(3000);
   await ana.getByRole("button", { name: /Compartilhar a tela/ }).first().click();
   await bia.waitForFunction(() => (document.querySelector<HTMLVideoElement>("[data-call-stage] video:not([data-call-cam])")?.videoWidth ?? 0) > 0, null, { timeout: 30_000 });
   await shot(bia, "screen-at-bia");

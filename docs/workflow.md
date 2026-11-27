@@ -167,6 +167,13 @@ Each change to the microphone path of the call (`web/features/call/session.ts`, 
    - The script prints the noise floor (the quietest 10% of 100 ms windows), the speech level (the loudest 10%) and the gap, in dB. A better noise suppression gives a lower noise floor and a bigger gap. Listen to the audios too: the numbers do not show a voice that is cut.
 3. To test with real noise, run `TEST_LIVE=1 TEST_SECONDS=30 bun scripts/call-audio-test.ts`. Open the two links that it prints in your browser, start the call and speak. The script records what Bia hears.
 
+## Test the call with many people
+
+`bun scripts/call-load-test.ts` puts `TEST_PEOPLE` people (default 30) in one call, in one Chromium, against the local Worker with the real SFU. Everyone is muted except `TEST_SPEAKERS` (default 3), who speak `call-noise.wav`. The last person records what they hear: first one speaker, then the speakers together. Then the first person shares the screen. It prints the levels heard (as the audio test), each person's kbps in and out, lost packets, jitter, concealed audio and the CPU. Files go to `/tmp/vibebook-call-load`.
+
+- Each page decodes every other voice, so the load grows with the square of the people. On a 16 GB Mac, 10 people use about half the memory; 20 and 30 crashed the pages and the system killed processes. The test stops when less than `TEST_MIN_FREE` percent of memory (default 20) is free. For more people, use more machines.
+- `TEST_ALL_MUTED=1` mutes the first person too, and `TEST_PROBE=1` prints the level of each voice at the listener. With everyone muted, each voice must be about -110 dB (silence).
+
 ## The call recorder
 
 The recorder (`recorder/`) is a Worker of its own, `chat-recorder`, with a container. Workers Builds does not deploy it.
