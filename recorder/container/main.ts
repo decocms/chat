@@ -4,10 +4,10 @@
 // makes the mp4 that Grain takes, the file goes to Grain, and the chat gets the link for the room.
 // Plain Node 24 (it runs .ts by type stripping): only types that can be erased.
 import { spawn } from "node:child_process";
-import { appendFileSync, openAsBlob, readdirSync, rmSync, statSync } from "node:fs";
+import { appendFileSync, openAsBlob, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { chromium, type Page } from "playwright-core";
-import { addMark, attribute, UNKNOWN, type Piece, type Turn } from "./attribute.ts";
+import { addMark, attribute, liveLines, UNKNOWN, type Piece, type Turn } from "./attribute.ts";
 import { shareWith, type GrainUser } from "./share.ts";
 
 /** `recorder`: the address of the recorder's Worker, which has the speech-to-text (POST /transcribe). */
@@ -17,15 +17,20 @@ const PLAYLIST = "Calls do deco.chat";
 const RAW = "/tmp/call.webm", OUT = "/tmp/call.mp4";
 /** The audio goes to the speech-to-text in parts of this many seconds (about 1.2 MB each). */
 const PART_S = 300;
+/** While the call is on, its voices go to the speech-to-text in parts of this many seconds: each part's lines show
+ *  in the call's thread about this long after they were said. Shorter: sooner, but more requests and more words
+ *  cut at the edge of a part. */
+const LIVE_S = 15;
 /** Nobody but the recorder for this long: the call is over. */
 const ALONE_S = 15;
 /** Grain takes 3 hours in one file. */
 const MAX_S = 3 * 3600 - 120;
 const log = (...parts: unknown[]) => console.log(new Date().toISOString(), ...parts);
 
-/** In the page: mixes the voices, draws the frame (the screen, or who speaks) and records the two. */
-function recordInPage() {
-  const w = window as unknown as { pcs: RTCPeerConnection[]; recorderChunk(data: string): Promise<void>; recorderStop?: () => Promise<{ names: string[]; marks: [string, number][] }> };
+/** In the page: mixes the voices, draws the frame (the screen, or who speaks) and records the two. `liveMs` > 0:
+ *  the voices also go out in parts of that length while the call is on (recorderLive), for the live transcript. */
+function recordInPage(liveMs: number) {
+  const w = window as unknown as { pcs: RTCPeerConnection[]; recorderChunk(data: string): Promise<void>; recorderLive(part: LivePart): Promise<void>; recorderStop?: () => Promise<{ names: string[]; marks: [string, number][] }> };
   const pc = w.pcs.at(-1);
   if (!pc) throw new Error("the call's connection was not found");
   const audio = new AudioContext(), mix = audio.createMediaStreamDestination(), heard = new Set<string>();
@@ -137,25 +142,50 @@ function recordInPage() {
   }, 200);
   const stream = new MediaStream([...canvas.captureStream(5).getVideoTracks(), ...mix.stream.getAudioTracks()]);
   const recorder = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp8,opus", videoBitsPerSecond: 600_000, audioBitsPerSecond: 64_000 });
+  const base64 = async (blob: Blob) => {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let text = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(text);
+  };
   // Each second of the recording leaves the page at once: a long call does not stay in the page's memory.
   let sent = Promise.resolve();
   recorder.ondataavailable = (event) => {
-    sent = sent.then(async () => {
-      const bytes = new Uint8Array(await event.data.arrayBuffer());
-      let text = "";
-      for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      await w.recorderChunk(btoa(text));
-    });
+    sent = sent.then(async () => w.recorderChunk(await base64(event.data)));
   };
   recorder.start(1000);
   began = performance.now();
+  // The live parts: a new audio recorder for each part, so that each part is a file of its own. With it go the
+  // marks of its time (5 s more at each side, as speakerOf looks): the container names who spoke.
+  let live: MediaRecorder | null = null, liveSent = Promise.resolve();
+  const at = () => Math.round(performance.now() - began);
+  const livePart = () => {
+    const part = new MediaRecorder(new MediaStream(mix.stream.getAudioTracks()), { mimeType: "audio/webm;codecs=opus", audioBitsPerSecond: 32_000 });
+    const start = at(), chunks: Blob[] = [];
+    part.ondataavailable = (event) => chunks.push(event.data);
+    const stopped = new Promise<void>((done) => (part.onstop = () => done()));
+    liveSent = liveSent.then(async () => {
+      await stopped;
+      const end = at();
+      await w.recorderLive({ audio: await base64(new Blob(chunks)), start, end, marks: marks.filter(([, t]) => t >= start - 5000 && t <= end + 5000) });
+    });
+    part.start();
+    live = part;
+  };
+  const liveTimer = liveMs > 0 ? setInterval(() => {
+    live?.stop();
+    livePart();
+  }, liveMs) : 0;
+  if (liveMs > 0) livePart();
   w.recorderStop = async () => {
     clearInterval(timer);
+    clearInterval(liveTimer);
+    live?.stop();
     await new Promise<void>((done) => {
       recorder.onstop = () => done();
       recorder.stop();
     });
-    await sent;
+    await Promise.all([sent, liveSent]);
     return { names: [...names], marks };
   };
 }
@@ -217,11 +247,51 @@ async function toGrain(title: string, started: Date, names: string[], lines: Lin
 }
 
 type Line = { name: string; start: number; end: number; text: string };
+/** A part of the live audio from the page: webm (opus) in base64, its times and the marks of its time, in ms from
+ *  the start of the recording. */
+type LivePart = { audio: string; start: number; end: number; marks: [string, number][] };
+/** What the live parts gave. `failed`: a part had no transcript, so the end of the call transcribes it all again. */
+type Live = { pieces: Piece[]; language: string; failed: boolean; queue: Promise<void> };
+
+/** One file of audio to the Worker's speech-to-text: its pieces, at `offset` ms from the start of the recording. */
+async function speech(job: Job, file: string, offset: number) {
+  const res = await fetch(`${job.recorder}/transcribe`, { method: "POST", headers: { authorization: `Bearer ${process.env.RECORDER_SECRET}` }, body: await openAsBlob(file) });
+  if (!res.ok) throw new Error(`transcribe ${res.status}`);
+  const out = (await res.json()) as { language?: string; segments?: { start: number; end: number; text: string; quiet?: number }[] };
+  const pieces: Piece[] = (out.segments ?? []).map((piece) => ({ start: offset + piece.start * 1000, end: offset + piece.end * 1000, text: piece.text, quiet: piece.quiet ?? 0 }));
+  return { language: out.language ?? "", pieces };
+}
+
+/** One live part: to mp3, to the speech-to-text, named with the part's marks, and its lines to the call's thread
+ *  (POST /api/calls/live). The pieces stay for the transcript at the end of the call. */
+async function livePart(job: Job, origin: string, part: LivePart, live: Live) {
+  if (part.end - part.start < 1000) return;
+  try {
+    writeFileSync("/tmp/live.webm", Buffer.from(part.audio, "base64"));
+    await run("ffmpeg", ["-v", "error", "-y", "-i", "/tmp/live.webm", "-vn", "-ac", "1", "-ar", "16000", "-b:a", "32k", "/tmp/live.mp3"]);
+    const { language, pieces } = await speech(job, "/tmp/live.mp3", part.start);
+    live.language ||= language;
+    live.pieces.push(...pieces);
+    const turns: Turn[] = [];
+    for (const [name, at] of part.marks) addMark(turns, name, at);
+    const lines = liveLines(attribute(turns, pieces));
+    if (!lines.length) return;
+    const res = await fetch(`${origin}/api/calls/live`, { method: "POST", headers: { authorization: `Bearer ${process.env.RECORDER_SECRET}`, "content-type": "application/json" }, body: JSON.stringify({ room: job.room, lines }) });
+    if (!res.ok) log("live lines not posted:", res.status);
+  } catch (error) {
+    live.failed = true;
+    log("live part failed:", String(error));
+  }
+}
 
 /** The call's words with who said them: the audio in parts to the Worker's speech-to-text, then the names from
  *  the page's marks. Any failure: no lines (Grain then transcribes by itself). */
-async function transcribe(job: Job, marks: [string, number][], names: string[]): Promise<{ lines: Line[]; language: string }> {
+async function transcribe(job: Job, marks: [string, number][], names: string[], live: Live): Promise<{ lines: Line[]; language: string }> {
   if (!job.recorder) return { lines: [], language: "pt" };
+  const turns: Turn[] = [];
+  for (const [name, at] of marks) addMark(turns, name, at);
+  // Each live part was transcribed: the call's transcript is made of them, and the audio is not paid twice.
+  if (!live.failed && live.pieces.length) return { lines: attribute(turns, live.pieces, names), language: live.language || "pt" };
   try {
     for (const old of readdirSync("/tmp").filter((file) => file.startsWith("part-"))) rmSync(`/tmp/${old}`);
     await run("ffmpeg", ["-v", "error", "-y", "-i", RAW, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "32k", "-f", "segment", "-segment_time", String(PART_S), "/tmp/part-%04d.mp3"]);
@@ -229,14 +299,10 @@ async function transcribe(job: Job, marks: [string, number][], names: string[]):
     const pieces: Piece[] = [];
     let language = "";
     for (const [index, part] of parts.entries()) {
-      const res = await fetch(`${job.recorder}/transcribe`, { method: "POST", headers: { authorization: `Bearer ${process.env.RECORDER_SECRET}` }, body: await openAsBlob(`/tmp/${part}`) });
-      if (!res.ok) throw new Error(`transcribe ${res.status}`);
-      const out = (await res.json()) as { language?: string; segments?: { start: number; end: number; text: string; quiet?: number }[] };
-      language ||= out.language ?? "";
-      for (const piece of out.segments ?? []) pieces.push({ start: (index * PART_S + piece.start) * 1000, end: (index * PART_S + piece.end) * 1000, text: piece.text, quiet: piece.quiet ?? 0 });
+      const out = await speech(job, `/tmp/${part}`, index * PART_S * 1000);
+      language ||= out.language;
+      pieces.push(...out.pieces);
     }
-    const turns: Turn[] = [];
-    for (const [name, at] of marks) addMark(turns, name, at);
     return { lines: attribute(turns, pieces, names), language: language || "pt" };
   } catch (error) {
     log("no transcript of ours:", String(error));
@@ -305,6 +371,7 @@ async function toWorkspace(recording: string) {
 async function record(job: Job) {
   const origin = new URL(job.joinUrl).origin;
   rmSync(RAW, { force: true });
+  const live: Live = { pieces: [], language: "", failed: false, queue: Promise.resolve() };
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM || undefined,
     args: [
@@ -336,6 +403,10 @@ async function record(job: Job) {
       if (message.type() === "error") log("page error:", message.text().slice(0, 300));
     });
     await page.exposeFunction("recorderChunk", (data: string) => appendFileSync(RAW, Buffer.from(data, "base64")));
+    // A live part is queued and the page goes on: one part at a time to the speech-to-text, in order.
+    await page.exposeFunction("recorderLive", (part: LivePart) => {
+      live.queue = live.queue.then(() => livePart(job, origin, part, live));
+    });
     await page.goto(job.joinUrl, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(3000);
     if (await page.getByRole("dialog").count()) await page.keyboard.press("Escape");
@@ -351,7 +422,7 @@ async function record(job: Job) {
       return;
     }
     const started = new Date(), title = job.title || (await page.title()).replace(/\s*·\s*deco\.chat$/, "") || job.room;
-    await page.evaluate(recordInPage);
+    await page.evaluate(recordInPage, job.recorder ? LIVE_S * 1000 : 0);
     log("recording", job.room);
     let alone = 0, seconds = 0;
     // A closed call screen is not "alone": the recorder opens it and counts again. If it stays closed for
@@ -366,6 +437,7 @@ async function record(job: Job) {
     if (blind >= ALONE_S) throw new Error("the call's screen stayed closed: the recorder could not see the call");
     const { names, marks } = await page.evaluate(() => (window as unknown as { recorderStop(): Promise<{ names: string[]; marks: [string, number][] }> }).recorderStop());
     await browser.close();
+    await live.queue;
     log("call over after", seconds, "s, people:", names.join(", "));
     // Grain takes 10 seconds or more. The recorder comes when two people are in the call: if it saw nobody, it
     // did not see the call, and the room must know.
@@ -374,7 +446,7 @@ async function record(job: Job) {
     // Grain refuses the browser's file as it is (tested 2026-11-24): H.264 main, yuv420p, 30 frames, stereo AAC.
     await run("ffmpeg", ["-v", "error", "-y", "-i", RAW, "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "main", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", OUT]);
     log("mp4", statSync(OUT).size, "bytes");
-    const { lines, language } = await transcribe(job, marks, names);
+    const { lines, language } = await transcribe(job, marks, names, live);
     log("transcript lines:", lines.length);
     // The title is where the call was (the room and the thread). Grain shows the date, and that it is a call.
     const { id: recording, url } = await toGrain(title, started, names, lines, language);

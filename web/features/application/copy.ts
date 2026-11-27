@@ -1090,6 +1090,7 @@ const EN: Readonly<Record<string, string>> = {
   "{people} reagiram": "{people} reacted",
   "Reporta algo entregue": "Reports something delivered",
   entregue: "delivered",
+  transcrição: "transcript",
   aprovado: "approved",
   decidido: "decided",
   "Apagar registro": "Delete entry",

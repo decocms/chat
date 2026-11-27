@@ -37,6 +37,14 @@ export function addMark(turns: Turn[], name: string, now: number, hold = 700) {
   turns.push({ name, start: Math.max(0, now - 200), end: now });
 }
 
+/** A live part's lines as the chat takes them (POST /api/calls/live): a name for nobody known, no empty text, the
+ *  sizes that the chat allows. */
+export const liveLines = (lines: readonly { name: string; text: string }[]) =>
+  lines
+    .filter((line) => line.text.trim())
+    .slice(0, 50)
+    .map((line) => ({ name: line.name === UNKNOWN ? "Desconhecido" : line.name.slice(0, 80), text: line.text.trim().slice(0, 4000) }));
+
 /** The pieces with their person, in the order of the call. `people`: who was in the call. With one person
  *  only, each piece is that person's. A piece with nobody near and no clear speech is dropped. */
 export const attribute = (turns: readonly Turn[], pieces: readonly Piece[], people: readonly string[] = []) =>
