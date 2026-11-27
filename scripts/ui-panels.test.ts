@@ -2693,6 +2693,53 @@ describe("chat", () => {
     expect(sent).toHaveLength(3);
     expect(sent[2]).toMatchObject({ t: "react", id: 9 });
   }, 30_000);
+  test("a message that is only 1–3 emoji is drawn big (jumbo, like Slack's); with text, four, or a file it stays body size", () => {
+    const person = (id: number, text: string) => ({
+      ...message(id, text),
+      author: "you@test",
+      kind: null,
+    });
+    const file = {
+      id: "ff11",
+      name: "note.txt",
+      type: "text/plain",
+      size: 1,
+      ts: 1,
+    };
+    const { target } = renderChat({
+      ...fixture(),
+      messages: [
+        person(20, "🔥"),
+        { ...person(21, "👨‍👩‍👧‍👦 🇧🇷 👍🏽"), edited: true, reply_to: 20 },
+        person(22, "🔥 nice"),
+        person(23, "🔥🚀😂👍"),
+        { ...person(24, "🔥"), files: [file] },
+      ],
+    } as Room);
+    const jumbo = (id: number) =>
+      target.querySelector<HTMLElement>(`#m${id} [data-jumbo-emoji]`);
+    expect(jumbo(20)?.dataset.jumboEmoji).toBe("1");
+    expect(jumbo(20)?.classList.contains("text-2xl")).toBe(true);
+    expect(jumbo(20)?.classList.contains("max-md:text-3xl")).toBe(true);
+    expect(jumbo(20)?.textContent?.trim()).toBe("🔥");
+    expect(jumbo(21)?.dataset.jumboEmoji).toBe("3");
+    // Solo stays the biggest: two or three a step below it.
+    expect(jumbo(21)?.classList.contains("text-xl")).toBe(true);
+    expect(jumbo(21)?.classList.contains("max-md:text-2xl")).toBe(true);
+    // The edited mark and the reply line keep their size.
+    expect(
+      target.querySelector("#m21 [data-message-edited]")?.className,
+    ).toContain("text-xs");
+    expect(
+      target.querySelector("#m21 [data-jumbo-emoji] [data-message-edited]"),
+    ).toBeNull();
+    for (const id of [22, 23, 24]) {
+      expect(jumbo(id)).toBeNull();
+      expect(
+        target.querySelector(`#m${id} [data-rich-content]`),
+      ).not.toBeNull();
+    }
+  });
   test("the hover bar keeps the main actions and puts the rest in ⋯, delete last, red, after a divider (Valls, Gimenes #4591)", async () => {
     const mine = { ...message(8, "My message"), author: "me@test", kind: null };
     const theirs = {
@@ -6355,8 +6402,12 @@ describe("composer ownership and interactions", () => {
       .click();
     flushSync();
     await tick();
-    const fire = document.querySelector<HTMLButtonElement>(
-      '[role="dialog"] button[aria-label=":fire:"]',
+    // A popover next to the 🙂 (Valls), not a centred dialog.
+    const picker = document.querySelector<HTMLElement>("[data-emoji-picker]");
+    expect(picker?.dataset.emojiPicker).toBe("popover");
+    expect(picker?.dataset.slot).toBe("popover-content");
+    const fire = picker!.querySelector<HTMLButtonElement>(
+      'button[aria-label=":fire:"]',
     )!;
     expect(fire !== null).toBe(true);
     fire.click();
@@ -6364,6 +6415,71 @@ describe("composer ownership and interactions", () => {
     flushSync();
     await dialogClosed();
     expect(input.value).toBe("before 🔥 after");
+  }, 30_000);
+  test("the emoji picker is a popover anchored to its 🙂 on a desktop (focus in its search, Esc gives focus back) and a sheet on a phone (Valls)", async () => {
+    const happy = (
+      window as unknown as {
+        happyDOM: {
+          setViewport(size: { width: number; height: number }): void;
+        };
+      }
+    ).happyDOM;
+    const desk = renderComposer(fixture());
+    const button = desk.target.querySelector<HTMLButtonElement>(
+      "[data-composer-emoji]",
+    )!;
+    button.focus();
+    button.click();
+    flushSync();
+    await tick();
+    const popover = document.querySelector<HTMLElement>(
+      '[data-emoji-picker="popover"]',
+    )!;
+    expect(popover.dataset.slot).toBe("popover-content");
+    // Anchored to the button that opened it: the button controls it, and it opens above the composer.
+    expect(button.getAttribute("aria-controls")).toBe(popover.id);
+    expect(button.dataset.state).toBe("open");
+    expect(popover.dataset.side).toBe("top");
+    expect(document.querySelector('[data-emoji-picker="sheet"]')).toBeNull();
+    for (let frame = 0; frame < 5; frame++)
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Buscar emoji…",
+    );
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    flushSync();
+    await dialogClosed();
+    expect(document.activeElement).toBe(button);
+    desk.target.remove();
+    // A phone: the same picker in a sheet from the bottom.
+    happy.setViewport({ width: 400, height: 800 });
+    try {
+      const phone = renderComposer(fixture());
+      phone.target
+        .querySelector<HTMLButtonElement>("[data-composer-emoji]")!
+        .click();
+      flushSync();
+      await tick();
+      const sheet = document.querySelector<HTMLElement>(
+        '[data-emoji-picker="sheet"]',
+      )!;
+      expect(sheet.dataset.slot).toBe("drawer-content");
+      expect(sheet.querySelector("[data-emoji-grid]")).not.toBeNull();
+      expect(
+        document.querySelector('[data-emoji-picker="popover"]'),
+      ).toBeNull();
+      phone.target.remove();
+    } finally {
+      happy.setViewport({ width: 1024, height: 768 });
+    }
   }, 30_000);
   test("# suggests rooms then this room's threads, filters as you type, inserts the link, and the sent link is the room's chip", async () => {
     const room: Room = { ...fixture(), id: "abcdef12" };

@@ -754,18 +754,33 @@
           {@render inside()}
         </div>{/if}
     </div>
-    <IconButton
-      label={t("Emoji")}
-      size="icon"
-      class={cn(FIELD_ICON, CONTROL, dictating && "hidden")}
-      disabled={off}
-      onclick={() => {
-        if (!ok()) return;
+    <EmojiPicker
+      {t}
+      bind:open={emoji}
+      onpick={insert}
+      keepFocusOnPick
+      side="top"
+      align="end"
+      onbeforeopen={() => {
+        if (!ok()) return false;
         speech.cancel();
         readCaret();
-        emoji = true;
-      }}><Icon icon="face-smile" size={GLYPH} /></IconButton
+      }}
     >
+      {#snippet trigger(props)}<IconButton
+          {...props}
+          label={t("Emoji")}
+          size="icon"
+          data-composer-emoji
+          class={cn(
+            FIELD_ICON,
+            CONTROL,
+            "data-[state=open]:bg-accent data-[state=open]:text-foreground",
+            dictating && "hidden",
+          )}
+          disabled={off}><Icon icon="face-smile" size={GLYPH} /></IconButton
+        >{/snippet}
+    </EmojiPicker>
     <!-- Phones: the mic and send share one cell (#3821). While you dictate the mic is the stop button. -->
     <div
       class="flex items-end gap-0.5 max-md:grid max-md:gap-0 max-md:*:col-start-1 max-md:*:row-start-1"
@@ -831,4 +846,3 @@
     </div>
   </div>
 </form>
-<EmojiPicker {t} bind:open={emoji} onpick={insert} />
