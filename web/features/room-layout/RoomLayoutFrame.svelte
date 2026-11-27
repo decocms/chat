@@ -224,18 +224,13 @@
     >
       {@render props.header()}
     </div>
+    <!-- No strip under the bar in the sheet (Gimenes #6117): the ⋮ switches panes. The cell stays for the layout, empty. -->
     <div
       bind:this={peek}
       use:handle={{ sheet: "doc", opening: true }}
       inert={props.overlayOpen || ($view.mobile && $view.sheet === "side")}
       data-room-peek
-      class={!props.overlayOpen &&
-      $view.mobile &&
-      // The doc sheet's height is a share of the rows under this strip, so the
-      // strip stays until the slide out ends: the sheet keeps one height.
-      ($view.sheet === "doc" || docPresented)
-        ? "relative z-30 col-start-2 row-start-2 min-w-0 touch-none border-b border-border bg-background"
-        : "hidden"}
+      class={"hidden"}
     >
       {@render props.peek()}
     </div>

@@ -81,49 +81,17 @@ export async function openRoomPane(
   };
   await expect(layout).toBeVisible();
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
-    // Phones (B, #6052): the top bar's ⋮ has Doc, Arquivos, Decisões,
-    // Lembretes and Pessoas; the drawer (the title) keeps Apps and Agents.
-    // Each opens the doc sheet.
-    const shortcut = async (tab: string) => {
-      const item = page.locator(`[data-phone-more-item="${tab}"]`);
-      if (
-        ["doc", "files", "decisions", "reminders", "people"].includes(tab) &&
-        (await page.locator("[data-room-bar] [data-phone-more]").isVisible())
-      ) {
-        await page.locator("[data-room-bar] [data-phone-more]").click();
-        const shown = await item
-          .waitFor({ state: "visible", timeout: 3000 })
-          .then(() => true)
-          .catch(() => false);
-        if (shown) {
-          await item.click();
-          return;
-        }
-        await page.keyboard.press("Escape");
-      }
-      if ((await layout.getAttribute("data-sheet")) !== "side")
-        await page.locator("[data-room-bar] [data-phone-title]").click();
-      await expect(layout).toHaveAttribute("data-sheet", "side");
-      await page
-        .locator(`[data-phone-menu] [data-document-pane="${tab}"]`)
-        .click();
-    };
-    const button = page.locator(
-      `[data-room-peek] [data-document-pane="${pane}"]`,
-    );
-    // The peek tabs show only while the doc sheet is open (#80). Use the
-    // pane's shortcut first when the sheet is closed.
-    const tab = pane;
+    // Phones (B, #6052, #6117): the top bar's ⋮ opens every pane in the doc
+    // sheet. There is no strip under the bar and no tab row in the drawer.
     if (
       (await layout.getAttribute("data-sheet")) !== "doc" ||
-      !(await button.isVisible())
+      (await layout.getAttribute("data-pane")) !== pane
     ) {
-      await shortcut(tab);
-      await expect(layout).toHaveAttribute("data-sheet", "doc");
-      await expect(button).toBeVisible();
+      await page.locator("[data-room-bar] [data-phone-more]").click();
+      await page.locator(`[data-phone-more-item="${pane}"]`).click();
     }
-    if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
     await expect(layout).toHaveAttribute("data-sheet", "doc");
+    await expect(layout).toHaveAttribute("data-pane", pane);
   } else {
     // The tabs live in the room's top bar and open the pane when it's closed;
     // your Claude (the Agents pane) opens from its row at the foot of the

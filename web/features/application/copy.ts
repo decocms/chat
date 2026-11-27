@@ -311,6 +311,8 @@ const EN: Readonly<Record<string, string>> = {
   "1 coisa esperando você": "1 thing waiting on you",
   "{n} coisas esperando você": "{n} things waiting on you",
   "Voltar pra sala principal": "Back to the main thread",
+  "Voltar para o chat": "Back to the chat",
+  "Chat geral da sala": "The room's main chat",
   "Sala principal": "Main thread",
   Hoje: "Today",
   Ontem: "Yesterday",

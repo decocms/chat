@@ -3,7 +3,7 @@
   import DmNav from "../app-navigation/DmNav.svelte";
   import UserCenter from "../user-center/UserCenter.svelte";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
-  import { navRow } from "../../lib/components/navRow";
+  import { navRow, NAV_ROW_TEXT } from "../../lib/components/navRow";
   import EpicTree from "../navigation/EpicTree.svelte";
   import PinnedItems from "../pins/PinnedItems.svelte";
   import RoomMark from "./RoomMark.svelte";
@@ -46,8 +46,6 @@
     onopenside = () => {},
     mountSheetHandle,
     hideSheetHandle = false,
-    phoneMenu,
-    phoneAccount,
     footer,
     call,
     callPanel,
@@ -176,11 +174,6 @@
         class="mx-auto h-5 w-12 shrink-0 cursor-pointer rounded-full border-0 bg-muted md:hidden"
         onclick={onopenside}
       ></button>{/if}
-    <!-- Phones: the room's name is the drawer's first item (Gimenes #4065). -->
-    {#if !dm}{@render roomRow()}{/if}
-    {#if phoneMenu}<div class="-mb-2 shrink-0 md:hidden">
-        {@render phoneMenu()}
-      </div>{/if}
     <!-- No This room | All rooms tabs: the phone's Home lists every room (Gimenes #4071). -->
     {@render thisRoom()}
     {#snippet thisRoom()}{#if dm && appNavigation}<!-- A DM is only a conversation: its row, no threads, views or epics under it. -->
@@ -235,6 +228,7 @@
         <EpicTree
           {room}
           {thread}
+          lead={dm ? undefined : mainRow}
           session={navigation}
           mutations={owner}
           {onviewchange}
@@ -249,6 +243,26 @@
           }}
         />
       </div>{/snippet}
+    <!-- Phones (Gimenes #6117): the room's chat is the first row of the thread list, shaped like a thread row. -->
+    {#snippet mainRow()}<button
+        type="button"
+        data-room-title
+        aria-current={thread === "main" ? "page" : undefined}
+        class={navRow({ variant: "chats", class: "md:hidden" })}
+        onclick={(event) => {
+          if (event.currentTarget.isConnected) openMain();
+        }}
+        ><RoomMark title={room.book.title} src={roomIcon} size="chat" /><span
+          class="flex min-w-0 flex-1 flex-col"
+          ><span class={NAV_ROW_TEXT.chats.label}>{room.book.title}</span><span
+            class={[NAV_ROW_TEXT.chats.meta, "text-muted-foreground"]}
+            >{vb.t("Chat geral da sala")}</span
+          ></span
+        ><WaitBadge
+          waits={vb.waitsIn("main")}
+          label={(n) => vb.t("{n} coisas esperando você", { n })}
+        /></button
+      >{/snippet}
     <!-- Phones and DMs: the room's (or the conversation's) own row. On a desktop room the name in the header is the main thread. -->
     <!-- The room's row: its name, ✎ right after it, and on phones your avatar at the end (Gimenes #4108). -->
     {#snippet roomRow()}<div
@@ -284,14 +298,10 @@
           tooltipSide="bottom"
           class="shrink-0 text-muted-foreground hover:text-sidebar-foreground md:hidden"
           onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
-        >{#if phoneAccount}<span
-            data-drawer-account
-            class="ml-auto flex shrink-0 md:hidden"
-            >{@render phoneAccount()}</span
-          >{/if}
+        >
       </div>{/snippet}
-    <!-- On a phone Pinned lives in the Files tab. People & agents is a pane beside the chat (desktop) or the Claude tab (phone). A DM has neither. -->
-    {#if !dm}<div class="contents max-md:hidden">
+    <!-- Pinned under the threads, on a phone too (Gimenes #6117). People & agents is a pane beside the chat. A DM has neither. -->
+    {#if !dm}<div class="contents">
         <PinnedItems
           {room}
           session={pins}

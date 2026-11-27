@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, tick, untrack } from "svelte";
+  import { onDestroy, tick, untrack, type Snippet } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
   import { MOBILE_QUERY } from "../../lib/breakpoints";
   import type { Room, Epic } from "../../../shared/room";
@@ -62,6 +62,7 @@
     onviewchange,
     selectionDisabled = false,
     onBeforeOpen,
+    lead,
     vb,
   }: {
     room: Room;
@@ -72,6 +73,8 @@
     onviewchange: (view: ThreadView) => void;
     selectionDisabled?: boolean;
     onBeforeOpen?: () => boolean;
+    /** A row before the list in each tab: the room's chat on phones (Gimenes #6117). */
+    lead?: Snippet;
     vb: {
       t: (text: string, vars?: Record<string, string | number>) => string;
       name: (email: string) => string;
@@ -467,6 +470,7 @@
   {#snippet panel(view: (typeof views)[number])}
     {@const value = view.value}
     {#if value === mode}
+      {@render lead?.()}
       <ul
         bind:this={list}
         aria-label={view.label}

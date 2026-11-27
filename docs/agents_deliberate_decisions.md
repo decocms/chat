@@ -2590,3 +2590,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium (wire protocol). Old apps are unchanged; a bad merge falls back to the room's own threads and no eh.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · feat/phone-drawer-b · The phone drawer has only the threads and the pinned items
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes approved the mockup `apps/phone-drawer-b.html` (#6117, #6123): Apps and Agents in ⋮, no strip under the bar in the sheet, and a drawer with only Mine · Open · Done, the threads and Fixados. He did not say what happens to the pinned items in the phone's Arquivos pane, or to rename and the account menu, which were in the drawer's top row.
+- Decision:
+  - The phone's Arquivos pane no longer shows Fixados. The drawer shows them, under the threads, like the desktop sidebar.
+  - The room's chat is the first row of each tab (`data-room-title`, the home's 72px row shape), with the room's mark and what waits on you.
+  - Rename and the account menu leave the phone drawer. The account is on the home. Rename stays on the desktop sidebar.
+  - The ⋮ marks the open pane with the accent background.
+- Other options: Keep Fixados in Arquivos too (the same list in two places). Add "Editar sala" to ⋮.
+- Risk: low
+- Undo: Revert the commit.
+- Status: open

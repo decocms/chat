@@ -196,6 +196,11 @@
             .filter(Boolean)
             .join(" · "),
   );
+  // Phone, a pane open in the sheet (Gimenes #6117): the bar says which pane, with the room under it, and ← goes back
+  // to the chat. There is no strip under the bar: the ⋮ switches panes.
+  const sheetPane = $derived(
+    $geometry.mobile && $geometry.sheet === "doc" ? $geometry.pane : null,
+  );
   const mac =
     typeof navigator !== "undefined" &&
     /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -285,16 +290,20 @@
   {#key header.thread}<Snapshot value={header.thread}
       >{#snippet children(expectedThread)}<IconButton
           label={t(
-            expectedThread === "main"
-              ? "Suas salas"
-              : "Voltar pra sala principal",
+            sheetPane
+              ? "Voltar para o chat"
+              : expectedThread === "main"
+                ? "Suas salas"
+                : "Voltar pra sala principal",
           ) + centerLabel}
           tooltipSide="bottom"
           data-phone-back
           size="icon"
           class="size-10 rounded-full md:hidden"
           onclick={(event) => {
-            if (live(event)) back(expectedThread);
+            if (!live(event)) return;
+            if (sheetPane) layout.closeSheet();
+            else back(expectedThread);
           }}
           ><Icon
             icon="arrow-left"
@@ -332,15 +341,13 @@
       class="flex min-w-0 flex-col items-start"
       ><span
         class="flex max-w-full min-w-0 items-center gap-1 text-base leading-5 font-semibold"
-        ><span data-phone-thread class="truncate">{phoneTitle}</span><Icon
-          icon="chevron-down"
-          size={16}
-          class="shrink-0"
-        /></span
-      >{#if phoneSubtitle}<span
+        ><span data-phone-thread class="truncate"
+          >{sheetPane ? paneLabel(sheetPane, en) : phoneTitle}</span
+        ><Icon icon="chevron-down" size={16} class="shrink-0" /></span
+      >{#if sheetPane || phoneSubtitle}<span
           data-phone-room
           class="max-w-full truncate text-xs leading-4 text-muted-foreground"
-          >{phoneSubtitle}</span
+          >{sheetPane ? header.room.book.title : phoneSubtitle}</span
         >{/if}</span
     ></button
   >
@@ -425,6 +432,8 @@
             ><DropdownMenuSeparator
             />{/if}{#each phoneMenu as item (item.pane)}<DropdownMenuItem
               data-phone-more-item={item.pane}
+              aria-current={sheetPane === item.pane ? "page" : undefined}
+              class="aria-[current=page]:bg-accent"
               onSelect={() => {
                 if (current()) onPane?.(item.pane);
               }}><Icon icon={item.icon} />{item.label}</DropdownMenuItem

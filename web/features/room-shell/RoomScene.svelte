@@ -44,7 +44,6 @@
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
-  import { phoneDrawerPanes, phonePanes } from "./panelViews";
   import type { DocumentPane } from "../documents/types";
   import { attachRoomEdgeBack } from "./edgeBack";
   import type { RoomLayoutCells } from "../room-layout/types";
@@ -502,23 +501,6 @@
         call={$view.header.room.call?.length ? callRow : undefined}
         callPanel={inCall || elsewhere ? callPanel : undefined}
       >
-        <!-- Phones: the drawer keeps the tabs that the strip under the top bar and the people avatars do not show (Apps, Agents; A2, Gimenes #4331). -->
-        {#snippet phoneMenu()}{#if $view && $geometry.mobile}<div
-              data-phone-menu
-            >
-              <DocumentToolbar
-                {...$view.peek}
-                pane={"" as DocumentPane}
-                only={phoneDrawerPanes(!!$view.header.room.book.dm)}
-                onPane={(pane) => {
-                  if (current()) owner.actions.setPane(pane, { open: true });
-                }}
-              />
-            </div>{/if}{/snippet}
-        {#snippet phoneAccount()}{#if $personal.me}<AccountRow
-              me={$personal.me}
-              row={false}
-            />{/if}{/snippet}
         {#snippet footer(
           collapsed,
           rows,
@@ -575,13 +557,8 @@
           if (current()) owner.actions.setPane(pane, { open: true });
         }}
       />{/if}{/snippet}
-  {#snippet peek()}{#if $view}<DocumentToolbar
-        {...$view.peek}
-        only={[...phonePanes(!!$view.header.room.book.dm), "view"]}
-        onPane={(pane) => {
-          if (current()) owner.actions.setPane(pane, { open: true });
-        }}
-      />{/if}{/snippet}
+  <!-- No strip under the bar in the sheet (Gimenes #6117): the ⋮ switches panes, ← closes the sheet. -->
+  {#snippet peek()}{/snippet}
   {#snippet attention()}{#if $view}
       <div>
         <!-- Phones in the call with the stage closed: the call's panel, to open it again (the drawer has no foot). -->
@@ -666,10 +643,6 @@
           : "hidden"}
         hidden={$geometry.pane !== "files"}
       >
-        {#if $geometry.mobile}<PhoneRoomSection
-            part="pins"
-            sidebar={$view.sidebar}
-          />{/if}
         {#if Files}<Files {...$view.files} />{:else}<DeferredViewStatus
             phase={$filesView.phase}
             lang={services.language}

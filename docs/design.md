@@ -6,13 +6,13 @@ This document gives the layout rules of the browser app (`web/`). Read it before
 
 The room screen has five areas, from left to right.
 
-| Area | Component | Contents |
-|---|---|---|
-| Rail | `AppNavigation` | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room. |
-| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), which is also the main thread, then the epics in three tabs (Mine, Open, Done; `EpicTree`) and the people. At the bottom: the user center (`UserCenter`). |
-| Top bar | `RoomHeader` (room-shell) | The name of the view, the controls of the view, the pane tabs. |
-| Main view | `RoomScene` | The chat of a thread. |
-| Pane | `DocumentToolbar` and the pane | The doc, the files, the apps, beside the main view. |
+| Area      | Component                      | Contents                                                                                                                                                                                     |
+| --------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rail      | `AppNavigation`                | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room.                                                                                                           |
+| Sidebar   | `Sidebar` (room-sidebar)       | The room's name (`SidebarHeader`), which is also the main thread, then the epics in three tabs (Mine, Open, Done; `EpicTree`) and the people. At the bottom: the user center (`UserCenter`). |
+| Top bar   | `RoomHeader` (room-shell)      | The name of the view, the controls of the view, the pane tabs.                                                                                                                               |
+| Main view | `RoomScene`                    | The chat of a thread.                                                                                                                                                                        |
+| Pane      | `DocumentToolbar` and the pane | The doc, the files, the apps, beside the main view.                                                                                                                                          |
 
 The sidebar names the room. The top bar names the view. Do not show the room's name two times.
 
@@ -73,8 +73,17 @@ The phone layout is B: one line, like WhatsApp (Gimenes #6016, #6030, #6032, #60
    - A room's main thread: "3 online · 2 agentes" when other people are online, "2 agentes trabalhando" when only agents listen, else the first names of the members.
    - A thread: the room's name and the epic's progress.
    - A DM: "online" when the person is online.
-3. At the end of the bar: the search icon (it opens the Search pane), then ⋮. The ⋮ menu has "Iniciar chamada" ("Ligar para <name>" in a DM) while the room has no call, then Doc, Arquivos, Decisões, Lembretes and Pessoas (`phoneMenuPanes`). A DM has no Doc and no Pessoas. An item opens that pane in the doc sheet.
-4. The drawer's tab row keeps only Apps and Agents (`phoneDrawerPanes`).
+3. At the end of the bar: the search icon (it opens the Search pane), then ⋮. The ⋮ menu has "Iniciar chamada" ("Ligar para <name>" in a DM) while the room has no call, then all the panes of the room: Doc, Arquivos, Apps, Decisões, Lembretes, Pessoas and Agents (`phoneMenuPanes`, Gimenes #6117). A DM has no Doc, no Pessoas and no Agents. An item opens that pane in the doc sheet. The item of the open pane has the accent background.
+4. When a pane is open in the doc sheet, the bar shows the name of the pane, with the room's name under it. ← closes the sheet and goes back to the chat. There is no strip of pane tabs under the bar: use ⋮ to go to a different pane.
+
+### The drawer on phones
+
+The drawer has only the threads and the pinned items, like the desktop sidebar (Gimenes #6117):
+
+1. At the top, the Mine, Open and Done tabs.
+2. The first row of each tab is the room's main chat: the room's icon, its name and "Chat geral da sala". The thread rows follow it.
+3. Under the threads, Fixados (the pinned items). The Arquivos pane does not show them on a phone.
+4. The drawer has no room name, no ✎, no avatar and no tab row. Rename the room from the desktop sidebar. Your account is on the home.
 
 ### Controls of the view
 
@@ -97,11 +106,11 @@ To add controls for a view:
 
 The top bar on phones has no space for the controls of a view. That is why the view draws them on phones. Use one component for the two places, so that they stay the same.
 
-| View | Controls of the view | Component |
-|---|---|---|
-| Epic thread | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions`, in `RoomBarTitle`. Phones have no status control (Gimenes #4065). |
-| Home Inbox (`/?inbox`, all rooms) | "Resolver todos os pedidos (n)" | `InboxControls`, in the bar of `HomeInbox` |
-| Each thread of a room, when calls are on and the room has no call | "Iniciar call" | `CallControls`, from `RoomScene`. Phones draw it above the chat. |
+| View                                                              | Controls of the view                                                   | Component                                                                        |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Epic thread                                                       | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions`, in `RoomBarTitle`. Phones have no status control (Gimenes #4065). |
+| Home Inbox (`/?inbox`, all rooms)                                 | "Resolver todos os pedidos (n)"                                        | `InboxControls`, in the bar of `HomeInbox`                                       |
+| Each thread of a room, when calls are on and the room has no call | "Iniciar call"                                                         | `CallControls`, from `RoomScene`. Phones draw it above the chat.                 |
 
 ### The call
 
