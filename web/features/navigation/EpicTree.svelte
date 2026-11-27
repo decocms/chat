@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from "svelte";
+  import { MediaQuery } from "svelte/reactivity";
+  import { MOBILE_QUERY } from "../../lib/breakpoints";
   import type { Room, Epic } from "../../../shared/room";
   import type { RoomMutations } from "../room-sidebar/session";
   import { epicStatus, epicStatusLook } from "../room-sidebar/model";
@@ -81,6 +83,33 @@
     };
   } = $props();
   const uid = $props.id();
+  // Phone: the drawer's thread rows look like the home's chat list, 72px (Gimenes #6051, #6063): a big face, the
+  // title, two lines of the thread's last message (else its task progress), the status at the end.
+  const phone = new MediaQuery(MOBILE_QUERY);
+  const lastMessages = $derived.by(() => {
+    const last = new Map<string, Room["messages"][number]>();
+    if (!phone.current) return last;
+    for (const message of room.messages)
+      if (message.tag !== "fire" && message.text.trim())
+        last.set(message.thread, message);
+    return last;
+  });
+  function rowPreview(epic: Epic) {
+    const message = lastMessages.get(epic.id);
+    if (message) {
+      const text = message.text
+        .replace(/[*_`#>~]|!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+        .replace(/\s+/g, " ")
+        .trim();
+      return `${vb.name(message.author).split(" ")[0]}: ${text}`;
+    }
+    const done = epic.tasks.filter((task) => task.done).length;
+    return epic.tasks.length
+      ? vb.t("{done} de {total} tarefas", { done, total: epic.tasks.length })
+      : epic.owner
+        ? vb.name(epic.owner)
+        : "";
+  }
   let navigation = $derived(session.state);
   const mutation = untrack(() => mutations.state);
   const mutationBusy = $derived(
@@ -486,6 +515,7 @@
                         variant="ghost"
                         class={cn(
                           "relative h-10 min-w-0 flex-1 justify-start gap-2.5 rounded-lg px-2.5 text-left font-normal hover:bg-transparent",
+                          phone.current && "h-18 gap-3 px-2 py-1",
                           current && "font-medium",
                           // Done: finished work reads quieter, and comes back on hover or when open.
                           value === "done" &&
@@ -519,16 +549,30 @@
                             ? vb.avatarVersion(epic.owner)
                             : undefined}
                           class={cn(
-                            "size-6",
+                            phone.current ? "size-14" : "size-6",
                             value === "done" &&
                               !current &&
                               "opacity-60 group-hover/row:opacity-100",
                           )}
                         />
-                        <span class="min-w-0 flex-1 truncate" data-epic-title
-                          >{epic.title}{#if epic.done && value !== "done"}<span
-                              class="ml-1 text-xs text-muted-foreground"
-                              >({vb.t("Feito")})</span
+                        <span
+                          class={phone.current
+                            ? "flex min-w-0 flex-1 flex-col"
+                            : "contents"}
+                          ><span
+                            class={cn(
+                              "min-w-0 flex-1 truncate",
+                              phone.current && "flex-none text-lg leading-6",
+                            )}
+                            data-epic-title
+                            >{epic.title}{#if epic.done && value !== "done"}<span
+                                class="ml-1 text-xs text-muted-foreground"
+                                >({vb.t("Feito")})</span
+                              >{/if}</span
+                          >{#if phone.current}<span
+                              data-epic-preview
+                              class="line-clamp-2 min-h-10 text-base leading-5 break-words whitespace-normal text-muted-foreground"
+                              >{rowPreview(epic)}</span
                             >{/if}</span
                         >
                         {#if epic.pinned && value !== "done"}<span
@@ -558,7 +602,7 @@
                             /></span
                           >{/if}
                         <!-- Task progress as a bar under the title: gray at 0 done, green fill from the first done task. -->
-                        {#if epic.tasks.length}<Progress
+                        {#if epic.tasks.length && !phone.current}<Progress
                             data-epic-progress={`${epic.tasks.filter((task) => task.done).length}/${epic.tasks.length}`}
                             aria-label={vb.t("{done} de {total} tarefas", {
                               done: epic.tasks.filter((task) => task.done)

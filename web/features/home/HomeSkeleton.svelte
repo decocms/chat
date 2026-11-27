@@ -60,7 +60,7 @@
       </div>
       <div class="space-y-0.5">
         {#each ["h-4 w-36", "h-4 w-28", "h-4 w-40", "h-4 w-24", "h-4 w-32"] as name (name)}<div
-            class="flex min-h-20 items-center gap-3 px-2 py-2"
+            class="flex min-h-18 items-center gap-3 px-2 py-1"
           >
             <Skeleton class="size-14 shrink-0 rounded-2xl" />
             <div class="flex min-w-0 flex-1 flex-col gap-2.5">
