@@ -93,25 +93,27 @@ export async function openRoomPane(
     await expect(layout).toHaveAttribute("data-sheet", "doc");
     await expect(layout).toHaveAttribute("data-pane", pane);
   } else {
-    // The tabs live in the room's top bar and open the pane when it's closed;
-    // your Claude (the Agents pane) opens from its row at the foot of the
-    // sidebar. With no agent the foot has only setup options (the cloud one
-    // links to /settings), so callers skip the pane: see desktopAgentsPane.
-    const button =
-      pane === "agents"
-        ? page
-            .locator(
-              "[data-agent-footer] [data-agent-row] button, [data-agent-footer] > button",
-            )
-            .first()
-        : page.locator(
-            `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
-          );
+    // Desktop (Gimenes #6099): the top bar's ⋮ opens the panes. A click on the
+    // open pane's item closes it, so click only when it is not open. Your
+    // Claude (the Agents pane) opens from its row at the foot of the sidebar.
+    // With no agent the foot has only setup options (the cloud one links to
+    // /settings), so callers skip the pane: see desktopAgentsPane.
     if (
       (await layout.getAttribute("data-pane")) !== pane ||
       !(await page.locator(content[pane]).isVisible())
-    )
-      await button.click();
+    ) {
+      if (pane === "agents")
+        await page
+          .locator(
+            "[data-agent-footer] [data-agent-row] button, [data-agent-footer] > button",
+          )
+          .first()
+          .click();
+      else {
+        await page.locator("[data-room-bar] [data-desktop-more]").click();
+        await page.locator(`[data-desktop-more-item="${pane}"]`).click();
+      }
+    }
   }
   await expect(layout).toHaveAttribute("data-pane", pane);
   // A selected pane or a loading placeholder is not feature readiness. Include
