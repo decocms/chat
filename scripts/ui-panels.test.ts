@@ -2693,6 +2693,50 @@ describe("chat", () => {
     expect(sent).toHaveLength(3);
     expect(sent[2]).toMatchObject({ t: "react", id: 9 });
   }, 30_000);
+  test("a message that is only 1–3 emoji is drawn big (jumbo, like Slack's); with text, four, or a file it stays body size", () => {
+    const person = (id: number, text: string) => ({
+      ...message(id, text),
+      author: "you@test",
+      kind: null,
+    });
+    const file = {
+      id: "ff11",
+      name: "note.txt",
+      type: "text/plain",
+      size: 1,
+      ts: 1,
+    };
+    const { target } = renderChat({
+      ...fixture(),
+      messages: [
+        person(20, "🔥"),
+        { ...person(21, "👨‍👩‍👧‍👦 🇧🇷 👍🏽"), edited: true, reply_to: 20 },
+        person(22, "🔥 nice"),
+        person(23, "🔥🚀😂👍"),
+        { ...person(24, "🔥"), files: [file] },
+      ],
+    } as Room);
+    const jumbo = (id: number) =>
+      target.querySelector<HTMLElement>(`#m${id} [data-jumbo-emoji]`);
+    expect(jumbo(20)?.dataset.jumboEmoji).toBe("1");
+    expect(jumbo(20)?.className).toContain("text-3xl");
+    expect(jumbo(20)?.textContent?.trim()).toBe("🔥");
+    expect(jumbo(21)?.dataset.jumboEmoji).toBe("3");
+    expect(jumbo(21)?.className).toContain("text-2xl");
+    // The edited mark and the reply line keep their size.
+    expect(
+      target.querySelector("#m21 [data-message-edited]")?.className,
+    ).toContain("text-xs");
+    expect(
+      target.querySelector("#m21 [data-jumbo-emoji] [data-message-edited]"),
+    ).toBeNull();
+    for (const id of [22, 23, 24]) {
+      expect(jumbo(id)).toBeNull();
+      expect(
+        target.querySelector(`#m${id} [data-rich-content]`),
+      ).not.toBeNull();
+    }
+  });
   test("the hover bar keeps the main actions and puts the rest in ⋯, delete last, red, after a divider (Valls, Gimenes #4591)", async () => {
     const mine = { ...message(8, "My message"), author: "me@test", kind: null };
     const theirs = {

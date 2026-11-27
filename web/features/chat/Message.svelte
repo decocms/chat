@@ -5,6 +5,8 @@
   import { onDestroy, tick } from "svelte";
   import DeferredInteractiveBody from "../chat-interactive/DeferredInteractiveBody.svelte";
   import RichContent from "../rich-text/RichContent.svelte";
+  import { jumboEmojiCount } from "./jumboEmoji";
+  import { cn } from "../../lib/studio/utils";
   import type { RichMode } from "../rich-text/types";
   import type { Room } from "../../../shared/room";
   import type {
@@ -215,6 +217,13 @@
     vb.dateTime?.(m.ts) ?? new Date(m.ts).toLocaleString(),
   );
   const group = $derived(m.group || [m]);
+  // Only emoji (1–3), nothing attached: drawn big, like Slack's and WhatsApp's. Sized from the first paint, so it never
+  // shifts: one emoji ~2x the body, two or three a step smaller (text-3xl/2xl; phones, whose body is bigger, a step up).
+  const jumbo = $derived(
+    m.files?.length || m.card || m.choices || m.poll
+      ? 0
+      : jumboEmojiCount(m.text || ""),
+  );
   const reminder = $derived(reminderParts(m));
   // An agent's card usually comes with its title again as the message text (the fallback for notifications):
   // when the text is one line whose words are all in the card's title, the card alone says it.
@@ -454,6 +463,17 @@
               : vb.t("pensando…")}{typing ? "…" : ""}
           </p>
         {:else if editing}<MessageEditor message={m} {actions} {vb} />
+        {:else if m.text && jumbo}<p
+            data-jumbo-emoji={jumbo}
+            class={cn(
+              "m-0 font-sans tracking-normal whitespace-pre-wrap",
+              jumbo === 1
+                ? "text-3xl max-md:text-4xl"
+                : "text-2xl max-md:text-3xl",
+            )}
+          >
+            {m.text.trim()}
+          </p>
         {:else if m.text && !echoesCard}{@render rich(
             m.text,
             m.author === "ai" || m.kind === "agent" ? "markdown" : "human",
