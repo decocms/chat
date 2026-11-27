@@ -2804,3 +2804,13 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium (delivery rule)
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · feat/agents-hover-actions · Rename and remove of an agent on hover, no ⋮
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked that no agent row in "Seus agents nesta sala" have a ⋮, and that a pencil and a trash show on hover (#6487).
+- Decision: The two icon buttons sit between the name and the switch. They take no space until the row has the pointer or keyboard focus (`group-hover`, `group-has-focus-visible`), so the machine name is not cut at rest. On a device with no hover they always show. The trash removes at once, as the old menu item did. A session opened by hand has neither: it ends with its terminal.
+- Other options: Keep the space for the icons at all times (cuts the machine name). Show the icons over the text.
+- Risk: low
+- Undo: Revert the commit.
+- Status: open
