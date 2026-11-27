@@ -74,12 +74,15 @@ tray_mac() {
   xattr -dr com.apple.quarantine "$TMP/deco.chat.app" 2>/dev/null || true
   # Replace a running copy: stop its login item, the app, its core and its runner (not herdr: the Claudes run in it),
   # and wait until they are gone (one runner per machine).
+  # -a: macOS pgrep/pkill skip their own ancestors by default, and this script always runs under the app: "Instalar
+  # atualização" spawns it from the app's core, and a terminal of herdr is a child of the app too. Without -a the old
+  # app was never stopped, `open` brought it back, and its menu offered the same update forever.
   launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null || true
-  pkill -f "$APP/Contents/MacOS/vibebook" 2>/dev/null || true
-  i=0; while pgrep -f "$APP/Contents/MacOS/vibebook" >/dev/null 2>&1 && [ $i -lt 20 ]; do sleep 0.5; i=$((i + 1)); done
+  pkill -a -f "$APP/Contents/MacOS/vibebook" 2>/dev/null || true
+  i=0; while pgrep -a -f "$APP/Contents/MacOS/vibebook" >/dev/null 2>&1 && [ $i -lt 20 ]; do sleep 0.5; i=$((i + 1)); done
   # Still running after 10 s: force it. Else `open` below only brings back the old app (Gimenes #6029).
-  if pgrep -f "$APP/Contents/MacOS/vibebook" >/dev/null 2>&1; then
-    pkill -9 -f "$APP/Contents/MacOS/vibebook" 2>/dev/null || true
+  if pgrep -a -f "$APP/Contents/MacOS/vibebook" >/dev/null 2>&1; then
+    pkill -9 -a -f "$APP/Contents/MacOS/vibebook" 2>/dev/null || true
     sleep 1
   fi
   mkdir -p "$HOME/Applications" "$HOME/Library/LaunchAgents"

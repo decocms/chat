@@ -652,6 +652,11 @@ function trustFolder(folder: string) {
     appendFileSync(file, `${toml && !toml.endsWith("\n") ? "\n" : ""}\n${key}\ntrust_level = "trusted"\n`);
   } catch {}
 }
+/** The folder-trust question on an agent's screen. An agent opened before its folder was trusted (by an older runner,
+ *  or by hand) waits there for an answer nobody gives, and its room says "Abrindo o Claude Code…" forever (Viktor
+ *  #6404). The runner then trusts the folder and ends that agent; its next pass opens a new one, with the bypass flag,
+ *  that does not ask. `--dangerously-skip-permissions` alone does not skip this question. */
+const TRUST_QUESTION = /Yes, I trust this folder|Is this a project you created or one you trust|Do you trust the (files|contents) (in|of) this/;
 /** The first prompt of an agent the runner opens: the slash command when the Claude Code plugin is installed, else the same in words. */
 const listenTask = (room: string) => (RUN_AGENT === "codex" ? `${CODEX_LISTEN_PROMPT} Sala: room_id=${room}.` : pluginVersion() ? `/vibebook:listen ${room}` : `${LISTEN_PROMPT} Sala: room_id=${room}.`);
 // A room's folder name: its first three meaningful words ("Viagem de avião para SP com os dogs" → viagem-aviao-sp).
@@ -1010,6 +1015,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
         delete e.restarting_at;
         writePrivate(HERDR_FILE, map);
         if (updating) log("info", "plugin", `${title}: reopening its Claude on plugin ${e.plugin_v} (same conversation)`, { room });
+        if (e.folder) trustFolder(e.folder);
         try {
           herdr("agent", "start", `vb-${room}${TAG}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...agentArgs(e.session), listenTask(room));
           log("info", "claude", `${title}: its ${RUN_NAME} had exited, started a new one`, { room, folder: tilde(e.folder), resume: short(e.session) });
@@ -1019,6 +1025,25 @@ async function herdrSync(agent: string, tools: Tool[]) {
           else log("error", "claude", `${title}: its ${RUN_NAME} had exited and a new one did not start: ${m.slice(0, 120)}`, { room });
         }
         continue;
+      }
+      // Stuck at the folder-trust question (TRUST_QUESTION): trust the folder and end that Claude. The branch above
+      // starts a new one in the same pane on the next pass, with no grace (prompted_at 0).
+      const asking = inWs.find((x) => x.agent === RUN_AGENT && x.agent_status === "blocked");
+      if (asking && e.folder) {
+        try {
+          const shown = execFileSync("herdr", ["pane", "read", asking.pane_id, "--source", "visible", "--lines", "25"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
+          if (TRUST_QUESTION.test(shown)) {
+            trustFolder(e.folder);
+            // The pane's foreground process group is the agent (the shell has its own group): end that group only.
+            const info = (herdr("pane", "process-info", "--pane", asking.pane_id) as { process_info?: { foreground_process_group_id?: number; shell_pid?: number } }).process_info;
+            const group = info?.foreground_process_group_id;
+            if (group && group > 1 && group !== info?.shell_pid) process.kill(-group, "SIGTERM");
+            e.prompted_at = 0;
+            writePrivate(HERDR_FILE, map);
+            log("warn", "claude", `${title}: its ${RUN_NAME} waited at "trust this folder?"; trusted the folder and closed it to open it again`, { room, folder: tilde(e.folder) });
+            continue;
+          }
+        } catch {}
       }
       // Plugin updated since this Claude opened: once it's free, end it with /exit (its session kept) and the branch
       // above reopens it with --resume on the next pass. Never while it works or waits on a prompt.
@@ -1364,6 +1389,21 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
         if (!deaf.has(room)) delete e.deaf_since;
         else e.deaf_since ??= Date.now();
         if (e.listening && e.deaf_since && Date.now() - e.deaf_since > 3 * 60_000 && Date.now() - (e.prompted_at ?? 0) > 5 * 60_000) e.listening = false;
+        // Its own terminal, stuck at the folder-trust question (TRUST_QUESTION): trust the folder and end the terminal.
+        // The next pass opens a new one there. A terminal the person opened by hand is left alone.
+        if (t.status === "blocked" && t.name === `vb-${room}${TAG}`.slice(0, 32) && e.folder) {
+          try {
+            if (TRUST_QUESTION.test(String(hc("read", t.address, "--lines", "25").text ?? ""))) {
+              trustFolder(e.folder);
+              hc("kill", t.address);
+              delete e.terminal;
+              e.prompted_at = 0;
+              writePrivate(HERDR_CORE, map);
+              log("warn", "claude", `${title}: its ${RUN_NAME} waited at "trust this folder?"; trusted the folder and ended its terminal to open it again`, { room, folder: tilde(e.folder) });
+              continue;
+            }
+          } catch {}
+        }
         // A plugin update, as in the terminal mode: /exit once it is free (its session kept), then it reopens below with
         // --resume. "Background work is running" (its listener) gets an Enter, checked by its text.
         if (pv && e.plugin_v && !e.plugin_v.startsWith("hooks:")) e.plugin_v = pv;
@@ -1437,10 +1477,18 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
           e.restarting_at = Date.now();
           log("info", "herdr", `${title}: moving its ${RUN_NAME} from herdr to herdr-core (same conversation)`, { room, session: short(e.session) });
         } catch {}
-      } else if (e.restarting_at && pane.agent_status === "blocked") {
+      } else if (pane.agent_status === "blocked") {
         try {
-          const shown = execFileSync("herdr", ["pane", "read", pane.pane_id, "--source", "visible", "--lines", "15"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
-          if (/Background work is running/.test(shown)) herdr("agent", "send-keys", pane.pane_id, "Enter");
+          const shown = execFileSync("herdr", ["pane", "read", pane.pane_id, "--source", "visible", "--lines", "25"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
+          if (e.restarting_at && /Background work is running/.test(shown)) herdr("agent", "send-keys", pane.pane_id, "Enter");
+          // Opened by the terminal mode before its folder was trusted, and still at that question (TRUST_QUESTION): it
+          // is never free, so it never moved. Trust the folder and close its pane; the room opens here next pass.
+          else if (TRUST_QUESTION.test(shown) && e.folder) {
+            trustFolder(e.folder);
+            herdr("pane", "close", pane.pane_id);
+            delete e.session; // it never started a conversation: open a new one, not the folder's last one
+            log("warn", "claude", `${title}: its ${RUN_NAME} in herdr waited at "trust this folder?"; trusted the folder and closed its pane`, { room, folder: tilde(e.folder) });
+          }
         } catch {}
       }
       // /exit did not take in 2 minutes (it sat on a question, as Claude Code's "Make auto mode your default?", which
