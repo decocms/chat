@@ -2777,3 +2777,10 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Options:** (a) allow a one-room folder from the menu; (b) no "Nova pasta" in the menu.
 - **Why:** the request asks for "Nova pasta" in the menu. A room needs a folder to go into before another room can join it.
 - **Reviewer can change:** dissolve one-room folders always.
+
+### 2026-11-27 · feat/capy-app-icon · The home-screen app icon is a capybara on lime
+
+- Context: The human approved a capybara on the deco lime (`#d0ec1a`) as the home-screen icon. The browser tab keeps `public/favicon.svg` (the deco mark), unchanged.
+- Decision: `apple-touch-icon.png` (180), `icon-192.png` and `icon-512.png` are the approved capy PNGs, full bleed. The maskable icons put the capy at 80% size, centered horizontally and resting on the bottom edge (its body leaves the art there), on full lime: `icon-maskable-332.png` (Android launcher) and the new `icon-maskable-512.png` (the desktop manifest's `maskable` entry, which used `icon-512.png` before). `icon-splash-512.png` is the same layout with the lime keyed out to transparent and cut to the 80% safe circle. `og/icon.html` and `og/icon-splash.html` made the old deco-mark icons; they are gone, the PNGs are the source now. The icon URLs did not change (no cache-busting query in the app); Chrome updates an installed app when the icon bytes change, iOS only when the app is added again.
+- Other options: Keep `icon-512.png` as the desktop maskable icon (the safe-zone crop would cut the ear and the glasses). A lime disc behind the capy on the splash.
+- Risk: low. People who already installed the app may have to add it again to see the new icon.
