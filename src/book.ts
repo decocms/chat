@@ -89,6 +89,9 @@ const PEEK_SOCKET = "peek";
 const wireHash = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
 /** A reconnect resumes (cache plan PR 2) only from a state at most this old, with at most this many changed rows. */
 const RESUME_MAX_AGE_MS = 6 * 3600_000, RESUME_MAX_ROWS = 200;
+/** How many recent epics states (their `eh`) the Book remembers per-epic hashes for, so a reconnect gets only the
+ *  threads that changed (epicsDelta). Kept in meta, ~5 KB each in the product room. */
+const EPICS_KEPT = 20;
 
 const CLASSIFY_DELAY_MS = 30_000;
 /** A poll's options as stored: trimmed, cut to their limit, the empty ones dropped, at most POLL_MAX_OPTIONS. */
@@ -224,9 +227,12 @@ export class Book extends DurableObject<Env> {
     const now: Record<string, string> = Object.fromEntries(epics.map((e) => [e.id, wireHash(JSON.stringify(e))]));
     const raw = this.get("epics_sent");
     this.set("epics_sent", JSON.stringify(now));
-    if (!raw) return this.broadcast({ t: "epics", epics, roomTasks });
+    // eh names the list the sockets now have, so a reconnect gets only what changed after it (epicsDelta).
+    const eh = wireHash(JSON.stringify(epics));
+    this.keepEpics(eh, now);
+    if (!raw) return this.broadcast({ t: "epics", epics, roomTasks, eh });
     const prev = storedHashes(raw, (kind) => console.warn("book stored projection", kind));
-    this.broadcast({ t: "epicsPatch", changed: epics.filter((e) => prev[e.id] !== now[e.id]), order: epics.map((e) => e.id), roomTasks });
+    this.broadcast({ t: "epicsPatch", changed: epics.filter((e) => prev[e.id] !== now[e.id]), order: epics.map((e) => e.id), roomTasks, eh });
   }
   /** What the sockets get: a done epic carries only its open tasks (18/11: 207 of 231 epics in the product room
    *  were done and their done tasks were ~150 KB of every room open). Opening one sends it whole (`full`, ?t= on
@@ -3202,7 +3208,7 @@ export class Book extends DurableObject<Env> {
       // messages split (18/11, to decide what to cut next): the open thread's window, the other threads' 5 each, and cards.
       const open = url.searchParams.get("t") || "main", kb = (xs: unknown[]) => Math.round(JSON.stringify(xs).length / 1000);
       const msgs = `open ${kb(win.messages.filter((m) => m.thread === open))}k, other ${kb(win.messages.filter((m) => m.thread !== open))}k, cards ${kb(win.messages.map((m) => m.card).filter(Boolean))}k`;
-      this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : "epics") : url.searchParams.has("since") ? "full" : undefined } })); // rc: close code of the socket this one replaces (a reconnect)
+      this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : resume.delta ? "delta" : "epics") : url.searchParams.has("since") ? "full" : undefined, epics: resume?.delta ? state.epics.length : undefined } })); // rc: close code of the socket this one replaces (a reconnect)
     }
     this.broadcast({ t: "online", online: this.online() });
     return new Response(null, { status: 101, webSocket: client });
@@ -3221,6 +3227,8 @@ export class Book extends DurableObject<Env> {
     const win = this.roomWindow(open, email);
     const epics = this.wireEpics(this.epics(), q.get("t") || ""), eh = wireHash(JSON.stringify(epics));
     const resume = this.resumeOf(q, open, win.messages, eh, email);
+    // An app that merges epics by id (ed=1) gets only the threads that changed since its eh (Gimenes #6066).
+    const delta = q.get("ed") === "1" ? this.epicsDelta(epics, eh, resume && !resume.epicsSame ? q.get("eh") : null) : null;
     const state: RoomStateEvent = {
         t: "state",
         me: email,
@@ -3230,12 +3238,12 @@ export class Book extends DurableObject<Env> {
         docNotes: this.docNotes(),
         // Only the open epic's doc; the app asks for another with "doc.get" when that epic opens (all of them were 70 KB).
         docs: this.epicDocs(q.get("t") || ""),
-        epics: resume?.epicsSame ? [] : epics,
+        epics: resume?.epicsSame ? [] : (delta?.epics ?? epics),
         roomTasks: this.roomTasks(),
         // The newest of each thread; full = threads sent whole, counts = real totals (the sidebar's numbers).
         ...win,
         // A reconnect that resumes gets only what changed; the app merges it into the room it has.
-        ...(resume ? { messages: resume.messages, resume: true, ...(resume.epicsSame ? { epicsSame: true } : {}) } : {}),
+        ...(resume ? { messages: resume.messages, resume: true, ...(resume.epicsSame ? { epicsSame: true } : delta ? { epicsOrder: delta.order } : {}) } : {}),
         at: Date.now(),
         eh,
         complete: false,
@@ -3262,10 +3270,31 @@ export class Book extends DurableObject<Env> {
         receipts: this.receiptsList(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
-    return { state, resume, win };
+    return { state, resume: resume && { ...resume, delta: !!delta }, win };
+  }
+  /** Remember each thread's hash for the epics list named `eh` (a state or a push sent it), the newest EPICS_KEPT. */
+  keepEpics(eh: string, hashes: Record<string, string>) {
+    if (this.get(`eh:${eh}`) !== null) return;
+    const kept = [...storedNotes(this.get("eh:kept")), eh];
+    for (const old of kept.splice(0, Math.max(0, kept.length - EPICS_KEPT))) this.sql.exec(`DELETE FROM meta WHERE k = ?`, `eh:${old}`);
+    this.set(`eh:${eh}`, JSON.stringify(hashes));
+    this.set("eh:kept", JSON.stringify(kept));
+  }
+  /** The threads a resuming app is missing (Gimenes #6066): the "epics" resume sent every thread again (342 times
+   *  on 26/11, 207 KB each) when one changed. The Book keeps, per recent `eh`, each thread's own hash (meta
+   *  `eh:<eh>`, the newest EPICS_KEPT), so nothing is kept per client. With the app's eh known: only the threads
+   *  whose hash differs, and the order of all ids (which also drops the removed ones). null = send them all. */
+  epicsDelta<E extends { id: string }>(epics: E[], eh: string, had: string | null) {
+    const hashes = Object.fromEntries(epics.map((e) => [e.id, wireHash(JSON.stringify(e))]));
+    this.keepEpics(eh, hashes);
+    if (!had) return null;
+    const before = this.get(`eh:${had}`);
+    if (!before) return null;
+    const prev = storedHashes(before, (kind) => console.warn("book stored projection", kind));
+    return { epics: epics.filter((e) => prev[e.id] !== hashes[e.id]), order: epics.map((e) => e.id) };
   }
   /** GET /api/books/:id/room (a light socket's first read). The route checks membership first. */
-  async roomState(bookId: string, email: string, query: { t: string; since?: number; at?: number; eh?: string }): Promise<RoomStateEvent> {
+  async roomState(bookId: string, email: string, query: { t: string; since?: number; at?: number; eh?: string; ed?: string }): Promise<RoomStateEvent> {
     this.bind(bookId);
     const q = new URLSearchParams({ t: query.t });
     if (query.since && query.at) {
@@ -3273,6 +3302,7 @@ export class Book extends DurableObject<Env> {
       q.set("at", String(query.at));
       if (query.eh) q.set("eh", query.eh);
     }
+    if (query.ed) q.set("ed", "1");
     return (await this.roomSnapshot(email, bookId, q)).state;
   }
 

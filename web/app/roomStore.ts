@@ -5,6 +5,18 @@ import { writable, get } from "svelte/store";
 import type { Room, RoomEvent, Message, Ack } from "../../shared/room";
 export type * from "../../shared/room";
 
+/** The threads after a patch: the changed ones replace theirs, in the Book's order (an id not in it is gone).
+ *  null when the order names a thread the room does not have. */
+function mergeEpics(
+  epics: Room["epics"],
+  changed: Room["epics"],
+  order: readonly string[],
+) {
+  const have = new Map(epics.map((e) => [e.id, e]));
+  changed.forEach((e) => have.set(e.id, e));
+  if (order.some((id) => !have.has(id))) return null;
+  return order.map((id) => have.get(id)!);
+}
 export function reduceRoom(
   current: Room | null,
   event: RoomEvent,
@@ -13,17 +25,23 @@ export function reduceRoom(
   if (event.t === "state" && event.resume && current?.id === id) {
     // A resumed reconnect (cache plan PR 2): its messages and acks are upserted into the ones the room has; the rest
     // replaces, as a full state does. epicsSame keeps the room's threads.
-    const { resume: _resume, epicsSame, t: _t, ...rest } = event;
+    const { resume: _resume, epicsSame, epicsOrder, t: _t, ...rest } = event;
     const messages = new Map(current.messages.map((m) => [m.id, m]));
     for (const m of event.messages) messages.set(m.id, m);
     const fresh = new Set((event.acks ?? []).map((a) => a.msg_id));
+    // ed=1 resume: only the changed threads came. One the room lacks (it should not happen): keep ours, and no eh,
+    // so the next open gets them whole.
+    const merged = epicsOrder
+      ? mergeEpics(current.epics, event.epics, epicsOrder)
+      : event.epics;
     return {
       ...current,
       ...rest,
       filesAll: rest.filesAll,
       typing: {},
       messages: [...messages.values()].sort((a, b) => a.id - b.id),
-      epics: epicsSame ? current.epics : event.epics,
+      epics: epicsSame ? current.epics : (merged ?? current.epics),
+      ...(!epicsSame && !merged ? { eh: undefined } : {}),
       acks: [
         ...(current.acks ?? []).filter((a) => !fresh.has(a.msg_id)),
         ...(event.acks ?? []),
@@ -98,18 +116,17 @@ export function reduceRoom(
         ...s,
         epics: event.epics,
         roomTasks: event.roomTasks ?? s.roomTasks,
-        // The threads changed after the state: its hash no longer names them, so a reconnect gets them whole.
-        eh: undefined,
+        // The hash of the list the Book now has (an older one sends none: a reconnect then gets them whole).
+        eh: event.eh,
       };
     case "epicsPatch": {
-      const have = new Map(s.epics.map((e) => [e.id, e]));
-      event.changed.forEach((e) => have.set(e.id, e));
-      if (event.order.some((id) => !have.has(id))) return s;
+      const epics = mergeEpics(s.epics, event.changed, event.order);
+      if (!epics) return s;
       return {
         ...s,
-        epics: event.order.map((id) => have.get(id)!),
+        epics,
         roomTasks: event.roomTasks ?? s.roomTasks,
-        eh: undefined,
+        eh: event.eh,
       };
     }
     case "docNotes":

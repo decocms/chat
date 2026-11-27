@@ -52,6 +52,8 @@ export function createMessagesApi(fetcher?: FetchLike) {
             param: { id: encodeURIComponent(roomId) },
             query: {
               t: query.thread,
+              // The room merges a resume's threads by id (Book.epicsDelta).
+              ed: "1",
               ...(resume
                 ? {
                     since: resume.since,

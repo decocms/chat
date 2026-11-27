@@ -17,6 +17,8 @@ export function bookSocketUrl(
   if (query("lite") === "1") url += "&lite=1";
   if (rc) url += `&rc=${rc}`;
   if (since && at) url += `&since=${since}&at=${at}${eh ? `&eh=${eh}` : ""}`;
+  // ed=1: the app merges a resume's epics by id (Book.epicsDelta).
+  if (query("ed") === "1") url += "&ed=1";
   // The call's own socket (Book.isCallSocket): it opens no room, only the call.
   if (query("call") === "1") url += "&call=1";
   // The Home Inbox's look at one item (Book.isPeekSocket): the room, live, but opening it is not reading it.

@@ -771,7 +771,7 @@ export const roomApi = accountApi
       if (!(await svc.isMember(id))) return c.json(forbidden, 403);
       const started = Date.now();
       const state = await svc.roomState(id, c.req.valid("query"));
-      svc.track("room_state", { book: id, bytes: JSON.stringify(state).length, ms: Date.now() - started, resume: state.resume ? (state.epicsSame ? "same" : "epics") : c.req.valid("query").since ? "full" : undefined });
+      svc.track("room_state", { book: id, bytes: JSON.stringify(state).length, ms: Date.now() - started, resume: state.resume ? (state.epicsSame ? "same" : state.epicsOrder ? "delta" : "epics") : c.req.valid("query").since ? "full" : undefined, epics: state.epicsOrder ? state.epics.length : undefined });
       c.header("Cache-Control", "private, no-store");
       return c.json(state satisfies RoomStateEvent, 200);
     },

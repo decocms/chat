@@ -156,7 +156,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   const root = createRootRoomSession({
     url: (id, thread, code, resume, lite) =>
       browser.socketUrl(
-        `/ws/${id}?t=${encodeURIComponent(thread)}${lite ? "&lite=1" : ""}${code ? `&rc=${encodeURIComponent(code)}` : ""}${
+        `/ws/${id}?t=${encodeURIComponent(thread)}&ed=1${lite ? "&lite=1" : ""}${code ? `&rc=${encodeURIComponent(code)}` : ""}${
           resume
             ? `&since=${resume.since}&at=${resume.at}${resume.eh ? `&eh=${encodeURIComponent(resume.eh)}` : ""}`
             : ""

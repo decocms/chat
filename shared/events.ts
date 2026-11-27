@@ -66,11 +66,14 @@ export const RoomEventSchemas = {
   epics: event("epics", {
     epics: z.array(EpicSchema),
     roomTasks: z.optional(z.array(TaskSchema)),
+    /** The hash of the list the sockets now have: a reconnect sends it back as eh (Book.epicsDelta). */
+    eh: z.optional(str),
   }),
   epicsPatch: event("epicsPatch", {
     changed: z.array(EpicSchema),
     order: strings,
     roomTasks: z.optional(z.array(TaskSchema)),
+    eh: z.optional(str),
   }),
   doc: z.union([DocumentInvalidationSchema, DocumentContentSchema]),
   docNotes: event("docNotes", { notes: strings }),
