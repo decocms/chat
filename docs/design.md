@@ -40,12 +40,12 @@ The user center (`web/features/user-center/`, `UserCenter`) is the box at the bo
 - The new version (`UpdateRow`) is the only row with the brand color.
 - The order is: the new version, then the person's notices, then "Your agent", then the person.
 - A notice row goes away when the person does its action.
-- "Seu agent espera você" (`AskRow`) is the oldest question that one of the person's agents waits on, from any room, with the options as buttons. A button answers it there; "Ver" opens it. With more questions the title counts them. It is not a card over the chat (Gimenes #6617).
+- "Seu agent precisa de você" (`AskRow`) is the oldest question that one of the person's agents waits on, from any room, in two short lines: the title, then the room and the question cut to one line. A permission has "Aprovar", which answers it there, and "Detalhes", which opens its message in the thread (where "Negar" is). Any other question has only "Responder", which opens it. With more questions the title counts them ("3 agents precisam de você"). It is not a card over the chat (Gimenes #6617, #6719).
 - Do not put a notice about a room in the user center. For example, a request to join a room stays in the room.
 
 ### The user center on phones
 
-1. The Chats list (`HomePanel`) shows the same box under the search field (`UserCenter phone`). It has only the notices: the new version, "Instalar no celular" (`InstallCard row`), the notifications (`NotifyOffer row`), the invites and the message requests (`Requests center`), then "Seu agent espera você" (`AskRow`).
+1. The Chats list (`HomePanel`) shows the same box under the search field (`UserCenter phone`). It has only the notices: the new version, "Instalar no celular" (`InstallCard row`), the notifications (`NotifyOffer row`), the invites and the message requests (`Requests center`), then "Seu agent precisa de você" (`AskRow`).
 2. The box is not there when it has no row.
 3. Your face in the Chats bar shows the number of rows (`Count`).
 4. A room has no notice over its chat. In a room, ← shows the number, because ← goes back to the Chats list.

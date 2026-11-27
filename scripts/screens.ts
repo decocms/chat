@@ -2274,9 +2274,9 @@ async function choicesScreens(
 }
 
 /**
- * Your agent waiting on you, in the user center (--ask, Gimenes #6617): the test agent posts a permission question in
- * a new room, and the home's user center shows it with Aprovar / Negar. Aprovar there answers it: permission_wait
- * gets "Aprovar" and the row goes. The phone's Chats list shows the same row in its box.
+ * Your agent waiting on you, in the user center (--ask, Gimenes #6617, #6719): a question with its own options shows
+ * only "Responder", which opens it in its room. A permission question shows Aprovar and Detalhes; Aprovar answers it
+ * there: permission_wait gets "Aprovar" and the row goes. The phone's Chats list shows the same row in its box.
  */
 async function askScreens(
   browser: import("playwright").Browser,
@@ -2304,14 +2304,68 @@ async function askScreens(
   await desk.addCookies([{ name: "dev_as", value: email, url: base }]);
   const page = await desk.newPage();
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
+  // "Responder" opens the question in its room; there a pick fills the reply box (ChoicesView) and Enter sends it.
+  const answerInRoom = async (row: Locator, option: string) => {
+    const home = page.url();
+    await row.getByRole("button", { name: "Responder" }).click();
+    await page.waitForURL((url) => url.href !== home, {
+      timeout: 15_000,
+      waitUntil: "commit",
+    });
+    await page
+      .locator('[data-choices] [role="radio"]:visible', { hasText: option })
+      .first()
+      .click();
+    await page.waitForTimeout(300);
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(800);
+  };
   // Questions left by an earlier run come first (the oldest shows): answer them, so the row shows this run's.
   const left = page.locator("[data-agent-ask]:visible");
   for (let i = 0; i < 20 && (await left.count()); i++) {
     const ref = await left.getAttribute("data-agent-ask");
-    await left.getByRole("button", { name: "Negar" }).click();
-    await page
-      .locator(`[data-agent-ask="${ref}"]`)
-      .waitFor({ state: "detached", timeout: 15_000 });
+    const approve = left.getByRole("button", { name: "Aprovar" });
+    if (await approve.count()) {
+      await approve.click();
+      await page
+        .locator(`[data-agent-ask="${ref}"]`)
+        .waitFor({ state: "detached", timeout: 15_000 });
+    } else {
+      await answerInRoom(left.first(), "");
+      await page.goto(`${base}/`, { waitUntil: "networkidle" });
+    }
+  }
+  // A question with its own options (not Aprovar / Negar): only "Responder", which opens it in its room.
+  {
+    const { room_id } = (await tool("create_room", {
+      title: "Loja Circulei",
+    })) as { room_id: string };
+    const { id } = (await tool("post", {
+      room_id,
+      text: "❓ Seu Claude pergunta · **Código**\nQual vai ser o código do cupom?",
+      choices: ["BLACK15", "LOJA15"],
+    })) as { id: number };
+    await page.reload({ waitUntil: "networkidle" });
+    const row = page.locator(`[data-agent-ask="a${id}"]:visible`);
+    await row.waitFor();
+    if (await row.getByRole("button", { name: "Aprovar" }).count())
+      throw new Error("ask: a question with its own options shows Aprovar");
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(out, "ask-question-1440.png") });
+    shots.push("ask-question-1440.png");
+    await answerInRoom(row, "BLACK15");
+    if (!page.url().includes(room_id))
+      throw new Error(`ask: Responder opened ${page.url()}, not its room`);
+    const picked = await tool("permission_wait", {
+      room_id,
+      message_id: id,
+      timeout_seconds: 8,
+    });
+    if (picked.text !== "BLACK15")
+      throw new Error(
+        `ask: Responder did not open the question in its room (${JSON.stringify(picked)})`,
+      );
+    await page.goto(`${base}/`, { waitUntil: "networkidle" });
   }
   const asked = await question();
   await page.reload({ waitUntil: "networkidle" });
