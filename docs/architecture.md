@@ -74,7 +74,7 @@ Rules:
 - Live events that come between `hello` and the HTTP answer wait in a queue. The app applies them after the snapshot, in their order. Each event after `hello` is newer than the snapshot, and each one is an upsert by ID or a full value, so it is safe to apply it again.
 - If the HTTP read fails, the app opens the socket again without `lite`. That socket sends `state` as before.
 - A socket without `lite` (an old cached app, the CLI) gets `state` as before.
-- `ws_state` measures the first frame of the socket (`lite: true` for `hello`). `room_state` measures the HTTP answer (bytes before compression, ms).
+- `ws_state` measures the first frame of the socket (`lite: true` for `hello`). `room_state` measures the HTTP answer (bytes before compression, ms). Both record `resume`, and `via` for a resume: `log` (the app sent its `rev`) or `clock` (the legacy path). The app resumes over HTTP, so `room_state` has most of them.
 - `room_size` measures the room's SQLite: `bytes` (`databaseSize`), `messages` and `doc_versions` (row counts). The Book sends it when a person opens the room, at most one time in 6 hours (the `size_at` key in `meta`). A Durable Object holds 10 GB.
 
 ### A reconnect resumes
