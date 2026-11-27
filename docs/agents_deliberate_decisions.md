@@ -2617,3 +2617,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · feat/home-new-bottom-sheet · The phone home's + opens a sheet from the bottom
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes picked option A of the mockup (#6146, #6161): the phone home's + opens a drawer from the bottom, not the 320px popover. He did not say how it closes or how big the rows are.
+- Decision:
+  - `NewMessage` gets `sheet`: the same panel in the studio `Sheet` (side bottom, up to 85% of the screen, the list does not scroll inside its own box). Only the phone home passes it; the desktop DM list keeps the popover.
+  - It closes with a tap on the handle, a tap outside, or Esc. No drag to close yet (the room's drag handle belongs to RoomLayout).
+  - Rows are 56px with 40px faces, and "Nova sala" has a round icon tile, like the Chats list.
+- Other options: Full screen like WhatsApp. A drag gesture now.
+- Risk: low
+- Undo: Revert the commit.
+- Status: open

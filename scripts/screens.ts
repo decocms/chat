@@ -966,6 +966,14 @@ try {
     await phone.waitForTimeout(400);
     await phone.screenshot({ path: join(out, file) });
     shots.push(file);
+    if (path === "/") {
+      // The home's + opens a sheet from the bottom, the screen's width (Gimenes #6146, #6161).
+      await phone.locator("[data-home-new]").click();
+      await phone.locator("[data-new-message-sheet]").waitFor();
+      await phone.waitForTimeout(400);
+      await phone.screenshot({ path: join(out, "home-new-390.png") });
+      shots.push("home-new-390.png");
+    }
   }
   if (flag("center")) {
     // The user center with rows (Gimenes, step 4): a new version, an invite and a message request, faked in the
