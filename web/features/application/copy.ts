@@ -954,6 +954,7 @@ const EN: Readonly<Record<string, string>> = {
   "Tratamento do áudio": "Audio processing",
   "Nível do microfone": "Microphone level",
   "Ouvir meu microfone": "Hear my microphone",
+  "Transcrição ao vivo nesta sala": "Live transcript in this room",
   "Volume pra mim": "Volume for me",
   "Volume de {name}": "{name}'s volume",
   "Redução de ruído do navegador": "Browser noise reduction",

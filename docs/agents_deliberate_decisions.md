@@ -2929,3 +2929,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium (the microphone path of every call)
 - Undo: Revert the commits.
 - Status: open
+
+### 2026-11-27 · JonasJesus42/calls-improvement · A switch for the live transcript of a room
+
+- Agent: Claude Opus 5.5
+- Context: The task "Filtro de segredo em cada linha, e um jeito de desligar por sala" (thread d8fb8cf2). The secret filter was already on each line (`findSecret` in `Book.callTranscript`). The room had no way to turn the transcript off.
+- Decision:
+  - The switch is in the ⋮ menu of the call ("Transcrição ao vivo nesta sala"), below the audio settings. It shows only in a room whose calls are recorded.
+  - It is one value for the whole room (`call_transcript_off`), and each member can change it, as each member can start a call. It stays until somebody changes it.
+  - When it is off, the chat drops the lines (`Book.callTranscript` returns 0). The recorder still sends the audio to Whisper, because the transcript at the end of the call (for Grain) is made of the same parts. So the switch does not change the cost.
+- Other options: A switch in the room settings (people look for it during a call, not there). Only the person who started the call can change it. The recorder stops the live parts when it is off (then the end of the call transcribes all the audio again: same cost, more code).
+- Risk: low
+- Undo: Revert the commit.
+- Status: open

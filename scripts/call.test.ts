@@ -874,6 +874,19 @@ test("the live transcript lands in the call's thread as who spoke, as kind trans
   expect(JSON.stringify(r.thread(thread))).not.toContain("AKIA");
 });
 
+test("a room can turn its live transcript off and on again: off, the lines are dropped", async () => {
+  const r = callRoom();
+  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
+  const thread = r.book.liveCallThread()!;
+  await r.send({ t: "call.transcript", on: false });
+  expect(await r.book.callTranscript("abcdef", [{ name: "ana", text: "Isto não aparece." }])).toBe(0);
+  expect(r.thread(thread)).toEqual([]);
+  await r.send({ t: "call.transcript", on: true });
+  expect(await r.book.callTranscript("abcdef", [{ name: "ana", text: "Agora sim." }])).toBe(1);
+  expect(r.thread(thread).map((m) => m.text)).toEqual(["Agora sim."]);
+});
+
 test("a person's own words in the transcript are never their instruction to their agent; what they type is", async () => {
   const r = callRoom();
   r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");

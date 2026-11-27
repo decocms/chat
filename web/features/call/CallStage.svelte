@@ -775,6 +775,16 @@
                   "Câmera e desfoque",
                 )}</DropdownMenuItem
               >
+              <!-- The lines of what each person says, in the call's thread: on or off for the whole room. -->
+              {#if room.callRecorded}<DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  data-call-transcript
+                  checked={!room.transcriptOff}
+                  onCheckedChange={(on) => send({ t: "call.transcript", on })}
+                  >{t(
+                    "Transcrição ao vivo nesta sala",
+                  )}</DropdownMenuCheckboxItem
+                >{/if}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

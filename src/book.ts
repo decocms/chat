@@ -895,7 +895,7 @@ export class Book extends DurableObject<Env> {
     );
   }
   private callEvent(): Extract<RoomEvent, { t: "call" }> {
-    return { t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) };
+    return { t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}), transcriptOff: this.transcriptOff };
   }
   /** Every socket of the room hears it, the call's own sockets too (isCallSocket). */
   private broadcastCall() {
@@ -1012,8 +1012,13 @@ export class Book extends DurableObject<Env> {
    *  kind 'transcript'. It is never a typed message: an agent never reads it as its human's instruction. quiet: no
    *  unread, no wake, no router. A name that is not one person of the call (the stage shows the first name):
    *  @vibe posts it with the name. Empty lines (the model on silence) and lines with a secret are dropped. */
+  /** The room turned its calls' live transcript off (call.transcript): the lines are dropped. */
+  private get transcriptOff() {
+    return this.get("call_transcript_off") === "1";
+  }
   async callTranscript(bookId: string, lines: readonly { name: string; text: string }[]): Promise<number> {
     this.bind(bookId);
+    if (this.transcriptOff) return 0;
     // The call's thread, also just after the call: its last part comes when the people have left.
     const thread = this.callThread();
     const names = await this.names(), byName = new Map<string, string | null>();
@@ -3410,7 +3415,7 @@ export class Book extends DurableObject<Env> {
         avatars,
         online: this.online(),
         // Present only where calls are set up: the app draws the call button from it.
-        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) } : {}),
+        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), transcriptOff: this.transcriptOff, ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) } : {}),
         receipts: await this.receiptsFor(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
@@ -3654,6 +3659,11 @@ export class Book extends DurableObject<Env> {
           this.ctx.waitUntil(startRecorder(this.env, this.get("call_origin") ?? publicOrigin(this.env), bookId));
         return;
       }
+      case "call.transcript":
+        this.set("call_transcript_off", m.on ? "" : "1");
+        this.broadcastCall();
+        this.ctx.waitUntil(track(this.env, "call_transcript_toggle", { user: email, dims: { book: this.get("book_id") ?? "", on: m.on } }));
+        return;
       case "call.mute":
         return this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, muted: m.muted } : p)));
       case "call.usage":

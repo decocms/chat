@@ -244,6 +244,8 @@ export const RoomSnapshotSchema = z.object({
   consent: opt(CallConsentSchema),
   /** This room's calls are recorded (CALL_RECORD_ROOMS): a call here without the recorder shows a warning. */
   callRecorded: opt(bool),
+  /** Somebody in the room turned the live transcript of its calls off (call.transcript). */
+  transcriptOff: opt(bool),
   names: opt(z.record(str, str)),
   /** email → @handle: what a mention picked from the list inserts (shared/mention.ts). */
   handles: opt(z.record(str, str)),
