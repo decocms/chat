@@ -239,8 +239,11 @@ const sent = (page: Page) =>
 const received = (page: Page) =>
   page.evaluate(async () => {
     const pc = (window as unknown as { pcs: RTCPeerConnection[] }).pcs.at(-1)!;
-    let out = { bytes: 0, width: 0, fps: 0, at: performance.now() };
-    (await pc.getStats()).forEach((s: Record<string, number | string>) => {
+    let out = { bytes: 0, width: 0, fps: 0, codec: "", at: performance.now() };
+    const stats = await pc.getStats();
+    stats.forEach((s: Record<string, number | string>) => {
+      if (s.type === "inbound-rtp" && s.kind === "video")
+        out.codec = String(stats.get(String(s.codecId))?.mimeType ?? "");
       if (s.type === "inbound-rtp" && s.kind === "video")
         out = {
           ...out,
@@ -328,7 +331,7 @@ try {
       sent: `${b.width}×${b.height}`,
       fps: Math.round(b.fps),
       limited_by: b.limit,
-      bia_gets: `${rb.width} wide, ${Math.round(rb.fps)} fps, ${Math.round(((rb.bytes - ra.bytes) * 8) / ((rb.at - ra.at) / 1000) / 1000)} kbps`,
+      bia_gets: `${rb.codec}, ${rb.width} wide, ${Math.round(rb.fps)} fps, ${Math.round(((rb.bytes - ra.bytes) * 8) / ((rb.at - ra.at) / 1000) / 1000)} kbps`,
       ssim_grid_640: +(await ssim(frame, 640, 360)).toFixed(4),
       ssim_big_1280: +(await ssim(frame, 1280, 720)).toFixed(4),
     });
