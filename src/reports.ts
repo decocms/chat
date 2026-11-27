@@ -6,7 +6,8 @@
 //   other sites too, so the zone-wide daily totals are not used. Needs CF_ANALYTICS_TOKEN (Account Analytics: Read,
 //   Zone Analytics: Read, Zone: Read); without it the report says so instead of showing numbers.
 // Test people (@test.vibebook.dev) are left out. Check: bun scripts/reports-check.ts (formatting only).
-import { AiSpend, type InfraMonitor, type InfraWindow } from "../shared/schemas";
+import { AiSpend, type GrowthMetrics, type InfraMonitor, type InfraWindow } from "../shared/schemas";
+import { retention } from "./analytics";
 import type { Env } from "./index";
 import { publicHost } from "./host";
 import * as z from "zod/mini";
@@ -90,6 +91,110 @@ export async function growthReport(env: Env, now = Date.now()) {
   ]
     .filter((l, i, a) => l !== "" || a[i - 1] !== "")
     .join("\n");
+}
+
+const GROWTH_EVENTS = ["pageview", "login", "signup", "book_created", "agent_connected", "invite_sent", "message"] as const;
+
+/**
+ * The growth app's numbers (apps/growth.html, vibebook_growth): per São Paulo day for 2 × window days, the window's
+ * funnel, totals, retention and sources. Counts only: no e-mail leaves this function. Test people are left out.
+ */
+export async function growthMetrics(env: Env, window: InfraWindow, now = Date.now()): Promise<GrowthMetrics> {
+  const end = yesterday(now).end + DAY; // the end of today
+  const from = end - 2 * window * DAY, start = end - window * DAY;
+  const bucket = `CAST((ts - ${BRT}) / ${DAY} AS INTEGER)`;
+  const [events, people, active, agentMsgs, totals, rawRefs, utm, ret] = await Promise.all([
+    env.DB.prepare(
+      `SELECT ${bucket} AS d, name, count(*) AS n, count(DISTINCT coalesce(nullif(visitor, ''), user)) AS v FROM events
+       WHERE name IN (${GROWTH_EVENTS.map(() => "?").join(",")}) AND ts >= ? AND ts < ? AND ${NOT_TEST} GROUP BY d, name`,
+    )
+      .bind(...GROWTH_EVENTS, from, end)
+      .all<{ d: number; name: string; n: number; v: number }>(),
+    // The funnel counts people, not events: one person makes many rooms.
+    env.DB.prepare(
+      `SELECT name, count(DISTINCT user) AS n FROM events
+       WHERE name IN ('login', 'signup', 'book_created', 'agent_connected') AND user != '' AND ts >= ? AND ts < ? AND ${NOT_TEST} GROUP BY name`,
+    )
+      .bind(start, end)
+      .all<{ name: string; n: number }>(),
+    env.DB.prepare(
+      `SELECT ${bucket} AS d, count(DISTINCT user) AS n FROM events
+       WHERE ts >= ? AND ts < ? AND user != '' AND name != 'login_code_sent' AND ${NOT_TEST} GROUP BY d`,
+    )
+      .bind(from, end)
+      .all<{ d: number; n: number }>(),
+    env.DB.prepare(
+      `SELECT ${bucket} AS d, count(*) AS n FROM events
+       WHERE name = 'message' AND json_extract(dims, '$.agent') = 1 AND ts >= ? AND ts < ? AND ${NOT_TEST} GROUP BY d`,
+    )
+      .bind(from, end)
+      .all<{ d: number; n: number }>(),
+    env.DB.prepare(
+      `SELECT
+         (SELECT count(*) FROM users WHERE email NOT LIKE '%@test.vibebook.dev') AS people,
+         (SELECT count(*) FROM books WHERE dm IS NULL) AS rooms,
+         (SELECT count(DISTINCT email) FROM agents WHERE seen_at >= ?1 AND email NOT LIKE '%@test.vibebook.dev') AS agent_people,
+         (SELECT count(DISTINCT email) FROM machines WHERE kind IN ('app', 'herdr', 'herdr-app') AND seen_at >= ?1 AND email NOT LIKE '%@test.vibebook.dev') AS app_people,
+         (SELECT count(DISTINCT email) FROM machines WHERE kind = 'cli' AND seen_at >= ?1 AND email NOT LIKE '%@test.vibebook.dev') AS cli_people`,
+    )
+      .bind(now - 7 * DAY)
+      .first<{ people: number; rooms: number; agent_people: number; app_people: number; cli_people: number }>(),
+    env.DB.prepare(
+      `SELECT json_extract(dims, '$.ref') AS k, count(DISTINCT visitor) AS v FROM events WHERE name = 'pageview' AND ts >= ? AND ts < ? GROUP BY k ORDER BY v DESC LIMIT 200`,
+    )
+      .bind(start, end)
+      .all<{ k: string | null; v: number }>(),
+    env.DB.prepare(
+      `SELECT json_extract(dims, '$.utm') AS k, count(DISTINCT visitor) AS v FROM events WHERE name = 'pageview' AND ts >= ? AND ts < ? AND json_extract(dims, '$.utm') IS NOT NULL GROUP BY k ORDER BY v DESC LIMIT 10`,
+    )
+      .bind(start, end)
+      .all<{ k: string | null; v: number }>(),
+    retention(env),
+  ]);
+  const first = Math.floor((from - BRT) / DAY);
+  const days = Array.from({ length: 2 * window }, (_, i) => {
+    const d = first + i;
+    const ev = (name: string) => events.results.find((e) => e.d === d && e.name === name);
+    return {
+      day: new Date(d * DAY).toISOString().slice(0, 10),
+      visitors: ev("pageview")?.v ?? 0,
+      pageviews: ev("pageview")?.n ?? 0,
+      logins: ev("login")?.v ?? 0,
+      signups: ev("signup")?.n ?? 0,
+      rooms: ev("book_created")?.n ?? 0,
+      agents_connected: ev("agent_connected")?.n ?? 0,
+      active: active.results.find((a) => a.d === d)?.n ?? 0,
+      messages: ev("message")?.n ?? 0,
+      agent_messages: agentMsgs.results.find((a) => a.d === d)?.n ?? 0,
+      invites: ev("invite_sent")?.n ?? 0,
+    };
+  });
+  const recent = days.slice(window);
+  // Visitors: the sum of each day's visitors (the visitor id changes every day, so a window has no distinct count).
+  const visitors = recent.reduce((n, x) => n + x.visitors, 0);
+  const refs = externalRefs(
+    rawRefs.results.filter((x): x is { k: string; v: number } => typeof x.k === "string" && x.k.length > 0),
+    publicHost(env),
+  );
+  return {
+    window,
+    days,
+    totals: {
+      people: totals?.people ?? 0,
+      rooms: totals?.rooms ?? 0,
+      agent_people_7d: totals?.agent_people ?? 0,
+      app_people_7d: totals?.app_people ?? 0,
+      cli_people_7d: totals?.cli_people ?? 0,
+    },
+    funnel: FUNNEL.map(([k]) => ({
+      step: k,
+      n: k === "pageview" ? visitors : (people.results.find((p) => p.name === k)?.n ?? 0),
+    })),
+    retention: { last_week: ret.lastWeek, this_week: ret.thisWeek, back: ret.back, rate: ret.rate, cohorts: ret.cohorts },
+    sources: refs.map((r) => ({ host: r.k, visitors: r.v })),
+    utm: utm.results.filter((x): x is { k: string; v: number } => typeof x.k === "string" && x.k.length > 0).map((x) => ({ source: x.k, visitors: x.v })),
+    generated_at: new Date(now).toISOString(),
+  };
 }
 
 /** Referrers folded to their host, our own pages left out (that's navigation, not a source). */

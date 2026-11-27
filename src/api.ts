@@ -134,6 +134,7 @@ import {
   type RouterStats,
   type AiSpend,
   type InfraMonitor,
+  type GrowthMetrics,
   InfraWindow,
 } from "../shared/schemas";
 import type { RoomStateEvent } from "../shared/events";
@@ -305,6 +306,8 @@ export interface ApiServices {
   aiSpend(): Promise<AiSpend>;
   /** The Worker and the site per day (src/reports.ts infraMonitor), same rooms and people as aiSpend. */
   infraMonitor(window: InfraWindow): Promise<InfraMonitor>;
+  /** deco.chat's growth, counts only (src/reports.ts growthMetrics), same rooms and people as aiSpend. */
+  growthMetrics(window: InfraWindow): Promise<GrowthMetrics>;
   consentContext(): Promise<{ context: ConsentContext; headers: [string, string][] } | (ConsentError & { status: 400 })>;
 }
 /** A failed connection call and its status; sign_in = sign in on that server first (401). */
@@ -1304,6 +1307,14 @@ export const uploadsApi = meApi
     const days = InfraWindow.safeParse(Number(c.req.query("days") ?? 7));
     if (!days.success) return c.json({ error: "days must be 7, 14 or 30" } satisfies ErrorBody, 400);
     return c.json((await svc.infraMonitor(days.data)) satisfies InfraMonitor, 200);
+  })
+  // deco.chat's growth (counts only), for the report rooms' app apps/growth.html (vibebook_growth).
+  .get("/api/metrics/growth", async (c) => {
+    const svc = c.get("svc"), room = c.req.query("room") ?? "";
+    if (!svc.reportRoom(room) || !(await svc.isMember(room))) return c.json(forbidden, 403);
+    const days = InfraWindow.safeParse(Number(c.req.query("days") ?? 30));
+    if (!days.success) return c.json({ error: "days must be 7, 14 or 30" } satisfies ErrorBody, 400);
+    return c.json((await svc.growthMetrics(days.data)) satisfies GrowthMetrics, 200);
   });
 
 export type AppType = typeof uploadsApi;

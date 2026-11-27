@@ -2956,3 +2956,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium (the update removes the old npm package before it installs the new one)
 - Undo: Revert the commit; `vibebook.dev` keeps getting the same build.
 - Status: open
+
+### 2026-11-27 · feat/growth-app · Growth numbers for a pinned room app
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked for deco.chat's growth info, as an app pinned in the room (#6731, #6735). A room app cannot read metrics: the only report tools are the yesterday-only `metrics` markdown, `vibebook_ai_spend` and `vibebook_infra`.
+- Decision:
+  - A new route `GET /api/metrics/growth?room=&days=` and the room app tool `vibebook_growth`, the same path and the same access check as `vibebook_infra` (report rooms, members only).
+  - Counts only: no e-mail leaves `growthMetrics` (src/reports.ts), unlike `adminOverview`, which lists people.
+  - Per São Paulo day for 2 × window days (default 30); the window's funnel counts people (distinct `user`), not events, except visitors, which is the sum of each day's visitors (the visitor id changes every day).
+  - The app (apps/growth.html) is a room file, not in the repo, like apps/infra-monitor.html.
+- Other options: Snapshot numbers baked into the app; or open the admin MCP's `adminOverview` to the room.
+- Risk: low (read-only, same access as the other report apps)
+- Undo: Revert the commit and delete apps/growth.html from the room.
+- Status: open

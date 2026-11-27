@@ -1,7 +1,7 @@
 import type { InfraWindow } from "../../../shared/schemas";
 import type { Room } from "../../../shared/room";
 import type { RequestRoomCommand } from "../../app/roomConnection";
-import type { AppsApi } from "./api";
+import type { AppMetric, AppsApi } from "./api";
 import type { AppsSession } from "./session";
 import type { Readable } from "svelte/store";
 import type { ConnectionMode } from "./directTypes";
@@ -30,7 +30,7 @@ export type AppsProps = {
   thread: string;
   openLink(url: string): void;
   metric(
-    kind: "spend" | "router" | "infra",
+    kind: AppMetric,
     roomOnly: boolean,
     days?: InfraWindow,
   ): Promise<unknown>;
