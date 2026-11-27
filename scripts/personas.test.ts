@@ -279,3 +279,22 @@ test("a runner's rooms: its agent's switch, else its kind's, else any agent of t
   // The main runner of kind claude: only the main claude agent.
   expect(rooms("", "claude", 1)).toEqual({ [ROOM_A]: 0, [ROOM_B]: 1 });
 });
+
+test("a session opened by hand on a computer follows its own switch when it has one, else the machine's (Gimenes #6453)", () => {
+  const w = world();
+  w.agent("s_hand", "claude-code", MAC);
+  w.sqlite.run(`INSERT INTO machine_rooms VALUES (?, ?, 1)`, [MAC, ROOM_A]);
+  expect(w.delivers("s_hand", ROOM_A)).toBe(1);
+  // A name row (src/agentNames.ts) has no delivery: still the machine's switch.
+  w.sqlite.run(
+    `INSERT INTO agent_rooms (agent, book_id, name) VALUES (?, ?, 'claude-3')`,
+    ["s_hand", ROOM_A],
+  );
+  expect(w.delivers("s_hand", ROOM_A)).toBe(1);
+  // Its own switch off: off, with the machine on.
+  w.sqlite.run(
+    `UPDATE agent_rooms SET delivery = 0 WHERE agent = ? AND book_id = ?`,
+    ["s_hand", ROOM_A],
+  );
+  expect(w.delivers("s_hand", ROOM_A)).toBe(0);
+});
