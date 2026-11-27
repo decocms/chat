@@ -1649,8 +1649,12 @@ async function trayLatest(): Promise<string> {
   try {
     const r = await fetch("https://api.github.com/repos/decocms/chat/releases?per_page=50", { signal: AbortSignal.timeout(5000), headers: { accept: "application/vnd.github+json" } });
     if (!r.ok) return "";
-    const tag = ((await r.json()) as { tag_name?: string; draft?: boolean; prerelease?: boolean }[]).find((x) => !x.draft && !x.prerelease && /^tray-v\d/.test(x.tag_name ?? ""))?.tag_name;
-    return tag?.slice("tray-v".length) ?? "";
+    // The highest version, not the first one listed: GitHub does not list releases by version (tray-v0.1.9 came
+    // before tray-v0.1.10, so the app said "Atualizado" on 0.1.9).
+    const versions = ((await r.json()) as { tag_name?: string; draft?: boolean; prerelease?: boolean }[])
+      .filter((x) => !x.draft && !x.prerelease && /^tray-v\d+\.\d+\.\d+$/.test(x.tag_name ?? ""))
+      .map((x) => x.tag_name!.slice("tray-v".length));
+    return versions.reduce((best, v) => (!best || olderVersion(best, v) ? v : best), "");
   } catch { return ""; }
 }
 /** How to update the vibebook CLI that the room Claudes use (not the one inside the app): npm when npm installed it
