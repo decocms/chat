@@ -2719,10 +2719,13 @@ describe("chat", () => {
     const jumbo = (id: number) =>
       target.querySelector<HTMLElement>(`#m${id} [data-jumbo-emoji]`);
     expect(jumbo(20)?.dataset.jumboEmoji).toBe("1");
-    expect(jumbo(20)?.className).toContain("text-3xl");
+    expect(jumbo(20)?.classList.contains("text-2xl")).toBe(true);
+    expect(jumbo(20)?.classList.contains("max-md:text-3xl")).toBe(true);
     expect(jumbo(20)?.textContent?.trim()).toBe("🔥");
     expect(jumbo(21)?.dataset.jumboEmoji).toBe("3");
-    expect(jumbo(21)?.className).toContain("text-2xl");
+    // Solo stays the biggest: two or three a step below it.
+    expect(jumbo(21)?.classList.contains("text-xl")).toBe(true);
+    expect(jumbo(21)?.classList.contains("max-md:text-2xl")).toBe(true);
     // The edited mark and the reply line keep their size.
     expect(
       target.querySelector("#m21 [data-message-edited]")?.className,

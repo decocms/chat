@@ -218,7 +218,7 @@
   );
   const group = $derived(m.group || [m]);
   // Only emoji (1–3), nothing attached: drawn big, like Slack's and WhatsApp's. Sized from the first paint, so it never
-  // shifts: one emoji ~2x the body, two or three a step smaller (text-3xl/2xl; phones, whose body is bigger, a step up).
+  // shifts: one emoji well above the body, two or three a step smaller (text-2xl/xl; phones, whose body is bigger, a step up).
   const jumbo = $derived(
     m.files?.length || m.card || m.choices || m.poll
       ? 0
@@ -468,8 +468,8 @@
             class={cn(
               "m-0 font-sans tracking-normal whitespace-pre-wrap",
               jumbo === 1
-                ? "text-3xl max-md:text-4xl"
-                : "text-2xl max-md:text-3xl",
+                ? "text-2xl max-md:text-3xl"
+                : "text-xl max-md:text-2xl",
             )}
           >
             {m.text.trim()}
