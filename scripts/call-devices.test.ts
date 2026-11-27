@@ -161,7 +161,12 @@ afterEach(() => {
   saved.clear();
 });
 
-async function inCall(options: { plugged: string[]; stored?: string }) {
+async function inCall(options: {
+  plugged: string[];
+  stored?: string;
+  /** Joins with the microphone on, then mutes at once, while the call still starts. */
+  muteDuringJoin?: boolean;
+}) {
   const storage = memoryStorage();
   if (options.stored) storage.setItem("vb-call-mic", options.stored);
   let plugged = options.plugged;
@@ -285,7 +290,8 @@ async function inCall(options: { plugged: string[]; stored?: string }) {
     () => true,
     () => "main",
   );
-  call.join(true);
+  call.join(!options.muteDuringJoin);
+  if (options.muteDuringJoin) call.toggleMute();
   for (let i = 0; i < 50 && get(call.state).phase !== "in"; i++)
     await new Promise((ok) => setTimeout(ok, 0));
   expect(get(call.state).phase).toBe("in");
@@ -499,4 +505,10 @@ test("hearing my microphone plays what the call sends on my output, follows a ne
   t.call.toggleHearMe();
   t.call.leave();
   expect(get(t.call.hearingMe)).toBe(false);
+});
+
+test("a mute clicked while the call starts holds: the microphone sends silence and the room hears muted", async () => {
+  const t = await inCall({ plugged: ["mic-a"], muteDuringJoin: true });
+  expect(get(t.call.state).muted).toBe(true);
+  expect(t.opened[0]!.track.enabled).toBe(false);
 });

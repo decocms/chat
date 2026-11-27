@@ -832,7 +832,9 @@ export function createCallSession(
           });
           pc.ontrack = received;
           const [track] = mic.getAudioTracks();
-          if (track) track.enabled = !muted;
+          // The mute now, not the one of the click that joined: the stage shows its mute button while the call
+          // starts, and a click there must hold (else the person is heard while the button says muted).
+          if (track) track.enabled = !get(state).muted;
           if (track) watchMic(track);
           // The browser can give another microphone than the one asked for (it is not plugged in): the system's.
           devices.update((value) => ({
@@ -862,7 +864,7 @@ export function createCallSession(
           patch({ phase: "in" });
           // Now with the labels (the microphone is allowed): the lists, and the output chosen on this device.
           void refreshDevices();
-          send({ t: "call.mute", muted });
+          send({ t: "call.mute", muted: get(state).muted });
           void enqueue(sync);
         } catch (error) {
           if (at !== epoch) {
