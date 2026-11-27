@@ -30,6 +30,8 @@ Nothing runs without a click.
 
 The runner that the app starts opens the Claude Code of each room with bypass permissions (`--dangerously-skip-permissions`; Codex: `--dangerously-bypass-approvals-and-sandbox`). It also marks the room folder as trusted (`~/.claude.json`, `~/.codex/config.toml`), and it accepts the one-time bypass question of Claude Code (`skipDangerousModePermissionPrompt` in `~/.claude/settings.json`). Thus the agent does not stop at a prompt in a terminal that nobody watches. An agent that an older runner opened before its folder was trusted can still wait at "Is this a project you trust?" (the bypass flag does not skip that question). When the runner sees that question in its own terminal, it trusts the folder, ends that agent and opens a new one on the next pass. See README, "Security model".
 
+The agent starts through the login shell (`$SHELL -ilc`), so it gets the person's `PATH`. With fish the command is `exec $argv`, because fish has no `"$0"` and `"$@"`: with them, every terminal ended at once (exit 127).
+
 ## Install
 
 `curl -fsSL https://chat.decocms.com/setup.sh | sh` installs the app from the newest `tray-v*` release. Set `VIBEBOOK_NO_TRAY=1` to skip it.

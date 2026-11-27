@@ -1432,7 +1432,8 @@ function coreArgv(session2, room) {
   if (process.platform === "win32")
     return argv2;
   const shell = process.env.SHELL || "/bin/zsh";
-  return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", shell, "-ilc", 'exec "$0" "$@"', ...argv2];
+  const exec = /(^|\/)fish$/.test(shell) ? "exec $argv" : 'exec "$0" "$@"';
+  return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", shell, "-ilc", exec, ...argv2];
 }
 function herdrLeftovers() {
   const map = readJson(HERDR_FILE, {});

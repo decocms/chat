@@ -1300,7 +1300,10 @@ function coreArgv(session: string | undefined, room: string): string[] {
   const argv = [RUN_AGENT, ...agentArgs(session), listenTask(room)];
   if (process.platform === "win32") return argv;
   const shell = process.env.SHELL || "/bin/zsh";
-  return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", shell, "-ilc", 'exec "$0" "$@"', ...argv];
+  // fish has no "$0"/"$@": the POSIX form ran `exec ""` (exit 127), so with fish as the login shell every terminal
+  // ended at once and each room stayed "Abrindo o Claude Code…" (Viktor #6423). fish passes the extra arguments in $argv.
+  const exec = /(^|\/)fish$/.test(shell) ? "exec $argv" : 'exec "$0" "$@"';
+  return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", shell, "-ilc", exec, ...argv];
 }
 /** The terminal-mode map, while it still has live herdr panes from before this mode: a room there is moved, not
  *  opened twice (its free Claude gets /exit, then its conversation reopens here with --resume). */
