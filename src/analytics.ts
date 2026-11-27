@@ -164,7 +164,7 @@ async function activeDays(env: Pick<Env, "DB">, since: number) {
 }
 
 /** Week-over-week return plus signup cohorts (last 6 weeks): % of each cohort active 1–4 weeks after signing up. */
-async function retention(env: Pick<Env, "DB">) {
+export async function retention(env: Pick<Env, "DB">) {
   const now = Date.now();
   const since = now - 10 * WEEK_MS;
   const [days, signups] = await Promise.all([

@@ -24,7 +24,7 @@ import { connOps } from "./mcpconn";
 import { consentContext, grantOps } from "./connect";
 import { routerStats } from "./router";
 import { setHandle, setProfilePublic } from "./profile";
-import { aiSpend, infraMonitor } from "./reports";
+import { aiSpend, growthMetrics, infraMonitor } from "./reports";
 import { resolveLink } from "./linkTarget";
 import { createPersona, deletePersona, renamePersona, setPersonaRoom } from "./personas";
 import { orgRooms, requestAccess, roomOrg, seeOrgRooms, setRoomOrg } from "./orgRooms";
@@ -400,5 +400,6 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     reportRoom: (room) => (env.METRICS_ROOMS ?? "").split(",").map((x) => x.trim()).includes(room),
     aiSpend: () => aiSpend(env),
     infraMonitor: (window) => infraMonitor(env, window),
+    growthMetrics: (window) => growthMetrics(env, window),
   };
 }

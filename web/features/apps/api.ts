@@ -4,6 +4,7 @@ import {
   UNAUTHENTICATED,
   AiSpend,
   InfraMonitor,
+  GrowthMetrics,
   type InfraWindow,
   RouterStats,
   ConnectionsResult,
@@ -111,36 +112,46 @@ export function createAppsApi(roomId: string, fetcher?: FetchLike) {
 }
 export type AppsApi = ReturnType<typeof createAppsApi>;
 
+/** The report numbers a room app can read (vibebook_ai_spend, vibebook_router_stats, vibebook_infra, vibebook_growth). */
+export type AppMetric = "spend" | "router" | "infra" | "growth";
 export function createAppMetrics(fetcher?: FetchLike) {
   const api = client("/", fetcher).api;
   return async (
-    kind: "spend" | "router" | "infra",
+    kind: AppMetric,
     roomId: string,
     roomOnly: boolean,
     signal: AbortSignal,
     days: InfraWindow = 7,
   ) =>
-    kind === "infra"
+    kind === "growth"
       ? read(
-          await api.metrics.infra.$get(
+          await api.metrics.growth.$get(
             { query: { room: roomId, days: String(days) } },
             { init: { signal, cache: "no-store" } },
           ),
-          InfraMonitor,
+          GrowthMetrics,
         )
-      : kind === "spend"
+      : kind === "infra"
         ? read(
-            await api.metrics["ai-spend"].$get(
-              { query: { room: roomId } },
+            await api.metrics.infra.$get(
+              { query: { room: roomId, days: String(days) } },
               { init: { signal, cache: "no-store" } },
             ),
-            AiSpend,
+            InfraMonitor,
           )
-        : read(
-            await api.router.stats.$get(
-              { query: roomOnly ? { room: roomId } : {} },
-              { init: { signal, cache: "no-store" } },
-            ),
-            RouterStats,
-          );
+        : kind === "spend"
+          ? read(
+              await api.metrics["ai-spend"].$get(
+                { query: { room: roomId } },
+                { init: { signal, cache: "no-store" } },
+              ),
+              AiSpend,
+            )
+          : read(
+              await api.router.stats.$get(
+                { query: roomOnly ? { room: roomId } : {} },
+                { init: { signal, cache: "no-store" } },
+              ),
+              RouterStats,
+            );
 }

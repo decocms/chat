@@ -1036,6 +1036,53 @@ export const InfraMonitor = z.object({
 });
 export type InfraMonitor = z.infer<typeof InfraMonitor>;
 
+/** deco.chat's growth, for the report rooms' app apps/growth.html (src/reports.ts growthMetrics). Counts only, no
+ *  e-mails. days: per São Paulo day for 2 × window days (this window and the one before), oldest first. Test people
+ *  (@test.vibebook.dev) are left out. */
+export const GrowthMetrics = z.object({
+  window: InfraWindow,
+  days: z.array(
+    z.object({
+      day: z.string(),
+      visitors: z.number(),
+      pageviews: z.number(),
+      logins: z.number(),
+      signups: z.number(),
+      rooms: z.number(),
+      agents_connected: z.number(),
+      active: z.number(),
+      messages: z.number(),
+      agent_messages: z.number(),
+      invites: z.number(),
+    }),
+  ),
+  totals: z.object({
+    people: z.number(),
+    rooms: z.number(),
+    agent_people_7d: z.number(),
+    app_people_7d: z.number(),
+    cli_people_7d: z.number(),
+  }),
+  funnel: z.array(z.object({ step: z.string(), n: z.number() })),
+  retention: z.object({
+    last_week: z.number(),
+    this_week: z.number(),
+    back: z.number(),
+    rate: z.nullable(z.number()),
+    cohorts: z.array(
+      z.object({
+        week: z.string(),
+        size: z.number(),
+        weeks: z.array(z.nullable(z.number())),
+      }),
+    ),
+  }),
+  sources: z.array(z.object({ host: z.string(), visitors: z.number() })),
+  utm: z.array(z.object({ source: z.string(), visitors: z.number() })),
+  generated_at: z.string(),
+});
+export type GrowthMetrics = z.infer<typeof GrowthMetrics>;
+
 export const SttQuery = z.object({
   lang: z.optional(z.string()),
   prompt: z.optional(z.string()),

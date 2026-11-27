@@ -300,6 +300,28 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       worker_error: null,
       generated_at: "2026-11-24T00:00:00.000Z",
     }),
+    growthMetrics: async (window) => ({
+      window,
+      days: [],
+      totals: {
+        people: 10,
+        rooms: 4,
+        agent_people_7d: 3,
+        app_people_7d: 1,
+        cli_people_7d: 2,
+      },
+      funnel: [{ step: "pageview", n: 5 }],
+      retention: {
+        last_week: 0,
+        this_week: 1,
+        back: 0,
+        rate: null,
+        cohorts: [],
+      },
+      sources: [],
+      utm: [],
+      generated_at: "2026-11-24T00:00:00.000Z",
+    }),
     aiSpend: async () => ({
       recorded: {
         jev: 0.01,
@@ -1445,6 +1467,27 @@ test("infra monitor: only in the report rooms, for their members, 7/14/30 days",
   const outsider = fixture({ isMember: async () => false });
   expect(
     (await outsider.app.request("/api/metrics/infra?room=report")).status,
+  ).toBe(403);
+});
+
+test("growth: only in the report rooms, for their members, 30 days by default", async () => {
+  const { app } = fixture();
+  const r = await app.request("/api/metrics/growth?room=report&days=7");
+  expect(r.status).toBe(200);
+  expect((await r.json()).window).toBe(7);
+  expect(
+    (await (await app.request("/api/metrics/growth?room=report")).json())
+      .window,
+  ).toBe(30);
+  expect(
+    (await app.request("/api/metrics/growth?room=report&days=90")).status,
+  ).toBe(400);
+  expect((await app.request("/api/metrics/growth?room=other")).status).toBe(
+    403,
+  );
+  const outsider = fixture({ isMember: async () => false });
+  expect(
+    (await outsider.app.request("/api/metrics/growth?room=report")).status,
   ).toBe(403);
 });
 

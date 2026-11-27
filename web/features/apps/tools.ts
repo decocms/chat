@@ -3,6 +3,7 @@ import type { Tool, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Room } from "../../../shared/room";
 import type { Connection, InfraWindow } from "../../../shared/schemas";
 import type { RequestRoomCommand } from "../../app/roomConnection";
+import type { AppMetric } from "./api";
 import { createSendIds } from "../../lib/client/sendIds";
 export const roomTools: Tool[] = [
   {
@@ -87,6 +88,16 @@ export const roomTools: Tool[] = [
     annotations: { readOnlyHint: true },
   },
   {
+    name: "vibebook_growth",
+    description:
+      "deco.chat's growth, counts only (no e-mails): per São Paulo day for the last `days` days and the `days` before them, oldest first (visitors, pageviews, logins, signups, new rooms, agents connected, active people, messages, agent messages, invites); totals (people, rooms, people with an agent, the app or the CLI in the last 7 days); the window's funnel; weekly retention and signup cohorts; sources and utm_source. days: 7, 14 or 30 (default 30). Only in deco.chat's report rooms.",
+    inputSchema: {
+      type: "object",
+      properties: { days: { type: "number", enum: [7, 14, 30] } },
+    },
+    annotations: { readOnlyHint: true },
+  },
+  {
     name: "vibebook_router_stats",
     description:
       "The hub router A/B (Jev vs Haiku): per arm how many messages were ignored, answered or woke a Claude, latency p50/p95, cost, and the last 40 decisions (who = whose router). room: true = this room, every member's router; false = the person's own router in all rooms.",
@@ -162,7 +173,7 @@ export function createRoomAppTools(options: {
   connections(): Promise<Connection[]>;
   call(cid: string, tool: string, args: unknown): Promise<CallToolResult>;
   metric(
-    kind: "spend" | "router" | "infra",
+    kind: AppMetric,
     roomOnly: boolean,
     days?: InfraWindow,
   ): Promise<unknown>;
@@ -201,9 +212,18 @@ export function createRoomAppTools(options: {
           ? toolOutput(value)
           : toolError("App is no longer active");
       }
-      case "vibebook_infra": {
-        const days = args.days === 14 || args.days === 30 ? args.days : 7;
-        const value = await options.metric("infra", false, days);
+      case "vibebook_infra":
+      case "vibebook_growth": {
+        const fallback = name === "vibebook_growth" ? 30 : 7;
+        const days =
+          args.days === 7 || args.days === 14 || args.days === 30
+            ? args.days
+            : fallback;
+        const value = await options.metric(
+          name === "vibebook_growth" ? "growth" : "infra",
+          false,
+          days,
+        );
         return current()
           ? toolOutput(value)
           : toolError("App is no longer active");
