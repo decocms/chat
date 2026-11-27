@@ -524,7 +524,6 @@
                           "relative h-10 min-w-0 flex-1 justify-start gap-2.5 rounded-lg px-2.5 text-left font-normal hover:bg-transparent",
                           phone.current && "h-18 gap-3 px-2 py-1",
                           current && "font-medium",
-                          fresh && "font-semibold",
                           // Done: finished work reads quieter, and comes back on hover or when open.
                           value === "done" &&
                             !current &&
@@ -574,6 +573,7 @@
                             class={cn(
                               "min-w-0 flex-1 truncate",
                               phone.current && "flex-none text-lg leading-6",
+                              fresh && "font-bold",
                             )}
                             data-epic-title
                             >{epic.title}{#if epic.done && value !== "done"}<span

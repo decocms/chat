@@ -4818,18 +4818,25 @@ describe("stable sidebar integration", () => {
     room.epics.push({ id: "other", title: "Other", tasks: [] });
     const rendered = sidebar({ ...room, unread: ["other", "main"] });
     const row = (id: string) =>
-      rendered.target.querySelector<HTMLElement>(`[data-epic-thread="${id}"]`)!;
-    expect(row("other").hasAttribute("data-epic-unread")).toBe(true);
-    expect(row("other").classList.contains("font-semibold")).toBe(true);
+      rendered.target.querySelector<HTMLElement>(
+        `[data-epic-thread="${id}"] [data-epic-title]`,
+      )!;
+    const unread = (id: string) =>
+      rendered.target
+        .querySelector(`[data-epic-thread="${id}"]`)!
+        .hasAttribute("data-epic-unread");
+    expect(unread("other")).toBe(true);
+    // Bold (600): the theme's semibold is 500, the open row's weight.
+    expect(row("other").classList.contains("font-bold")).toBe(true);
     // The open thread is read, whatever the list says.
     rendered.view.update({
       ...rendered.props,
       room: { ...room, unread: ["e"] },
     });
     flushSync();
-    expect(row("e").hasAttribute("data-epic-unread")).toBe(false);
-    expect(row("e").classList.contains("font-semibold")).toBe(false);
-    expect(row("other").classList.contains("font-semibold")).toBe(false);
+    expect(unread("e")).toBe(false);
+    expect(row("e").classList.contains("font-bold")).toBe(false);
+    expect(row("other").classList.contains("font-bold")).toBe(false);
     rendered.view.update({
       ...rendered.props,
       room: { ...room, unread: ["main"] },

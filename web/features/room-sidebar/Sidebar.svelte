@@ -274,7 +274,7 @@
             >{:else}<RoomMark title={room.book.title} src={roomIcon} />
             <span
               data-main-unread={mainUnread ? "" : undefined}
-              class={cn("min-w-0 truncate", mainUnread && "font-semibold")}
+              class={cn("min-w-0 truncate", mainUnread && "font-bold")}
               >{room.book.title}</span
             >{/if}
           <WaitBadge
