@@ -2868,3 +2868,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · feat/unread-thread-bold · An unread thread has a bold title
+
+- Agent: Claude Opus 5.5
+- Context: Valls: a room's notification that is not a mention does not say where in the room it happened; the thread's name can be bolder.
+- Decision:
+  - The Book keeps, per person and thread, the newest message they saw there (`thread_reads`, in the Book's SQLite). The thread that a tab shows is read (`?t=` on the socket, then the new `thread.open` command), and so is what arrives in it.
+  - A person seen for the first time starts with nothing unread: old threads do not all turn bold after the deploy.
+  - What counts is the room dot's rule: not your own words, not a quiet line, not a reminder for someone else. An agent's line counts, your own Claude's too.
+  - The title is `font-bold` (600): the theme's `font-semibold` is 500, the open row's weight, so it does not show. The read rows keep their color (Valls: no gray-out). On a phone only the title is bold, not the preview.
+- Other options: Keep it in the browser (localStorage, like recent threads): not the same on another device. A count or a dot per thread.
+- Risk: low
+- Undo: Revert the commit.
+- Status: open

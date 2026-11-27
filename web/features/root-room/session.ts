@@ -7,7 +7,7 @@ import {
   createRoomConnection,
   type RoomConnectionOptions,
 } from "../../app/roomConnection";
-import { reduceRoom } from "../../app/roomStore";
+import { readThread, reduceRoom } from "../../app/roomStore";
 import { isRoomMember, roomHasThread } from "../../../shared/call";
 import type { RoomCache } from "../room-cache/store";
 
@@ -138,9 +138,12 @@ export function createRootRoomSession(options: {
       }
       account = event.me;
     }
+    const shown = options.thread?.() ?? before.thread;
     const reduced = reduceRoom(previous, event, roomId);
-    const room =
+    const presented =
       reduced && options.present ? options.present(reduced) : reduced;
+    // The thread on screen is read: what arrives in it is not new to you (the Book reads it for this tab too).
+    const room = presented && readThread(presented, shown);
     if (!room) {
       if (event.t === "error")
         options.onTransition({ event, previous, snapshot: before });
@@ -162,7 +165,7 @@ export function createRootRoomSession(options: {
     const next: RootRoomSnapshot = {
       ...before,
       room,
-      thread: options.thread?.() ?? before.thread,
+      thread: shown,
       phase: event.t === "state" ? "live" : before.phase,
       snapshotGeneration:
         before.snapshotGeneration + (event.t === "state" ? 1 : 0),
@@ -330,7 +333,16 @@ export function createRootRoomSession(options: {
         });
     },
     selectThread(thread: string) {
-      if (active) state.update((current) => ({ ...current, thread }));
+      if (!active) return;
+      const before = read();
+      state.update((current) => ({
+        ...current,
+        thread,
+        room: current.room && readThread(current.room, thread),
+      }));
+      // The Book reads the thread for this tab, and what arrives in it while it shows (a suggestion is no thread).
+      if (before.thread !== thread && !thread.startsWith("pre:"))
+        before.connection?.send({ t: "thread.open", thread });
     },
     send(command: RoomCommand): boolean {
       if (!active) return false;

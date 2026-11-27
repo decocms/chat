@@ -44,6 +44,8 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
   // "O que precisa de mim aqui" (Gui #3011): asks your own Claude; brief.dismiss drops one of yours.
   z.object({ t: z.literal("brief.ask"), thread: z.string() }),
   z.object({ t: z.literal("brief.dismiss"), id: num }),
+  /** The tab now shows this thread: it is read (the sidebar's bold names). */
+  z.object({ t: z.literal("thread.open"), thread: z.string() }),
   z.object({ t: z.literal("title"), title: z.string() }),
   // A new thread (Gimenes #4123): from a message (`from`), or from the sidebar. The client may pick its id, so it can
   // open it and a retry with the same id does not make a second one.

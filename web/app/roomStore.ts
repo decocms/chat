@@ -17,6 +17,21 @@ function mergeEpics(
   if (order.some((id) => !have.has(id))) return null;
   return order.map((id) => have.get(id)!);
 }
+/** A message that makes its thread unread for `me` (the same rule as Book.unreadThreads): not your own words, not a
+ *  quiet line, not a reminder for someone else. An agent's line counts, your own Claude's too. */
+export function countsAsUnread(
+  message: Pick<Message, "author" | "kind" | "quiet" | "for_who">,
+  me: string,
+) {
+  if (message.author === me && !message.kind) return false;
+  return !message.quiet && (!message.for_who || message.for_who === me);
+}
+/** The room without `thread` among its unread ones: the thread is on screen. */
+export function readThread(room: Room, thread: string): Room {
+  return room.unread?.includes(thread)
+    ? { ...room, unread: room.unread.filter((id) => id !== thread) }
+    : room;
+}
 export function reduceRoom(
   current: Room | null,
   event: RoomEvent,
@@ -56,13 +71,15 @@ export function reduceRoom(
   const updateMessage = (msgId: number, patch: Partial<Message>) =>
     s.messages.map((m) => (m.id === msgId ? { ...m, ...patch } : m));
   switch (event.t) {
-    case "msg":
-      return {
-        ...s,
-        messages: s.messages.some((m) => m.id === event.m.id)
-          ? s.messages
-          : [...s.messages, event.m],
-      };
+    case "msg": {
+      if (s.messages.some((m) => m.id === event.m.id)) return s;
+      // A new line in a thread makes it unread (Book.unreadThreads); the session drops the thread you look at.
+      const unread =
+        countsAsUnread(event.m, s.me) && !s.unread?.includes(event.m.thread)
+          ? { unread: [...(s.unread ?? []), event.m.thread] }
+          : {};
+      return { ...s, messages: [...s.messages, event.m], ...unread };
+    }
     case "msgCard":
       return {
         ...s,

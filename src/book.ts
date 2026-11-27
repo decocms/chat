@@ -178,6 +178,7 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS message_edits (msg_id INTEGER, kind TEXT, text TEXT, files TEXT, card TEXT, by TEXT, ts INTEGER);
       CREATE TABLE IF NOT EXISTS routed (msg_id INTEGER PRIMARY KEY, thread TEXT, author TEXT, text TEXT);
       CREATE INDEX IF NOT EXISTS message_edits_msg ON message_edits (msg_id, ts);
+      CREATE TABLE IF NOT EXISTS thread_reads (email TEXT, thread TEXT, last_id INTEGER, PRIMARY KEY (email, thread));
     `);
     // A thread's done state was the column `archived` (Gimenes #4466, #4505: there is no archive, only done). It is
     // renamed before the loop below, which would else add an empty `done` and open every done thread again.
@@ -1247,6 +1248,7 @@ export class Book extends DurableObject<Env> {
     // A message for one person (a reminder) is not the room's last line for everyone else.
     const last = extra.forWho ? undefined : { by: author, text: previewText(text, extra.card, files), agent: extra.kind === "agent" };
     if (!extra.quiet && !privateTo) this.ctx.waitUntil(this.touch({ lastId: id, human: byPerson ? id : undefined, agent: byPerson ? undefined : id, last }).then(() => this.readOnPost(author, byPerson, id)));
+    if (!extra.quiet && !privateTo) this.readInThread(thread, id, byPerson ? author : null);
     if (byPerson && replyTo) {
       const q = this.sql.exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE id = ? AND kind = 'agent' AND choices IS NOT NULL`, replyTo).toArray()[0];
       // Answered in the room: its wait goes, and so does the "⏸ espera você no terminal" the Notification hook put up
@@ -2132,6 +2134,43 @@ export class Book extends DurableObject<Env> {
     // The same read point is the person's "seen" under the messages (MessageFooter), for the room's members.
     for (const e of emails) if (e !== "ai" && !isRecorder(e)) this.receipt({ agent: `p:${e}`, email: e, who: "", read: upto, delivered: upto });
     if (waits) await this.readWaits(emails, upto);
+  }
+  /** Per person and thread, the newest message they saw there: the room sidebar's bold thread names (Valls). The
+   *  row "*" is where the person started to be tracked; nothing before it is new to them. */
+  readThread(email: string, thread: string, upto?: number) {
+    const id = upto ?? ((this.sql.exec(`SELECT max(id) AS id FROM messages WHERE thread = ?`, thread).one().id as number | null) ?? 0);
+    if (!id) return;
+    this.sql.exec(`INSERT INTO thread_reads (email, thread, last_id) VALUES (?, ?, ?) ON CONFLICT(email, thread) DO UPDATE SET last_id = max(last_id, excluded.last_id)`, email, thread, id);
+  }
+  /** The thread a person's tab shows (/ws ?t=, then "thread.open"). Kept on the socket, so it outlives hibernation. */
+  socketThread(ws: WebSocket): string | null {
+    try {
+      const a: unknown = ws.deserializeAttachment();
+      return a && typeof a === "object" && "thread" in a && typeof a.thread === "string" ? a.thread : null;
+    } catch {
+      return null;
+    }
+  }
+  /** A message went into `thread`: everyone whose tab shows that thread saw it, and so did its author. */
+  readInThread(thread: string, id: number, author: string | null) {
+    const here = this.sockets().filter((ws) => !this.isPeekSocket(ws) && this.socketThread(ws) === thread).map((ws) => this.ctx.getTags(ws)[0]);
+    for (const email of new Set([...here, ...(author ? [author] : [])])) this.readThread(email, thread, id);
+  }
+  /** The threads with a message this person has not seen (not theirs, not quiet, not a reminder for someone else), except `open`, the one they look at. Like the room's unread dot, an agent's line counts, even their own
+   *  Claude's. A person seen here for the first time starts with none. */
+  unreadThreads(email: string, open: string): string[] {
+    const top = (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number | null) ?? 0;
+    this.sql.exec(`INSERT OR IGNORE INTO thread_reads (email, thread, last_id) VALUES (?, '*', ?)`, email, top);
+    const reads = new Map(this.sql.exec<{ thread: string; last_id: number }>(`SELECT thread, last_id FROM thread_reads WHERE email = ?`, email).toArray().map((r) => [r.thread, r.last_id]));
+    const start = reads.get("*") ?? top;
+    const threads = ["main", ...this.epics().map((e) => e.id)].filter((t) => t !== open);
+    return threads.filter(
+      (thread) =>
+        this.sql.exec(
+          `SELECT 1 FROM messages WHERE thread = ? AND id > ? AND NOT (author = ? AND kind IS NULL) AND (private_to IS NULL OR private_to = ?) AND deleted IS NULL AND (for_who IS NULL OR for_who = ?) AND card IS NULL AND coalesce(tag, '') NOT IN ('issue', 'call') LIMIT 1`,
+          thread, Math.max(start, reads.get(thread) ?? 0), email, email, email,
+        ).toArray().length > 0,
+    );
   }
   /** Reading a message clears the notifications it made (PO #5172), like opening the thread and seeing it: what it
    *  asked of you (waits m<id>, a mention or your own agent's message) and the mention held back for the Inbox and the digest (digest_items). Work stays until
@@ -3251,6 +3290,11 @@ export class Book extends DurableObject<Env> {
     }
     if (this.autoReview()) this.epicsChanged();
     if (!peek) this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
+    const shown = url.searchParams.get("t") || "main";
+    if (!peek && this.knownThread(shown)) {
+      server.serializeAttachment({ thread: shown });
+      this.readThread(email, shown);
+    }
     if (!lite) {
       const { state, resume, win } = await this.roomSnapshot(email, bookId, url.searchParams);
       const body = this.sendTo([server], state);
@@ -3329,6 +3373,7 @@ export class Book extends DurableObject<Env> {
         ...(fresh("pin") ? { pins: this.pins() } : {}),
         suggestions: this.suggestions(),
         briefs: this.briefsFor(email),
+        unread: this.unreadThreads(email, open),
         members: people.members,
         invited: people.invited,
         pending: people.pending,
@@ -3456,6 +3501,13 @@ export class Book extends DurableObject<Env> {
         const thread = String(m.thread ?? "");
         if (thread !== "main" && !this.epics().some((e) => e.id === thread)) return new Refused("unknown thread");
         return this.briefAsk(email, thread);
+      }
+      case "thread.open": {
+        // The tab shows another thread: it is read now, and what arrives in it while it shows is read too.
+        const thread = String(m.thread);
+        if (this.isPeekSocket(ws) || !this.knownThread(thread)) return;
+        ws.serializeAttachment({ thread });
+        return this.readThread(email, thread);
       }
       case "brief.dismiss":
         this.sql.exec(`DELETE FROM briefs WHERE id = ? AND email = ?`, Number(m.id), email);

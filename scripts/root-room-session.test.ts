@@ -533,3 +533,29 @@ test("definite HTTP membership refusal revokes its exact room generation and can
   expect(h.owner.read().phase).toBe("loading");
   h.owner.dispose();
 });
+
+test("a message in another thread marks it unread; the thread on screen stays read, and opening one tells the Book", () => {
+  const h = harness();
+  h.owner.open("aaaaaa", "main");
+  const socket = h.sockets[0]!;
+  socket.callbacks.onEvent(
+    snapshot({ ...room(), epics: [{ id: "e1", title: "E1", tasks: [] }] }),
+  );
+  const msg = (id: number, thread: string, author = "b@test"): RoomEvent => ({
+    t: "msg",
+    m: { id, thread, author, ts: id, text: "oi" },
+  });
+  socket.callbacks.onEvent(msg(1, "e1"));
+  socket.callbacks.onEvent(msg(2, "main"));
+  socket.callbacks.onEvent(msg(3, "main", "a@test"));
+  expect(h.owner.read().room?.unread).toEqual(["e1"]);
+  h.owner.selectThread("e1");
+  expect(h.owner.read().room?.unread).toEqual([]);
+  expect(socket.commands).toContainEqual({ t: "thread.open", thread: "e1" });
+  // Your own words never make a thread unread; someone else's in main does, now that main is not on screen.
+  socket.callbacks.onEvent(msg(4, "e1"));
+  socket.callbacks.onEvent(msg(5, "main", "a@test"));
+  expect(h.owner.read().room?.unread).toEqual([]);
+  socket.callbacks.onEvent(msg(6, "main"));
+  expect(h.owner.read().room?.unread).toEqual(["main"]);
+});

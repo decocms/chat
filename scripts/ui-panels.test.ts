@@ -4813,6 +4813,39 @@ describe("stable sidebar integration", () => {
     flushSync();
     await expectFocusedAfterUpdates(draft);
   }, 30_000);
+  test("a thread with a message you have not seen has a bolder name, until it is the one open (Valls)", () => {
+    const room = fixture();
+    room.epics.push({ id: "other", title: "Other", tasks: [] });
+    const rendered = sidebar({ ...room, unread: ["other", "main"] });
+    const row = (id: string) =>
+      rendered.target.querySelector<HTMLElement>(
+        `[data-epic-thread="${id}"] [data-epic-title]`,
+      )!;
+    const unread = (id: string) =>
+      rendered.target
+        .querySelector(`[data-epic-thread="${id}"]`)!
+        .hasAttribute("data-epic-unread");
+    expect(unread("other")).toBe(true);
+    // Bold (600): the theme's semibold is 500, the open row's weight.
+    expect(row("other").classList.contains("font-bold")).toBe(true);
+    // The open thread is read, whatever the list says.
+    rendered.view.update({
+      ...rendered.props,
+      room: { ...room, unread: ["e"] },
+    });
+    flushSync();
+    expect(unread("e")).toBe(false);
+    expect(row("e").classList.contains("font-bold")).toBe(false);
+    expect(row("other").classList.contains("font-bold")).toBe(false);
+    rendered.view.update({
+      ...rendered.props,
+      room: { ...room, unread: ["main"] },
+    });
+    flushSync();
+    const main = rendered.target.querySelector("[data-room-home] h2")!;
+    expect(main.hasAttribute("data-main-unread")).toBe(true);
+    expect(main.classList.contains("font-bold")).toBe(true);
+  });
   test("repeated room updates preserve keyed navigation rows", () => {
     let room = fixture();
     const target = window.document.createElement("div");
