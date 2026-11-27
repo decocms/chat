@@ -6,7 +6,7 @@ argument-hint: "[room link or id, optional]"
 Set up deco.chat for the project in the current directory. Room: $ARGUMENTS. If it is empty, decide with me.
 
 1. **CLI.** Do all work through the `vibebook` command in Bash.
-   - If `vibebook status` fails with "command not found", install it: `npm i -g vibebook.dev`. Or use `curl -fsSL https://chat.decocms.com/install.sh | sh`, then call `~/.vibebook/bin/vibebook` if it is not on PATH.
+   - If `vibebook status` fails with "command not found", install it: `npm i -g @decocms/chat`. Or use `curl -fsSL https://chat.decocms.com/install.sh | sh`, then call `~/.vibebook/bin/vibebook` if it is not on PATH.
    - If `status` shows `"logged_in": false`, ask me to type `! vibebook login`. It opens the browser one time on each computer. Wait for me.
 2. **Permission.** Claude Code must permit `vibebook` commands, so that you can read, post, acknowledge and move tasks without a prompt each time.
    - If `~/.claude/settings.json` has no `Bash(vibebook:*)` in `permissions.allow`, ask me to add it: I type `/permissions` → Allow → `Bash(vibebook:*)`. Claude Code does not let you change your own permissions. Do not try.

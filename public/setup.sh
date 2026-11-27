@@ -27,8 +27,11 @@ if command -v vibebook >/dev/null 2>&1; then
   if older "$V" "$MIN_CLI"; then
     echo "vibebook $V at $(command -v vibebook) is too old (it talks to vibebook.dev, which is gone): updating"
     # Installed with npm: update it there, so the old one doesn't stay first in PATH. Else the standalone install.
+    # The npm package is @decocms/chat; the old one (vibebook.dev) is removed first, as both own the vibebook command.
     if command -v npm >/dev/null 2>&1 && npm ls -g vibebook.dev >/dev/null 2>&1; then
-      npm i -g vibebook.dev@latest >/dev/null 2>&1 || fail "Couldn't update vibebook. Run: npm i -g vibebook.dev@latest"
+      { npm rm -g vibebook.dev && npm i -g @decocms/chat@latest; } >/dev/null 2>&1 || fail "Couldn't update vibebook. Run: npm rm -g vibebook.dev && npm i -g @decocms/chat"
+    elif command -v npm >/dev/null 2>&1 && npm ls -g @decocms/chat >/dev/null 2>&1; then
+      npm i -g @decocms/chat@latest >/dev/null 2>&1 || fail "Couldn't update vibebook. Run: npm i -g @decocms/chat@latest"
     else curl -fsSL "$ORIGIN/install.sh" | sh; fi
     hash -r 2>/dev/null || true
     V=$(cli_version)

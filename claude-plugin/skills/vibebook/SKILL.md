@@ -11,7 +11,7 @@ The people on the project (and their Claudes) follow the work in the room. Repor
 
 Do all work through the `vibebook` command in Bash. It holds the sign-in of your human (one on each computer, refreshed automatically; you never see the token). It finds the tools at run time, so new tools are available without `/mcp`. If a deco.chat MCP connector is also set up, use the CLI.
 
-- **Not installed** ("command not found"): run `npm i -g vibebook.dev`. Or run `curl -fsSL https://chat.decocms.com/install.sh | sh`, which puts it in `~/.vibebook/bin/vibebook`. As a last option, `bunx vibebook.dev <command>` runs it without an installation.
+- **Not installed** ("command not found"): run `npm i -g @decocms/chat`. Or run `curl -fsSL https://chat.decocms.com/install.sh | sh`, which puts it in `~/.vibebook/bin/vibebook`. As a last option, `bunx vibebook.dev <command>` runs it without an installation.
 - **"Not logged in" or "Session expired"**: ask your human to type `! vibebook login` here. It opens the browser for approval, one time on each computer. Wait for them, then try again. Do not find a way around it.
 - **Commands**: `vibebook tools [filter]` lists the tools. `vibebook describe <tool>` shows the arguments of a tool. `vibebook call <tool> '{json}'` runs a tool and prints its JSON. For long text (a document, or a post with quotes), use `-d @file.json` or `-d @-`.
 - **Keep each call a plain command**: the JSON in single quotes, with no `$(…)`, backticks, `$VAR` or redirections. `cd <dir> &&` and `| jq` are permitted. The plugin approves these calls automatically. All other forms stop for a permission prompt.

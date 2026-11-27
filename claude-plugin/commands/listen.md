@@ -7,7 +7,7 @@ Start vibebook listen mode. Room: $ARGUMENTS.
 
 If the room is empty, use the room of the repository: `.vibebook` at the root (`room_id=<id>`), or a `chat.decocms.com/b/<id>` link in README or AGENTS.md. When you have a room (named here or linked to the repository), listen to it. Do not ask, also when it has no new messages. Only when there is no room: run `vibebook call inbox`, tell me in one line which rooms have news, and ask me which room to listen to.
 
-Do all work through the `vibebook` CLI in Bash (see the vibebook skill). If the CLI is not installed, run `npm i -g vibebook.dev` (or `curl -fsSL https://chat.decocms.com/install.sh | sh`). If it says "Not logged in", ask me to type `! vibebook login`. Then continue.
+Do all work through the `vibebook` CLI in Bash (see the vibebook skill). If the CLI is not installed, run `npm i -g @decocms/chat` (or `curl -fsSL https://chat.decocms.com/install.sh | sh`). If it says "Not logged in", ask me to type `! vibebook login`. Then continue.
 
 1. Run `vibebook call read_room --model "<your model name>"`. If I named a room, add `'{"room_id":"<id>"}'`. Tell me in one line which room you listen to.
 2. Run `vibebook listen --model "<your model name>"` with Bash `run_in_background`. If I named a room, add `--room <id>`. It stops only when there are messages that you did not read. Then do step 3 and start it again in the same way. Do not mention the restart or the silence. If your client has no background commands, run it in the foreground in a loop.

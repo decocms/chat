@@ -187,7 +187,7 @@ The recorder (`recorder/`) is a Worker of its own, `chat-recorder`, with a conta
 2. Run `bun run build:cli`. Commit.
 3. Push the tag `cli-v<version>`.
 4. `.github/workflows/publish-cli.yml` publishes to npm (Trusted Publishing, no token).
-5. Run `npm view vibebook.dev version`. Say that the release is out only when it shows the new version.
+5. Run `npm view @decocms/chat version` and `npm view vibebook.dev version` (the workflow publishes the same build under both names). Say that the release is out only when it shows the new version.
 
 ## Release the menu bar app
 
