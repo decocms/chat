@@ -8,21 +8,21 @@
   import { registerDialog } from "../../lib/studio/dialogController";
   import SetupInstructions from "./SetupInstructions.svelte";
   import type { RoomAgentSession } from "./room";
-  import { agentPresence, pendingAsk, askPreview } from "./model";
+  import { agentPresence } from "./model";
   import { roomAgentText } from "./roomCopy";
   let {
     owner,
     origin,
     name,
     onopen,
-    onnavigate,
     lang = "pt",
   }: {
     owner: RoomAgentSession;
     origin: string;
     name(email: string): string;
     onopen(): void;
-    onnavigate(id: number, thread: string): void;
+    /** Unused: "Seu agent espera você" moved to the user center (AskRow, Gimenes #6617). */
+    onnavigate?(id: number, thread: string): void;
     lang?: "pt" | "en";
   } = $props();
   const view = untrack(() => owner.state);
@@ -40,7 +40,6 @@
   const presence = $derived(
     agentPresence($view.data, owner.account, $view.now),
   );
-  const ask = $derived(pendingAsk($view.waits, owner.roomId, $view.thread));
   const start = $derived(
     $view.room?.book.owner === owner.account &&
       !$view.room.book.dm &&
@@ -54,13 +53,6 @@
   });
   function open() {
     if (owner.current()) onopen();
-  }
-  function navigate() {
-    const current = pendingAsk($view.waits, owner.roomId, $view.thread);
-    if (owner.current() && current && /^a\d+$/.test(current.ref)) {
-      const id = Number(current.ref.slice(1));
-      if (Number.isSafeInteger(id)) onnavigate(id, current.thread || "main");
-    }
   }
 </script>
 
@@ -111,16 +103,6 @@
       >
     </div>
   {/if}
-  {#if ask}<div
-      class="mx-4 flex items-center gap-3 rounded-surface border border-border bg-muted p-3"
-    >
-      <p class="m-0 min-w-0 flex-1 break-words">
-        ⏸ <strong>{text("ask")}</strong> · {ask.topic || text("main")}: {askPreview(
-          ask.text,
-        )}
-      </p>
-      <Button size="sm" onclick={navigate}>{text("view")}</Button>
-    </div>{/if}
 </div>
 <Dialog
   open={$view.welcome && owner.current()}

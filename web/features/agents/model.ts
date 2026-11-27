@@ -83,22 +83,6 @@ export function agentPresence(
       live || mine.some((agent) => now - (agent.seen_at ?? 0) < 30 * 60e3);
   return { mine, live, around, on: data?.claude_on ?? false };
 }
-export const pendingAsk = (
-  waits: readonly Wait[],
-  roomId: string,
-  thread: string,
-) =>
-  waits.find(
-    (wait) =>
-      wait.book_id === roomId &&
-      /^a\d+$/.test(wait.ref) &&
-      wait.thread !== thread,
-  );
-export const askPreview = (text: string | null | undefined) =>
-  (text ?? "")
-    .replace(/^(⏸|❓)\s*Seu Claude\s*/, "")
-    .replace(/[*`]/g, "")
-    .slice(0, 160);
 export const preparing = (state: string, ready: boolean) =>
   !ready || (state !== "running" && /ing$/.test(state));
 /** A create/setup error can follow external VM effects. Only these established pre-handler/pre-create refusals are definite. */
