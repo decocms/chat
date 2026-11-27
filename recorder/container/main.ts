@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { appendFileSync, openAsBlob, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { chromium, type Page } from "playwright-core";
-import { addMark, attribute, liveLines, UNKNOWN, type Piece, type Turn } from "./attribute.ts";
+import { addMark, attribute, liveCut, liveLines, UNKNOWN, type LiveTurn, type Piece, type Turn } from "./attribute.ts";
 import { shareWith, type GrainUser } from "./share.ts";
 
 /** `recorder`: the address of the recorder's Worker, which has the speech-to-text (POST /transcribe). */
@@ -17,20 +17,17 @@ const PLAYLIST = "Calls do deco.chat";
 const RAW = "/tmp/call.webm", OUT = "/tmp/call.mp4";
 /** The audio goes to the speech-to-text in parts of this many seconds (about 1.2 MB each). */
 const PART_S = 300;
-/** While the call is on, its voices go to the speech-to-text in parts of this many seconds: each part's lines show
- *  in the call's thread about this long after they were said. Shorter: sooner, but more requests and more words
- *  cut at the edge of a part. */
-const LIVE_S = 15;
 /** Nobody but the recorder for this long: the call is over. */
 const ALONE_S = 15;
 /** Grain takes 3 hours in one file. */
 const MAX_S = 3 * 3600 - 120;
 const log = (...parts: unknown[]) => console.log(new Date().toISOString(), ...parts);
 
-/** In the page: mixes the voices, draws the frame (the screen, or who speaks) and records the two. `liveMs` > 0:
- *  the voices also go out in parts of that length while the call is on (recorderLive), for the live transcript. */
-function recordInPage(liveMs: number) {
-  const w = window as unknown as { pcs: RTCPeerConnection[]; recorderChunk(data: string): Promise<void>; recorderLive(part: LivePart): Promise<void>; recorderStop?: () => Promise<{ names: string[]; marks: [string, number][] }> };
+/** In the page: mixes the voices, draws the frame (the screen, or who speaks) and records the two. `live`: the
+ *  voices also go out while the call is on (recorderLive), one part for each person's turn (liveCut), for the live
+ *  transcript. */
+function recordInPage(live: boolean) {
+  const w = window as unknown as { pcs: RTCPeerConnection[]; recorderChunk(data: string): Promise<void>; recorderLive(part: LivePart): Promise<void>; liveCut: typeof liveCut; recorderStop?: () => Promise<{ names: string[]; marks: [string, number][] }> };
   const pc = w.pcs.at(-1);
   if (!pc) throw new Error("the call's connection was not found");
   const audio = new AudioContext(), mix = audio.createMediaStreamDestination(), heard = new Set<string>();
@@ -114,6 +111,22 @@ function recordInPage(liveMs: number) {
     ctx.fillText(p.name, cx, cy + size / 2 + 10);
   }
   let last = "";
+  // The live part that records now, and whose turn it is.
+  let part: MediaRecorder | null = null, turn: LiveTurn | null = null, liveSent = Promise.resolve();
+  const at = () => Math.round(performance.now() - began);
+  const livePart = () => {
+    const recording = new MediaRecorder(new MediaStream(mix.stream.getAudioTracks()), { mimeType: "audio/webm;codecs=opus", audioBitsPerSecond: 32_000 });
+    const start = at(), chunks: Blob[] = [];
+    recording.ondataavailable = (event) => chunks.push(event.data);
+    const stopped = new Promise<void>((done) => (recording.onstop = () => done()));
+    liveSent = liveSent.then(async () => {
+      await stopped;
+      const end = at();
+      await w.recorderLive({ audio: await base64(new Blob(chunks)), start, end, marks: marks.filter(([, t]) => t >= start - 5000 && t <= end + 5000) });
+    });
+    recording.start();
+    part = recording;
+  };
   const timer = setInterval(() => {
     for (const r of pc.getReceivers())
       if (r.track.kind === "audio" && !heard.has(r.track.id)) {
@@ -123,6 +136,12 @@ function recordInPage(liveMs: number) {
     const who = people();
     who.forEach((p) => names.add(p.name));
     if (began) for (const p of who) if (p.speaking) marks.push([p.name, Math.round(performance.now() - began)]);
+    if (began && live) {
+      const next = w.liveCut(turn, who.filter((p) => p.speaking).map((p) => p.name), Math.round(performance.now() - began));
+      if (next.cut) part?.stop();
+      if (next.turn && (next.cut || !turn)) livePart();
+      turn = next.turn;
+    }
     // On the stage: who speaks now, else who spoke last.
     last = who.find((p) => p.speaking)?.name ?? (who.some((p) => p.name === last) ? last : (who[0]?.name ?? ""));
     const main = who.find((p) => p.name === last), rest = who.filter((p) => p !== main);
@@ -155,32 +174,9 @@ function recordInPage(liveMs: number) {
   };
   recorder.start(1000);
   began = performance.now();
-  // The live parts: a new audio recorder for each part, so that each part is a file of its own. With it go the
-  // marks of its time (5 s more at each side, as speakerOf looks): the container names who spoke.
-  let live: MediaRecorder | null = null, liveSent = Promise.resolve();
-  const at = () => Math.round(performance.now() - began);
-  const livePart = () => {
-    const part = new MediaRecorder(new MediaStream(mix.stream.getAudioTracks()), { mimeType: "audio/webm;codecs=opus", audioBitsPerSecond: 32_000 });
-    const start = at(), chunks: Blob[] = [];
-    part.ondataavailable = (event) => chunks.push(event.data);
-    const stopped = new Promise<void>((done) => (part.onstop = () => done()));
-    liveSent = liveSent.then(async () => {
-      await stopped;
-      const end = at();
-      await w.recorderLive({ audio: await base64(new Blob(chunks)), start, end, marks: marks.filter(([, t]) => t >= start - 5000 && t <= end + 5000) });
-    });
-    part.start();
-    live = part;
-  };
-  const liveTimer = liveMs > 0 ? setInterval(() => {
-    live?.stop();
-    livePart();
-  }, liveMs) : 0;
-  if (liveMs > 0) livePart();
   w.recorderStop = async () => {
     clearInterval(timer);
-    clearInterval(liveTimer);
-    live?.stop();
+    if (turn) part?.stop();
     await new Promise<void>((done) => {
       recorder.onstop = () => done();
       recorder.stop();
@@ -422,7 +418,9 @@ async function record(job: Job) {
       return;
     }
     const started = new Date(), title = job.title || (await page.title()).replace(/\s*·\s*deco\.chat$/, "") || job.room;
-    await page.evaluate(recordInPage, job.recorder ? LIVE_S * 1000 : 0);
+    // The page cuts the live parts with liveCut: it gets the function's text (the tests run the same function).
+    await page.evaluate(`window.liveCut = ${liveCut}`);
+    await page.evaluate(recordInPage, !!job.recorder);
     log("recording", job.room);
     let alone = 0, seconds = 0;
     // A closed call screen is not "alone": the recorder opens it and counts again. If it stays closed for

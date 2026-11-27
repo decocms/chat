@@ -2903,14 +2903,14 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Agent: Claude Opus 5.5
 - Context: Jonas approved a live transcript in the thread of the call. Speech must never become an instruction to an agent.
 - Decision:
-  - A part is 15 seconds (`LIVE_S`). The page records each part with a new audio `MediaRecorder`, so each part is a file of its own. A word at the edge of a part can be cut.
-  - The transcript at the end of the call is the text of the live parts: Whisper gets each minute of audio only one time. If a live part failed, the container transcribes all the audio again in parts of 5 minutes, as before. Whisper has less context on a part of 15 seconds, so the final text can be a little less good than on parts of 5 minutes.
+  - A part is one person's turn (`liveCut`, `recorder/container/attribute.ts`), not a fixed time (Jonas, #6682). It starts when a person speaks (the green ring on the stage). It ends when that person is quiet for 1.2 seconds, or when another person speaks and they do not. When nobody speaks, no part records, so silence does not go to Whisper. A turn longer than 2 minutes is cut, so that one file stays a size that Whisper takes. The page records each part with a new audio `MediaRecorder`, so each part is a file of its own.
+  - The transcript at the end of the call is the text of the live parts: Whisper gets each minute of speech only one time. If a live part failed, the container transcribes all the audio again in parts of 5 minutes, as before. Whisper has less context on a short turn, so the final text can be a little less good than on parts of 5 minutes.
   - A line has the kind `transcript`. The server checks for "typed by this person" changed from `kind !== "agent"` to "no kind" (`agentRead`, `roleWake`), so a new kind never counts as an instruction.
   - The chat finds the person by the first name that the stage shows (`Book.callTranscript`). A name that is not one person of the call (or two people with that first name): @vibe posts the line with the name.
   - The lines are quiet: no unread mark, no wake, no router, no mention mail.
   - The person who spoke can edit or delete their line, as any message of theirs. It keeps its kind.
   - The `track()` event `call_transcript` comes from the Worker, because the browser app has no event path.
-- Other options: Cut the parts from the growing webm with ffmpeg (each cut decodes the file from the start). The person's email on the call tiles (a change to the stage). Lines as @vibe only (not as the person).
+- Other options: Parts of a fixed 15 seconds (the first version: words cut at the edge, silence paid). Cut the parts from the growing webm with ffmpeg (each cut decodes the file from the start). The person's email on the call tiles (a change to the stage). Lines as @vibe only (not as the person).
 - Risk: low (only rooms in `CALL_RECORD_ROOMS`)
 - Undo: Revert the commit.
 - Status: open

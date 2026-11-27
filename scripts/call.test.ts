@@ -8,7 +8,7 @@ import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from 
 import { CALL_THREAD, RING_MS, callLineText, isRecorder, isRecorderOf, isRoomMember, parseCallLine, recorderEmail } from "../shared/call";
 import { encodeCall } from "../shared/jsonRpc";
 import type { RoomCommand } from "../shared/commands";
-import { addMark, attribute, liveLines, speakerOf, type Turn } from "../recorder/container/attribute";
+import { addMark, attribute, liveCut, liveLines, speakerOf, type Turn } from "../recorder/container/attribute";
 import { transcriptMarkdown, transcriptName } from "../src/callText";
 import { callColors, callGrid, callTileSize } from "../web/features/call/layout";
 import { shareWith } from "../recorder/container/share";
@@ -898,4 +898,20 @@ test("a live part's lines: a name for nobody known, no empty text, within the ch
     { name: "Ana", text: "x".repeat(4000) },
   ]);
   expect(liveLines(Array.from({ length: 60 }, () => ({ name: "Ana", text: "a" })))).toHaveLength(50);
+});
+
+test("the live transcript cuts a part when the person stops speaking, not by the clock", () => {
+  expect(liveCut(null, [], 0)).toEqual({ cut: false, turn: null });
+  const ana = liveCut(null, ["ana"], 1000).turn!;
+  expect(ana).toEqual({ name: "ana", start: 1000, heard: 1000 });
+  // A short pause stays in the turn; 1.2 s of quiet ends it.
+  expect(liveCut(ana, [], 2000)).toEqual({ cut: false, turn: ana });
+  expect(liveCut(ana, [], 2200)).toEqual({ cut: true, turn: null });
+  // Ana goes on for a minute: one part.
+  expect(liveCut(ana, ["ana"], 61_000)).toEqual({ cut: false, turn: { ...ana, heard: 61_000 } });
+  // Bia speaks when Ana does not: a new part for Bia. Both speak: Ana's turn goes on.
+  expect(liveCut(ana, ["bia"], 1400)).toEqual({ cut: true, turn: { name: "bia", start: 1400, heard: 1400 } });
+  expect(liveCut(ana, ["bia", "ana"], 1400).cut).toBe(false);
+  // A turn of 2 minutes is cut so that one file stays a size the speech-to-text takes.
+  expect(liveCut(ana, ["ana"], 121_000)).toEqual({ cut: true, turn: { name: "ana", start: 121_000, heard: 121_000 } });
 });
