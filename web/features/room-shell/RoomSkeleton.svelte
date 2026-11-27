@@ -176,7 +176,7 @@
       </div>
     </aside>
 
-    <!-- Desktop: one top bar over chat and doc: the room, its actions, then the doc's tabs at the end. -->
+    <!-- Desktop: one top bar over chat and doc: the room, its actions, then ⋮ at the end. -->
     <header
       aria-hidden="true"
       class="hidden min-w-0 items-center gap-1 border-b border-border pr-3 pl-5 md:col-span-2 md:flex"
@@ -194,18 +194,14 @@
               >{:else}{@render line("w-40")}{/if}</span
           >{/if}
       </div>
-      <!-- The pane's tabs (DocumentToolbar): Doc with its name, then five icons. -->
-      {#if !dm}<span class="flex h-8 shrink-0 items-center gap-1.5 px-2"
-          ><Skeleton class="size-4 rounded-full" />{@render line(
-            "w-7",
-            "h-2.5",
-          )}</span
-        >{/if}
-      {#each [0, 1, 2, 3, 4] as slot (slot)}
-        <span class="grid size-8 shrink-0 place-items-center"
-          ><Skeleton class="size-4 rounded-full" /></span
-        >
-      {/each}
+      <!-- RoomHeader's end of the bar (Gimenes #6099): ⋮ with the call and the panes. -->
+      <span class="grid size-8 shrink-0 place-items-center"
+        ><Icon
+          icon="dots-vertical"
+          size={18}
+          class="text-muted-foreground"
+        /></span
+      >
     </header>
 
     <!-- Chat: header with the room's icon and name, the messages, the composer. -->

@@ -2604,3 +2604,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · ui/topbar-desktop · The desktop top bar: search and ⋮, ← in a thread
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked (#6099, #6113, #6122, #6128; chip B in #6133) for the room's name to stay out of the sidebar's scroll, no ✎, the whole name row clickable with only the pointer, the panes and the call in ⋮ (only the search and ⋮ in the bar), and ← in an epic. He did not say what happens to a running call's button, the counts of the tabs, or the section titles that stuck to the top of the sidebar.
+- Decision:
+  - With people in the room's call, its green phone (`CallControls`) stays in the bar: it shows that a call is on and joins it with one click. With no call, "Iniciar chamada" is in ⋮.
+  - The Doc's tasks ("2/4") and the number of reminders are at the end of their items in ⋮. ⋮ has no count of its own.
+  - The room's name bar is `sticky` in the sidebar's scroll. The sticky section titles (Fixados) stick under it (`--sidebar-sticky-top`).
+- Other options: The green phone in ⋮ too. A count on ⋮. A separate scroll area under the name.
+- Risk: low
+- Undo: Revert the commit.
+- Status: open

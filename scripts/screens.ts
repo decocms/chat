@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--threadmenu] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--threadmenu] [--topbar] [--name <folder>]
 import { chromium, type Locator, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -952,6 +952,7 @@ try {
   if (flag("forward")) await forwardScreens(browser, shots);
   if (flag("search")) await searchScreens(browser, shots);
   if (flag("threadmenu")) await threadMenuScreens(browser, shots);
+  if (flag("topbar")) await topbarScreens(browser, shots);
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
     ["/", "home-390.png"],
@@ -1716,4 +1717,103 @@ async function threadMenuScreens(
   await row(phone, other).waitFor({ state: "detached" });
   await shot(phone, "threadmenu-done-390.png");
   await phone.close();
+}
+
+/**
+ * The desktop top bar (--topbar, Gimenes #6099, #6113, #6122) at 1440 x 700 px: the room's name stays on top while
+ * the sidebar scrolls, ⋮ holds the call and the panes, the chip names the open pane and × closes it, and in a thread
+ * ← goes back to the main thread.
+ * The run fails if the name scrolls away, the chip does not close the pane, or ← does not open the main thread.
+ */
+async function topbarScreens(
+  browser: import("playwright").Browser,
+  shots: string[],
+) {
+  const domain =
+    (
+      (await (await fetch(`${base}/api/me`)).json()) as { email: string }
+    ).email.split("@")[1] ?? "";
+  const colleague = `bia@${domain}`;
+  await $`bunx wrangler d1 execute chat --local --command ${`INSERT OR IGNORE INTO users (email, name) VALUES ('${colleague}', 'Bia de Teste')`}`.quiet();
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 700 },
+    locale: "pt-BR",
+  });
+  const desk = await context.newPage();
+  const titles = [
+    "Revisar o fluxo de cadastro",
+    "Atualizar a página de preços",
+    "Preparar a demo de sexta",
+    "Escrever o guia de onboarding",
+    "Configurar o domínio de teste",
+    "Trocar o ícone do app",
+    "Medir o tempo de carregamento",
+    "Corrigir o atalho de busca",
+    "Revisar os textos do convite",
+    "Testar o modo escuro",
+    "Organizar os arquivos da sala",
+    "Planejar a próxima versão",
+    "Ajustar o e-mail de boas-vindas",
+    "Limpar as tarefas antigas",
+  ];
+  const thread = "d0000014";
+  const id = await threadRoom(
+    "Sala da topbar",
+    titles.map((title, i) => ({
+      id: `d00000${String(i + 1).padStart(2, "0")}`,
+      title,
+      theirs: i % 3 === 1,
+      status: i % 2 ? "doing" : undefined,
+    })),
+    desk,
+    colleague,
+  );
+  await commands(desk, id, [
+    { t: "task.add", epic: thread, title: "Montar o roteiro" },
+    { t: "task.add", epic: thread, title: "Gravar o vídeo" },
+  ]);
+  const shot = async (file: string) => {
+    await desk.waitForTimeout(400);
+    await desk.screenshot({ path: join(out, file) });
+    shots.push(file);
+  };
+  const name = desk.locator("[data-room-sidebar] [data-room-home]");
+  await desk.goto(`${base}/b/${id}`, { waitUntil: "networkidle" });
+  await name.waitFor();
+  // A clean start: no pane open.
+  const chip = desk.locator("[data-header-pane-chip]");
+  if (await chip.isVisible()) await chip.getByRole("button").click();
+  await shot("topbar-main-1440.png");
+  const top = (await name.boundingBox())?.y ?? -1;
+  await desk
+    .locator("[data-room-sidebar-panel]")
+    .evaluate((node) => node.scrollTo(0, node.scrollHeight));
+  await desk.waitForTimeout(200);
+  const after = (await name.boundingBox())?.y ?? -2;
+  if (Math.abs(after - top) > 1)
+    throw new Error(`the room's name scrolled from ${top} to ${after}`);
+  await shot("topbar-sidebar-scrolled-1440.png");
+  await desk.locator("[data-desktop-more]").click();
+  await desk.locator("[data-desktop-more-menu]").waitFor();
+  await shot("topbar-more-open-1440.png");
+  await desk.locator('[data-desktop-more-item="doc"]').click();
+  await chip.waitFor();
+  await shot("topbar-doc-chip-1440.png");
+  await chip.getByRole("button").click();
+  await chip.waitFor({ state: "hidden" });
+  await desk.locator("[data-threads-tab=open]").click();
+  await desk
+    .locator(`[data-room-sidebar] [data-epic-thread="${thread}"]`)
+    .click();
+  await desk.waitForURL((url) => url.href.includes(thread));
+  await desk.locator("[data-phone-back]").waitFor();
+  await shot("topbar-thread-1440.png");
+  await desk.locator("[data-desktop-more]").click();
+  await desk.locator('[data-desktop-more-item="doc"]').click();
+  await chip.waitFor();
+  await shot("topbar-thread-doc-chip-1440.png");
+  await desk.locator("[data-phone-back]").click();
+  await desk.waitForURL((url) => !url.href.includes(thread));
+  await shot("topbar-back-main-1440.png");
+  await context.close();
 }
