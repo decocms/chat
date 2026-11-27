@@ -2,12 +2,14 @@
   import Count from "../../lib/components/Count.svelte";
   import { cn } from "../../lib/studio/utils";
   import { waitCount, type WaitReference } from "./model";
+  import { RAIL_COUNT } from "../rooms/railBadges";
   /** What waits on you here, as one red number: asks, your Claude's questions and your tasks in review. */
   let {
     waits,
     label,
     solid = false,
     surface = "sidebar",
+    rail = false,
     class: className = "",
   }: {
     waits: readonly WaitReference[];
@@ -16,6 +18,8 @@
     solid?: boolean;
     /** The colour behind the avatar the badge sits on. */
     surface?: "sidebar" | "background";
+    /** On a rail tile: the smaller number (railBadges.ts). */
+    rail?: boolean;
     class?: string;
   } = $props();
   const count = $derived(waitCount(waits));
@@ -28,6 +32,6 @@
     ><Count
       value={count}
       label={label(count)}
-      class={cn(solid && ring)}
+      class={cn(solid && ring, rail && RAIL_COUNT)}
     /></span
   >{/if}

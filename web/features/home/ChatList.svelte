@@ -15,6 +15,7 @@
   import {
     chatList,
     claudeWait,
+    callText,
     dmEntry,
     lastLine,
     homeWaitText,
@@ -143,9 +144,10 @@
           {now}
           {lang}
           variant="chats"
-          line={(room.busy_until ?? 0) > now
-            ? homeText(lang, "agentWorking")
-            : lastLine(room, me, lang, dm) || homeText(lang, "noMessages")}
+          line={callText(room, lang) ||
+            ((room.busy_until ?? 0) > now
+              ? homeText(lang, "agentWorking")
+              : lastLine(room, me, lang, dm) || homeText(lang, "noMessages"))}
           {onnavigate}
         >
           {#snippet trailing()}<ChatRowEnd

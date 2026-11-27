@@ -3,6 +3,7 @@
 // one, and POST /api/rail saves it (src/railFolders.ts).
 import type { MeFolder, RailItem } from "../../../shared/schemas";
 import {
+  callNames,
   orderedRooms,
   roomsOnly,
   unread,
@@ -272,7 +273,9 @@ export function folderSignals(
     }
     if (kind === "agent") news = "agent";
   }
-  return { count, unread: news };
+  // Everyone in a call in any of its rooms, each once: the closed folder's green speaker says who.
+  const call = [...new Set(rooms.flatMap((room) => callNames(room)))];
+  return { count, unread: news, call };
 }
 
 /** The root item a folder left behind: the folder, or the room standing in its place once it dissolved. */

@@ -9,6 +9,8 @@
   import { homeText, type HomeLanguage } from "../home/copy";
   import { roomIcon, type RoomSummary, type Wait } from "../home/model";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
+  import CallBadge from "../rooms/CallBadge.svelte";
+  import { RAIL_COUNT_AT } from "../rooms/railBadges";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import RailPill from "./RailPill.svelte";
   import { folderSignals, type RailFolder } from "./railFolders";
@@ -17,7 +19,8 @@
   /**
    * A folder on the rail (like Discord's server folders). Closed: one tile with
    * the first four rooms' icons in a 2×2 grid, the red number of what waits on
-   * you in all of them, and the edge dot when any has news. Open: a header tile
+   * you in all of them, the edge dot when any has news, and the green
+   * speaker when a call is on in any of them. Open: a header tile
    * (the folder icon, in the folder's color) and its rooms below it, on one
    * solid block. A click opens or closes it; a right-click opens its menu.
    */
@@ -58,9 +61,15 @@
   const pill = $derived(
     open ? "idle" : selected ? "selected" : (signals.unread ?? "idle"),
   );
+  const call = $derived(
+    signals.call.length
+      ? homeText(lang, "inCall", { names: signals.call.join(", ") })
+      : "",
+  );
   const details = $derived(
     [
       t(rooms.length === 1 ? "{n} sala" : "{n} salas", { n: rooms.length }),
+      call,
       signals.count
         ? homeText(lang, "waiting", { n: signals.count })
         : signals.unread
@@ -122,8 +131,10 @@
                 solid
                 waits={mine}
                 label={(n) => homeText(lang, "waiting", { n })}
-                class="absolute -top-1.5 -right-1.5"
+                rail
+                class={RAIL_COUNT_AT}
               />{/if}
+            {#if !open && call}<CallBadge label={call} corner="top" />{/if}
           </button>
         {/snippet}
       </TooltipTrigger>

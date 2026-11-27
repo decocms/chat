@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { corporateDomain, isDmId } from "../../../shared/dm";
   import Count from "../../lib/components/Count.svelte";
+  import { RAIL_COUNT, RAIL_COUNT_AT } from "../rooms/railBadges";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import SortableItem from "../../lib/components/SortableItem.svelte";
   import SortableList from "../../lib/components/SortableList.svelte";
@@ -345,22 +346,27 @@
 >
   <!-- Desktop: the logo sits in a band as tall as a room's header, so the divider below it meets the header's line. -->
   <!-- The cube opens the Caixa de entrada (the desktop's Home) and carries what waits on you (Gimenes #3967); it turns while an agent works. -->
-  <span
-    class="relative max-md:hidden md:flex md:h-[51px] md:shrink-0 md:items-center"
-    ><RailButton
-      bind:ref={homeButton}
-      label={working
-        ? `${text("inbox")} · ${text("agentsWorking")}`
-        : text("inbox")}
-      current={atHome}
-      onclick={(event) => {
-        if (event.currentTarget.isConnected) controller.callbacks.home();
-      }}><RailCube {working} /></RailButton
-    >{#if waiting}<Count
-        value={waiting}
-        label={text("waiting", { n: waiting })}
-        class="pointer-events-none absolute top-0.5 -right-1 ring-2 ring-sidebar"
-      />{/if}</span
+  <span class="max-md:hidden md:flex md:h-[51px] md:shrink-0 md:items-center"
+    ><span class="relative flex"
+      ><RailButton
+        bind:ref={homeButton}
+        label={working
+          ? `${text("inbox")} · ${text("agentsWorking")}`
+          : text("inbox")}
+        current={atHome}
+        onclick={(event) => {
+          if (event.currentTarget.isConnected) controller.callbacks.home();
+        }}><RailCube {working} /></RailButton
+      >{#if waiting}<Count
+          value={waiting}
+          label={text("waiting", { n: waiting })}
+          class={cn(
+            "pointer-events-none ring-2 ring-sidebar",
+            RAIL_COUNT_AT,
+            RAIL_COUNT,
+          )}
+        />{/if}</span
+    ></span
   >
   <span
     aria-hidden="true"

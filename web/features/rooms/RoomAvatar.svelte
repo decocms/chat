@@ -6,6 +6,8 @@
   import type { AvatarSize } from "../../lib/studio/avatar";
   import { cn } from "../../lib/studio/utils";
   import WaitBadge from "../waits/WaitBadge.svelte";
+  import CallBadge from "./CallBadge.svelte";
+  import { RAIL_COUNT_AT } from "./railBadges";
   import type { WaitReference } from "../waits/model";
   import { homeText, type HomeLanguage } from "../home/copy";
   /**
@@ -13,7 +15,10 @@
    * around it, each with one meaning and one place. Top right, the only number:
    * what waits on you (WaitBadge). Left edge, a dot without a number: new
    * messages (strong when a person wrote, muted when only agents did). Bottom
-   * left, the ✻: an agent works here. Controlled: every state comes in as a
+   * left, the ✻: an agent works here. Bottom right, the green speaker: a call
+   * is on (it takes the place of a DM's online dot). With `rail` (like
+   * Discord's rail): the red number always inside the bottom right corner and
+   * the speaker inside the top right, both smaller (railBadges.ts). Controlled: every state comes in as a
    * prop, so the rail, the phone list and the home grid draw the same thing
    * from the same data. `surface` is the colour behind it, which the badges
    * ring themselves with.
@@ -29,6 +34,8 @@
     waits = [],
     person = null,
     presence = null,
+    call = null,
+    rail = false,
     class: className,
   }: {
     title: string;
@@ -46,6 +53,10 @@
     person?: { email: string; version?: number | null } | null;
     /** A DM's person: their online dot, and what it says ("Name · Online"). */
     presence?: { online: boolean; label: string } | null;
+    /** A call is on here: what the badge says ("Na call: Ana, Bia"). Null: no call. */
+    call?: string | null;
+    /** A rail tile: the red number bottom right and the speaker top right, both inside the corner. */
+    rail?: boolean;
     class?: string;
   } = $props();
   const text = (
@@ -98,7 +109,11 @@
         fill,
       )}>✻</span
     >{/if}
-  {#if presence}<PresenceDot
+  {#if call}<CallBadge
+      label={call}
+      {surface}
+      corner={rail ? "top" : "bottom"}
+    />{:else if presence}<PresenceDot
       online={presence.online}
       label={presence.label}
       class={ring}
@@ -108,6 +123,7 @@
     {surface}
     {waits}
     label={(n) => text("waiting", { n })}
-    class="absolute -top-1.5 -right-1.5"
+    {rail}
+    class={rail ? RAIL_COUNT_AT : "absolute -top-1.5 -right-1.5"}
   />
 </span>

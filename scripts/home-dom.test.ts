@@ -2717,3 +2717,181 @@ test("Folder settings saves the name and color of your folder only", async () =>
     ["ffolder01", { name: "Time de produto", tint: "green" }],
   ]);
 });
+
+test("a call on in a room: the green speaker inside the tile's top right, the red number inside the bottom right (always, on the rail), and the tooltip says who", async () => {
+  const nav = await pendingNavigation();
+  nav.h.canonical(
+    me({
+      books: [
+        room("aaaaaa", {
+          position: 0,
+          in_call: JSON.stringify(["Ana", "Me"]),
+          last_human_id: 3,
+        }),
+        room("bbbbbb", { position: 1 }),
+      ],
+      waits: [wait("aaaaaa", "m1"), wait("bbbbbb", "m2")],
+    }),
+  );
+  await nav.h.services.personal.refresh();
+  await flush();
+  const tile = (id: string) =>
+    document.querySelector<HTMLElement>(`[data-room-id="${id}"]`)!;
+  const badge = tile("aaaaaa").querySelector<HTMLElement>(
+    '[data-room-badge="call"]',
+  )!;
+  expect(badge).not.toBeNull();
+  expect(badge.getAttribute("aria-label")).toBe("Call: Ana, Me");
+  expect(badge.className).toContain("bg-success");
+  // As on Discord's rail: the speaker inside the top right corner, the red number inside the bottom right.
+  expect(badge.dataset.corner).toBe("top");
+  expect(badge.className).toContain("-top-0.5");
+  expect(badge.className).toContain("-right-0.5");
+  expect(badge.className).not.toContain("bottom");
+  expect(badge.className).toContain("ring-sidebar");
+  expect(badge.querySelector("use")?.getAttribute("href")).toContain(
+    "volume-max",
+  );
+  // The red number sits under it, the news stays on the left edge: three signals, three places.
+  expect(
+    tile("aaaaaa").querySelector<HTMLElement>("[data-count]")?.dataset.count,
+  ).toBe("1");
+  const count = tile("aaaaaa").querySelector<HTMLElement>("[data-wait-badge]")!;
+  expect(count.className).toContain("-bottom-0.5");
+  expect(count.className).not.toContain("top");
+  // No call: every red number on the rail is at the bottom right too, the smaller rail size.
+  expect(
+    tile("bbbbbb").querySelector<HTMLElement>("[data-wait-badge]")!.className,
+  ).toContain("-bottom-0.5");
+  expect(
+    tile("bbbbbb").querySelector<HTMLElement>("[data-count]")!.className,
+  ).toContain("h-4");
+  // The cube's total (Home) follows the same rule: bottom right, rail size.
+  const cube = [
+    ...document.querySelectorAll<HTMLElement>(
+      "[data-app-navigation] [data-count]",
+    ),
+  ].find((count) => count.className.includes("pointer-events-none"))!;
+  expect(cube.dataset.count).toBe("2");
+  expect(cube.className).toContain("-bottom-0.5");
+  expect(cube.className).toContain("-right-0.5");
+  // The room's label (and tooltip) starts with who is in the call; a click still just opens the room.
+  expect(tile("aaaaaa").querySelector("a")!.getAttribute("aria-label")).toBe(
+    "Room aaaaaa · Call: Ana, Me · 1 waiting for you · new messages from people",
+  );
+  // No call: no speaker.
+  expect(tile("bbbbbb").querySelector('[data-room-badge="call"]')).toBeNull();
+});
+
+test("a closed folder shows the green speaker when a call is on in any of its rooms, and none without one", async () => {
+  const nav = await pendingNavigation();
+  const draw = async (inCall: string | null) => {
+    nav.h.canonical(
+      me({
+        books: [
+          room("aaaaaa", { position: 0 }),
+          room("bbbbbb", { position: 1, rail_folder: "ffolder01" }),
+          room("cccccc", {
+            position: 2,
+            rail_folder: "ffolder01",
+            in_call: inCall,
+          }),
+        ],
+        folders: [
+          { id: "ffolder01", name: "Clientes", tint: null, position: 1 },
+        ],
+        waits: [wait("bbbbbb", "m1")],
+      }),
+    );
+    await nav.h.services.personal.refresh();
+    await flush();
+    return document.querySelector<HTMLButtonElement>(
+      '[data-rail-folder="ffolder01"] [data-rail-folder-tile]',
+    )!;
+  };
+  const tile = await draw(JSON.stringify(["Bia"]));
+  const badge = tile.querySelector<HTMLElement>('[data-room-badge="call"]')!;
+  expect(badge).not.toBeNull();
+  expect(badge.getAttribute("aria-label")).toBe("Call: Bia");
+  expect(badge.dataset.corner).toBe("top");
+  expect(
+    tile.querySelector<HTMLElement>("[data-wait-badge]")!.className,
+  ).toContain("-bottom-0.5");
+  expect(tile.getAttribute("aria-label")).toBe(
+    "Clientes · 2 rooms · Call: Bia · 1 waiting for you",
+  );
+  // Open, the room itself carries it (the header has none).
+  tile.click();
+  await flush();
+  expect(tile.querySelector('[data-room-badge="call"]')).toBeNull();
+  expect(
+    document.querySelector('[data-room-id="cccccc"] [data-room-badge="call"]'),
+  ).not.toBeNull();
+  tile.click();
+  await flush();
+  const quiet = await draw(null);
+  expect(quiet.querySelector('[data-room-badge="call"]')).toBeNull();
+  expect(
+    quiet.querySelector<HTMLElement>("[data-wait-badge]")!.className,
+  ).toContain("-bottom-0.5");
+  expect(document.querySelector('[data-room-badge="call"]')).toBeNull();
+});
+
+test("a phone's chat row in a call: the green speaker on its avatar and who is in it as its line; a row without one has neither", async () => {
+  environment.happyDOM.setViewport({ width: 400, height: 800 });
+  cleanups.push(() =>
+    environment.happyDOM.setViewport({ width: 1024, height: 768 }),
+  );
+  const { personal, rooms, pwa, profile, creator } = await setup({
+    me: async () =>
+      me({
+        books: [
+          room("aaaaaa", { in_call: JSON.stringify(["Ana"]) }),
+          room("bbbbbb"),
+        ],
+      }),
+  });
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(Home, {
+      target,
+      props: {
+        pwa,
+        personal,
+        rooms,
+        profile,
+        creator,
+        lang: "pt",
+        ago: () => "agora",
+        onnavigate: () => {},
+        onhome: () => {},
+        onarchived: () => {},
+        onnew: () => {},
+        onsettings: () => {},
+        onroommenu: () => {},
+        onsearch: () => {},
+      },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(component);
+    }),
+  );
+  await flush();
+  const row = (id: string) =>
+    target
+      .querySelector<HTMLElement>(
+        `[data-home-layout="chats"] a[href="/b/${id}"]`,
+      )!
+      .closest("li")!;
+  const badge = row("aaaaaa").querySelector('[data-room-badge="call"]');
+  expect(badge?.getAttribute("aria-label")).toBe("Na call: Ana");
+  expect(badge?.className).toContain("ring-background");
+  // The phone's big avatar: the speaker hangs off the bottom right, far from the red number.
+  expect(badge?.getAttribute("data-corner")).toBe("bottom");
+  expect(row("aaaaaa").textContent).toContain("Na call: Ana");
+  expect(row("bbbbbb").querySelector('[data-room-badge="call"]')).toBeNull();
+  expect(row("bbbbbb").textContent).not.toContain("Na call");
+});

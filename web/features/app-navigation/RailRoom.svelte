@@ -6,6 +6,7 @@
   import type { WaitReference } from "../waits/model";
   import type { HomeLanguage } from "../home/copy";
   import {
+    callText,
     roomIcon,
     roomStatus,
     targetHref,
@@ -44,6 +45,7 @@
   const busy = $derived((room.busy_until ?? 0) > now);
   const details = $derived(roomStatus(room, seen, waits, now, lang));
   const icon = $derived(roomIcon(room));
+  const call = $derived(callText(room, lang) || null);
 </script>
 
 <!-- Sorted by dnd-kit from the rail's list (AppNavigation); the browser's own drag of the link is off. -->
@@ -84,7 +86,7 @@
           }}
         >
           <RailPill state={pill} />
-          <RoomAvatar {title} {icon} {lang} {busy} {waits} />
+          <RoomAvatar {title} {icon} {lang} {busy} {waits} {call} rail />
         </a>
       {/snippet}
     </TooltipTrigger>

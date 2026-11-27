@@ -689,6 +689,8 @@ export const MeBook = z.object({
   last_agent: z.optional(num),
   /** The folder on your rail this room is in (yours only, `folders`). */
   rail_folder: z.optional(str),
+  /** A call is on in the room: the names of who is in it, as a JSON array (null = no call). */
+  in_call: z.optional(str),
 });
 /** A folder on your rail (like Discord's server folders): only you see it. Its rooms name it (MeBook.rail_folder). */
 export const MeFolder = z.object({
