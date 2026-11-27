@@ -8,6 +8,8 @@ command -v node >/dev/null 2>&1 || exit 0
 root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 [ -f "$root/.vibebook" ] || grep -qsE "(chat\.decocms\.com|vibebook\.dev)/b/" "$root/README.md" "$root/AGENTS.md" "$root/CLAUDE.md" || exit 0
 input=$(cat)
+# A Claude's question (AskUserQuestion) is question.sh's: it posts the choices, not Aprovar / Negar.
+printf %s "$input" | grep -q '"tool_name": *"AskUserQuestion"' && exit 0
 # The CLI names its agent after CLAUDE_CODE_SESSION_ID, which a hook's environment doesn't carry: without it a hook's
 # call became a second agent of the same Claude (the folder's id), listed twice in the sidebar (Gui #3181).
 sid=$(printf %s "$input" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{process.stdout.write(String(JSON.parse(d).session_id||""))}catch{}})')
