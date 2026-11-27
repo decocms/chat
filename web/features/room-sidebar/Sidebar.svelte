@@ -3,7 +3,7 @@
   import DmNav from "../app-navigation/DmNav.svelte";
   import UserCenter from "../user-center/UserCenter.svelte";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
-  import { navRow, NAV_ROW_TEXT } from "../../lib/components/navRow";
+  import { navRow } from "../../lib/components/navRow";
   import EpicTree from "../navigation/EpicTree.svelte";
   import PinnedItems from "../pins/PinnedItems.svelte";
   import RoomMark from "./RoomMark.svelte";
@@ -225,7 +225,6 @@
         <EpicTree
           {room}
           {thread}
-          lead={dm ? undefined : mainRow}
           session={navigation}
           mutations={owner}
           {onviewchange}
@@ -240,23 +239,6 @@
           }}
         />
       </div>{/snippet}
-    <!-- Phones (Gimenes #6117): the room's chat is the first row of the thread list, shaped like a thread row. Only the name, no subtitle (#6144). -->
-    {#snippet mainRow()}<button
-        type="button"
-        data-room-title
-        aria-current={thread === "main" ? "page" : undefined}
-        class={navRow({ variant: "chats", class: "md:hidden" })}
-        onclick={(event) => {
-          if (event.currentTarget.isConnected) openMain();
-        }}
-        ><RoomMark title={room.book.title} src={roomIcon} size="chat" /><span
-          class="flex min-w-0 flex-1 flex-col"
-          ><span class={NAV_ROW_TEXT.chats.label}>{room.book.title}</span></span
-        ><WaitBadge
-          waits={vb.waitsIn("main")}
-          label={(n) => vb.t("{n} coisas esperando você", { n })}
-        /></button
-      >{/snippet}
     <!-- Phones and DMs: the room's (or the conversation's) own row. On a desktop room the name in the header is the main thread. -->
     <!-- The room's row: its name, ✎ right after it, and on phones your avatar at the end (Gimenes #4108). -->
     {#snippet roomRow()}<div
