@@ -383,3 +383,41 @@ test("the chosen output plays every voice, also a voice that comes later", async
   expect(t.storage.getItem("vb-call-speaker")).toBe("out-b");
   t.call.leave();
 });
+
+test("the stored cleanup keeps only known switches with a boolean, and is on by default", async () => {
+  const { cleanupStored } = await import("../web/features/call/session");
+  const on = {
+    noiseSuppression: true,
+    echoCancellation: true,
+    autoGainControl: true,
+  };
+  expect(cleanupStored(null)).toEqual(on);
+  expect(cleanupStored("not json")).toEqual(on);
+  expect(
+    cleanupStored(
+      '{"echoCancellation":false,"autoGainControl":"no","x":false}',
+    ),
+  ).toEqual({ ...on, echoCancellation: false });
+});
+
+test("a cleanup switch opens the microphone again with it, and keeps it on this device", async () => {
+  const t = await inCall({ plugged: ["mic-a"] });
+  const { micCleanup } = await import("../web/features/call/session");
+  const first = t.opened[0]!.track;
+  expect(await t.call.toggleCleanup("echoCancellation")).toBe(true);
+  const second = t.opened.at(-1)!;
+  expect(second.constraints).toMatchObject({
+    noiseSuppression: true,
+    echoCancellation: false,
+    autoGainControl: true,
+  });
+  expect(t.replaced.at(-1)).toBe(second.track);
+  expect(first.readyState).toBe("ended");
+  expect(JSON.parse(t.storage.getItem("vb-call-cleanup")!)).toMatchObject({
+    echoCancellation: false,
+  });
+  // Back on, for the next tests.
+  expect(await t.call.toggleCleanup("echoCancellation")).toBe(true);
+  expect(get(micCleanup).echoCancellation).toBe(true);
+  t.call.leave();
+});

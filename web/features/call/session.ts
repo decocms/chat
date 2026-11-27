@@ -122,12 +122,50 @@ type Wanted = { session: string; name: string };
 const trackKey = (track: Wanted) => `${track.session}/${track.name}`;
 
 // The browser cleans the microphone before it is sent: no room noise, no echo, an even level. Less noise is also
-// more silence, and silence is not sent (withDtx).
+// more silence, and silence is not sent (withDtx). Each one is on unless the person turned it off on this device
+// ("Mais opções"): a good headset or a studio microphone can sound better without them.
 const MIC_CLEANUP = {
   noiseSuppression: true,
   echoCancellation: true,
   autoGainControl: true,
 };
+export type MicCleanup = typeof MIC_CLEANUP;
+const CLEANUP_KEY = "vb-call-cleanup";
+/** The cleanup stored on this device. Only known keys with a boolean value are kept; the rest is the default. */
+export function cleanupStored(raw: string | null): MicCleanup {
+  const out = { ...MIC_CLEANUP };
+  try {
+    const saved = JSON.parse(raw ?? "{}") as Record<string, unknown>;
+    for (const key of Object.keys(out) as (keyof MicCleanup)[])
+      if (typeof saved[key] === "boolean") out[key] = saved[key];
+  } catch {
+    // A broken value: the defaults.
+  }
+  return out;
+}
+/** What the browser does to the microphone. It stays between calls, on this device. */
+export const micCleanup = writable<MicCleanup>(
+  cleanupStored(
+    typeof localStorage === "undefined"
+      ? null
+      : (() => {
+          try {
+            return localStorage.getItem(CLEANUP_KEY);
+          } catch {
+            return null;
+          }
+        })(),
+  ),
+);
+/** Sets the cleanup, and keeps it on this device. */
+export function saveCleanup(next: MicCleanup) {
+  micCleanup.set(next);
+  try {
+    localStorage.setItem(CLEANUP_KEY, JSON.stringify(next));
+  } catch {
+    // Private mode: it lasts until the page closes.
+  }
+}
 // The most that each kind of track sends. A voice is clear at 24 kbps; a 720p screen at 1.5 Mbps.
 const MIC_MAX_BPS = 32_000,
   SCREEN_MAX_BPS = 2_500_000;
@@ -549,7 +587,7 @@ export function createCallSession(
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: micConstraints(MIC_CLEANUP, id, true),
+          audio: micConstraints(get(micCleanup), id, true),
         });
       } catch {
         return false;
@@ -651,7 +689,7 @@ export function createCallSession(
       // The microphone chosen on this device, if it is there; else the browser's own.
       const wanted = storedDevice("audioinput");
       const media = navigator.mediaDevices.getUserMedia({
-        audio: micConstraints(MIC_CLEANUP, wanted, false),
+        audio: micConstraints(get(micCleanup), wanted, false),
       });
       const at = epoch;
       let joined = "";
@@ -747,6 +785,19 @@ export function createCallSession(
           denoiser = null;
         }
       });
+    },
+    /** One of the browser's cleanups on or off: in the call now (the microphone opens again with it), and in the
+     *  next calls on this device. false: the microphone did not open again, and the cleanup stays as it was. */
+    async toggleCleanup(key: keyof MicCleanup) {
+      const before = get(micCleanup);
+      const next = { ...before, [key]: !before[key] };
+      micCleanup.set(next);
+      if (get(state).phase === "in" && !(await useMic(get(devices).mic))) {
+        micCleanup.set(before);
+        return false;
+      }
+      saveCleanup(next);
+      return true;
     },
     /** The devices of this machine and the ones in use (the stage's menu). */
     devices: { subscribe: devices.subscribe },

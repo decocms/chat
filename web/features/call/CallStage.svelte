@@ -26,7 +26,12 @@
   import { meetLink, meetMessage } from "./meet";
   import CameraDialog from "./CameraDialog.svelte";
   import { isRecorder } from "../../../shared/call";
-  import { denoiseOn, type CallSession } from "./session";
+  import {
+    denoiseOn,
+    micCleanup,
+    type CallSession,
+    type MicCleanup,
+  } from "./session";
   import { callColors, callGrid, FITTED_ONE } from "./layout";
   import { cn } from "../../lib/studio/utils";
   /** How long a recorded room's call can be without its recorder before the warning shows. */
@@ -72,6 +77,19 @@
   } = $props();
   const view = $derived(call.state);
   const denoise = denoiseOn;
+  const cleanup = micCleanup;
+  // The browser's own cleanups of the microphone, each with its switch in "Mais opções".
+  const CLEANUPS: [keyof MicCleanup, string][] = [
+    ["noiseSuppression", "Redução de ruído do navegador"],
+    ["echoCancellation", "Cancelamento de eco"],
+    ["autoGainControl", "Ganho automático"],
+  ];
+  async function toggleCleanup(key: keyof MicCleanup) {
+    if (!(await call.toggleCleanup(key)))
+      showToast(
+        t("Não consegui reabrir o microfone. A call segue como estava."),
+      );
+  }
   const devices = $derived(call.devices);
   async function chooseMic(id: string) {
     if (!(await call.chooseMic(id)))
@@ -689,6 +707,15 @@
                     >{/each}
                 </DropdownMenuRadioGroup>
                 <DropdownMenuSeparator />{/if}
+              <DropdownMenuLabel class="text-xs text-muted-foreground"
+                >{t("Tratamento do áudio")}</DropdownMenuLabel
+              >
+              {#each CLEANUPS as [key, label] (key)}<DropdownMenuCheckboxItem
+                  data-call-cleanup={key}
+                  checked={$cleanup[key]}
+                  onCheckedChange={() => void toggleCleanup(key)}
+                  >{t(label)}</DropdownMenuCheckboxItem
+                >{/each}
               <DropdownMenuCheckboxItem
                 data-call-denoise
                 checked={$denoise}

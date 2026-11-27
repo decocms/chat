@@ -5,6 +5,7 @@
 //
 //   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--threadmenu] [--topbar] [--choices] [--receipts] [--name <folder>]
 import { chromium, type Locator, type Page } from "playwright";
+import assert from "node:assert/strict";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1291,6 +1292,27 @@ try {
       await checked(wide, "speakers", "out-headset");
       await wide.screenshot({ path: join(out, "audio-chosen-1440.png") });
       shots.push("audio-chosen-1440.png");
+      // The browser's echo cancellation off: it stays off after a reload, the other two stay on.
+      await wide.locator('[data-call-cleanup="echoCancellation"]').click();
+      await wide.reload({ waitUntil: "networkidle" });
+      await openMenu(wide);
+      // The item draws its check mark (data-state="checked") only while it is on.
+      await wide
+        .locator(
+          '[data-call-cleanup="noiseSuppression"] [data-state="checked"]',
+        )
+        .waitFor();
+      assert.equal(
+        await wide
+          .locator(
+            '[data-call-cleanup="echoCancellation"] [data-state="checked"]',
+          )
+          .count(),
+        0,
+        "echo cancellation is still on after the reload",
+      );
+      await wide.screenshot({ path: join(out, "audio-cleanup-1440.png") });
+      shots.push("audio-cleanup-1440.png");
       await context.close();
 
       const plain = await browser.newContext({

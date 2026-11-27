@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import { writable } from "svelte/store";
+  import { get, writable } from "svelte/store";
   import CallStage from "../../features/call/CallStage.svelte";
   import CallControls from "../../features/call/CallControls.svelte";
   import CallSidebarRow from "../../features/call/CallSidebarRow.svelte";
   import CallPanel from "../../features/call/CallPanel.svelte";
   import {
     denoiseOn,
+    micCleanup,
+    saveCleanup,
     type CallDevices,
     type CallSession,
     type CallView,
@@ -170,6 +172,11 @@
           : [...view.silenced, email],
       })),
     toggleDenoise: async () => denoiseOn.update((on) => !on),
+    toggleCleanup: async (key) => {
+      const now = get(micCleanup);
+      saveCleanup({ ...now, [key]: !now[key] });
+      return true;
+    },
     devices: { subscribe: devices.subscribe },
     refreshDevices: () => void refreshDevices(),
     chooseMic: async (id) => {

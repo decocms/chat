@@ -947,6 +947,12 @@ const EN: Readonly<Record<string, string>> = {
   "Entrar na call: {people}": "Join the call: {people}",
   "Câmera e desfoque": "Camera and blur",
   "Supressão de ruído": "Noise suppression",
+  "Tratamento do áudio": "Audio processing",
+  "Redução de ruído do navegador": "Browser noise reduction",
+  "Cancelamento de eco": "Echo cancellation",
+  "Ganho automático": "Automatic gain",
+  "Não consegui reabrir o microfone. A call segue como estava.":
+    "I couldn't reopen the microphone. The call goes on as it was.",
   Microfone: "Microphone",
   "Microfone {n}": "Microphone {n}",
   "Saída de áudio": "Audio output",
