@@ -24,6 +24,8 @@ const output = process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-call-camera";
 await mkdir(output, { recursive: true });
 
 type Setting = {
+  /** "maintain-framerate": the encoder lowers the size, never the frames a second. Not given: the app's "balanced". */
+  keepFps?: boolean;
   name: string;
   maxBitrate: number;
   scaleResolutionDownBy: number;
@@ -66,6 +68,47 @@ const settings: Setting[] = [
     maxBitrate: 350_000,
     scaleResolutionDownBy: 1,
     maxFramerate: 24,
+  },
+  // At least 24 frames a second (Jonas): the encoder keeps the frames and gives up size.
+  {
+    name: "540p-800k-24",
+    maxBitrate: 800_000,
+    scaleResolutionDownBy: 4 / 3,
+    maxFramerate: 24,
+    keepFps: true,
+  },
+  {
+    name: "720p-1000k-24",
+    maxBitrate: 1_000_000,
+    scaleResolutionDownBy: 1,
+    maxFramerate: 24,
+    keepFps: true,
+  },
+  {
+    name: "720p-1200k-24",
+    maxBitrate: 1_200_000,
+    scaleResolutionDownBy: 1,
+    maxFramerate: 24,
+    keepFps: true,
+  },
+  // Near the webcam's own picture: 720p with room to send it.
+  {
+    name: "720p-1000k",
+    maxBitrate: 1_000_000,
+    scaleResolutionDownBy: 1,
+    maxFramerate: 30,
+  },
+  {
+    name: "720p-1500k",
+    maxBitrate: 1_500_000,
+    scaleResolutionDownBy: 1,
+    maxFramerate: 30,
+  },
+  {
+    name: "720p-2500k",
+    maxBitrate: 2_500_000,
+    scaleResolutionDownBy: 1,
+    maxFramerate: 30,
   },
   {
     name: "540p-500k-15fps",
@@ -115,6 +158,7 @@ async function person(email: string, setting: Setting) {
         encoding.maxBitrate = wanted.maxBitrate;
         encoding.scaleResolutionDownBy = wanted.scaleResolutionDownBy;
         encoding.maxFramerate = wanted.maxFramerate;
+        if (wanted.keepFps) params.degradationPreference = "maintain-framerate";
       }
       return (setParameters as (...a: unknown[]) => Promise<void>).call(
         this,
