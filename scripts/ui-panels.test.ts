@@ -3371,12 +3371,23 @@ describe("chat", () => {
       "person",
       "agent",
     ]);
+    // Two groups, people first, each with its label (both kinds are there).
+    expect(
+      [...tip.querySelectorAll<HTMLElement>("[data-readers-group]")].map(
+        (g) => g.dataset.readersGroup,
+      ),
+    ).toEqual(["people", "agents"]);
+    expect(
+      [...tip.querySelectorAll("[data-readers-label]")].map((l) =>
+        l.textContent?.trim(),
+      ),
+    ).toEqual(["Pessoas", "Agents"]);
     expect(rows[0].querySelector('[data-avatar="agent"]') === null).toBe(true);
     expect(rows[0].textContent).toContain("ana@test");
     expect(rows[2].querySelector('[data-avatar="agent"]') === null).toBe(false);
-    expect(rows[2].querySelector("[data-reader-owner]")?.textContent).toBe(
-      "de ana@test",
-    );
+    expect(
+      rows[2].querySelector("[data-reader-owner]")?.textContent?.trim(),
+    ).toBe("de ana@test");
     // Many readers: the list keeps about six rows and scrolls inside.
     expect(tip.querySelector("[data-readers-list]")?.className).toContain(
       "max-h-44",
@@ -3396,6 +3407,107 @@ describe("chat", () => {
     flushSync();
     expect(target.querySelectorAll("#m3 [data-reader-person]")).toHaveLength(1);
     expect(target.querySelectorAll("#m2 [data-reader-read]")).toHaveLength(2);
+  }, 30_000);
+  test("seen popover with only people (or only agents) has one group and no labels", async () => {
+    const room: Room = {
+      ...fixture(),
+      messages: [{ ...message(1, "Oi"), author: "bia@test", kind: undefined }],
+    };
+    room.receipts = [
+      { email: "ana@test", who: "", read: 1, delivered: 1, person: true },
+      { email: "you@test", who: "", read: 1, delivered: 1, person: true },
+    ];
+    const { target, update } = renderChat(room);
+    const open = async () => {
+      const group = target.querySelector<HTMLElement>(
+        '#m1 [data-message-footer] [role="group"]',
+      )!;
+      group.dispatchEvent(new window.PointerEvent("pointerenter"));
+      flushSync();
+      return target.querySelector('#m1 [role="tooltip"]')!;
+    };
+    let tip = await open();
+    expect(tip.querySelectorAll("[data-readers-group]")).toHaveLength(1);
+    expect(tip.querySelector("[data-readers-label]") === null).toBe(true);
+    expect(tip.querySelectorAll('[data-reader-row="person"]')).toHaveLength(2);
+    update({
+      ...room,
+      receipts: [{ email: "ana@test", who: "Codex", read: 1, delivered: 1 }],
+    });
+    flushSync();
+    tip = await open();
+    expect(
+      tip.querySelector<HTMLElement>("[data-readers-group]")?.dataset
+        .readersGroup,
+    ).toBe("agents");
+    expect(tip.querySelector("[data-readers-label]") === null).toBe(true);
+  });
+  test("seen popover: an agent's name in the language's order, and hover intent keeps it open on the way to it", async () => {
+    const room: Room = {
+      ...fixture(),
+      messages: [{ ...message(1, "Oi"), author: "bia@test", kind: undefined }],
+    };
+    room.receipts = [
+      { email: "ana@test", who: "", read: 1, delivered: 1, person: true },
+      { email: "ana@test", who: "Claude Code", read: 1, delivered: 1 },
+    ];
+    // English: the app's "{via} de {who}" is "{who}'s {via}"; the owner comes first, muted.
+    const en: Record<string, string> = {
+      "{via} de {who}": "{who}'s {via}",
+      "Visto por": "Seen by",
+    };
+    const { target } = renderChat(room, {
+      vb: bridge({
+        t: (text, vars) =>
+          (en[text] ?? text).replace(/\{(\w+)\}/g, (_, key) =>
+            String(vars?.[key] ?? ""),
+          ),
+      }),
+    });
+    const footer = target.querySelector<HTMLElement>(
+      "#m1 [data-message-footer]",
+    )!;
+    const group = footer.querySelector<HTMLElement>('[role="group"]')!;
+    const tooltip = () => footer.querySelector('[role="tooltip"]');
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    group.dispatchEvent(new window.PointerEvent("pointerenter"));
+    flushSync();
+    expect(
+      tooltip()?.querySelector("[data-readers-seen-by]")?.textContent?.trim(),
+    ).toBe("Seen by");
+    const agent = tooltip()!.querySelector<HTMLElement>(
+      '[data-reader-row="agent"]',
+    )!;
+    expect(agent.textContent?.replace(/\s+/g, " ")).toContain(
+      "ana@test's Claude Code",
+    );
+    expect(
+      agent.querySelector("[data-reader-owner]")?.textContent?.trim(),
+    ).toBe("ana@test's");
+    // Leaving the stack does not close it at once: the pointer is on its way to the popover.
+    group.dispatchEvent(new window.PointerEvent("pointerleave"));
+    flushSync();
+    expect(tooltip() === null).toBe(false);
+    await wait(80);
+    // It arrives (the popover is inside the group): the close is cancelled, and it stays to scroll the list.
+    group.dispatchEvent(new window.PointerEvent("pointerenter"));
+    await wait(300);
+    flushSync();
+    expect(tooltip() === null).toBe(false);
+    // Leaving for good closes it after the delay.
+    group.dispatchEvent(new window.PointerEvent("pointerleave"));
+    await wait(300);
+    flushSync();
+    expect(tooltip() === null).toBe(true);
+    // Esc closes a popover the pointer alone opened.
+    group.dispatchEvent(new window.PointerEvent("pointerenter"));
+    flushSync();
+    expect(tooltip() === null).toBe(false);
+    window.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    flushSync();
+    expect(tooltip() === null).toBe(true);
   }, 30_000);
   test("quiet rows retain folding, status ownership and canonical thread cards", async () => {
     const reminder = {

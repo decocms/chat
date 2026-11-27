@@ -2237,14 +2237,15 @@ async function receiptsScreens(
   await say("Subi o layout novo da home, dá uma olhada?");
   const agent = await connectTestAgent(ana, "Claude Code");
   await agent("read_room", { room_id: room });
-  const as = async (email: string, width: number) => {
+  const as = async (email: string, width: number, lang: "pt" | "en" = "pt") => {
     const context = await browser.newContext({
       viewport: { width, height: width < 500 ? 844 : 900 },
-      locale: "pt-BR",
+      locale: lang === "en" ? "en-US" : "pt-BR",
       ...(width < 500 ? { isMobile: true, hasTouch: true } : {}),
     });
     await context.addCookies([
       { name: "dev_as", value: encodeURIComponent(email), url: base },
+      ...(lang === "en" ? [{ name: "vb_lang", value: "en", url: base }] : []),
     ]);
     return context;
   };
@@ -2314,6 +2315,32 @@ async function receiptsScreens(
   await desk.locator("[data-readers-seen-by]").waitFor();
   await shot(desk, "receipts-popover-1440.png");
   await crop(desk, "receipts-popover-crop.png");
+  // In English, and the way a hand goes: from the faces up to the popover, slowly. It must stay open on the way.
+  const english = await (await as(ana, 1440, "en")).newPage();
+  await english.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+  await expectFaces(english, "layout novo", 2);
+  const trigger = english
+    .locator("[data-chat-message]", { hasText: "layout novo" })
+    .locator("[data-message-footer] button[aria-expanded]");
+  const from = (await trigger.boundingBox())!;
+  await english.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  const tipBox = (await english.locator('[role="tooltip"]').boundingBox())!;
+  await english.mouse.move(
+    tipBox.x + tipBox.width / 2,
+    tipBox.y + tipBox.height / 2,
+    { steps: 12 },
+  );
+  await english.waitForTimeout(400);
+  if (!(await english.locator('[role="tooltip"]').isVisible()))
+    throw new Error("receipts: the popover closed on the way to it");
+  if (
+    (await english.locator("[data-readers-seen-by]").textContent())?.trim() !==
+    "Seen by"
+  )
+    throw new Error("receipts: the English title is not Seen by");
+  await english.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await crop(english, "receipts-popover-en-crop.png");
+  await english.context().close();
   await desk.mouse.move(0, 0);
   await agent("post", {
     room_id: room,
@@ -2406,6 +2433,10 @@ async function receiptsScreens(
     scroll: el.scrollHeight,
     client: el.clientHeight,
   }));
+  if ((await list.locator("[data-readers-label]").count()) !== 2)
+    throw new Error(
+      "receipts: the busy popover has no People and Agents labels",
+    );
   if (rows !== 12 || scroll <= client || client > 200)
     throw new Error(
       `receipts: the busy popover has ${rows} rows, ${client}px of ${scroll}px`,
@@ -2443,5 +2474,16 @@ async function receiptsScreens(
   await post("/api/me/read-receipts", { on: true }, bruno);
   await expectFaces(desk, "link do layout", 1);
   await shot(desk, "receipts-dm-on-1440.png");
+  // Only people saw it: one group, no labels.
+  await desk
+    .locator("[data-chat-message]", { hasText: "link do layout" })
+    .last()
+    .locator("[data-message-footer] button[aria-expanded]")
+    .hover();
+  await desk.locator("[data-readers-list]").waitFor();
+  if (await desk.locator("[data-readers-label]").count())
+    throw new Error("receipts: a popover of only people shows group labels");
+  await crop(desk, "receipts-only-people-crop.png");
+  await desk.mouse.move(0, 0);
   await desk.context().close();
 }

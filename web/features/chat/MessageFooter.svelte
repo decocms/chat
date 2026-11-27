@@ -6,12 +6,43 @@
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import AvatarStack from "../../lib/components/AvatarStack.svelte";
   import Button from "../../lib/studio/Button.svelte";
+  import { onDestroy } from "svelte";
   let { footer, vb }: { footer: MessageFooter; vb: ChatBridge } = $props();
   let opened = $state(false),
     hovered = $state(false),
     focused = $state(false),
     dismissed = $state(false);
   const shown = $derived(!dismissed && (opened || hovered || focused));
+  // Hover intent: leaving the stack closes the popover only after a short delay, which entering the popover (or the
+  // stack again) cancels, so the pointer can travel to it and scroll the list. The popover's bridge covers the gap.
+  // The popover's two groups, people first; their labels show only when both are there.
+  const people = $derived(footer.readers.filter((r) => r.receipt.person));
+  const agentReaders = $derived(
+    footer.readers.filter((r) => !r.receipt.person),
+  );
+  const agentCount = $derived(agentReaders.length + footer.passed.length);
+  const CLOSE_DELAY = 180;
+  let closing: ReturnType<typeof setTimeout> | undefined;
+  const stay = () => {
+    clearTimeout(closing);
+    closing = undefined;
+  };
+  const leave = () => {
+    stay();
+    closing = setTimeout(() => {
+      closing = undefined;
+      hovered = false;
+    }, CLOSE_DELAY);
+  };
+  onDestroy(stay);
+  /** An agent's name as its parts: the model plain, whose agent it is muted, in the language's order ("Claude Code
+   *  de Ana", "Ana's Claude Code"): the app's "{via} de {who}" with the model cut out. */
+  const agentName = (model: string, email: string) => {
+    const [before = "", after = ""] = vb
+      .t("{via} de {who}", { via: "\u0000", who: vb.name(email) })
+      .split("\u0000");
+    return { before, model: prettyModel(model), after };
+  };
   const ids = $props.id();
   const read = $derived(footer.readers.filter((r) => r.read).length);
   // Readers and the agents that looked and passed, one face each.
@@ -96,14 +127,61 @@
       /></span
     >{/if}{/snippet}
 
-<!-- A row's name: a person's own; an agent's model, then whose agent it is, muted ("Claude Code de Ana"). -->
+<!-- A row's name: a person's own; an agent's model, and whose agent it is, muted ("Claude Code de Ana", "Ana's Claude Code"). -->
 {#snippet rowName(email: string, via?: string)}<span
     class="min-w-0 flex-1 break-words"
-    >{#if via === undefined}{vb.name(email)}{:else}{prettyModel(via)}
-      <span data-reader-owner class="text-muted-foreground"
-        >{vb.t("de {who}", { who: vb.name(email) })}</span
-      >{/if}</span
+    >{#if via === undefined}{vb.name(email)}{:else}{@const name = agentName(
+        via,
+        email,
+      )}{#if name.before.trim()}<span
+          data-reader-owner
+          class="text-muted-foreground">{name.before}</span
+        >{/if}{name.model}{#if name.after.trim()}<span
+          data-reader-owner
+          class="text-muted-foreground">{name.after}</span
+        >{/if}{/if}</span
   >{/snippet}
+
+<!-- A group's label in the popover: it stays at the top of the list while its group scrolls under it. -->
+{#snippet groupLabel(text: string)}<p
+    data-readers-label
+    class="sticky top-0 z-10 -mx-3 m-0 bg-popover px-3 pt-0.5 text-xs text-muted-foreground"
+  >
+    {text}
+  </p>{/snippet}
+
+<!-- A reader's row: face, name, and whether they read it. -->
+{#snippet readerRow(reader: MessageFooter["readers"][number])}<div
+    data-reader-row={reader.receipt.person ? "person" : "agent"}
+    class="flex items-center gap-2"
+  >
+    {@render rowAvatar(
+      reader.receipt.email,
+      reader.receipt.person ? undefined : reader.receipt.who,
+    )}{@render rowName(
+      reader.receipt.email,
+      reader.receipt.person ? undefined : reader.receipt.who,
+    )}<span
+      >{vb.t(
+        reader.read
+          ? "leu"
+          : reader.receipt.person
+            ? "leu em parte"
+            : "recebeu",
+      )}</span
+    >
+  </div>{/snippet}
+
+<!-- Esc closes it also when only the pointer opened it (the stack has no focus then). -->
+<svelte:window
+  onkeydown={(event) => {
+    if (event.key === "Escape" && shown && !focused) {
+      stay();
+      dismissed = true;
+      opened = false;
+    }
+  }}
+/>
 
 {#snippet check()}<span
     aria-hidden="true"
@@ -154,12 +232,11 @@
       aria-label={label}
       class="relative"
       onpointerenter={() => {
+        stay();
         hovered = true;
         dismissed = false;
       }}
-      onpointerleave={() => {
-        hovered = false;
-      }}
+      onpointerleave={leave}
     >
       <Button
         variant="ghost"
@@ -227,7 +304,7 @@
       {#if shown}<div
           id={`${ids}-readers`}
           role="tooltip"
-          class="absolute bottom-full right-0 z-20 mb-2 w-72 max-w-[80vw] space-y-2 rounded-surface border border-border bg-popover p-3 text-popover-foreground shadow-md"
+          class="absolute bottom-full right-0 z-20 mb-2 before:absolute before:inset-x-0 before:top-full before:h-2 before:content-[''] w-72 max-w-[80vw] space-y-2 rounded-surface border border-border bg-popover p-3 text-popover-foreground shadow-md"
         >
           {#if seenBy}<p data-readers-seen-by class="m-0 mb-1 font-medium">
               {vb.t("Visto por")}
@@ -237,40 +314,39 @@
             data-readers-list
             class="-mx-3 max-h-44 space-y-2 overflow-y-auto overscroll-contain px-3"
           >
-            {#each footer.readers as reader (`${reader.receipt.who}|${reader.receipt.email}`)}<div
-                data-reader-row={reader.receipt.person ? "person" : "agent"}
-                class="flex items-center gap-2"
+            {#if people.length}<div
+                data-readers-group="people"
+                class="space-y-2"
               >
-                {@render rowAvatar(
-                  reader.receipt.email,
-                  reader.receipt.person ? undefined : reader.receipt.who,
-                )}{@render rowName(
-                  reader.receipt.email,
-                  reader.receipt.person ? undefined : reader.receipt.who,
-                )}<span
-                  >{vb.t(
-                    reader.read
-                      ? "leu"
-                      : reader.receipt.person
-                        ? "leu em parte"
-                        : "recebeu",
-                  )}</span
-                >
-              </div>{/each}{#each footer.passed as status (`${status.ack.who}|${status.ack.email}`)}<div
-                data-ack-state="idle"
-                data-reader-row="agent"
-                class="flex items-center gap-2"
+                {#if people.length && agentCount}{@render groupLabel(
+                    vb.t("Pessoas"),
+                  )}{/if}{#each people as reader (`${reader.receipt.who}|${reader.receipt.email}`)}{@render readerRow(
+                    reader,
+                  )}{/each}
+              </div>{/if}{#if agentCount}<div
+                data-readers-group="agents"
+                class="space-y-2"
               >
-                {@render rowAvatar(
-                  status.ack.email,
-                  status.ack.who,
-                )}{@render rowName(status.ack.email, status.ack.who)}<span
-                  >{vb.t("parou")} ·
-                  <time title={vb.dateTime?.(status.ack.ts)}
-                    >{vb.ago(status.ack.ts)}</time
-                  ></span
-                >
-              </div>{/each}
+                {#if people.length}{@render groupLabel(
+                    vb.t("Agents"),
+                  )}{/if}{#each agentReaders as reader (`${reader.receipt.who}|${reader.receipt.email}`)}{@render readerRow(
+                    reader,
+                  )}{/each}{#each footer.passed as status (`${status.ack.who}|${status.ack.email}`)}<div
+                    data-ack-state="idle"
+                    data-reader-row="agent"
+                    class="flex items-center gap-2"
+                  >
+                    {@render rowAvatar(
+                      status.ack.email,
+                      status.ack.who,
+                    )}{@render rowName(status.ack.email, status.ack.who)}<span
+                      >{vb.t("parou")} ·
+                      <time title={vb.dateTime?.(status.ack.ts)}
+                        >{vb.ago(status.ack.ts)}</time
+                      ></span
+                    >
+                  </div>{/each}
+              </div>{/if}
           </div>
         </div>{/if}
     </div>
