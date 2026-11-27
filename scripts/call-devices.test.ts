@@ -421,3 +421,61 @@ test("a cleanup switch opens the microphone again with it, and keeps it on this 
   expect(get(micCleanup).echoCancellation).toBe(true);
   t.call.leave();
 });
+
+test("the stored volumes keep only numbers from 0 to 200%", async () => {
+  const { volumesStored } = await import("../web/features/call/session");
+  expect(volumesStored(null)).toEqual({});
+  expect(volumesStored("[")).toEqual({});
+  expect(volumesStored('{"a@x":1.5,"b@x":3,"c@x":"1","d@x":0}')).toEqual({
+    "a@x": 1.5,
+    "d@x": 0,
+  });
+});
+
+test("a voice past 100% plays louder through Web Audio, and plays as sent again at 100% or less", async () => {
+  const gains: { gain: { value: number } }[] = [];
+  const node = () => ({ connect: (next: unknown) => next, disconnect() {} });
+  stub(
+    "AudioContext",
+    class {
+      resume = async () => {};
+      close = async () => {};
+      createMediaStreamSource = node;
+      createAnalyser = () => ({
+        ...node(),
+        fftSize: 0,
+        getByteTimeDomainData() {},
+      });
+      createGain = () => {
+        const gain = { ...node(), gain: { value: 1 } };
+        gains.push(gain);
+        return gain;
+      };
+      createMediaStreamDestination = () => ({ ...node(), stream: "loud" });
+    },
+  );
+  const t = await inCall({ plugged: ["mic-a"] });
+  // The fake SFU names no owner for the voice it sends: its person is "".
+  t.call.setVolume("", 1.5);
+  t.receive();
+  const player = t.players[0] as unknown as {
+    srcObject: unknown;
+    volume: number;
+  };
+  const raw = t.players[1] as unknown as { srcObject: unknown; muted: boolean };
+  expect(player.srcObject).toBe("loud");
+  expect(player.volume).toBe(1);
+  expect(gains.at(-1)!.gain.value).toBe(1.5);
+  // Chrome needs an element on the remote track for Web Audio to hear it: a muted one.
+  expect(raw.muted).toBe(true);
+  t.call.setVolume("", 1.8);
+  expect(gains.at(-1)!.gain.value).toBe(1.8);
+  t.call.setVolume("", 0.5);
+  expect(player.srcObject).not.toBe("loud");
+  expect(player.volume).toBe(0.5);
+  expect(raw.srcObject).toBe(null);
+  expect(JSON.parse(t.storage.getItem("vb-call-volumes")!)).toEqual({
+    "": 0.5,
+  });
+  t.call.leave();
+});

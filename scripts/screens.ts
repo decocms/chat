@@ -1313,6 +1313,15 @@ try {
       );
       await wide.screenshot({ path: join(out, "audio-cleanup-1440.png") });
       shots.push("audio-cleanup-1440.png");
+      // A person's volume for me, past 100% (right-click on their tile; the first tile is mine, with no menu): 10 steps of 5% up gives 150%.
+      await wide.keyboard.press("Escape");
+      await wide.waitForTimeout(400);
+      await wide.locator("[data-call-tile]").nth(1).click({ button: "right" });
+      await wide.locator("[data-call-volume] [role=slider]").focus();
+      for (let i = 0; i < 10; i++) await wide.keyboard.press("ArrowRight");
+      await wide.locator("[data-call-volume]", { hasText: "150%" }).waitFor();
+      await wide.screenshot({ path: join(out, "audio-volume-1440.png") });
+      shots.push("audio-volume-1440.png");
       await context.close();
 
       const plain = await browser.newContext({

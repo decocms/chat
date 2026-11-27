@@ -9,6 +9,7 @@
     denoiseOn,
     micCleanup,
     saveCleanup,
+    callVolumes,
     type CallDevices,
     type CallSession,
     type CallView,
@@ -172,6 +173,8 @@
           : [...view.silenced, email],
       })),
     toggleDenoise: async () => denoiseOn.update((on) => !on),
+    setVolume: (email, volume) =>
+      callVolumes.update((now) => ({ ...now, [email]: volume })),
     toggleCleanup: async (key) => {
       const now = get(micCleanup);
       saveCleanup({ ...now, [key]: !now[key] });

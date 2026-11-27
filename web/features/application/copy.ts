@@ -948,6 +948,8 @@ const EN: Readonly<Record<string, string>> = {
   "Câmera e desfoque": "Camera and blur",
   "Supressão de ruído": "Noise suppression",
   "Tratamento do áudio": "Audio processing",
+  "Volume pra mim": "Volume for me",
+  "Volume de {name}": "{name}'s volume",
   "Redução de ruído do navegador": "Browser noise reduction",
   "Cancelamento de eco": "Echo cancellation",
   "Ganho automático": "Automatic gain",

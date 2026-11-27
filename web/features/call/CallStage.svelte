@@ -26,7 +26,10 @@
   import { meetLink, meetMessage } from "./meet";
   import CameraDialog from "./CameraDialog.svelte";
   import { isRecorder } from "../../../shared/call";
+  import Slider from "../../lib/studio/Slider.svelte";
   import {
+    callVolumes,
+    MAX_VOLUME,
     denoiseOn,
     micCleanup,
     type CallSession,
@@ -78,6 +81,7 @@
   const view = $derived(call.state);
   const denoise = denoiseOn;
   const cleanup = micCleanup;
+  const volumes = callVolumes;
   // The browser's own cleanups of the microphone, each with its switch in "Mais opções".
   const CLEANUPS: [keyof MicCleanup, string][] = [
     ["noiseSuppression", "Redução de ruído do navegador"],
@@ -260,8 +264,11 @@
       peer,
       size,
       {},
-    )}{:else}{@const silenced = $view.silenced.includes(peer.email)}<ContextMenu
-    >
+    )}{:else}{@const silenced = $view.silenced.includes(
+      peer.email,
+    )}{@const volume = Math.round(
+      ($volumes[peer.email] ?? 1) * 100,
+    )}<ContextMenu>
       <ContextMenuPrimitive.Trigger>
         {#snippet child({ props })}{@render tileButton(
             peer,
@@ -281,6 +288,23 @@
             ? t("Ouvir de novo")
             : t("Silenciar pra mim")}</ContextMenuItem
         >
+        <!-- How loud I hear this person, up to 200% (a quiet microphone), as on Discord. -->
+        <div data-call-volume class="flex flex-col gap-2 px-2 pt-1 pb-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-call-muted-foreground">{t("Volume pra mim")}</span
+            ><span class="tabular-nums">{volume}%</span>
+          </div>
+          <Slider
+            value={[volume]}
+            min={0}
+            max={MAX_VOLUME * 100}
+            step={5}
+            thumbLabel={t("Volume de {name}", { name: name(peer.email) })}
+            thumbValueText={`${volume}%`}
+            onValueChange={([next]) =>
+              call.setVolume(peer.email, (next ?? 100) / 100)}
+          />
+        </div>
       </ContextMenuContent>
     </ContextMenu>{/if}{/snippet}
 {#snippet tileButton(

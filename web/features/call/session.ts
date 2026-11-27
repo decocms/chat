@@ -157,6 +157,36 @@ export const micCleanup = writable<MicCleanup>(
         })(),
   ),
 );
+// How loud I hear each person (email → 0 to 2; 1 is as sent), as on Discord: past 100% for a quiet microphone.
+// It stays on this device, for the next calls too.
+const VOLUMES_KEY = "vb-call-volumes";
+export const MAX_VOLUME = 2;
+/** The volumes stored on this device: only numbers from 0 to MAX_VOLUME are kept. */
+export function volumesStored(raw: string | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  try {
+    const saved = JSON.parse(raw ?? "{}") as Record<string, unknown>;
+    for (const [email, value] of Object.entries(saved))
+      if (typeof value === "number" && value >= 0 && value <= MAX_VOLUME)
+        out[email] = value;
+  } catch {
+    // A broken value: everyone at 100%.
+  }
+  return out;
+}
+export const callVolumes = writable<Record<string, number>>(
+  volumesStored(
+    typeof localStorage === "undefined"
+      ? null
+      : (() => {
+          try {
+            return localStorage.getItem(VOLUMES_KEY);
+          } catch {
+            return null;
+          }
+        })(),
+  ),
+);
 /** Sets the cleanup, and keeps it on this device. */
 export function saveCleanup(next: MicCleanup) {
   micCleanup.set(next);
@@ -268,7 +298,62 @@ export function createCallSession(
   /** key → mid of what this tab receives; mid → whose track it is; mid → the element that plays it. */
   const pulled = new Map<string, string>(),
     owners = new Map<string, { email: string; key: string }>(),
-    players = new Map<string, HTMLAudioElement>();
+    players = new Map<string, HTMLAudioElement>(),
+    // mid → the gain of a voice I hear past 100%. An element plays at most 100% (volume 1): past it, the voice goes
+    // through Web Audio, and the element plays the louder copy.
+    boosts = new Map<
+      string,
+      { raw: MediaStream; loud: MediaStream; gain: GainNode; stop(): void }
+    >();
+  /** Plays a received voice at the volume I chose for its person. */
+  function loudness(mid: string) {
+    const player = players.get(mid);
+    if (!player) return;
+    const volume = get(callVolumes)[owners.get(mid)?.email ?? ""] ?? 1;
+    let boost = boosts.get(mid);
+    player.volume = Math.min(volume, 1);
+    if (volume <= 1 || typeof AudioContext === "undefined") {
+      if (!boost) return;
+      boost.stop();
+      boosts.delete(mid);
+      player.srcObject = boost.raw;
+      void player.play().catch(() => {});
+      return;
+    }
+    if (!boost) {
+      const raw = player.srcObject;
+      if (!(raw instanceof MediaStream)) return;
+      try {
+        sound ??= new AudioContext();
+        void sound.resume();
+        const source = sound.createMediaStreamSource(raw),
+          gain = sound.createGain(),
+          out = sound.createMediaStreamDestination();
+        source.connect(gain).connect(out);
+        // Chrome gives Web Audio silence from a remote track that no element plays: this one plays it, muted.
+        const keep = new Audio();
+        keep.muted = true;
+        keep.srcObject = raw;
+        void keep.play().catch(() => {});
+        boost = {
+          raw,
+          gain,
+          loud: out.stream,
+          stop() {
+            source.disconnect();
+            gain.disconnect();
+            keep.srcObject = null;
+          },
+        };
+      } catch {
+        return; // No Web Audio: 100% is the most.
+      }
+      boosts.set(mid, boost);
+      player.srcObject = boost.loud;
+      void player.play().catch(() => {});
+    }
+    boost.gain.gain.value = volume;
+  }
   /** One meter for each voice (a received track's mid, or "mic" for mine), and when each person was last heard. */
   const meters = new Map<
       string,
@@ -364,6 +449,8 @@ export function createCallSession(
     void sound?.close().catch(() => {});
     sound = null;
     for (const player of players.values()) player.srcObject = null;
+    for (const boost of boosts.values()) boost.stop();
+    boosts.clear();
     for (const stream of [mic, screen])
       stream?.getTracks().forEach((track) => track.stop());
     pc?.close();
@@ -442,6 +529,8 @@ export function createCallSession(
         const player = players.get(mid);
         if (player) player.srcObject = null;
         players.delete(mid);
+        boosts.get(mid)?.stop();
+        boosts.delete(mid);
         unlisten(mid);
         const owner = owners.get(mid);
         if (owner?.key.endsWith("/screen"))
@@ -509,6 +598,7 @@ export function createCallSession(
     void sink(player, get(devices).speaker);
     void player.play().catch(() => {});
     players.set(mid, player);
+    loudness(mid);
     listen(mid, email, stream);
   }
   /** The bytes this tab received since its last report, for the month's traffic budget (src/calls.ts). */
@@ -832,6 +922,21 @@ export function createCallSession(
       patch({
         silenced: on ? [...now, email] : now.filter((one) => one !== email),
       });
+    },
+    /** How loud I hear a person, 0 to MAX_VOLUME (1 is as sent): now, and in the next calls on this device. */
+    setVolume(email: string, volume: number) {
+      const next = {
+        ...get(callVolumes),
+        [email]: Math.min(MAX_VOLUME, Math.max(0, volume)),
+      };
+      callVolumes.set(next);
+      try {
+        localStorage.setItem(VOLUMES_KEY, JSON.stringify(next));
+      } catch {
+        // Private mode: it lasts until the page closes.
+      }
+      for (const mid of players.keys())
+        if ((owners.get(mid)?.email ?? "") === email) loudness(mid);
     },
     toggleMute() {
       const muted = !get(state).muted;
