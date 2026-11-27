@@ -285,6 +285,8 @@ const EN: Readonly<Record<string, string>> = {
   "{n} issues dos agents": "{n} issues from agents",
   "Issue de um agent": "Issue from an agent",
   "foi pro terminal": "went to the terminal",
+  "Escreva sua resposta na caixa de mensagem e envie. Seu Claude espera por ela.":
+    "Type your answer in the message box and send it. Your Claude is waiting for it.",
   "Aprovado por {who}": "Approved by {who}",
   "Negado por {who}": "Denied by {who}",
   "Aprovar este pedido?": "Approve this request?",
