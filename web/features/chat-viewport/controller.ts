@@ -23,7 +23,8 @@ export type ChatSurface = {
     /** Whether the message is already in the middle (or as close as the scroll can bring it). */
     centered(): boolean;
   } | null;
-  listen(scroll: () => void, growth: () => void): () => void;
+  /** `older`: the "Carregando…" line came into view (or is still in view after a render). */
+  listen(scroll: () => void, growth: () => void, older: () => void): () => void;
 };
 export function createChatViewport(options: {
   current(): boolean;
@@ -402,10 +403,14 @@ export function createChatViewport(options: {
             options.render();
             return;
           }
-          if (value.top < 150 && !pinned) this.loadOlder();
         },
         () => {
           if (owns(ticket) && surface === next) bottom();
+        },
+        // The older line is in view (Gimenes #6078): load the next step. A jump owns the position until it ends.
+        () => {
+          if (owns(ticket) && surface === next && next.connected() && !jump)
+            this.loadOlder();
         },
       );
     },
@@ -444,17 +449,6 @@ export function createChatViewport(options: {
       if (owns(ticket) && surface === ownedSurface) {
         const value = ownedSurface.metrics();
         lastTop = value.top;
-        // A small window of short messages does not fill the chat, so there is no scroll up to load more: draw the
-        // next step now (Gimenes #6064).
-        if (
-          !jump &&
-          value.height <= value.client &&
-          room &&
-          endOf(visibleMessages()) > count
-        )
-          later(() => {
-            if (owns(ticket) && surface === ownedSurface) this.loadOlder();
-          }, 0);
       }
     },
     pinned: () => pinned,

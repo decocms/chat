@@ -57,6 +57,7 @@ function harness(count = 120, size?: () => number) {
     generation = 1,
     scroll = () => {},
     growth = () => {},
+    older = () => {},
     revealHook = () => {},
     centered = true,
     listeners = 0;
@@ -92,10 +93,11 @@ function harness(count = 120, size?: () => number) {
           }
         : null;
     },
-    listen(onScroll, onGrowth) {
+    listen(onScroll, onGrowth, onOlder) {
       listeners++;
       scroll = onScroll;
       growth = onGrowth;
+      older = onOlder;
       return () => {
         listeners--;
       };
@@ -144,7 +146,12 @@ function harness(count = 120, size?: () => number) {
     },
     metrics,
     surface,
-    scroll: () => scroll(),
+    // The DOM surface's observer reports the older line within 150px of the top.
+    scroll: () => {
+      scroll();
+      if (metrics.top < 150) older();
+    },
+    older: () => older(),
     growth: () => growth(),
     captureGrowth: () => growth,
     onReveal(callback: () => void) {
@@ -195,21 +202,19 @@ test("a phone draws eight messages, and eight more per scroll-back step (Gimenes
   expect(h.commands).toHaveLength(0);
   h.view.dispose();
 });
-test("a window that does not fill the chat draws the next step by itself (Gimenes #6064)", () => {
+test("the older line in view draws the next step, and not during a jump (Gimenes #6064, #6078)", () => {
   const h = harness(120, () => CHAT_WINDOW_PHONE);
-  const before = h.view.capture();
-  // Eight short messages: the content is shorter than the chat.
-  h.metrics.height = 80;
-  h.metrics.top = 0;
-  h.view.afterRender(true, before);
-  h.time.flush();
+  // Eight short messages do not fill the chat: the line stays in view, and each report draws one more step.
+  h.older();
   expect(h.view.selection().list).toHaveLength(16);
-  // Now it overflows: no more steps by itself.
-  const next = h.view.capture();
-  h.metrics.height = 1000;
-  h.view.afterRender(true, next);
-  h.time.flush();
-  expect(h.view.selection().list).toHaveLength(16);
+  h.older();
+  expect(h.view.selection().list).toHaveLength(24);
+  // A jump owns the position: the line in view does not move the window.
+  h.visible.add(30);
+  h.view.go(30);
+  const during = h.view.selection().list.length;
+  h.older();
+  expect(h.view.selection().list.length).toBe(during);
   h.view.dispose();
 });
 test("fresh partial snapshot invalidates completed history and permits one initial fill", () => {

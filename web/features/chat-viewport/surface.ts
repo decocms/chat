@@ -74,8 +74,25 @@ export function createChatSurface(element: HTMLElement): ChatSurface {
           }
         : null;
     },
-    listen(scroll, growth) {
+    listen(scroll, growth, older) {
       let active = true;
+      // The "Carregando…" line at the top loads older messages when it comes within 150px of view (Gimenes #6078).
+      // It is observed again after each change, so a window that does not fill the chat keeps loading by itself.
+      // The test DOM has no IntersectionObserver; every supported browser does.
+      const near =
+        typeof IntersectionObserver === "undefined"
+          ? null
+          : new IntersectionObserver(
+              (entries) => {
+                if (
+                  active &&
+                  element.isConnected &&
+                  entries.some((entry) => entry.isIntersecting)
+                )
+                  older();
+              },
+              { root: element, rootMargin: "150px 0px 0px 0px" },
+            );
       const resized = () => {
         if (active && element.isConnected) growth();
       };
@@ -96,6 +113,9 @@ export function createChatSurface(element: HTMLElement): ChatSurface {
         resize.disconnect();
         resize.observe(element);
         for (const child of element.children) resize.observe(child);
+        near?.disconnect();
+        const line = element.querySelector("[data-chat-older]");
+        if (line) near?.observe(line);
       };
       const mutation = new MutationObserver((records) => {
         if (!active || !element.isConnected) return;
@@ -113,6 +133,7 @@ export function createChatSurface(element: HTMLElement): ChatSurface {
         if (!active) return;
         active = false;
         resize.disconnect();
+        near?.disconnect();
         mutation.disconnect();
         element.removeEventListener("scroll", scroll);
         element.ownerDocument.fonts?.removeEventListener(
