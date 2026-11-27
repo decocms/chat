@@ -3249,7 +3249,10 @@ describe("chat", () => {
     const seen = footer.querySelector<HTMLButtonElement>(
       "button[aria-expanded]",
     )!;
-    expect(seen.getAttribute("aria-label")).toBe("visto por 6 de 7");
+    // A screen reader hears who read it, then how many of how many.
+    expect(seen.getAttribute("aria-label")).toMatch(
+      /^Visto por Claude de reader0@test\.com, .*Codex de reader5@test\.com · visto por 6 de 7$/,
+    );
     seen.focus();
     await tick();
     flushSync();
@@ -3277,7 +3280,7 @@ describe("chat", () => {
       target
         .querySelector("#m1 [data-message-footer] button")
         ?.getAttribute("aria-label"),
-    ).toBe("visto por 1");
+    ).toBe("Visto por Claude de reader6@test.com");
     expect(target.querySelectorAll("[data-message-footer]")).toHaveLength(1);
   }, 30_000);
   test("the read receipts setting is on by default, saves the switch and goes back when saving fails", async () => {
@@ -3351,15 +3354,35 @@ describe("chat", () => {
     const seen = footer.querySelector<HTMLButtonElement>(
       "button[aria-expanded]",
     )!;
-    expect(seen.getAttribute("aria-label")).toBe("visto por 3");
+    expect(seen.getAttribute("aria-label")).toMatch(
+      /^Visto por ana@test, bia@test,? (and|e) Claude de ana@test$/,
+    );
     seen.focus();
     await tick();
     flushSync();
     const tip = footer.querySelector('[role="tooltip"]')!;
-    const names =
-      tip.querySelector("[data-readers-seen-by]")?.textContent ?? "";
-    expect(names).toMatch(
-      /^\s*Visto por ana@test, bia@test,? (and|e) Claude de ana@test\s*$/,
+    // The title is only "Visto por": the rows name them. An agent's row has its ✻ tile and its person, muted.
+    expect(
+      tip.querySelector("[data-readers-seen-by]")?.textContent?.trim(),
+    ).toBe("Visto por");
+    const rows = [...tip.querySelectorAll<HTMLElement>("[data-reader-row]")];
+    expect(rows.map((r) => r.dataset.readerRow)).toEqual([
+      "person",
+      "person",
+      "agent",
+    ]);
+    expect(rows[0].querySelector('[data-avatar="agent"]') === null).toBe(true);
+    expect(rows[0].textContent).toContain("ana@test");
+    expect(rows[2].querySelector('[data-avatar="agent"]') === null).toBe(false);
+    expect(rows[2].querySelector("[data-reader-owner]")?.textContent).toBe(
+      "de ana@test",
+    );
+    // Many readers: the list keeps about six rows and scrolls inside.
+    expect(tip.querySelector("[data-readers-list]")?.className).toContain(
+      "max-h-44",
+    );
+    expect(tip.querySelector("[data-readers-list]")?.className).toContain(
+      "overflow-y-auto",
     );
     // Live: the second person reads the new message and their face moves there, with no new footer row elsewhere.
     const next = {

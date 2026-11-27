@@ -40,7 +40,7 @@
   const STACK = 3;
   const stack = $derived(faces.slice(0, STACK));
   const more = $derived(Math.max(0, faces.length - STACK));
-  const label = $derived(
+  const count = $derived(
     !footer.readers.length
       ? vb.t("Agents que olharam")
       : read === footer.readers.length
@@ -54,7 +54,8 @@
     reader.receipt.person
       ? vb.name(reader.receipt.email)
       : who(reader.receipt.who, reader.receipt.email);
-  // "Visto por Ana, Bia e Claude de Ana": who read it, people first (the model's order), in the app's language.
+  // "Visto por Ana, Bia e Claude de Ana": who read it, people first (the model's order), in the app's language. The
+  // stack's accessible name (a screen reader hears the names); the popover's title is only "Visto por", its rows name them.
   const seenBy = $derived.by(() => {
     const names = footer.readers.filter((r) => r.read).map(readerName);
     if (!names.length) return "";
@@ -68,7 +69,41 @@
     }
     return vb.t("Visto por {names}", { names: list });
   });
+  const label = $derived(
+    seenBy && read < footer.readers.length
+      ? `${seenBy} · ${count}`
+      : seenBy || count,
+  );
 </script>
+
+<!-- A row's face in the popover: a person's own avatar, or an agent's ✻ tile with its person in the corner, as the
+     messages draw them. -->
+{#snippet rowAvatar(
+  email: string,
+  via?: string,
+)}{#if via === undefined}<PersonAvatar
+      data-avatar="person"
+      size="xs"
+      {email}
+      version={vb.avatarVersion(email)}
+    />{:else}<span class="relative size-6 shrink-0"
+      ><AgentMark {via} tint size="xs" class="text-xs" /><PersonAvatar
+        data-avatar="person"
+        size="2xs"
+        {email}
+        version={vb.avatarVersion(email)}
+        class="absolute -right-1 -bottom-1 size-3.5 ring-2 ring-popover"
+      /></span
+    >{/if}{/snippet}
+
+<!-- A row's name: a person's own; an agent's model, then whose agent it is, muted ("Claude Code de Ana"). -->
+{#snippet rowName(email: string, via?: string)}<span
+    class="min-w-0 flex-1 break-words"
+    >{#if via === undefined}{vb.name(email)}{:else}{prettyModel(via)}
+      <span data-reader-owner class="text-muted-foreground"
+        >{vb.t("de {who}", { who: vb.name(email) })}</span
+      >{/if}</span
+  >{/snippet}
 
 {#snippet check()}<span
     aria-hidden="true"
@@ -168,17 +203,23 @@
               data-reader-read={face.read}
               data-reader-person={face.person || undefined}
               class="relative inline-flex"
-              ><PersonAvatar
-                data-avatar="person"
-                size="xs"
-                class="size-5 ring-2 ring-background"
-                email={face.email}
-                version={vb.avatarVersion(face.email)}
-              />{#if !face.person}<AgentMark
-                  size="3xs"
+              >{#if face.person}<PersonAvatar
+                  data-avatar="person"
+                  size="xs"
+                  class="size-5 ring-2 ring-background"
+                  email={face.email}
+                  version={vb.avatarVersion(face.email)}
+                />{:else}<!-- As in the messages: the agent's ✻ tile, its person in the corner (bottom-left here, where the next face never covers it). --><AgentMark
+                  size="xs"
                   tint
                   via={face.who}
-                  class="absolute -bottom-0.5 -left-0.5 size-2.5 rounded-full text-[6px] ring-[1.5px] ring-background"
+                  class="size-5 text-[10px] ring-2 ring-background"
+                /><PersonAvatar
+                  data-avatar="person"
+                  size="3xs"
+                  class="absolute -bottom-0.5 -left-0.5 size-2.5 ring-[1.5px] ring-background"
+                  email={face.email}
+                  version={vb.avatarVersion(face.email)}
                 />{/if}</span
             >{/snippet}</AvatarStack
         >
@@ -189,45 +230,48 @@
           class="absolute bottom-full right-0 z-20 mb-2 w-72 max-w-[80vw] space-y-2 rounded-surface border border-border bg-popover p-3 text-popover-foreground shadow-md"
         >
           {#if seenBy}<p data-readers-seen-by class="m-0 mb-1 font-medium">
-              {seenBy}
+              {vb.t("Visto por")}
             </p>{/if}
-          {#each footer.readers as reader (`${reader.receipt.who}|${reader.receipt.email}`)}<div
-              class="flex items-center gap-2"
-            >
-              <PersonAvatar
-                data-avatar="person"
-                size="xs"
-                email={reader.receipt.email}
-                version={vb.avatarVersion(reader.receipt.email)}
-              /><span class="min-w-0 flex-1 break-words"
-                >{readerName(reader)}</span
-              ><span
-                >{vb.t(
-                  reader.read
-                    ? "leu"
-                    : reader.receipt.person
-                      ? "leu em parte"
-                      : "recebeu",
-                )}</span
+          <!-- Five rows and half of the sixth (the cut shows there is more), then the list scrolls inside: a message many saw keeps a small popover. -->
+          <div
+            data-readers-list
+            class="-mx-3 max-h-44 space-y-2 overflow-y-auto overscroll-contain px-3"
+          >
+            {#each footer.readers as reader (`${reader.receipt.who}|${reader.receipt.email}`)}<div
+                data-reader-row={reader.receipt.person ? "person" : "agent"}
+                class="flex items-center gap-2"
               >
-            </div>{/each}{#each footer.passed as status (`${status.ack.who}|${status.ack.email}`)}<div
-              data-ack-state="idle"
-              class="flex items-center gap-2"
-            >
-              <PersonAvatar
-                data-avatar="person"
-                size="xs"
-                email={status.ack.email}
-                version={vb.avatarVersion(status.ack.email)}
-              /><span class="min-w-0 flex-1 break-words"
-                >{who(status.ack.who, status.ack.email)}</span
-              ><span
-                >{vb.t("parou")} ·
-                <time title={vb.dateTime?.(status.ack.ts)}
-                  >{vb.ago(status.ack.ts)}</time
-                ></span
+                {@render rowAvatar(
+                  reader.receipt.email,
+                  reader.receipt.person ? undefined : reader.receipt.who,
+                )}{@render rowName(
+                  reader.receipt.email,
+                  reader.receipt.person ? undefined : reader.receipt.who,
+                )}<span
+                  >{vb.t(
+                    reader.read
+                      ? "leu"
+                      : reader.receipt.person
+                        ? "leu em parte"
+                        : "recebeu",
+                  )}</span
+                >
+              </div>{/each}{#each footer.passed as status (`${status.ack.who}|${status.ack.email}`)}<div
+                data-ack-state="idle"
+                data-reader-row="agent"
+                class="flex items-center gap-2"
               >
-            </div>{/each}
+                {@render rowAvatar(
+                  status.ack.email,
+                  status.ack.who,
+                )}{@render rowName(status.ack.email, status.ack.who)}<span
+                  >{vb.t("parou")} ·
+                  <time title={vb.dateTime?.(status.ack.ts)}
+                    >{vb.ago(status.ack.ts)}</time
+                  ></span
+                >
+              </div>{/each}
+          </div>
         </div>{/if}
     </div>
   {/if}

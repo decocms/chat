@@ -2249,8 +2249,8 @@ async function receiptsScreens(
     return context;
   };
   /** Opening a room reads it (the person's read point), then the tab goes away. */
-  const visit = async (path: string) => {
-    const page = await (await as(bruno, 1440)).newPage();
+  const visit = async (path: string, email = bruno) => {
+    const page = await (await as(email, 1440)).newPage();
     await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
     await page.context().close();
@@ -2259,6 +2259,26 @@ async function receiptsScreens(
   const shot = async (page: Page, file: string) => {
     await page.waitForTimeout(400);
     await page.screenshot({ path: join(out, file) });
+    shots.push(file);
+  };
+  /** The open popover and the faces it came from, close up (2× for the review). */
+  const crop = async (page: Page, file: string) => {
+    const tip = await page.locator('[role="tooltip"]').boundingBox();
+    const stack = await page
+      .locator("[data-message-footer] button[aria-expanded=true]")
+      .boundingBox();
+    if (!tip || !stack) throw new Error(`receipts: no popover for ${file}`);
+    const x = Math.min(tip.x, stack.x) - 16,
+      y = Math.min(tip.y, stack.y) - 16;
+    await page.screenshot({
+      path: join(out, file),
+      clip: {
+        x,
+        y,
+        width: Math.max(tip.x + tip.width, stack.x + stack.width) + 16 - x,
+        height: Math.max(tip.y + tip.height, stack.y + stack.height) + 16 - y,
+      },
+    });
     shots.push(file);
   };
   const faces = (page: Page, message: string) =>
@@ -2293,6 +2313,7 @@ async function receiptsScreens(
     .hover();
   await desk.locator("[data-readers-seen-by]").waitFor();
   await shot(desk, "receipts-popover-1440.png");
+  await crop(desk, "receipts-popover-crop.png");
   await desk.mouse.move(0, 0);
   await agent("post", {
     room_id: room,
@@ -2309,6 +2330,91 @@ async function receiptsScreens(
   await expectFaces(phone, "sem contraste", 1);
   await shot(phone, "receipts-390.png");
   await phone.context().close();
+
+  // A message many saw: six people and six agents of different clients. The stack keeps three faces and +9; the
+  // popover keeps about six rows and scrolls inside.
+  const crowd = [
+    "Carla Dias",
+    "Davi Rocha",
+    "Elisa Prado",
+    "Fábio Nunes",
+    "Gabi Melo",
+  ].map((n) => ({
+    name: n,
+    email: `${n
+      .split(" ")[0]
+      .normalize("NFD")
+      .replace(/[^a-z]/gi, "")
+      .toLowerCase()}-${Date.now().toString(36)}@example.test`,
+  }));
+  const { id: busy } = await post("/api/books", { title: "Lançamento" });
+  for (const p of crowd) {
+    await post("/api/me", { name: p.name }, p.email);
+    await post(`/api/books/${busy}/members`, { email: p.email });
+    await post(`/api/books/${busy}/invite`, { yes: true }, p.email);
+  }
+  await post(`/api/books/${busy}/members`, { email: bruno });
+  await post(`/api/books/${busy}/invite`, { yes: true }, bruno);
+  const busySay = (text: string, email = ana) =>
+    post(`/api/books/${busy}/post`, { text, thread: "main" }, email);
+  await busySay("Bom dia, time!");
+  await busySay("Bom dia!", crowd[0].email);
+  await busySay("Bom dia.", crowd[1].email);
+  await busySay(
+    "O lançamento é sexta às 10h. Cada um confirma sua parte aqui?",
+  );
+  const clients = [
+    "Codex",
+    "Gemini CLI",
+    "Claude Code",
+    "Cursor",
+    "Claude Code",
+  ];
+  await agent("read_room", { room_id: busy });
+  for (const [i, p] of crowd.entries())
+    await (
+      await connectTestAgent(p.email, clients[i])
+    )("read_room", { room_id: busy });
+  await Promise.all(
+    [bruno, ...crowd.map((p) => p.email)].map((e) => visit(`/b/${busy}`, e)),
+  );
+  await desk.goto(`${base}/b/${busy}`, { waitUntil: "networkidle" });
+  await expectFaces(desk, "confirma sua parte", 3);
+  const more = desk
+    .locator("[data-chat-message]", { hasText: "confirma sua parte" })
+    .locator("[data-avatar-stack-more]");
+  await more.waitFor();
+  if ((await more.textContent())?.trim() !== "+9")
+    throw new Error(
+      `receipts: the busy stack shows ${await more.textContent()}, not +9`,
+    );
+  await desk
+    .locator("[data-agent-banners]")
+    .getByRole("button", { name: "Fechar" })
+    .first()
+    .click()
+    .catch(() => {});
+  await desk.mouse.move(0, 0);
+  await desk
+    .locator("[data-chat-message]", { hasText: "confirma sua parte" })
+    .locator("[data-message-footer] button[aria-expanded]")
+    .hover();
+  await desk.locator("[data-readers-list]").waitFor();
+  const list = desk.locator("[data-readers-list]");
+  const rows = await list.locator("[data-reader-row]").count();
+  const { scroll, client } = await list.evaluate((el) => ({
+    scroll: el.scrollHeight,
+    client: el.clientHeight,
+  }));
+  if (rows !== 12 || scroll <= client || client > 200)
+    throw new Error(
+      `receipts: the busy popover has ${rows} rows, ${client}px of ${scroll}px`,
+    );
+  await shot(desk, "receipts-many-1440.png");
+  await crop(desk, "receipts-many-crop.png");
+  await list.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+  await crop(desk, "receipts-many-scrolled-crop.png");
+  await desk.mouse.move(0, 0);
 
   // The DM: reciprocal, enforced by the server.
   const secret = (await Bun.file(".dev.vars").text()).match(

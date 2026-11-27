@@ -161,6 +161,7 @@ const EN: Readonly<Record<string, string>> = {
   "visto por {n}": "seen by {n}",
   "visto por {n} de {m}": "seen by {n} of {m}",
   "Visto por {names}": "Seen by {names}",
+  "Visto por": "Seen by",
   leu: "read",
   recebeu: "delivered",
   "leu em parte": "read part",
