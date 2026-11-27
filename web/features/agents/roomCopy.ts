@@ -40,9 +40,6 @@ const pt = {
   opening: "Abrindo seu agent no seu computador…",
   openingHelp:
     "O app deco.chat abre o Claude Code na pasta da sala; leva uns segundos.",
-  late: "Seu agent ainda não está ouvindo.",
-  lateHelp:
-    "Confira se o app deco.chat está rodando no seu computador, ou se o agent parou numa pergunta lá.",
   absent: "Seu agent não está nesta sala.",
   starting: "Começando a sala",
   roomCreated: "Sala criada",
@@ -86,7 +83,6 @@ const pt = {
   stateBlocked: "Seu agent espera você no terminal",
   queuedCount: "{n} na fila",
   copied: "Copiado",
-  details: "Ver",
   footAgents: "Seus agents",
   footOthers: "Outros agents",
   footDeliver: "entregar",
@@ -186,9 +182,6 @@ const en: Record<RoomAgentCopyKey, string> = {
   opening: "Opening your agent on your computer…",
   openingHelp:
     "The deco.chat app opens Claude Code in the room folder; this takes a few seconds.",
-  late: "Your agent is not listening yet.",
-  lateHelp:
-    "Check that the deco.chat app is running on your computer, or whether the agent stopped at a question there.",
   absent: "Your agent is not in this room.",
   starting: "Getting the room started",
   roomCreated: "Room created",
@@ -232,7 +225,6 @@ const en: Record<RoomAgentCopyKey, string> = {
   stateBlocked: "Your agent is waiting for you in the terminal",
   queuedCount: "{n} queued",
   copied: "Copied",
-  details: "View",
   footAgents: "Your agents",
   footOthers: "Other agents",
   footDeliver: "deliver",

@@ -569,13 +569,7 @@
              toasts and the camera's dialog. -->
         {#if $geometry.mobile || !staged}{@render callStage(false)}{/if}
         <div>
-          {#if $view.banners}<AgentBanners
-              {...$view.banners}
-              agentsOpen={$geometry.pane === "agents" &&
-                ($geometry.mobile
-                  ? $geometry.sheet === "doc"
-                  : $geometry.documentVisible)}
-            />{/if}
+          {#if $view.banners}<AgentBanners {...$view.banners} />{/if}
         </div>
         <div class="px-4"><ThreadFiles {...$view.threadFiles} /></div>
       </div>
