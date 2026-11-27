@@ -37,7 +37,9 @@ export function reduceRoom(
     return {
       ...current,
       ...rest,
-      filesAll: rest.filesAll,
+      // A resume from the log leaves out the lists with no change (Gimenes #6240): the room keeps its own. Files that
+      // came are the short list again, so "all files" is no longer true.
+      filesAll: "files" in rest ? rest.filesAll : current.filesAll,
       typing: {},
       messages: [...messages.values()].sort((a, b) => a.id - b.id),
       epics: epicsSame ? current.epics : (merged ?? current.epics),

@@ -122,6 +122,38 @@ describe("Book room state reducer", () => {
       )?.messages.map((m) => m.id),
     ).toEqual([9]);
   });
+  test("a resume from the log keeps the lists it left out (Gimenes #6240)", () => {
+    const old = room({
+      files: [file("f1")],
+      filesAll: true,
+      pins: [{ id: "p1", kind: "live", ref: "https://x.test", ts: 1 }],
+      doc: "room doc",
+      docs: { e1: "epic doc" },
+      decisions: [{ id: 1, text: "d", who: "x", kind: "decision", ts: 1 }],
+    });
+    const {
+      id: _id,
+      typing: _typing,
+      files: _f,
+      filesN: _n,
+      docs: _d,
+      ...base
+    } = room();
+    const resumed = apply(old, {
+      t: "state",
+      ...base,
+      messages: [message(3)],
+      epicsSame: true,
+      resume: true,
+    });
+    expect(resumed.files?.map((f) => f.id)).toEqual(["f1"]);
+    expect(resumed.filesAll).toBe(true);
+    expect(resumed.pins?.map((p) => p.id)).toEqual(["p1"]);
+    expect(resumed.doc).toBe("room doc");
+    expect(resumed.docs).toEqual({ e1: "epic doc" });
+    expect(resumed.decisions?.map((d) => d.id)).toEqual([1]);
+    expect(resumed.messages.map((m) => m.id)).toEqual([2, 3]);
+  });
   test("duplicate msg delivery does not duplicate or replace a newer message", () => {
     const initial = room({ messages: [message(2, "fresh text")] });
     const retry = apply(initial, { t: "msg", m: message(2, "old retry") });

@@ -1,7 +1,7 @@
 import "server-only";
 import { caughtMessage } from "./providerMetadata";
 import { askThread } from "./askThread";
-import { CHANGES_SQL, CURRENT_REV_SQL, MESSAGES_SINCE_REV_SQL, validRev } from "./bookChanges";
+import { CHANGED_SINCE_REV_SQL, CHANGES_SQL, CURRENT_REV_SQL, MESSAGES_SINCE_REV_SQL, changedSince, validRev } from "./bookChanges";
 import { matchesSuggestion } from "../shared/suggestions";
 import { storedNotes, storedHashes, storedFlags, storedProd, storedEpicFiles, storedSuggestions, storedFileRows, storedPollRows } from "./bookStored";
 import { storedMessageRows, storedChoices, storedCard, storedQuote, storedFileRefs, storedReactions, AccessRequested } from "./bookMessages";
@@ -457,7 +457,9 @@ export class Book extends DurableObject<Env> {
     if (rows.length > RESUME_MAX_ROWS) return null;
     const messages = new Map(window.filter((m) => m.thread === open).map((m) => [m.id, m]));
     for (const m of this.messageRows(rows)) messages.set(m.id, m);
-    return { messages: [...messages.values()].sort((a, b) => a.id - b.id), epicsSame: q.get("eh") === eh };
+    // With a rev, the log also says which other lists changed: the state leaves out the rest (Gimenes #6240).
+    const changed = rev === null ? null : changedSince(this.sql.exec<{ kind: string; ref: string }>(CHANGED_SINCE_REV_SQL, rev).toArray());
+    return { messages: [...messages.values()].sort((a, b) => a.id - b.id), epicsSame: q.get("eh") === eh, changed };
   }
   /** What a room open sends: the newest 60 messages of the open thread and the newest 5 of every other one (enough for
    * the sidebar, thread cards and the ✻); the app pages the rest with "older" when a thread opens. Apart, in origins
@@ -3222,7 +3224,7 @@ export class Book extends DurableObject<Env> {
       // messages split (18/11, to decide what to cut next): the open thread's window, the other threads' 5 each, and cards.
       const open = url.searchParams.get("t") || "main", kb = (xs: unknown[]) => Math.round(JSON.stringify(xs).length / 1000);
       const msgs = `open ${kb(win.messages.filter((m) => m.thread === open))}k, other ${kb(win.messages.filter((m) => m.thread !== open))}k, cards ${kb(win.messages.map((m) => m.card).filter(Boolean))}k`;
-      this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : resume.delta ? "delta" : "epics") : url.searchParams.has("since") ? "full" : undefined, epics: resume?.delta ? state.epics.length : undefined } })); // rc: close code of the socket this one replaces (a reconnect)
+      this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : resume.delta ? "delta" : "epics") : url.searchParams.has("since") ? "full" : undefined, epics: resume?.delta ? state.epics.length : undefined, via: resume ? (resume.changed ? "log" : "clock") : undefined } })); // via: clock = an app without a valid rev (the legacy path to delete, Gimenes #6240) // rc: close code of the socket this one replaces (a reconnect)
     }
     this.broadcast({ t: "online", online: this.online() });
     return new Response(null, { status: 101, webSocket: client });
@@ -3253,15 +3255,20 @@ export class Book extends DurableObject<Env> {
     const resume = this.resumeOf(q, open, win.messages, eh, email);
     // An app that merges epics by id (ed=1) gets only the threads that changed since its eh (Gimenes #6066).
     const delta = q.get("ed") === "1" ? this.epicsDelta(epics, eh, resume && !resume.epicsSame ? q.get("eh") : null) : null;
+    // A resume from the log sends only the lists that changed after the app's rev; the app keeps the others.
+    const changed = resume?.changed ?? null,
+      fresh = (kind: "file" | "pin" | "reminder" | "poll" | "decision") => !changed || changed.has(kind),
+      openEpic = q.get("t") || "";
+    const files = fresh("file") || fresh("pin");
     const state: RoomStateEvent = {
         t: "state",
         me: email,
         // A DM is named for each side: the other person, or "You" in your own.
         book: dm ? { ...meta, title: await dmTitle(this.env, dm, email, this.en), dm: true } : meta,
-        doc: this.get("doc") ?? "",
+        ...(!changed || changed.doc("doc") ? { doc: this.get("doc") ?? "" } : {}),
         docNotes: this.docNotes(),
         // Only the open epic's doc; the app asks for another with "doc.get" when that epic opens (all of them were 70 KB).
-        docs: this.epicDocs(q.get("t") || ""),
+        ...(!changed || (openEpic && changed.doc(`doc:${openEpic}`)) ? { docs: this.epicDocs(openEpic) } : {}),
         epics: resume?.epicsSame ? [] : (delta?.epics ?? epics),
         roomTasks: this.roomTasks(),
         // The newest of each thread; full = threads sent whole, counts = real totals (the sidebar's numbers).
@@ -3274,12 +3281,16 @@ export class Book extends DurableObject<Env> {
         rev: this.currentRev(),
         complete: false,
         // The newest 12 and the pinned ones; the whole list (~100 KB in the product room) when Arquivos opens ("files.get").
-        files: storedFileRows(this.sql.exec(`SELECT * FROM files WHERE deleted IS NULL AND (id IN (SELECT id FROM files WHERE deleted IS NULL ORDER BY ts DESC LIMIT 12) OR id IN (SELECT ref FROM pins WHERE kind = 'file')) ORDER BY ts DESC`).toArray(), (kind) => console.warn("book stored projection", kind)),
-        filesN: this.sql.exec<{ n: number }>(`SELECT count(*) AS n FROM files WHERE deleted IS NULL`).one().n,
-        reminders: this.reminders(),
-        polls: this.polls(),
-        decisions: this.decisions(),
-        pins: this.pins(),
+        ...(files
+          ? {
+              files: storedFileRows(this.sql.exec(`SELECT * FROM files WHERE deleted IS NULL AND (id IN (SELECT id FROM files WHERE deleted IS NULL ORDER BY ts DESC LIMIT 12) OR id IN (SELECT ref FROM pins WHERE kind = 'file')) ORDER BY ts DESC`).toArray(), (kind) => console.warn("book stored projection", kind)),
+              filesN: this.sql.exec<{ n: number }>(`SELECT count(*) AS n FROM files WHERE deleted IS NULL`).one().n,
+            }
+          : {}),
+        ...(fresh("reminder") ? { reminders: this.reminders() } : {}),
+        ...(fresh("poll") ? { polls: this.polls() } : {}),
+        ...(fresh("decision") ? { decisions: this.decisions() } : {}),
+        ...(fresh("pin") ? { pins: this.pins() } : {}),
         suggestions: this.suggestions(),
         briefs: this.briefsFor(email),
         members: people.members,

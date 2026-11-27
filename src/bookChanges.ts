@@ -67,6 +67,21 @@ export const CURRENT_REV_SQL = `SELECT coalesce(max(rev), 0) AS rev FROM changes
 /** The ids of the messages changed after a rev (new, edited, deleted, reacted to). */
 export const MESSAGES_SINCE_REV_SQL = `SELECT CAST(ref AS INTEGER) FROM changes WHERE kind = 'message' AND rev > ?`;
 
+/** The other things changed after a rev: their kinds, and which docs (`doc`, `doc:<epic id>`). */
+export const CHANGED_SINCE_REV_SQL = `SELECT DISTINCT kind, CASE WHEN kind = 'doc' THEN ref ELSE '' END AS ref FROM changes WHERE rev > ? AND kind NOT IN ('message', 'ack')`;
+
+/** What changed after the app's rev (Gimenes #6240): a resume leaves out every list with no change, and the app keeps
+ *  its own (web/app/roomStore.ts merges a resume over the room it has). */
+export function changedSince(rows: readonly { kind: string; ref: string }[]) {
+  const kinds = new Set(rows.map((r) => r.kind)),
+    docs = new Set(rows.filter((r) => r.kind === "doc").map((r) => r.ref));
+  return {
+    has: (kind: ChangeKind) => kinds.has(kind),
+    doc: (key: string) => docs.has(key),
+  };
+}
+export type ChangedSince = ReturnType<typeof changedSince>;
+
 /** A rev from a client that this room can answer: a whole number, not above the newest one (a higher one is from a
  *  room this Book does not have, e.g. after a restore). */
 export function validRev(raw: string | null, current: number): number | null {
