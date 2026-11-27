@@ -6,13 +6,13 @@ This document gives the layout rules of the browser app (`web/`). Read it before
 
 The room screen has five areas, from left to right.
 
-| Area      | Component                      | Contents                                                                                                                                                                                     |
-| --------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rail      | `AppNavigation`                | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room.                                                                                                           |
-| Sidebar   | `Sidebar` (room-sidebar)       | The room's name (`SidebarHeader`), which is also the main thread, then the epics in three tabs (Mine, Open, Done; `EpicTree`) and the people. At the bottom: the user center (`UserCenter`). |
-| Top bar   | `RoomHeader` (room-shell)      | The name of the view, the controls of the view, the pane tabs.                                                                                                                               |
-| Main view | `RoomScene`                    | The chat of a thread.                                                                                                                                                                        |
-| Pane      | `DocumentToolbar` and the pane | The doc, the files, the apps, beside the main view.                                                                                                                                          |
+| Area | Component | Contents |
+|---|---|---|
+| Rail | `AppNavigation` | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room. |
+| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), which is also the main thread, then the epics in three tabs (Mine, Open, Done; `EpicTree`) and the people. At the bottom: the user center (`UserCenter`). |
+| Top bar | `RoomHeader` (room-shell) | ← in a thread, the name of the view, the controls of the view, the search, ⋮ with the call and the panes. |
+| Main view | `RoomScene` | The chat of a thread. |
+| Pane | `DocumentToolbar` and the pane | The doc, the files, the apps, beside the main view. |
 
 The sidebar names the room. The top bar names the view. Do not show the room's name two times.
 
@@ -41,17 +41,21 @@ The user center (`web/features/user-center/`, `UserCenter`) is the box at the bo
 
 ## The top bar
 
-The top bar has one row on desktop. Its parts are in this order:
+The top bar has one row on desktop. Its parts are in this order (Gimenes #6099, #6113, #6122):
 
-1. The name of the view (`RoomBarTitle`): the epic's title. In a room's main thread, the room's search field is here in place of the name.
-2. The controls of the view.
-3. A vertical `Separator`.
-4. In other views, the room's search field. Typing opens the Search pane beside the chat with the matches. Its placeholder is "Buscar em {room}". In a DM it is "Buscar na conversa".
-5. The pane tabs (`DocumentToolbar`): Doc, files, apps, decisions, reminders, People & agents. They are 32px buttons in the top bar (`size="icon"`, Doc `size="default"`).
+1. In a thread, ← ("Voltar pra sala principal"). It opens the room's main thread.
+2. The name of the view (`RoomBarTitle`): the epic's title. In a room's main thread, the room's search field is here in place of the name.
+3. The controls of the view. A call with people in it shows its green phone here (`CallControls`).
+4. A vertical `Separator`.
+5. In other views, the room's search field. Typing opens the Search pane beside the chat with the matches. Its placeholder is "Buscar em {room}". In a DM it is "Buscar na conversa".
+6. While a pane is open, a chip with its name (the Doc of an epic: with its tasks, "Doc 2/4") and × to close it.
+7. ⋮ ("Mais opções"). The menu has "Iniciar chamada" ("Ligar para <name>" in a DM) while the room has no call, then Doc, Arquivos, Apps, Decisões, Lembretes and Pessoas, and the file open beside the chat. The open pane has ✓. A DM has no Doc and no Pessoas.
 
-People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. Each pane button is a toggle: a click on the button of the open pane (the Doc too) closes the pane. The browser remembers which of the two you left open (and whether you closed the pane), so every room opens the same way. A DM always starts on its doc.
+People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. A click on the open pane's item in ⋮ (the Doc too), or on the chip's ×, closes the pane. ⌥⌘B (Ctrl+Alt+B) opens and closes the pane. The browser remembers which of the two you left open (and whether you closed the pane), so every room opens the same way. A DM always starts on its doc.
 
-The separator divides two scopes. On its left, the controls change the view in the middle. On its right, the controls open parts of the room.
+The sidebar's top row is the room's name. It stays in place while the rest of the sidebar scrolls under it. The whole row opens the main thread: it has only the pointer, not a button's background. It has no ✎. To rename the room, right-click the room in the rail ("Renomear sala", `RoomMenu`).
+
+The separator divides two scopes. On its left, the controls change the view in the middle. On its right, the search and ⋮ open parts of the room.
 
 ### The room's search
 
@@ -90,8 +94,8 @@ The drawer has only the threads and the pinned items, like the desktop sidebar (
 A control of the view acts on all of the view, not on one item in it. Examples: the scope of a list, an action on all items, the actions of the open epic.
 
 1. If the main view needs controls of the view, put them in the top bar.
-2. Put them after the name of the view and before the pane tabs.
-3. Put a vertical `Separator` between them and the pane tabs.
+2. Put them after the name of the view and before the search and ⋮.
+3. Put a vertical `Separator` between them and the search.
 4. Do not give the view a second header with its name. The top bar already names the view.
 5. Use a maximum of three controls. If you need more, use a menu.
 6. Use small controls: `Button` `size="sm"` (`h-7`, `text-xs`), or `IconButton`.
@@ -106,11 +110,11 @@ To add controls for a view:
 
 The top bar on phones has no space for the controls of a view. That is why the view draws them on phones. Use one component for the two places, so that they stay the same.
 
-| View                                                              | Controls of the view                                                   | Component                                                                        |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Epic thread                                                       | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions`, in `RoomBarTitle`. Phones have no status control (Gimenes #4065). |
-| Home Inbox (`/?inbox`, all rooms)                                 | "Resolver todos os pedidos (n)"                                        | `InboxControls`, in the bar of `HomeInbox`                                       |
-| Each thread of a room, when calls are on and the room has no call | "Iniciar call"                                                         | `CallControls`, from `RoomScene`. Phones draw it above the chat.                 |
+| View | Controls of the view | Component |
+|---|---|---|
+| Epic thread | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions`, in `RoomBarTitle`. Phones have no status control (Gimenes #4065). |
+| Home Inbox (`/?inbox`, all rooms) | "Resolver todos os pedidos (n)" | `InboxControls`, in the bar of `HomeInbox` |
+| Each thread of a room, while people are in the room's call | The green phone with how many are in it | `CallControls`, from `RoomScene`. With no call, "Iniciar chamada" is in ⋮. |
 
 ### The call
 

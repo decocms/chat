@@ -548,7 +548,7 @@
         {current}
         {back}
         tabs={$view.toolbar}
-        viewControls={callReady ? callControls : undefined}
+        viewControls={callReady && !callIdle ? callControls : undefined}
         agentsOnline={$view.sidebar.presence?.agents.filter(
           (agent) => agent.listening,
         ).length ?? 0}

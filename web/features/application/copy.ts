@@ -578,6 +578,7 @@ const EN: Readonly<Record<string, string>> = {
   "Copiar link da thread": "Copy thread link",
   "Iniciar chamada": "Start a call",
   "Ligar para {name}": "Call {name}",
+  "Fechar {pane}": "Close {pane}",
   "{n} online": "{n} online",
   "1 agente": "1 agent",
   "{n} agentes": "{n} agents",

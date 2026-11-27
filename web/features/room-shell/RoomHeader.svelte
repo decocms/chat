@@ -67,7 +67,7 @@
     viewControls?: Snippet;
     /** Phone: the room's agents that listen now, for the main thread's subtitle. */
     agentsOnline?: number;
-    /** Phone: "Iniciar chamada" in ⋮, while the room has no call (Gimenes #6032). */
+    /** "Iniciar chamada" in ⋮, while the room has no call (phone: Gimenes #6032; desktop: #6099). */
     onstartcall?: () => void;
   } = $props();
   const personal = untrack(() => presentation.services.personal.state),
@@ -222,6 +222,46 @@
     if (!layout.read().documentVisible) layout.toggleDocument();
     onPane?.(pane);
   }
+  // Desktop ⋮ (Gimenes #6099): the panes the tabs had, in their order. A DM has no doc or people. The open file
+  // beside the chat is an item too, with its own name.
+  const desktopMenu = $derived.by(() => {
+    if (!tabs) return [];
+    const dm = !!header.room.book.dm;
+    const panes: DocumentPane[] = [
+      "doc",
+      "files",
+      "apps",
+      "decisions",
+      "reminders",
+      "people",
+    ].filter(
+      (pane) => !dm || (pane !== "doc" && pane !== "people"),
+    ) as DocumentPane[];
+    if (tabs.sideFileName) panes.push("view");
+    const done = phoneEpic?.tasks.filter((task) => task.done).length ?? 0;
+    return panes.map((pane) => ({
+      pane,
+      label:
+        pane === "view" && tabs.sideFileName
+          ? tabs.sideFileName
+          : paneLabel(pane, en),
+      icon: paneIcons[pane],
+      count:
+        pane === "doc"
+          ? phoneEpic?.tasks.length
+            ? `${done}/${phoneEpic.tasks.length}`
+            : ""
+          : pane === "reminders"
+            ? tabs.counts?.reminders
+              ? String(tabs.counts.reminders)
+              : ""
+            : "",
+    }));
+  });
+  // The pane open beside the chat, for the ✓ in ⋮ and the chip.
+  const openPane = $derived(
+    split ? desktopMenu.find((item) => item.pane === tabs?.pane) : undefined,
+  );
   // The room's search (like Discord's): typing or picking a person opens the Search pane beside the chat, which
   // lists the matches. Clearing it gives the column back as it was: the pane open before, or no pane.
   const searching = $derived(searchOf($roomSearch, header.room.id));
@@ -299,7 +339,11 @@
           tooltipSide="bottom"
           data-phone-back
           size="icon"
-          class="size-10 rounded-full md:hidden"
+          class={[
+            "size-10 rounded-full",
+            // Desktop: ← only in a thread, back to the room's main thread (Gimenes #6122).
+            expectedThread === "main" ? "md:hidden" : "md:-ml-1 md:size-8",
+          ].join(" ")}
           onclick={(event) => {
             if (!live(event)) return;
             if (sheetPane) layout.closeSheet();
@@ -307,7 +351,7 @@
           }}
           ><Icon
             icon="arrow-left"
-            size={20}
+            size={$geometry.mobile ? 20 : 18}
           />{#if $geometry.mobile && centerCount}<Count
               value={centerCount}
               label={centerText}
@@ -384,16 +428,64 @@
           searching.person ? "w-64" : "w-44 focus-within:w-60",
         ].join(" "),
       )}{/if}
-    {#if tabs}<div data-header-tabs class="hidden min-w-0 md:block">
-        <DocumentToolbar
-          {...tabs}
-          bare
-          exclude={header.room.book.dm
-            ? ["agents", "doc", "people", "search"]
-            : ["agents", "search"]}
-          pane={split ? tabs.pane : ("" as DocumentPane)}
-          onPane={pickPane}
-        />
+    {#if tabs}<!-- Desktop (Gimenes #6099): the panes and the call sit in ⋮, like the phone's; the bar keeps the search and ⋮. -->
+      <div data-header-more class="hidden shrink-0 items-center gap-1 md:flex">
+        {#if openPane}<!-- B (Gimenes #6113, #6133): the open pane's chip, × closes it. --><span
+            data-header-pane-chip
+            class="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-accent pr-0.5 pl-2.5 text-sm font-medium text-foreground"
+            ><span class="max-w-40 truncate">{openPane.label}</span
+            >{#if openPane.count}<span
+                class="text-xs text-muted-foreground tabular-nums"
+                >{openPane.count}</span
+              >{/if}<IconButton
+              label={t("Fechar {pane}", { pane: openPane.label })}
+              tooltipSide="bottom"
+              size="icon-xs"
+              class="text-muted-foreground hover:bg-background hover:text-foreground"
+              onclick={(event) => {
+                if (live(event)) closePane();
+              }}><Icon icon="x" size={14} /></IconButton
+            ></span
+          >{/if}<DropdownMenu
+          ><DropdownMenuTrigger
+            >{#snippet child({ props })}<IconButton
+                {...props}
+                label={t("Mais opções")}
+                tooltipSide="bottom"
+                data-desktop-more
+                size="icon"
+                class="shrink-0 text-muted-foreground hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
+                ><Icon icon="dots-vertical" size={18} /></IconButton
+              >{/snippet}</DropdownMenuTrigger
+          ><DropdownMenuContent
+            align="end"
+            sideOffset={6}
+            data-desktop-more-menu
+            class={[studioType, "w-56"].join(" ")}
+            >{#if onstartcall}<DropdownMenuItem
+                data-desktop-more-item="call"
+                onSelect={() => {
+                  if (current()) onstartcall();
+                }}
+                ><Icon icon="phone" />{peerName
+                  ? t("Ligar para {name}", { name: peerName })
+                  : t("Iniciar chamada")}</DropdownMenuItem
+              ><DropdownMenuSeparator
+              />{/if}{#each desktopMenu as item (item.pane)}<DropdownMenuItem
+                data-desktop-more-item={item.pane}
+                onSelect={() => pickPane(item.pane)}
+                ><Icon icon={item.icon} /><span class="min-w-0 flex-1 truncate"
+                  >{item.label}</span
+                >{#if item.count}<span
+                    class="text-xs text-muted-foreground tabular-nums"
+                    >{item.count}</span
+                  >{/if}{#if openPane?.pane === item.pane}<Icon
+                    icon="check"
+                    class="text-foreground"
+                  />{/if}</DropdownMenuItem
+              >{/each}</DropdownMenuContent
+          ></DropdownMenu
+        >
       </div>{/if}
     {#if $geometry.mobile}<!-- Phone: the search opens its pane in the sheet, with the field at its top. --><IconButton
         label={searchLabel}

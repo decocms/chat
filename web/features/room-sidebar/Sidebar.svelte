@@ -87,7 +87,9 @@
     // only the epics scroll (Gimenes #3775).
     collapsed
       ? "items-center gap-2 overflow-y-auto overscroll-contain"
-      : "gap-6 overflow-y-auto overscroll-contain max-md:min-h-0 max-md:overflow-y-hidden",
+      : // The section titles stick under the room's name bar (52px, less the sidebar's 8px padding).
+        "gap-6 overflow-y-auto overscroll-contain max-md:min-h-0 max-md:overflow-y-hidden",
+    !collapsed && !(dm && appNavigation) && "md:[--sidebar-sticky-top:2.75rem]",
   )}
 >
   {#if collapsed}
@@ -174,6 +176,33 @@
         class="mx-auto h-5 w-12 shrink-0 cursor-pointer rounded-full border-0 bg-muted md:hidden"
         onclick={onopenside}
       ></button>{/if}
+    <!-- Desktop: the room's name on top is the main thread (Gimenes #3989). It stays in place while the rest of the
+         sidebar scrolls under it, the whole row opens the main thread with only the pointer, and it has no ✎: the
+         room's row menu (right-click) renames the room (Gimenes #6099). -->
+    {#if !(dm && appNavigation)}<SidebarHeader
+        class="sticky -top-2 z-20 -mb-3 bg-sidebar max-md:hidden"
+        ><button
+          type="button"
+          data-room-home
+          aria-current={thread === "main" ? "page" : undefined}
+          class="flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2 text-left font-sans text-sidebar-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          title={room.book.summary
+            ? `${room.book.title}\n${room.book.summary}`
+            : room.book.title}
+          onclick={(event) => {
+            if (event.currentTarget.isConnected) openMain();
+          }}
+        >
+          <RoomMark title={room.book.title} src={roomIcon} />
+          <h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
+            {room.book.title}
+          </h2>
+          <WaitBadge
+            waits={vb.waitsIn("main")}
+            label={(n) => vb.t("{n} coisas esperando você", { n })}
+          />
+        </button></SidebarHeader
+      >{/if}
     <!-- No This room | All rooms tabs: the phone's Home lists every room (Gimenes #4071). -->
     {@render thisRoom()}
     {#snippet thisRoom()}{#if dm && appNavigation}<!-- A DM is only a conversation: its row, no threads, views or epics under it. -->
@@ -182,39 +211,7 @@
           lang={appNavigation.lang}
         />{:else}<!-- Its full height, like Pinned and People below: the sidebar scrolls whole (one scroll, never two). -->
         <div class="flex shrink-0 flex-col gap-3 max-md:min-h-0 max-md:shrink">
-          <!-- Desktop: the room's name on top is the main thread (Gimenes #3989), a ghost button (#4007) with what waits on you; ✎ on hover. Phones have the room's row at the top of the drawer. -->
-          <SidebarHeader class="group/name max-md:hidden"
-            ><Button
-              variant="ghost"
-              data-room-home
-              aria-current={thread === "main" ? "page" : undefined}
-              class="h-9 min-w-0 flex-1 justify-start px-2 text-left text-sidebar-foreground hover:bg-sidebar-accent"
-              title={room.book.summary
-                ? `${room.book.title}\n${room.book.summary}`
-                : room.book.title}
-              onclick={(event) => {
-                if (event.currentTarget.isConnected) openMain();
-              }}
-            >
-              <RoomMark title={room.book.title} src={roomIcon} />
-              <h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
-                {room.book.title}
-              </h2>
-              <WaitBadge
-                waits={vb.waitsIn("main")}
-                label={(n) => vb.t("{n} coisas esperando você", { n })}
-              />
-            </Button>
-            <!-- The same hover and height as the room's name beside it (Gimenes #4035). -->
-            <IconButton
-              label={vb.t("Editar sala")}
-              variant="sidebar"
-              size="icon"
-              tooltipSide="bottom"
-              class="size-9 shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/name:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 motion-reduce:transition-none"
-              onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
-            ></SidebarHeader
-          >{#if call}<div class="max-md:hidden">
+          {#if call}<div class="max-md:hidden">
               {@render call(false)}
             </div>{/if}{@render roomThreads()}
         </div>{/if}{/snippet}

@@ -23,7 +23,8 @@
 <div
   class={[
     "flex h-7 items-center justify-between gap-2 pr-0.5 pl-2",
-    level === 3 && "sticky top-0 z-10 bg-sidebar",
+    // Under the room's name bar when the sidebar has one (`--sidebar-sticky-top`, Sidebar).
+    level === 3 && "sticky top-(--sidebar-sticky-top,0px) z-10 bg-sidebar",
   ]}
   data-section-header
 >
