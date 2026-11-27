@@ -19,10 +19,15 @@ export const agentAsks = (waits: readonly Wait[] | undefined) =>
 /** The question's options (its message's choices JSON, in the wait's `about`), else none. */
 export const askOptions = (wait: Wait) => choicesOf(wait.about)?.options ?? [];
 
+/** The option that approves a permission ("Aprovar", from permission.sh), else none: then the row only opens it. */
+export const askApprove = (wait: Wait) =>
+  askOptions(wait).find((option) => /^(aprovar|approve)$/i.test(option.trim()));
+
 /** The question without the opener and the markdown: what the row shows under its title. */
 export const askLine = (wait: Wait) =>
   wait.text
     .replace(/^(⏸|❓)\s*Seu Claude\s*/, "")
+    .replace(/\s*Só vale a resposta da sua conta logada aqui\.?\s*$/, "")
     .replace(/[*`]/g, "")
     .replace(/\s+/g, " ")
     .trim()
