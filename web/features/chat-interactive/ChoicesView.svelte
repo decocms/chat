@@ -103,9 +103,21 @@
             "h-auto min-h-8 whitespace-pre-wrap text-left",
           )}
           onclick={() => choose(value, choices.multi ? !on : true)}
-          >{#if on}<Icon icon="check" size={14} />{/if}{label}</button
+          >{#if on && value !== -1}<Icon
+              icon="check"
+              size={14}
+            />{/if}{label}</button
         >{/each}
     </div>
+    <!-- "Outro…" only opens the reply box: nothing is sent yet, and the Claude waits until the person sends their
+         answer (a person read the filled ✓ as answered, and their Claude hung). Say it where they look. -->
+    {#if selected.includes(-1)}<small
+        data-choices-other
+        class="block font-medium text-foreground"
+        >{vb.t(
+          "Escreva sua resposta na caixa de mensagem e envie. Seu Claude espera por ela.",
+        )}</small
+      >{/if}
   {:else}<div class="flex flex-wrap gap-2" aria-disabled="true">
       {#each choices.options as label}{@render option(
           label,

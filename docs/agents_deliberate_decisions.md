@@ -2745,3 +2745,10 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Options:** (a) option rows; (b) Select menus inside the popover.
 - **Why:** a menu inside a popover inside the phone drawer is three layers. Option rows show each agent's version, and "not installed" or "soon", at once.
 - **Reviewer can change:** use Select menus if the list of machines gets long.
+
+## 2026-11-27 · fix/question-other-hang
+
+- **Decision:** When the person picks "Outro…" on their Claude's question, the button has no ✓, and a line under the choices says "Escreva sua resposta na caixa de mensagem e envie. Seu Claude espera por ela." The reply box opens empty, as before.
+- **Options:** (a) the line plus no ✓; (b) only a different placeholder in the reply box; (c) send "Outro" as the answer at once and let the Claude ask again.
+- **Why:** A person read the filled ✓ as "answered", and their Claude waited until the hook timed out (Gui #6344). (a) says it next to the button that they clicked. (b) is far from the click and easy to miss. (c) costs one more round trip, and the Claude gets no answer.
+- **Reviewer can change:** put the hint in the reply box too, or send a typed answer from a field inside the question.

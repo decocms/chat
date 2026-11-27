@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--threadmenu] [--topbar] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--threadmenu] [--topbar] [--choices] [--name <folder>]
 import { chromium, type Locator, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -969,6 +969,7 @@ try {
   if (flag("search")) await searchScreens(browser, shots);
   if (flag("threadmenu")) await threadMenuScreens(browser, shots);
   if (flag("topbar")) await topbarScreens(browser, shots);
+  if (flag("choices")) await choicesScreens(browser, shots);
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
     ["/", "home-390.png"],
@@ -1940,4 +1941,166 @@ async function topbarScreens(
   await phone.screenshot({ path: join(out, "topbar-phone-people-390.png") });
   shots.push("topbar-phone-people-390.png");
   await phoneContext.close();
+}
+
+/** --choices: the person's Claude asks with choices (exactly what claude-plugin/hooks/question.sh posts), and the person
+ * picks "Outro…". Nothing is sent yet, so the screen must say to type and send the answer (a person read the filled ✓
+ * as answered, and their Claude waited forever). The test agent connects with OAuth as the dev email (like
+ * scripts/agent-check.ts). The run fails if the line does not show, if the click alone answers, or if the typed answer
+ * does not reach permission_wait. 1440 px (Portuguese) and 390 px (English). */
+async function choicesScreens(
+  browser: import("playwright").Browser,
+  shots: string[],
+) {
+  const email = (
+    (await (await fetch(`${base}/api/me`)).json()) as { email: string }
+  ).email;
+  const redirect = "http://127.0.0.1:9/cb";
+  const b64 = (b: ArrayBuffer | Uint8Array) =>
+    Buffer.from(b instanceof Uint8Array ? b : new Uint8Array(b)).toString(
+      "base64url",
+    );
+  const reg = (await (
+    await fetch(`${base}/oauth/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        client_name: "Claude Code (test)",
+        redirect_uris: [redirect],
+        token_endpoint_auth_method: "none",
+        grant_types: ["authorization_code", "refresh_token"],
+      }),
+    })
+  ).json()) as { client_id: string };
+  const verifier = b64(crypto.getRandomValues(new Uint8Array(32)));
+  const query = new URLSearchParams({
+    response_type: "code",
+    client_id: reg.client_id,
+    redirect_uri: redirect,
+    code_challenge: b64(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)),
+    ),
+    code_challenge_method: "S256",
+    state: "s",
+    scope: "rooms offline_access",
+    resource: `${base}/mcp`,
+  });
+  const cookie = `dev_as=${encodeURIComponent(email)}`;
+  const context = await fetch(`${base}/api/authorize/context?${query}`, {
+    headers: { cookie },
+  });
+  const { handle } = (await context.json()) as { handle: string };
+  const approved = await fetch(`${base}/authorize?${query}`, {
+    method: "POST",
+    headers: {
+      cookie: [
+        cookie,
+        ...context.headers.getSetCookie().map((c) => c.split(";")[0]),
+      ].join("; "),
+      "content-type": "application/x-www-form-urlencoded",
+      origin: base,
+    },
+    body: new URLSearchParams({ handle, decision: "approve" }),
+    redirect: "manual",
+  });
+  const code = new URL(
+    approved.headers.get("location") ?? redirect,
+  ).searchParams.get("code");
+  if (!code)
+    throw new Error(`choices: consent gave no code (${approved.status})`);
+  const token = (
+    (await (
+      await fetch(`${base}/oauth/token`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          redirect_uri: redirect,
+          client_id: reg.client_id,
+          code_verifier: verifier,
+          resource: `${base}/mcp`,
+        }),
+      })
+    ).json()) as { access_token: string }
+  ).access_token;
+  let session = "",
+    seq = 0;
+  const rpc = async (method: string, params: object = {}) => {
+    const r = await fetch(`${base}/mcp`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+        ...(session ? { "mcp-session-id": session } : {}),
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: ++seq, method, params }),
+    });
+    session = r.headers.get("mcp-session-id") ?? session;
+    return (await r.json()) as {
+      result?: { structuredContent?: Record<string, unknown> };
+    };
+  };
+  const tool = async (name: string, args: object) =>
+    (await rpc("tools/call", { name, arguments: args })).result
+      ?.structuredContent ?? {};
+  await rpc("initialize", { protocolVersion: "2025-06-18" });
+  const ask = async (page: Page, file: string, locale: "pt" | "en") => {
+    const { room_id } = (await tool("create_room", {
+      title: "Sala de teste",
+    })) as { room_id: string };
+    const { id } = (await tool("post", {
+      room_id,
+      text: "❓ Seu Claude pergunta · **Código**\nQual vai ser o código do cupom?\n\n- **BLACK15**: Curto e fácil de digitar.\n- **LOJA15**: Com o nome da loja.",
+      choices: ["BLACK15", "LOJA15"],
+    })) as { id: number };
+    await page.goto(`${base}/b/${room_id}`, { waitUntil: "networkidle" });
+    await page
+      .locator('[data-choices] [role="radio"]:visible', {
+        hasText: locale === "pt" ? "Outro" : "Other",
+      })
+      .click();
+    const line = page.locator("[data-choices-other]:visible");
+    await line.waitFor();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(out, `${file}.png`) });
+    shots.push(`${file}.png`);
+    const early = await tool("permission_wait", {
+      room_id,
+      message_id: id,
+      timeout_seconds: 1,
+    });
+    if (early.text)
+      throw new Error("choices: Outro… alone answered the question");
+    await page.keyboard.type("CIRCULEI15");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(1200);
+    await page.screenshot({ path: join(out, `${file}-sent.png`) });
+    shots.push(`${file}-sent.png`);
+    const answer = await tool("permission_wait", {
+      room_id,
+      message_id: id,
+      timeout_seconds: 5,
+    });
+    if (answer.text !== "CIRCULEI15")
+      throw new Error(
+        `choices: the typed answer did not reach permission_wait (${JSON.stringify(answer)})`,
+      );
+  };
+  const desk = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    locale: "pt-BR",
+  });
+  await desk.addCookies([{ name: "dev_as", value: email, url: base }]);
+  await ask(await desk.newPage(), "choices-outro-1440", "pt");
+  await desk.close();
+  const phone = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: "en-US",
+    isMobile: true,
+    hasTouch: true,
+  });
+  await phone.addCookies([{ name: "dev_as", value: email, url: base }]);
+  await ask(await phone.newPage(), "choices-other-390", "en");
+  await phone.close();
 }

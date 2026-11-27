@@ -212,3 +212,23 @@ test("explicit import retry mounts current controls; account replacement suppres
   ).toBe(true);
   expect(target.textContent).not.toContain("offline");
 });
+test("Outro… is not shown as answered: no ✓, and it says to type and send the answer (a Claude waited forever)", async () => {
+  const { target, drafts } = render(async () => InteractiveBody);
+  await settle();
+  const other = [
+    ...target.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
+  ].find((b) => b.textContent?.includes("Outro"));
+  if (!other) throw Error("Missing Outro…");
+  expect(target.querySelector("[data-choices-other]")).toBeNull();
+  other.click();
+  await settle();
+  expect(drafts).toEqual([""]);
+  expect(other.getAttribute("aria-checked")).toBe("true");
+  expect(other.querySelector("svg")).toBeNull();
+  expect(target.querySelector("[data-choices-other]")?.textContent).toContain(
+    "Escreva sua resposta",
+  );
+  target.querySelector<HTMLButtonElement>('[role="radio"]')!.click();
+  await settle();
+  expect(target.querySelector("[data-choices-other]")).toBeNull();
+});
