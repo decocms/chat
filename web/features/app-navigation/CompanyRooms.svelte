@@ -8,8 +8,8 @@
   import Popover from "../../lib/studio/Popover.svelte";
   import PopoverContent from "../../lib/studio/PopoverContent.svelte";
   import PopoverTrigger from "../../lib/studio/PopoverTrigger.svelte";
-  import Sheet from "../../lib/studio/Sheet.svelte";
-  import SheetContent from "../../lib/studio/SheetContent.svelte";
+  import Drawer from "../../lib/studio/Drawer.svelte";
+  import DrawerContent from "../../lib/studio/DrawerContent.svelte";
   import SheetTitle from "../../lib/studio/SheetTitle.svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import RailButton from "./RailButton.svelte";
@@ -183,10 +183,10 @@
     "aria-expanded": open,
     onclick: () => (open = true),
   })}
-  <Sheet bind:open>
-    <SheetContent
+  <Drawer bind:open>
+    <DrawerContent
       side="bottom"
-      hideCloseButton
+      closeLabel={homeText(lang, "close")}
       bind:ref={sheet}
       onOpenAutoFocus={(event) => {
         // Focus the sheet, not its ×: no ring or tooltip on open, Tab still walks the rows.
@@ -195,12 +195,8 @@
       }}
       tabindex={-1}
       data-company-rooms
-      class="max-h-[80dvh] gap-2 outline-none rounded-t-2xl px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] font-sans"
+      class="gap-2 overflow-y-auto px-3 font-sans"
     >
-      <span
-        aria-hidden="true"
-        class="mx-auto h-1 w-9 shrink-0 rounded-full bg-border"
-      ></span>
       <div class="flex items-center gap-2 pl-2">
         <SheetTitle class="m-0 min-w-0 flex-1 truncate text-base font-semibold"
           >{title}</SheetTitle
@@ -213,8 +209,8 @@
         >
       </div>
       {@render list()}
-    </SheetContent>
-  </Sheet>{:else}<Popover bind:open>
+    </DrawerContent>
+  </Drawer>{:else}<Popover bind:open>
     <PopoverTrigger>
       {#snippet child({ props })}{@render trigger(props)}{/snippet}
     </PopoverTrigger>

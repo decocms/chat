@@ -18,8 +18,8 @@
   import DialogContent from "../../lib/studio/DialogContent.svelte";
   import DialogHeader from "../../lib/studio/DialogHeader.svelte";
   import DialogTitle from "../../lib/studio/DialogTitle.svelte";
-  import Sheet from "../../lib/studio/Sheet.svelte";
-  import SheetContent from "../../lib/studio/SheetContent.svelte";
+  import Drawer from "../../lib/studio/Drawer.svelte";
+  import DrawerContent from "../../lib/studio/DrawerContent.svelte";
   import SheetTitle from "../../lib/studio/SheetTitle.svelte";
   import type { MessageVersion } from "../../../shared/room";
   import { OWN_REACTION, QUICK_REACTIONS, toolbarReactions } from "./reactions";
@@ -483,10 +483,10 @@
     onclick={() => fromSheet(act)}
     ><Icon {icon} size={20} class="text-muted-foreground" />{label}</Button
   >{/snippet}
-{#if floating}<Sheet bind:open={sheet}>
-    <SheetContent
+{#if floating}<Drawer bind:open={sheet}>
+    <DrawerContent
       side="bottom"
-      hideCloseButton
+      closeLabel={vb.t("Fechar")}
       bind:ref={sheetBox}
       tabindex={-1}
       onOpenAutoFocus={(event) => {
@@ -495,7 +495,7 @@
         sheetBox?.focus();
       }}
       data-message-sheet={message.id}
-      class="max-h-[85dvh] gap-1 overflow-y-auto rounded-t-2xl px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] font-sans text-sm outline-none"
+      class="gap-1 overflow-y-auto px-3 font-sans text-sm"
     >
       <SheetTitle class="sr-only">{vb.t("Ações desta mensagem")}</SheetTitle>
       <div
@@ -573,8 +573,8 @@
             })}
           ><Icon icon="trash-01" size={20} />{vb.t("Apagar mensagem")}</Button
         >{/if}
-    </SheetContent>
-  </Sheet>{/if}
+    </DrawerContent>
+  </Drawer>{/if}
 {#if floating && canReact}<EmojiPicker
     t={vb.t}
     bind:open={picking}

@@ -1930,7 +1930,7 @@ test("Company rooms: the rail's 2×2 grid opens a popover with the rooms you can
   );
   await flush();
   const phone = await open([farm], true);
-  expect(phone.panel.dataset.slot).toBe("sheet-content");
+  expect(phone.panel.dataset.slot).toBe("drawer-content");
   expect(phone.panel.getAttribute("role")).toBe("dialog");
   expect(phone.panel.textContent).toContain("Company rooms");
   expect(

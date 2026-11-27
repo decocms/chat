@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Sheet from "../../lib/studio/Sheet.svelte";
-  import SheetContent from "../../lib/studio/SheetContent.svelte";
+  import Drawer from "../../lib/studio/Drawer.svelte";
+  import DrawerContent from "../../lib/studio/DrawerContent.svelte";
   import SheetTitle from "../../lib/studio/SheetTitle.svelte";
   import type { WaitReference } from "../waits/model";
   import type { DmEntry, RoomSummary, RoomTarget } from "../home/model";
@@ -39,10 +39,10 @@
   let sheet = $state<HTMLElement | null>(null);
 </script>
 
-<Sheet bind:open>
-  <SheetContent
+<Drawer bind:open>
+  <DrawerContent
     side="top"
-    hideCloseButton
+    closeLabel={homeText(lang, "close")}
     bind:ref={sheet}
     onOpenAutoFocus={(event) => {
       // Focus the sheet, not the first row: no ring on open, Tab still walks the rows.
@@ -51,7 +51,7 @@
     }}
     tabindex={-1}
     data-view="room-switcher"
-    class="max-h-[80dvh] gap-2 outline-none rounded-b-2xl px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 font-sans text-sm"
+    class="gap-2 overflow-y-auto px-3 pt-3 font-sans text-sm"
   >
     <SheetTitle class="sr-only">{homeText(lang, "switchRoom")}</SheetTitle>
     <RoomList
@@ -71,5 +71,5 @@
         onnavigate(target);
       }}
     />
-  </SheetContent>
-</Sheet>
+  </DrawerContent>
+</Drawer>
