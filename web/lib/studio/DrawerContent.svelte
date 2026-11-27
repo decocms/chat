@@ -92,7 +92,7 @@
       forceMount
       data-slot="drawer-overlay"
       onclick={() => drawer.close()}
-      class="fixed inset-0 z-50 animate-drawer-scrim touch-none bg-scrim backdrop-blur-sm"
+      class="fixed inset-0 z-50 animate-drawer-scrim touch-none bg-scrim"
       {...overlayProps}
     />
     <DrawerPrimitive.Content
