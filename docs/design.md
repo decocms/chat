@@ -85,7 +85,7 @@ The phone layout is B: one line, like WhatsApp (Gimenes #6016, #6030, #6032, #60
 The drawer has only the threads and the pinned items, like the desktop sidebar (Gimenes #6117):
 
 1. At the top, the Mine, Open and Done tabs.
-2. The first row of each tab is the room's main chat: the room's icon, its name and "Chat geral da sala". The thread rows follow it.
+2. The first row of each tab is the room's main chat: the room's icon and its name, with no subtitle. The thread rows follow it.
 3. Under the threads, Fixados (the pinned items). The Arquivos pane does not show them on a phone.
 4. The drawer has no room name, no ✎, no avatar and no tab row. Rename the room from the desktop sidebar. Your account is on the home.
 

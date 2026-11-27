@@ -240,7 +240,7 @@
           }}
         />
       </div>{/snippet}
-    <!-- Phones (Gimenes #6117): the room's chat is the first row of the thread list, shaped like a thread row. -->
+    <!-- Phones (Gimenes #6117): the room's chat is the first row of the thread list, shaped like a thread row. Only the name, no subtitle (#6144). -->
     {#snippet mainRow()}<button
         type="button"
         data-room-title
@@ -251,10 +251,7 @@
         }}
         ><RoomMark title={room.book.title} src={roomIcon} size="chat" /><span
           class="flex min-w-0 flex-1 flex-col"
-          ><span class={NAV_ROW_TEXT.chats.label}>{room.book.title}</span><span
-            class={[NAV_ROW_TEXT.chats.meta, "text-muted-foreground"]}
-            >{vb.t("Chat geral da sala")}</span
-          ></span
+          ><span class={NAV_ROW_TEXT.chats.label}>{room.book.title}</span></span
         ><WaitBadge
           waits={vb.waitsIn("main")}
           label={(n) => vb.t("{n} coisas esperando você", { n })}
