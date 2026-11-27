@@ -3,17 +3,22 @@
   import { cn } from "../../lib/studio/utils";
   /**
    * A call is on in the room (or in a room of a closed folder): a solid green
-   * circle with a speaker, at the bottom right of the tile, like Discord's
-   * voice badge. Ringed in the surface colour, as the red number is.
+   * circle with a speaker, like Discord's voice badge. Ringed in the surface
+   * colour, as the red number is. `corner`: "bottom" hangs off the bottom
+   * right (the phone's big avatar, the red number stays top right); "top" sits
+   * inside the top right corner, as on Discord's rail, with the red number
+   * moved under it (RoomAvatar `stack`).
    */
   let {
     label,
     surface = "sidebar",
+    corner = "bottom",
     class: className,
   }: {
     /** What it says to a screen reader: "Na call: Ana, Bia". */
     label: string;
     surface?: "sidebar" | "background";
+    corner?: "bottom" | "top";
     class?: string;
   } = $props();
 </script>
@@ -22,9 +27,11 @@
   role="img"
   aria-label={label}
   data-room-badge="call"
+  data-corner={corner}
   class={cn(
-    "absolute -right-1.5 -bottom-1.5 flex size-4 items-center justify-center rounded-full bg-success text-success-foreground ring-2",
+    "absolute flex size-4 items-center justify-center rounded-full bg-success text-success-foreground ring-2",
     surface === "sidebar" ? "ring-sidebar" : "ring-background",
+    corner === "top" ? "-top-1 -right-1" : "-right-1.5 -bottom-1.5",
     className,
   )}><Icon icon="volume-max" size={10} stroke-width="2.5" /></span
 >

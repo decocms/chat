@@ -2718,7 +2718,7 @@ test("Folder settings saves the name and color of your folder only", async () =>
   ]);
 });
 
-test("a call on in a room: the green speaker at the tile's bottom right, across from the red number, and the tooltip says who", async () => {
+test("a call on in a room: the green speaker inside the tile's top right, the red number moves under it, and the tooltip says who", async () => {
   const nav = await pendingNavigation();
   nav.h.canonical(
     me({
@@ -2730,7 +2730,7 @@ test("a call on in a room: the green speaker at the tile's bottom right, across 
         }),
         room("bbbbbb", { position: 1 }),
       ],
-      waits: [wait("aaaaaa", "m1")],
+      waits: [wait("aaaaaa", "m1"), wait("bbbbbb", "m2")],
     }),
   );
   await nav.h.services.personal.refresh();
@@ -2743,21 +2743,26 @@ test("a call on in a room: the green speaker at the tile's bottom right, across 
   expect(badge).not.toBeNull();
   expect(badge.getAttribute("aria-label")).toBe("Call: Ana, Me");
   expect(badge.className).toContain("bg-success");
-  expect(badge.className).toContain("-bottom-1.5");
-  expect(badge.className).toContain("-right-1.5");
+  // As on Discord's rail: the speaker inside the top right corner, the red number inside the bottom right.
+  expect(badge.dataset.corner).toBe("top");
+  expect(badge.className).toContain("-top-1");
+  expect(badge.className).toContain("-right-1");
+  expect(badge.className).not.toContain("bottom");
   expect(badge.className).toContain("ring-sidebar");
   expect(badge.querySelector("use")?.getAttribute("href")).toContain(
     "volume-max",
   );
-  // The red number stays at the top right, the news on the left edge: three signals, three places.
+  // The red number goes under it, the news stays on the left edge: three signals, three places.
   expect(
     tile("aaaaaa").querySelector<HTMLElement>("[data-count]")?.dataset.count,
   ).toBe("1");
+  const count = tile("aaaaaa").querySelector<HTMLElement>("[data-wait-badge]")!;
+  expect(count.className).toContain("bottom-0");
+  expect(count.className).not.toContain("top");
+  // No call: the red number stays where it always was, at the top right.
   expect(
-    tile("aaaaaa")
-      .querySelector<HTMLElement>("[data-wait-badge]")!
-      .className.includes("-top-1.5"),
-  ).toBe(true);
+    tile("bbbbbb").querySelector<HTMLElement>("[data-wait-badge]")!.className,
+  ).toContain("-top-1.5");
   // The room's label (and tooltip) starts with who is in the call; a click still just opens the room.
   expect(tile("aaaaaa").querySelector("a")!.getAttribute("aria-label")).toBe(
     "Room aaaaaa · Call: Ana, Me · 1 waiting for you · new messages from people",
@@ -2783,6 +2788,7 @@ test("a closed folder shows the green speaker when a call is on in any of its ro
         folders: [
           { id: "ffolder01", name: "Clientes", tint: null, position: 1 },
         ],
+        waits: [wait("bbbbbb", "m1")],
       }),
     );
     await nav.h.services.personal.refresh();
@@ -2795,8 +2801,12 @@ test("a closed folder shows the green speaker when a call is on in any of its ro
   const badge = tile.querySelector<HTMLElement>('[data-room-badge="call"]')!;
   expect(badge).not.toBeNull();
   expect(badge.getAttribute("aria-label")).toBe("Call: Bia");
+  expect(badge.dataset.corner).toBe("top");
+  expect(
+    tile.querySelector<HTMLElement>("[data-wait-badge]")!.className,
+  ).toContain("bottom-0");
   expect(tile.getAttribute("aria-label")).toBe(
-    "Clientes · 2 rooms · Call: Bia",
+    "Clientes · 2 rooms · Call: Bia · 1 waiting for you",
   );
   // Open, the room itself carries it (the header has none).
   tile.click();
@@ -2809,6 +2819,9 @@ test("a closed folder shows the green speaker when a call is on in any of its ro
   await flush();
   const quiet = await draw(null);
   expect(quiet.querySelector('[data-room-badge="call"]')).toBeNull();
+  expect(
+    quiet.querySelector<HTMLElement>("[data-wait-badge]")!.className,
+  ).toContain("-top-1.5");
   expect(document.querySelector('[data-room-badge="call"]')).toBeNull();
 });
 
@@ -2864,6 +2877,8 @@ test("a phone's chat row in a call: the green speaker on its avatar and who is i
   const badge = row("aaaaaa").querySelector('[data-room-badge="call"]');
   expect(badge?.getAttribute("aria-label")).toBe("Na call: Ana");
   expect(badge?.className).toContain("ring-background");
+  // The phone's big avatar: the speaker hangs off the bottom right, far from the red number.
+  expect(badge?.getAttribute("data-corner")).toBe("bottom");
   expect(row("aaaaaa").textContent).toContain("Na call: Ana");
   expect(row("bbbbbb").querySelector('[data-room-badge="call"]')).toBeNull();
   expect(row("bbbbbb").textContent).not.toContain("Na call");

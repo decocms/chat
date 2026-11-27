@@ -15,7 +15,10 @@
    * what waits on you (WaitBadge). Left edge, a dot without a number: new
    * messages (strong when a person wrote, muted when only agents did). Bottom
    * left, the ✻: an agent works here. Bottom right, the green speaker: a call
-   * is on (it takes the place of a DM's online dot). Controlled: every state comes in as a
+   * is on (it takes the place of a DM's online dot). With `stack` (the rail,
+   * like Discord), a call puts the speaker inside the top right corner and
+   * moves the red number under it, inside the bottom right: the two never
+   * touch. Controlled: every state comes in as a
    * prop, so the rail, the phone list and the home grid draw the same thing
    * from the same data. `surface` is the colour behind it, which the badges
    * ring themselves with.
@@ -32,6 +35,7 @@
     person = null,
     presence = null,
     call = null,
+    stack = false,
     class: className,
   }: {
     title: string;
@@ -51,6 +55,8 @@
     presence?: { online: boolean; label: string } | null;
     /** A call is on here: what the badge says ("Na call: Ana, Bia"). Null: no call. */
     call?: string | null;
+    /** The rail's small tile: with a call, speaker top right and the red number bottom right, both inset. */
+    stack?: boolean;
     class?: string;
   } = $props();
   const text = (
@@ -103,7 +109,11 @@
         fill,
       )}>✻</span
     >{/if}
-  {#if call}<CallBadge label={call} {surface} />{:else if presence}<PresenceDot
+  {#if call}<CallBadge
+      label={call}
+      {surface}
+      corner={stack ? "top" : "bottom"}
+    />{:else if presence}<PresenceDot
       online={presence.online}
       label={presence.label}
       class={ring}
@@ -113,6 +123,8 @@
     {surface}
     {waits}
     label={(n) => text("waiting", { n })}
-    class="absolute -top-1.5 -right-1.5"
+    class={call && stack
+      ? "absolute -right-1 bottom-0"
+      : "absolute -top-1.5 -right-1.5"}
   />
 </span>

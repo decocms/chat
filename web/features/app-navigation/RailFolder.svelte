@@ -130,9 +130,11 @@
                 solid
                 waits={mine}
                 label={(n) => homeText(lang, "waiting", { n })}
-                class="absolute -top-1.5 -right-1.5"
+                class={call
+                  ? "absolute -right-1 bottom-0"
+                  : "absolute -top-1.5 -right-1.5"}
               />{/if}
-            {#if !open && call}<CallBadge label={call} />{/if}
+            {#if !open && call}<CallBadge label={call} corner="top" />{/if}
           </button>
         {/snippet}
       </TooltipTrigger>
