@@ -803,7 +803,8 @@ function terminalApp() {
     }
   } catch {}
 }
-function herdrServer(appMode = false) {
+function herdrServer(mode = "terminal") {
+  const appMode = mode === "app";
   const allowed = new Set([readJson(SESSION, null)?.origin ?? DEFAULT_ORIGIN, DEFAULT_ORIGIN]);
   const port = Number(process.env.VIBEBOOK_HERDR_PORT || 47321);
   createServer((req, res) => {
@@ -817,8 +818,8 @@ function herdrServer(appMode = false) {
     if (req.method === "OPTIONS")
       return send(204, null);
     const u = new URL(req.url ?? "/", "http://127.0.0.1");
-    const map = readJson(appMode ? HERDR_APP : HERDR_FILE, {});
-    const target = (r) => appMode ? map[r]?.space : map[r]?.workspace;
+    const map = readJson(appMode ? HERDR_APP : mode === "core" ? HERDR_CORE : HERDR_FILE, {});
+    const target = (r) => appMode ? map[r]?.space : mode === "core" ? map[r]?.terminal : map[r]?.workspace;
     if (u.pathname === "/ping")
       return send(200, { ok: true, rooms: Object.keys(map).filter((r) => target(r)) });
     if (u.pathname === "/where") {
@@ -842,6 +843,14 @@ function herdrServer(appMode = false) {
       return send(404, { error: "Nenhum Claude aberto pra essa sala no herdr." });
     try {
       const room = u.searchParams.get("room") ?? "";
+      if (mode === "core") {
+        if (process.platform === "darwin" && existsSync2("/Applications/Herdr.app")) {
+          execFileSync("open", ["-a", "Herdr"]);
+          log("info", "focus", `${roomName(room)}: opened Herdr (↗ in the app)`, { room, terminal: ws });
+          return send(200, { ok: true });
+        }
+        return send(404, { error: `hc attach ${ws}` });
+      }
       if (appMode) {
         happ("do", "space.select", "--id", ws);
         execFileSync("open", ["-a", "Herdr"]);
@@ -1305,6 +1314,244 @@ async function herdrAppSync(agent, tools) {
     spaces = happ("ls").spaces;
   });
 }
+var HERDR_CORE = join2(HOME, RUN_AGENT === "codex" ? "herdr-core-codex.json" : "herdr-core.json");
+function hc(...args) {
+  const env = { ...process.env };
+  for (const k of ["HC_TERMINAL_ID", "HC_TERMINAL_SOCKET", "HC_SCOPE"])
+    delete env[k];
+  const out = execFileSync(process.env.VIBEBOOK_HC || "hc", [args[0], "--json", ...args.slice(1)], { stdio: ["ignore", "pipe", "pipe"], env, windowsHide: true }).toString();
+  try {
+    return JSON.parse(out);
+  } catch {
+    return {};
+  }
+}
+var CORE_AGENT = RUN_AGENT === "codex" ? "codex" : "claude-code";
+var coreFree = (t) => !!t && (t.status === "idle" || t.status === "done");
+function coreSession(terminal) {
+  if (RUN_AGENT === "codex")
+    return;
+  try {
+    const pid = hc("get", terminal).foreground?.pid;
+    if (!pid)
+      return;
+    const s = readJson(join2(homedir(), ".claude", "sessions", `${pid}.json`), {}).sessionId;
+    return s && /^[0-9a-f-]{36}$/.test(s) ? s : undefined;
+  } catch {
+    return;
+  }
+}
+function coreArgv(session, room) {
+  const argv = [RUN_AGENT, ...agentArgs(session), listenTask(room)];
+  if (process.platform === "win32")
+    return argv;
+  const shell = process.env.SHELL || "/bin/zsh";
+  return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", shell, "-ilc", 'exec "$0" "$@"', ...argv];
+}
+function herdrLeftovers() {
+  const map = readJson(HERDR_FILE, {});
+  if (!Object.values(map).some((e) => e.workspace))
+    return;
+  try {
+    return { map, panes: herdr("pane", "list").panes };
+  } catch {
+    return;
+  }
+}
+function claudeSessionAlive(sid) {
+  const dir = join2(homedir(), ".claude", "sessions");
+  try {
+    for (const f of readdirSync2(dir)) {
+      if (!/^\d+\.json$/.test(f))
+        continue;
+      const s = readJson(join2(dir, f), {});
+      if (s.sessionId === sid && s.pid && alive(s.pid))
+        return true;
+    }
+  } catch {}
+  return false;
+}
+function claudeSessionIn(folder) {
+  if (!folder || RUN_AGENT !== "claude")
+    return;
+  const dir = join2(homedir(), ".claude", "sessions");
+  let best;
+  try {
+    for (const f of readdirSync2(dir)) {
+      if (!/^\d+\.json$/.test(f))
+        continue;
+      const s = readJson(join2(dir, f), {});
+      if (s.cwd !== folder || !s.sessionId || !/^[0-9a-f-]{36}$/.test(s.sessionId) || !s.pid || !alive(s.pid))
+        continue;
+      if (!best || (s.startedAt ?? 0) > best.at)
+        best = { sid: s.sessionId, at: s.startedAt ?? 0 };
+    }
+  } catch {}
+  return best?.sid;
+}
+async function herdrCoreSync(agent, tools) {
+  const map = readJson(HERDR_CORE, {});
+  const terms = (hc("ls").terminals ?? []).filter((t) => t.state === "live");
+  const byAddr = new Map(terms.map((t) => [t.address, t]));
+  const ours = (e) => e.terminal ? byAddr.get(e.terminal) : undefined;
+  const managed = [];
+  for (const e of Object.values(map)) {
+    const t = ours(e);
+    const sid = t && t.agent === CORE_AGENT ? coreSession(t.address) : undefined;
+    if (!sid)
+      continue;
+    e.session = sid;
+    managed.push(sessionAgent(sid));
+  }
+  const res = await claudeRooms(agent, tools, process.env.VIBEBOOK_HERDR_DIR ? "app" : "herdr", managed);
+  const rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
+  const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
+  const on = new Map(rooms.filter((r) => r.on).map((r) => [r.room_id, r.title]));
+  const old = herdrLeftovers();
+  const pv = RUN_AGENT === "claude" ? pluginHooks() : "";
+  for (const [room, title] of on) {
+    const e = map[room] ??= {};
+    const t = ours(e);
+    if (t) {
+      if (t.agent !== CORE_AGENT && Date.now() - (e.prompted_at ?? 0) > 2 * 60000) {
+        if (t.name === `vb-${room}`.slice(0, 32))
+          try {
+            hc("kill", t.address);
+            log("warn", "claude", `${title}: its ${RUN_NAME} did not start in 2 min, ended its terminal to open it again`, { room, terminal: t.address });
+          } catch {}
+        delete e.terminal;
+      } else {
+        if (!deaf.has(room))
+          delete e.deaf_since;
+        else
+          e.deaf_since ??= Date.now();
+        if (e.listening && e.deaf_since && Date.now() - e.deaf_since > 3 * 60000 && Date.now() - (e.prompted_at ?? 0) > 5 * 60000)
+          e.listening = false;
+        if (pv && e.plugin_v && !e.plugin_v.startsWith("hooks:"))
+          e.plugin_v = pv;
+        if (e.restarting_at) {
+          try {
+            if (/Background work is running/.test(String(hc("read", t.address, "--lines", "15").text ?? "")))
+              hc("keys", t.address, "enter");
+          } catch {}
+          if (Date.now() - e.restarting_at > 5 * 60000) {
+            delete e.restarting_at;
+            e.plugin_v = pv;
+            log("warn", "plugin", `${title}: could not restart its Claude on the new plugin; it updates when it reopens`, { room });
+          }
+          continue;
+        }
+        const another = Object.entries(map).some(([r, x]) => r !== room && x.restarting_at);
+        const sid = coreSession(t.address);
+        if (pv && e.plugin_v !== pv && !another && Date.now() - lastPluginRestart > RESTART_GAP_MS && coreFree(t) && sid) {
+          lastPluginRestart = Date.now();
+          e.session = sid;
+          e.restarting_at = Date.now();
+          writePrivate(HERDR_CORE, map);
+          try {
+            hc("send", t.address, "/exit");
+            log("info", "plugin", `${title}: plugin ${e.plugin_v ?? "?"} → ${pv}, closed the idle Claude to reopen it (same conversation)`, { room, session: short(sid) });
+          } catch {}
+          continue;
+        }
+        const cx0 = sid ? sessionContext(sid) : undefined;
+        const cx = cx0 && sid ? { ...cx0, window: sessionStatus(sid)?.window ?? cx0.window } : undefined;
+        if (cx && cx.tokens >= cx.window * COMPACT_AT && coreFree(t) && Date.now() - (e.compacted_at ?? 0) > 15 * 60000) {
+          try {
+            hc("send", t.address, "/compact");
+            e.compacted_at = Date.now();
+            log("info", "claude", `${title}: context at ${Math.round(cx.tokens / cx.window * 100)}%, sent /compact`, { room, tokens: cx.tokens, window: cx.window });
+          } catch {}
+          continue;
+        }
+        if (!e.listening && coreFree(t))
+          try {
+            hc("send", t.address, listenWords());
+            e.listening = true;
+            e.prompted_at = Date.now();
+            delete e.deaf_since;
+            log("info", "claude", `${title}: its ${RUN_NAME} is idle, asked it to listen to the room`, { room });
+          } catch {}
+        continue;
+      }
+    }
+    e.listening = false;
+    const before = old?.map[room];
+    const pane = before?.workspace ? old?.panes.find((p) => p.workspace_id === before.workspace && p.agent === RUN_AGENT) : undefined;
+    if (pane) {
+      e.folder ??= before?.folder;
+      e.session = pane.agent_session?.value ?? claudeSessionIn(pane.foreground_cwd ?? pane.cwd ?? e.folder) ?? before?.session ?? e.session;
+      if ((pane.agent_status === "idle" || pane.agent_status === "done") && !e.restarting_at) {
+        try {
+          herdr("agent", "prompt", pane.pane_id, "/exit");
+          e.restarting_at = Date.now();
+          log("info", "herdr", `${title}: moving its ${RUN_NAME} from herdr to herdr-core (same conversation)`, { room, session: short(e.session) });
+        } catch {}
+      } else if (e.restarting_at && pane.agent_status === "blocked") {
+        try {
+          const shown = execFileSync("herdr", ["pane", "read", pane.pane_id, "--source", "visible", "--lines", "15"], { stdio: ["ignore", "pipe", "pipe"] }).toString();
+          if (/Background work is running/.test(shown))
+            herdr("agent", "send-keys", pane.pane_id, "Enter");
+        } catch {}
+      }
+      if (e.restarting_at && Date.now() - e.restarting_at > 2 * 60000 && pane.agent_status !== "working") {
+        try {
+          herdr("pane", "close", pane.pane_id);
+          log("info", "herdr", `${title}: its ${RUN_NAME} in herdr did not exit, closed its pane`, { room, session: short(e.session) });
+        } catch {}
+      }
+      continue;
+    }
+    if (!old && before?.workspace && before.session && claudeSessionAlive(before.session)) {
+      log("debug", "herdr", `${title}: its ${RUN_NAME} of the herdr mode still runs; it moves to herdr-core when it ends`, { room, session: short(before.session) });
+      continue;
+    }
+    if (before?.workspace && old)
+      delete before.workspace;
+    delete e.restarting_at;
+    e.session ??= before?.session;
+    e.folder ??= before?.folder ?? roomFolder(room, title);
+    linkFolder(e.folder, room);
+    const there = terms.find((x) => x.agent === CORE_AGENT && x.cwd === e.folder);
+    if (there) {
+      e.terminal = there.address;
+      log("info", "claude", `${title}: adopted the ${RUN_NAME} already open in its folder`, { room, folder: tilde(e.folder), terminal: there.address });
+      if (coreFree(there))
+        try {
+          hc("send", there.address, listenWords());
+          e.listening = true;
+          e.prompted_at = Date.now();
+        } catch {}
+      continue;
+    }
+    const name = `vb-${room}`.slice(0, 32);
+    try {
+      const r = hc("run", "--bg", "--name", name, "--cwd", e.folder, "--label", `vibebook.room=${room}`, "--no-parent", "--outlive-parent", "--rm", "--", ...coreArgv(e.session, room));
+      e.terminal = String(r.address ?? name);
+      e.listening = true;
+      e.plugin_v = pv;
+      e.prompted_at = Date.now();
+      log("info", "claude", `${title}: opened a ${RUN_NAME}${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder), terminal: e.terminal });
+    } catch (err) {
+      log("error", "claude", `${title}: could not open a ${RUN_NAME} in herdr-core: ${String(err.stderr ?? err).split(`
+`)[0].slice(0, 160)}`, { room });
+    }
+  }
+  const listed = new Set(rooms.map((r) => r.room_id));
+  for (const [room, e] of Object.entries(map)) {
+    if (on.has(room) || !e.terminal)
+      continue;
+    const t = ours(e);
+    const sid = t ? coreSession(t.address) : undefined;
+    if (sid)
+      e.session = sid;
+    if (!listed.has(room) || !t)
+      delete e.terminal;
+  }
+  writePrivate(HERDR_CORE, map);
+  if (old)
+    writePrivate(HERDR_FILE, old.map);
+}
 function herdrOrder(order, map) {
   const list = herdr("workspace", "list").workspaces;
   const ours = new Map(order.filter((r) => map[r]?.workspace).map((r) => [map[r].workspace, r]));
@@ -1458,6 +1705,7 @@ var HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for you 
   vibebook herdr [--once]        keep one Claude Code per room in herdr: opens it when you switch
                                  "Meu Claude" on in the app, closes it when you switch it off
   vibebook herdr --app           the same in the Herdr desktop app: one space per room (not with the terminal one)
+  vibebook herdr --core          the same in herdr-core terminals with no window (hc attach vb-<room>); the menu bar app's mode
   vibebook herdr --agent codex   open Codex instead of Claude Code in each room (or VIBEBOOK_AGENT=codex); works with --app
                                  --verbose also logs each pass, the room-list cache and what the hub hears
                                  (activity per room, reconnects); --json prints the log lines as NDJSON
@@ -1926,29 +2174,41 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
       }
     }
     case "watch": {
+      const shipped = process.env.VIBEBOOK_HERDR_DIR ? join2(process.env.VIBEBOOK_HERDR_DIR, `hc${process.platform === "win32" ? ".exe" : ""}`) : "";
+      process.env.VIBEBOOK_HC ||= findAgent("hc") ?? (shipped && existsSync2(shipped) ? shipped : "");
       if (process.env.VIBEBOOK_HERDR_DIR)
         process.env.PATH = `${process.env.VIBEBOOK_HERDR_DIR}${delimiter}${process.env.PATH ?? ""}`;
-      const up = () => {
+      const core = (() => {
         try {
-          return /^status: running$/m.test(execFileSync("herdr", ["status", "server"], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).toString());
+          hc("ls");
+          return true;
         } catch {
           return false;
         }
-      };
-      if (!up()) {
-        try {
-          spawn("herdr", ["server"], { detached: true, stdio: "ignore", env: process.env, windowsHide: true }).unref();
-        } catch (e) {
-          return die(`could not start herdr: ${String(e.message ?? e)}`);
+      })();
+      if (!core) {
+        const up = () => {
+          try {
+            return /^status: running$/m.test(execFileSync("herdr", ["status", "server"], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).toString());
+          } catch {
+            return false;
+          }
+        };
+        if (!up()) {
+          try {
+            spawn("herdr", ["server"], { detached: true, stdio: "ignore", env: process.env, windowsHide: true }).unref();
+          } catch (e) {
+            return die(`could not start herdr: ${String(e.message ?? e)}`);
+          }
+          for (let i = 0;i < 50 && !up(); i++)
+            await new Promise((r) => setTimeout(r, 200));
+          if (!up())
+            return die("herdr server did not start. Is herdr installed? https://herdr.dev");
+          log("info", "watch", "started herdr server (no window)");
         }
-        for (let i = 0;i < 50 && !up(); i++)
-          await new Promise((r) => setTimeout(r, 200));
-        if (!up())
-          return die("herdr server did not start. Is herdr installed? https://herdr.dev");
-        log("info", "watch", "started herdr server (no window)");
       }
       const self = /^(\/\$bunfs\/|[A-Za-z]:[\\/]~BUN[\\/])/.test(process.argv[1] ?? "") ? [] : process.argv.slice(1, 2);
-      const args = [...self, "herdr", ...flag("agent") ? ["--agent", String(flag("agent"))] : []];
+      const args = [...self, "herdr", ...core ? ["--core"] : [], ...flag("agent") ? ["--agent", String(flag("agent"))] : []];
       const start = () => spawn(process.execPath, args, { stdio: ["ignore", "ignore", "inherit"], env: process.env, windowsHide: true });
       let runner = start();
       process.on("exit", () => {
@@ -2138,14 +2398,19 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
     }
     case "herdr": {
       const appMode = !!flags.app;
+      const coreMode = !appMode && !!flags.core;
       try {
         if (appMode)
           happ("ls");
+        else if (coreMode)
+          hc("ls");
         else
           execFileSync("herdr", ["status"], { stdio: "ignore" });
       } catch (e) {
         if (appMode)
           return die("Herdr (the desktop app) isn't open, or herdr-app isn't installed (https://herdr.dev)");
+        if (coreMode)
+          return die("herdr-core (hc) isn't installed or doesn't start. Install it from https://herdr.dev");
         return die(e.code === "ENOENT" ? `herdr isn't installed. It's the terminal your room Claudes open in. Set everything up with one line:
   curl -fsSL https://chat.decocms.com/setup.sh | sh` : 'herdr isn\'t open. Run `herdr` in a terminal: with the vibebook plugin (herdr plugin install decocms/chat/herdr-plugin) its "vibebook" tab runs this for you.');
       }
@@ -2173,7 +2438,7 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
         process.on(sig, () => process.exit(0));
       process.on("exit", flushRepeats);
       const s = readJson(SESSION, null);
-      log("info", "start", `vibebook herdr ${VERSION}, ${appMode ? "Herdr app" : "herdr terminal"} mode${flags.once ? ", one pass" : ""}`, { pid: process.pid, verbose: !!flags.verbose || undefined });
+      log("info", "start", `vibebook herdr ${VERSION}, ${appMode ? "Herdr app" : coreMode ? "herdr-core" : "herdr terminal"} mode${flags.once ? ", one pass" : ""}`, { pid: process.pid, verbose: !!flags.verbose || undefined });
       log("info", "start", `logged in as ${loggedInAs(s) ?? "?"}`, { origin: s?.origin.replace(/^https?:\/\//, "") });
       log("info", "start", `machine ${hostname().replace(/\.local$/, "")}`, { id: short(machineId(), 10), node: process.versions.node });
       if (RUN_AGENT === "claude" && !pluginVersion() && !process.env.VIBEBOOK_NO_PLUGIN_UPDATE) {
@@ -2228,7 +2493,7 @@ ${rule}`);
       if (flags.verbose && !flags.once)
         tailHub();
       if (!flags.once)
-        herdrServer(appMode);
+        herdrServer(appMode ? "app" : coreMode ? "core" : "terminal");
       let pluginAt = 0;
       for (;; ) {
         if (RUN_AGENT === "claude" && !flags.once && Date.now() - pluginAt > 3600000 && !process.env.VIBEBOOK_NO_PLUGIN_UPDATE) {
@@ -2248,7 +2513,7 @@ ${rule}`);
         }
         const t0 = Date.now();
         try {
-          await (appMode ? herdrAppSync : herdrSync)(agent, tools);
+          await (appMode ? herdrAppSync : coreMode ? herdrCoreSync : herdrSync)(agent, tools);
           log("debug", "herdr", "pass done", { ms: Date.now() - t0 });
         } catch (e) {
           log("error", "herdr", `pass failed: ${String(e?.message ?? e).split(`

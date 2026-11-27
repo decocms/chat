@@ -1,6 +1,6 @@
 // Puts the two programs that the menu bar app (tray/) ships into tray/binaries/, with the target triple in the name
-// that Tauri's bundle.externalBin needs: the vibebook CLI, compiled with Bun for the target, and herdr from herdr's
-// GitHub release, checked against the SHA-256 below. The release workflow (.github/workflows/release-tray.yml) and a
+// that Tauri's bundle.externalBin needs: the vibebook CLI, compiled with Bun for the target, and herdr-core (`hc`) from
+// its release, checked against the SHA-256 below. The release workflow (.github/workflows/release-tray.yml) and a
 // local build both run it: bun scripts/tray-bins.ts [<target triple>] (default: this computer's).
 import {
   chmodSync,
@@ -8,34 +8,37 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   rmSync,
+  statSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-/** herdr (https://herdr.dev, github.com/herdrdev/herdr, Apache-2.0). To update: change the version, then copy the
- *  digests from `gh release view --repo herdrdev/herdr v<version> --json assets`. */
-const HERDR_VERSION = "0.9.5";
+/** herdr-core (https://herdr.dev, github.com/herdrdev/herdr-core, Apache-2.0): the `hc` terminals that the room
+ *  Claudes run in (Gimenes #6147). The app uses an installed hc first. To update: change the version, then copy the
+ *  digests from https://releases.herdr.dev/core/<version>/manifest.json. */
+const HC_VERSION = "0.1.22";
 const TARGETS = {
   "aarch64-apple-darwin": {
     bun: "bun-darwin-arm64",
-    herdr: "herdr-macos-aarch64",
-    sha256: "fb77c2232a05a8035421382c894392f4174e4e38a18e48af3dd0290157c3a7e2",
+    hc: "herdr-core-macos-aarch64.tar.gz",
+    sha256: "90798daadefa8d126b90ef0bcdbe9c7dda9c6cfbf011a247065ab5da348f350e",
   },
   "x86_64-apple-darwin": {
     bun: "bun-darwin-x64",
-    herdr: "herdr-macos-x86_64",
-    sha256: "5fb0a908ec7f6745e3e245738b06bfad56c46391c391ab3c0955fbead01f1369",
+    hc: "herdr-core-macos-x86_64.tar.gz",
+    sha256: "35144041969e870ddb4edcd2fd08fd26dfe5cee7d18e6b48adb276f90a48aa19",
   },
   "x86_64-unknown-linux-gnu": {
     bun: "bun-linux-x64",
-    herdr: "herdr-linux-x86_64",
-    sha256: "14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d",
+    hc: "herdr-core-linux-x86_64.tar.gz",
+    sha256: "3054ec3992ce80c5715d721caa9dcefa6056721d15dc113f4750afce763ba5df",
   },
   "x86_64-pc-windows-msvc": {
     bun: "bun-windows-x64",
-    herdr: "herdr-windows-x86_64.zip",
-    sha256: "d2c6c9c971c43a0bfdde8c692a9a1a7a45c3e4807cd01ae45662b4734fac1cbf",
+    hc: "herdr-core-windows-x86_64.zip",
+    sha256: "37cae9d6c522e205efcdb55a42d354285f41b8cbb4c6e60fb505b73b151966c9",
   },
 } as const;
 type Target = keyof typeof TARGETS;
@@ -85,44 +88,60 @@ run([
   join(out, `vibebook-${triple}${exe}`),
 ]);
 
-// 2. herdr, from its release, checked before it is used.
-const url = `https://github.com/herdrdev/herdr/releases/download/v${HERDR_VERSION}/${pin.herdr}`;
+// 2. herdr-core, from its release, checked before it is used. The archive has the `herdr-core` program (it answers as
+// `hc` by any name), LICENSE and THIRD-PARTY-NOTICES (a folder on Windows); the notices go to
+// tray/binaries/herdr-core-licenses/. On Windows, herdr-core.exe needs its conpty/ folder beside it
+// (tauri.windows.conf.json ships it).
+const url = `https://releases.herdr.dev/core/${HC_VERSION}/${pin.hc}`;
 const res = await fetch(url);
 if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
 const bytes = new Uint8Array(await res.arrayBuffer());
 const digest = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
 if (digest !== pin.sha256)
-  throw new Error(`${pin.herdr}: SHA-256 ${digest}, expected ${pin.sha256}`);
-const herdr = join(out, `herdr-${triple}${exe}`);
-if (pin.herdr.endsWith(".zip")) {
-  // Windows: herdr.exe needs its conpty/ folder beside it; tauri.windows.conf.json ships it and the notices.
-  const dir = mkdtempSync(join(tmpdir(), "herdr-"));
-  const zip = join(dir, pin.herdr);
-  await Bun.write(zip, bytes);
-  const unzipped = join(dir, "x");
+  throw new Error(`${pin.hc}: SHA-256 ${digest}, expected ${pin.sha256}`);
+const dir = mkdtempSync(join(tmpdir(), "herdr-core-"));
+const archive = join(dir, pin.hc);
+await Bun.write(archive, bytes);
+const unpacked = join(dir, "x");
+mkdirSync(unpacked);
+if (pin.hc.endsWith(".zip")) {
   if (process.platform === "win32")
     run([
       "powershell",
       "-NoProfile",
       "-Command",
-      `Expand-Archive -LiteralPath '${zip}' -DestinationPath '${unzipped}' -Force`,
+      `Expand-Archive -LiteralPath '${archive}' -DestinationPath '${unpacked}' -Force`,
     ]);
-  else run(["unzip", "-q", zip, "-d", unzipped]);
-  for (const need of ["herdr.exe", "conpty", "THIRD-PARTY-NOTICES"])
-    if (!existsSync(join(unzipped, need)))
-      throw new Error(`${pin.herdr} has no ${need}`);
-  cpSync(join(unzipped, "herdr.exe"), herdr);
-  cpSync(join(unzipped, "conpty"), join(out, "conpty"), { recursive: true });
-  cpSync(
-    join(unzipped, "THIRD-PARTY-NOTICES"),
-    join(out, "THIRD-PARTY-NOTICES"),
-    { recursive: true },
-  );
-  rmSync(dir, { recursive: true, force: true });
-} else {
-  await Bun.write(herdr, bytes);
-  chmodSync(herdr, 0o755);
+  else run(["unzip", "-q", archive, "-d", unpacked]);
+} else run(["tar", "-xzf", archive, "-C", unpacked]);
+/** The first entry with this name in the archive, at any depth (the top level first). */
+function find(name: string, at = unpacked): string | undefined {
+  const entries = readdirSync(at);
+  if (entries.includes(name)) return join(at, name);
+  for (const e of entries)
+    if (statSync(join(at, e)).isDirectory()) {
+      const hit = find(name, join(at, e));
+      if (hit) return hit;
+    }
+  return undefined;
 }
-console.info(
-  `tray/binaries: vibebook and herdr ${HERDR_VERSION} for ${triple}`,
-);
+const program = find(`herdr-core${exe}`) ?? find(`hc${exe}`);
+if (!program || !statSync(program).isFile())
+  throw new Error(`${pin.hc} has no herdr-core${exe}`);
+const hc = join(out, `hc-${triple}${exe}`);
+cpSync(program, hc);
+chmodSync(hc, 0o755);
+const licenses = join(out, "herdr-core-licenses");
+mkdirSync(licenses);
+for (const need of ["LICENSE", "THIRD-PARTY-NOTICES"]) {
+  const f = find(need);
+  if (!f) throw new Error(`${pin.hc} has no ${need}`);
+  cpSync(f, join(licenses, need), { recursive: true });
+}
+if (exe) {
+  const conpty = find("conpty");
+  if (!conpty) throw new Error(`${pin.hc} has no conpty`);
+  cpSync(conpty, join(out, "conpty"), { recursive: true });
+}
+rmSync(dir, { recursive: true, force: true });
+console.info(`tray/binaries: vibebook and hc ${HC_VERSION} for ${triple}`);
