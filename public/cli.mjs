@@ -132,7 +132,7 @@ function agentVersion(raw) {
 }
 
 // cli/vibebook.ts
-var VERSION = "1.7.13";
+var VERSION = "1.7.14";
 var HOME = process.env.VIBEBOOK_HOME || join2(homedir(), ".vibebook");
 var SESSION = join2(HOME, "session.json");
 var AGENTS = join2(HOME, "agents.json");
@@ -230,7 +230,7 @@ function roomHere(root) {
         return m[1];
     } catch {}
   }
-  return;
+  return process.env.VIBEBOOK_ROOM?.match(/^[a-z0-9]{6,40}$/)?.[0];
 }
 var codexThread = () => process.env.CLAUDE_CODE_SESSION_ID ? undefined : process.env.CODEX_THREAD_ID?.match(/^[\w-]{8,80}$/)?.[0];
 function codexOpen() {
@@ -1433,7 +1433,7 @@ function coreArgv(session, room) {
     return argv;
   const shell = process.env.SHELL || "/bin/zsh";
   const exec = /(^|\/)fish$/.test(shell) ? "exec $argv" : 'exec "$0" "$@"';
-  return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", shell, "-ilc", exec, ...argv];
+  return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", `VIBEBOOK_ROOM=${room}`, shell, "-ilc", exec, ...argv];
 }
 function herdrLeftovers() {
   const map = readJson(HERDR_FILE, {});

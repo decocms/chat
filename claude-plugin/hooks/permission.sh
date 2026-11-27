@@ -5,8 +5,13 @@
 # terminal prompt shows. Only the tool's name and a short summary go to the room; the secret filter refuses the rest.
 command -v vibebook >/dev/null 2>&1 || exit 0
 command -v node >/dev/null 2>&1 || exit 0
-root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
-[ -f "$root/.vibebook" ] || grep -qsE "(chat\.decocms\.com|vibebook\.dev)/b/" "$root/README.md" "$root/AGENTS.md" "$root/CLAUDE.md" || exit 0
+# The room of this folder: the runner names it (VIBEBOOK_ROOM), else `.vibebook` or a room link at the repo root, else in
+# this folder. A room folder the runner made is not a git repo, and a git-only check skipped every question there, so it
+# stayed in the terminal (Gimenes #6490, #6508).
+if [ -z "$VIBEBOOK_ROOM" ]; then
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$(pwd)
+  [ -f "$root/.vibebook" ] || grep -qsE "(chat\.decocms\.com|vibebook\.dev)/b/" "$root/README.md" "$root/AGENTS.md" "$root/CLAUDE.md" || exit 0
+fi
 input=$(cat)
 # A Claude's question (AskUserQuestion) is question.sh's: it posts the choices, not Aprovar / Negar.
 printf %s "$input" | grep -q '"tool_name": *"AskUserQuestion"' && exit 0

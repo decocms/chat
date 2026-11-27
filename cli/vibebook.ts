@@ -12,7 +12,7 @@ import { scanTranscripts } from "./backfill";
 import { createAgentRunners, type MachineAgent } from "./agentRunners";
 import { AGENT_KINDS, agentVersion as versionNumber, type MachineKinds } from "../shared/agentKinds";
 
-const VERSION = "1.7.13";
+const VERSION = "1.7.14";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -110,7 +110,8 @@ function roomHere(root: string): string | undefined {
       if (m) return m[1];
     } catch {}
   }
-  return undefined;
+  // The room the runner opened this agent for (coreArgv): its hooks and calls reach that room from any folder.
+  return process.env.VIBEBOOK_ROOM?.match(/^[a-z0-9]{6,40}$/)?.[0];
 }
 /** The Codex thread this command runs in: Codex sets CODEX_THREAD_ID in the env of each command (0.172, Nov 2026).
  *  Not inside Claude Code: a Claude started from a Codex shell inherits the variable. */
@@ -1303,7 +1304,7 @@ function coreArgv(session: string | undefined, room: string): string[] {
   // fish has no "$0"/"$@": the POSIX form ran `exec ""` (exit 127), so with fish as the login shell every terminal
   // ended at once and each room stayed "Abrindo o Claude Code…" (Viktor #6423). fish passes the extra arguments in $argv.
   const exec = /(^|\/)fish$/.test(shell) ? "exec $argv" : 'exec "$0" "$@"';
-  return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", shell, "-ilc", exec, ...argv];
+  return ["/usr/bin/env", "DISABLE_AUTO_UPDATE=true", `VIBEBOOK_ROOM=${room}`, shell, "-ilc", exec, ...argv];
 }
 /** The terminal-mode map, while it still has live herdr panes from before this mode: a room there is moved, not
  *  opened twice (its free Claude gets /exit, then its conversation reopens here with --resume). */

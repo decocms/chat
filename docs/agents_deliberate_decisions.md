@@ -2825,3 +2825,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. If Claude Code changes the transcript format, the room question stays open until the wait ends, the same as before.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · fix/hooks-room-without-git · The question hooks find the room without git
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes's agent in deco-blocks-product asked every permission in the terminal (#6490). Its folder (`~/Projects/deco-cms-v8`) has `.vibebook`, but it is not a git repo. `permission.sh`, `question.sh` and `notify.sh` began with `git rev-parse --show-toplevel || exit 0`, so they never ran in a room folder that the runner made. Gimenes chose the three-step plan (#6514); this is step 1.
+- Decision:
+  - The hooks use `VIBEBOOK_ROOM` when it is set, else `.vibebook` or a room link at the git root, else in the current folder. They do not look in parent folders, because the CLI does not either: a hook that finds a room the CLI cannot post to does nothing useful.
+  - The runner (terminal mode, `coreArgv`) starts each agent with `VIBEBOOK_ROOM=<room>`. The CLI uses it as the last fallback in `roomHere`.
+  - Plugin 0.25.9, CLI 1.7.14. The runner part reaches the app machines with the next tray release.
+- Other options: Make every room folder a git repo. Look in parent folders.
+- Risk: low
+- Undo: Revert the commit.
+- Status: open
