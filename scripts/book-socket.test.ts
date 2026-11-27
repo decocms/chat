@@ -67,3 +67,12 @@ test("the Home Inbox's look (peek=1) reaches the Book as such; any other value i
     "https://book/ws?book=abcdef&t=main",
   );
 });
+
+test("ed=1 (the app merges a resume's threads by id) reaches the Book; any other value is dropped", () => {
+  expect(bookSocketUrl("abcdef", query("ed=1&since=5&at=9&eh=h1"))).toBe(
+    "https://book/ws?book=abcdef&t=main&since=5&at=9&eh=h1&ed=1",
+  );
+  expect(bookSocketUrl("abcdef", query("ed=yes"))).toBe(
+    "https://book/ws?book=abcdef&t=main",
+  );
+});

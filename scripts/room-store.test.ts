@@ -317,3 +317,54 @@ test("person-targeted openSide contributes only exact validated file metadata wi
   expect(next.filesN).toBe(1);
   expect(next.filesAll).toBe(true);
 });
+
+describe("epics delta on resume (Gimenes #6066)", () => {
+  const { id: _id, typing: _typing, ...base } = room();
+  test("an ed=1 resume merges the changed threads by id in the Book's order", () => {
+    const old = room({ epics: [epic("a"), epic("b"), epic("c")], eh: "h1" });
+    const resumed = apply(old, {
+      t: "state",
+      ...base,
+      messages: [],
+      epics: [epic("b", "b renamed"), epic("d")],
+      epicsOrder: ["d", "a", "b"],
+      resume: true,
+      eh: "h2",
+    });
+    expect(resumed.epics.map((e) => [e.id, e.title])).toEqual([
+      ["d", "d"],
+      ["a", "a"],
+      ["b", "b renamed"],
+    ]);
+    expect(resumed.eh).toBe("h2");
+    expect("epicsOrder" in resumed).toBe(false);
+  });
+  test("an order naming a thread the room lacks keeps the room's and drops its eh", () => {
+    const old = room({ eh: "h1" });
+    const resumed = apply(old, {
+      t: "state",
+      ...base,
+      messages: [],
+      epics: [],
+      epicsOrder: ["a", "zz"],
+      resume: true,
+      eh: "h2",
+    });
+    expect(resumed.epics.map((e) => e.id)).toEqual(["a", "b"]);
+    expect(resumed.eh).toBeUndefined();
+  });
+  test("a live push carries the Book's eh", () => {
+    const old = room({ eh: "h1" });
+    expect(apply(old, { t: "epics", epics: [epic("z")], eh: "h3" }).eh).toBe(
+      "h3",
+    );
+    expect(
+      apply(old, {
+        t: "epicsPatch",
+        changed: [epic("a", "x")],
+        order: ["a", "b"],
+        eh: "h4",
+      }).eh,
+    ).toBe("h4");
+  });
+});

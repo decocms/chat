@@ -2577,3 +2577,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-26 · epics-delta · A resume sends only the threads that changed
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes OK'd (#6066, #6079) sending only the changed epics on the "epics" resume (342 resumes of ~207 KB on 26/11). He did not say how the Book knows what the app has.
+- Decision:
+  - The Book keeps, in meta (`eh:<eh>`, the newest 20, list in `eh:kept`), the hash of each thread for every epics list it sent (a state or a live push). No schema change and nothing per client.
+  - Live `epics`/`epicsPatch` pushes now carry `eh`, so the app keeps a hash that names its list (before, a push cleared it and the next resume got every thread).
+  - Only an app that sends `ed=1` gets the delta (`epics` = changed ones, `epicsOrder` = all ids). An old app, or an `eh` the Book forgot, gets every thread as before.
+- Other options: The app sends a hash per thread (long URLs, and the app would have to hash exactly as the Book). An `updated_at` per thread (a DO schema change; threads are built from several tables).
+- Risk: medium (wire protocol). Old apps are unchanged; a bad merge falls back to the room's own threads and no eh.
+- Undo: Revert the commit.
+- Status: open

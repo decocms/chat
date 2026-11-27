@@ -484,3 +484,75 @@ test("another member never receives a Claude's hook ask; its human sees it and a
   // What permission_wait reads back for the hook.
   expect(book.answerTo("abcdef", mine, email)).toBe("Aprovar");
 });
+
+// Epics delta on resume (Gimenes #6066): an app that sends ed=1 gets only the threads that changed since its eh.
+test("a resume with ed=1 sends only the changed threads and their order; without ed=1 all of them", async () => {
+  const { book, db, frames } = fixture();
+  const first = book.addMessage("main", email, "oi").id;
+  for (const id of ["e1", "e2", "e3"])
+    db.query(`INSERT INTO epics (id, title, ts) VALUES (?, ?, ?)`).run(
+      id,
+      id,
+      Date.now(),
+    );
+  const before = JSON.parse(
+    JSON.stringify(
+      await book.roomState("abcdef", email, { t: "main", ed: "1" }),
+    ),
+  );
+  expect(before.epics.map((e: { id: string }) => e.id)).toEqual([
+    "e1",
+    "e2",
+    "e3",
+  ]);
+  db.query(`UPDATE epics SET title = 'e2 renamed' WHERE id = 'e2'`).run();
+  db.query(`DELETE FROM epics WHERE id = 'e3'`).run();
+  const query = {
+    t: "main",
+    since: first,
+    at: Number(before.at),
+    eh: String(before.eh),
+  };
+  const delta = JSON.parse(
+    JSON.stringify(
+      await book.roomState("abcdef", email, { ...query, ed: "1" }),
+    ),
+  );
+  expect(RoomEventSchemas.state.safeParse(delta).success).toBe(true);
+  expect(delta.resume).toBe(true);
+  expect(delta.epics.map((e: { title: string }) => e.title)).toEqual([
+    "e2 renamed",
+  ]);
+  expect(delta.epicsOrder).toEqual(["e1", "e2"]);
+  // An old app (no ed) still gets every thread, as before.
+  const old = await book.roomState("abcdef", email, query);
+  expect(old.epics.map((e) => e.id)).toEqual(["e1", "e2"]);
+  expect(old.epicsOrder).toBeUndefined();
+  // An eh the Book does not remember: every thread.
+  const unknown = await book.roomState("abcdef", email, {
+    ...query,
+    eh: "nope",
+    ed: "1",
+  });
+  expect(unknown.epics.map((e) => e.id)).toEqual(["e1", "e2"]);
+  expect(unknown.epicsOrder).toBeUndefined();
+  // A live push names its list (eh), and the Book remembers it for the next resume.
+  book.pushEpics(book.epics(), book.roomTasks());
+  const push = frames
+    .map(
+      (frame) =>
+        JSON.parse(frame) as { method?: string; params?: { eh?: string } },
+    )
+    .findLast(
+      (frame) => frame.method === "epics" || frame.method === "epicsPatch",
+    );
+  expect(push?.params?.eh).toBeString();
+  db.query(`UPDATE epics SET title = 'e1 renamed' WHERE id = 'e1'`).run();
+  const after = await book.roomState("abcdef", email, {
+    ...query,
+    eh: push!.params!.eh,
+    ed: "1",
+  });
+  expect(after.epics.map((e) => e.title)).toEqual(["e1 renamed"]);
+  expect(after.epicsOrder).toEqual(["e1", "e2"]);
+});

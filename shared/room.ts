@@ -278,6 +278,9 @@ export const RoomSnapshotSchema = z.object({
    *  epicsSame = the threads did not change, so epics is empty and the app keeps its own. */
   resume: opt(bool),
   epicsSame: opt(bool),
+  /** A resume for an app that asked ed=1 (Book.epicsDelta): epics holds only the threads that changed, and this is
+   *  the order of all of them (one missing is gone). */
+  epicsOrder: opt(strings),
 });
 /** The room as the browser keeps it: the snapshot plus its id and who is typing. */
 export type Room = z.infer<typeof RoomSnapshotSchema> & {

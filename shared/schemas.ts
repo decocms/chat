@@ -275,6 +275,8 @@ export const RoomStateQuery = z.object({
   since: z.optional(z.coerce.number().check(z.positive())),
   at: z.optional(z.coerce.number().check(z.positive())),
   eh: z.optional(z.string().check(z.maxLength(64), z.regex(/^[\w-]*$/))),
+  /** ed=1: the app merges epics by id, so a resume sends only the changed ones (Book.epicsDelta). */
+  ed: z.optional(z.literal("1")),
 });
 export type RoomStateQuery = z.infer<typeof RoomStateQuery>;
 /** GET /api/books/:id/link: where a link to this app goes (a chip in the chat, web/features/rich-text/AppLinkChip).
