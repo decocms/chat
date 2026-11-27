@@ -112,6 +112,13 @@ export async function openRoomPane(
       else {
         await page.locator("[data-room-bar] [data-desktop-more]").click();
         await page.locator(`[data-desktop-more-item="${pane}"]`).click();
+        // The menu fades out over the pane's bar: wait until it is gone, or
+        // the next click lands on it.
+        await expect(page.locator("[data-desktop-more-menu]")).toBeHidden();
+        // The focus goes back to ⋮, and its "Mais opções" tooltip covers the
+        // pane bar's buttons under it (the doc's Edit): take the focus away.
+        await page.locator("[data-room-bar] [data-desktop-more]").blur();
+        await expect(page.getByRole("tooltip")).toHaveCount(0);
       }
     }
   }
