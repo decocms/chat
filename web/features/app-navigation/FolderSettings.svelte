@@ -80,7 +80,7 @@
         void controller.rooms.folder(folder.id, { name: clean(name), tint });
       }}
     >
-      <Label for="folder-name">{homeText(lang, "name")}</Label><Input
+      <Label for="folder-name">{t("Nome")}</Label><Input
         bind:ref={input}
         bind:value={name}
         id="folder-name"
