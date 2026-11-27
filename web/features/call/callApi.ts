@@ -4,6 +4,7 @@ import {
   CallJoinResult,
   CallSfuResult,
   type CallDescription,
+  type CallLayerBody,
   type CallTracksBody,
 } from "../../../shared/schemas";
 
@@ -28,6 +29,12 @@ export function createCallApi(fetcher?: FetchLike) {
       const response = await api.tracks.$post({ param: param(roomId), json });
       if (response.status === 409) return "limit" as const;
       if (!response.ok) throw fail("tracks", response.status);
+      return CallSfuResult.parse(await response.json());
+    },
+    /** Another layer of a camera I receive (its tile got bigger or smaller). */
+    async layer(roomId: string, json: CallLayerBody) {
+      const response = await api.layer.$post({ param: param(roomId), json });
+      if (!response.ok) throw fail("layer", response.status);
       return CallSfuResult.parse(await response.json());
     },
     async answer(roomId: string, session: string, answer: CallDescription) {

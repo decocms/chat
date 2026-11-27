@@ -172,7 +172,7 @@ Each change to the microphone path of the call (`web/features/call/session.ts`, 
 `bun scripts/call-camera-quality.ts` compares encoder settings of the camera (`CAM_SEND` in `session.ts`) for two people against the local Worker with the real SFU. It changes only the test's encoding (a hook on `setParameters`), not the app.
 
 1. Make a camera: a static 1280×720 picture with fine detail and sensor noise (`TEST_CAMERA`, .y4m), and the same picture without noise (`TEST_STILL`, .png). For example: `ffmpeg -loop 1 -i photo.jpg -vf "scale=1280:720,format=yuv420p,noise=alls=5:allf=t" -t 8 -r 30 cam.y4m` and `ffmpeg -i photo.jpg -vf scale=1280:720 -frames:v 1 still.png`.
-2. Run `TEST_CAMERA=cam.y4m TEST_STILL=still.png bun scripts/call-camera-quality.ts`. `TEST_ONLY=360p-500k,540p-350k` runs only those settings.
+2. Run `TEST_CAMERA=cam.y4m TEST_STILL=still.png bun scripts/call-camera-quality.ts`. `TEST_ONLY=360p-500k,540p-350k` runs only those settings. `TEST_ONLY=app` runs the app's own layers (no hook); `TEST_SCALE=2` gives Bia a 2x screen, so her tile takes the 720p layer.
 3. It prints, for each setting, the kbps that Ana sends, the size and frames a second that the encoder really sends, what limits it, and the SSIM of Bia's frame against the still at a grid tile's size (640×360) and a big tile's (1280×720). A higher SSIM is a sharper picture. The frames go to `/tmp/vibebook-call-camera`.
 
 ## Test the call with many people

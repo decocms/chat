@@ -13,7 +13,7 @@ const kindsOf = (raw: unknown) => {
   }
 };
 import { requestBytes, RequestBytesError } from "./requestBytes";
-import { SttQuery, SttResult, CallJoinResult, CallTracksBody, CallAnswerBody, CallCloseBody, CallLeaveBody, CALL_LIMIT, type CallSfuResult, type CallDescription, type CallTracksBody as CallTracksBodyType, type SttQuery as SttQueryType } from "../shared/schemas";
+import { SttQuery, SttResult, CallJoinResult, CallTracksBody, CallAnswerBody, CallCloseBody, CallLayerBody, CallLeaveBody, CALL_LIMIT, type CallSfuResult, type CallDescription, type CallTracksBody as CallTracksBodyType, type CallLayerBody as CallLayerBodyType, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
 import { isDmId } from "../shared/dm";
@@ -153,6 +153,7 @@ export interface ApiServices {
   allowCall(): Promise<boolean>;
   callJoin(roomId: string, thread: string): Promise<CallJoinResult>;
   callTracks(roomId: string, body: CallTracksBodyType): Promise<CallSfuResult | "forbidden" | "limit">;
+  callLayer(roomId: string, body: CallLayerBodyType): Promise<CallSfuResult | "forbidden">;
   callAnswer(roomId: string, session: string, answer: CallDescription): Promise<boolean>;
   callClose(roomId: string, session: string, mids: string[], names: string[]): Promise<boolean>;
   /** Hang up: this session leaves the room's call at once (the socket's call.leave can be lost on a reconnect). */
@@ -759,6 +760,17 @@ export const roomApi = accountApi
       }
       if (body.push?.some((p) => p.name === "screen")) svc.track("call_screen", { book: id });
       return c.json(out satisfies CallSfuResult, 200);
+    } catch (error) {
+      return c.json(sfuDown(error), 502);
+    }
+  })
+  // A camera's layer: its tile got bigger or smaller (simulcast).
+  .post("/api/books/:id/call/layer", body(CallLayerBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    try {
+      const out = await svc.callLayer(id, c.req.valid("json"));
+      return out === "forbidden" ? c.json(forbidden, 403) : c.json(out satisfies CallSfuResult, 200);
     } catch (error) {
       return c.json(sfuDown(error), 502);
     }

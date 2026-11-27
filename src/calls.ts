@@ -7,7 +7,7 @@ import type { Env } from "./index";
 import { bookStub, storeFile } from "./rooms";
 import { findSecret } from "./secrets";
 import { transcriptMarkdown, transcriptName } from "./callText";
-import { CallSfuResult, type CallDescription, type CallTracksBody, type RecordedBody } from "../shared/schemas";
+import { CallSfuResult, type CallDescription, type CallLayerBody, type CallTracksBody, type RecordedBody } from "../shared/schemas";
 import { CALL_SCREEN_LIMIT_GB, EGRESS_QUERY, GB, egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "./callBudget";
 import { hmac, safeEqual } from "./auth";
 
@@ -150,11 +150,24 @@ export async function callTracks(env: Env, bookId: string, email: string, req: C
   const out = CallSfuResult.parse(
     await dropGoneSession(env, bookId, email, req.session, sfu(env, "POST", `/sessions/${req.session}/tracks/new`, {
       ...(req.offer ? { sessionDescription: req.offer } : {}),
-      tracks: [...push.map((p) => ({ location: "local", mid: p.mid, trackName: p.name })), ...pull.map((p) => ({ location: "remote", sessionId: p.session, trackName: p.name }))],
+      tracks: [...push.map((p) => ({ location: "local", mid: p.mid, trackName: p.name })), ...pull.map((p) => ({ location: "remote", sessionId: p.session, trackName: p.name, ...(p.rid ? { simulcast: layer(p.rid) } : {}) }))],
     })),
   );
   if (push.length) await book.callTracks(email, push.map((p) => p.name), []);
   return out;
+}
+
+/** A camera's layer for one person (simulcast): the wanted one; without the bandwidth for it, or when the sender
+ *  stops it, the SFU takes the next in a-z order ("h" 720p, then "q" 360p). */
+const layer = (rid: "h" | "q") => ({ preferredRid: rid, priorityOrdering: "asciibetical", ridNotAvailable: "asciibetical" });
+/** Another layer of a camera that this session receives (its tile got bigger or smaller). */
+export async function callLayer(env: Env, bookId: string, email: string, req: CallLayerBody): Promise<CallSfuResult | "forbidden"> {
+  if (!(await bookStub(env, bookId).callCheck(email, req.session, [req.peer]))) return "forbidden";
+  return CallSfuResult.parse(
+    await dropGoneSession(env, bookId, email, req.session, sfu(env, "PUT", `/sessions/${req.session}/tracks/update`, {
+      tracks: [{ location: "remote", sessionId: req.peer, trackName: req.name, mid: req.mid, simulcast: layer(req.rid) }],
+    })),
+  );
 }
 
 /** The browser's answer to an offer the SFU made (a pull asks for it: requiresImmediateRenegotiation). */

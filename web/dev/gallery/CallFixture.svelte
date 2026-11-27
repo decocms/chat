@@ -185,6 +185,7 @@
     refreshDevices: () => void refreshDevices(),
     hearingMe: { subscribe: hearingMe.subscribe },
     toggleHearMe: () => hearingMe.update((on) => !on),
+    camSize: () => {},
     // A voice at a normal level, so the meter shows.
     micLevel: { subscribe: writable(45).subscribe },
     chooseMic: async (id) => {

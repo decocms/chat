@@ -207,11 +207,18 @@ export const CAM_CAPTURE = {
   height: { ideal: 720 },
   frameRate: { ideal: 30 },
 };
-const CAM_SEND = {
-  maxBitrate: 500_000,
-  scaleResolutionDownBy: 2,
-  maxFramerate: 24,
-};
+/** The camera goes in two layers (simulcast): "h" 720p for a big tile, "q" 360p for a small one. Each person
+ *  receives the layer of the size it shows (camLayer), so a small tile costs less than one camera of 500 kbps did
+ *  and a big one is as sharp as the webcam. 24 frames a second at least (Jonas): with little bandwidth the encoder
+ *  gives up size, not frames. Measured: scripts/call-camera-quality.ts. */
+export const CAM_LAYERS: RTCRtpEncodingParameters[] = [
+  { rid: "h", maxBitrate: 1_200_000, maxFramerate: 24 },
+  { rid: "q", maxBitrate: 300_000, maxFramerate: 24, scaleResolutionDownBy: 2 },
+];
+export type CamLayer = "h" | "q";
+/** The layer for a tile of this width on screen, in device pixels: above 360p's width (with a margin), 720p. */
+export const camLayer = (devicePixels: number): CamLayer =>
+  devicePixels > 800 ? "h" : "q";
 /** Opus stops sending in silence (DTX) when the description of the other side asks for it: this adds the ask to
  * each Opus line that does not have it. */
 export const withDtx = (sdp: string) =>
@@ -296,6 +303,9 @@ export function createCallSession(
     // The system's microphone as the last device list had it: a new one (a headset plugged in) is taken again.
     systemMic = "";
   /** key → mid of what this tab receives; mid → whose track it is; mid → the element that plays it. */
+  // A camera's layer, by the sender's session: the one its tile wants, and the one the SFU was asked for.
+  const camWish = new Map<string, CamLayer>(),
+    camGot = new Map<string, CamLayer>();
   const pulled = new Map<string, string>(),
     owners = new Map<string, { email: string; key: string }>(),
     players = new Map<string, HTMLAudioElement>(),
@@ -487,6 +497,8 @@ export function createCallSession(
     session = screenMid = "";
     reported = 0;
     pulled.clear();
+    camWish.clear();
+    camGot.clear();
     owners.clear();
     players.clear();
     state.set({ ...IDLE, error });
@@ -495,7 +507,10 @@ export function createCallSession(
     // The connection of this call: a hang-up while the SFU answers closes it, and the steps after fail on it.
     const conn = pc;
     if (!conn) return "";
-    const transceiver = conn.addTransceiver(track, { direction: "sendonly" });
+    const transceiver = conn.addTransceiver(track, {
+      direction: "sendonly",
+      ...(name === "cam" ? { sendEncodings: CAM_LAYERS } : {}),
+    });
     // The noise suppression switches the microphone's track on this sender.
     if (name === "mic") micSender = transceiver.sender;
     await conn.setLocalDescription(await conn.createOffer());
@@ -517,13 +532,17 @@ export function createCallSession(
     const sender = transceiver.sender,
       params = sender.getParameters();
     if (params.encodings[0]) {
-      if (name === "cam") Object.assign(params.encodings[0], CAM_SEND);
-      else
+      // The camera's layers have their ceilings already (CAM_LAYERS).
+      if (name !== "cam")
         params.encodings[0].maxBitrate =
           name === "mic" ? MIC_MAX_BPS : SCREEN_MAX_BPS;
-      // With little bandwidth, a screen keeps its sharpness (text) and a camera keeps its motion.
+      // With little bandwidth, a screen keeps its sharpness (text), a camera its 24 frames a second.
       params.degradationPreference =
-        name === "screen" ? "maintain-resolution" : "balanced";
+        name === "screen"
+          ? "maintain-resolution"
+          : name === "cam"
+            ? "maintain-framerate"
+            : "balanced";
       await sender.setParameters(params).catch(() => {});
     }
     return mid;
@@ -549,7 +568,10 @@ export function createCallSession(
     const plan = planTracks(peers, session, pulled.keys(), chosen, cams);
     if (plan.drop.length) {
       const mids = plan.drop.flatMap((key) => pulled.get(key) ?? []);
-      for (const key of plan.drop) pulled.delete(key);
+      for (const key of plan.drop) {
+        pulled.delete(key);
+        if (key.endsWith("/cam")) camGot.delete(key.slice(0, -"/cam".length));
+      }
       for (const mid of mids) {
         const player = players.get(mid);
         if (player) player.srcObject = null;
@@ -578,7 +600,12 @@ export function createCallSession(
       await api.close(roomId, session, mids).catch(() => {});
     }
     if (!plan.pull.length || !pc) return;
-    const out = await api.tracks(roomId, { session, pull: plan.pull });
+    const pull = plan.pull.map((want) =>
+      want.name === "cam"
+        ? { ...want, rid: camWish.get(want.session) ?? ("q" as const) }
+        : want,
+    );
+    const out = await api.tracks(roomId, { session, pull });
     if (out === "limit" || !pc) return;
     // A track with an error is not kept, so the next change in the call asks for it again.
     let failed = false;
@@ -590,6 +617,8 @@ export function createCallSession(
       }
       const key = trackKey(want);
       pulled.set(key, track.mid);
+      if (want.name === "cam")
+        camGot.set(want.session, camWish.get(want.session) ?? "q");
       owners.set(track.mid, {
         key,
         email: peers.find((p) => p.session === want.session)?.email ?? "",
@@ -603,6 +632,25 @@ export function createCallSession(
     if (failed) {
       clearTimeout(retryTimer);
       retryTimer = setTimeout(() => void enqueue(sync), PULL_RETRY_MS);
+    }
+  }
+  /** Asks the SFU for the layer that a camera's tile wants now, if it is not the one it gets. */
+  async function updateLayer(peer: string) {
+    const mid = pulled.get(trackKey({ session: peer, name: "cam" })),
+      want = camWish.get(peer) ?? "q";
+    if (!pc || !mid || camGot.get(peer) === want) return;
+    const out = await api.layer(roomId, {
+      session,
+      peer,
+      name: "cam",
+      mid,
+      rid: want,
+    });
+    camGot.set(peer, want);
+    if (pc && out.requiresImmediateRenegotiation && out.sessionDescription) {
+      await pc.setRemoteDescription(out.sessionDescription);
+      await pc.setLocalDescription(await pc.createAnswer());
+      await api.answer(roomId, session, wire("answer"));
     }
   }
   function received(event: RTCTrackEvent) {
@@ -917,6 +965,17 @@ export function createCallSession(
       }
       saveCleanup(next);
       return true;
+    },
+    /** A camera tile's width on screen, in device pixels: the camera's layer follows it (camLayer). */
+    camSize(email: string, devicePixels: number) {
+      const peer = peers.find(
+        (one) => one.email === email && one.session !== session,
+      );
+      if (!peer) return;
+      const want = camLayer(devicePixels);
+      if (camWish.get(peer.session) === want) return;
+      camWish.set(peer.session, want);
+      void enqueue(() => updateLayer(peer.session));
     },
     /** Am I hearing my own microphone ("Ouvir meu microfone")? */
     hearingMe: { subscribe: hearingMe.subscribe },

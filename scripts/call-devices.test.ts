@@ -512,3 +512,15 @@ test("a mute clicked while the call starts holds: the microphone sends silence a
   expect(get(t.call.state).muted).toBe(true);
   expect(t.opened[0]!.track.enabled).toBe(false);
 });
+
+test("the camera goes in two layers of 24 frames a second, and a tile takes 720p only when it is big on screen", async () => {
+  const { CAM_LAYERS, camLayer } = await import("../web/features/call/session");
+  expect(CAM_LAYERS.map((layer) => layer.rid)).toEqual(["h", "q"]);
+  expect(CAM_LAYERS.every((layer) => (layer.maxFramerate ?? 0) >= 24)).toBe(
+    true,
+  );
+  // A grid tile of 400 CSS px on a 2x screen is 800 device pixels: 360p is enough.
+  expect(camLayer(640)).toBe("q");
+  expect(camLayer(800)).toBe("q");
+  expect(camLayer(1100)).toBe("h");
+});

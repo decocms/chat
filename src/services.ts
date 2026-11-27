@@ -16,7 +16,7 @@ import { corporateDomain, isDmId, MUTUAL } from "../shared/dm";
 import { answerInvite, befriend, bookStub, invitesFor, joinRoom, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, typesError, waitsFor } from "./rooms";
 import { sendInviteEmail } from "./invite-mail";
 import { track } from "./track";
-import { callAnswer, callClose, callJoin, callsOn, callTracks, startRecorder } from "./calls";
+import { callAnswer, callClose, callJoin, callLayer, callsOn, callTracks, startRecorder } from "./calls";
 import { pushTo } from "./webpush";
 import { checkFreestyleKey, sandboxOps, saveKey } from "./sandbox";
 import { studioProjects, studioSignOut } from "./studioSandbox";
@@ -177,6 +177,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       return { session };
     },
     callTracks: (roomId, body) => callTracks(env, roomId, email, body),
+    callLayer: (roomId, body) => callLayer(env, roomId, email, body),
     callAnswer: (roomId, session, answer) => callAnswer(env, roomId, email, session, answer),
     callClose: (roomId, session, mids, names) => callClose(env, roomId, email, session, mids, names),
     callLeave: (roomId, session) => bookStub(env, roomId).callLeave(email, session),

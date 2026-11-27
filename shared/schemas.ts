@@ -1142,6 +1142,7 @@ export const CallDescription = z.object({
 export type CallDescription = z.infer<typeof CallDescription>;
 const callName = z.string().check(z.regex(/^[a-z]{1,16}$/));
 const callId = z.string().check(z.regex(/^[\w-]{1,128}$/));
+const callRid = z.enum(["h", "q"]);
 /** push: tracks of mine, by the transceiver's mid (needs `offer`). pull: tracks of others in the call. */
 export const CallTracksBody = z.object({
   session: callId,
@@ -1155,11 +1156,27 @@ export const CallTracksBody = z.object({
   ),
   pull: z.optional(
     z
-      .array(z.object({ session: callId, name: callName }))
+      .array(
+        z.object({
+          session: callId,
+          name: callName,
+          /** A camera's layer (simulcast, CAM_LAYERS): "h" 720p, "q" 360p. */
+          rid: z.optional(callRid),
+        }),
+      )
       .check(z.maxLength(64)),
   ),
 });
 export type CallTracksBody = z.infer<typeof CallTracksBody>;
+/** Another layer of a camera I receive (its tile got bigger or smaller): `mid` is my receiving transceiver. */
+export const CallLayerBody = z.object({
+  session: callId,
+  peer: callId,
+  name: callName,
+  mid: z.string().check(z.maxLength(16)),
+  rid: callRid,
+});
+export type CallLayerBody = z.infer<typeof CallLayerBody>;
 export const CallAnswerBody = z.object({
   session: callId,
   answer: CallDescription,

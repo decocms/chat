@@ -71,6 +71,20 @@ const settings: Setting[] = [
   },
   // At least 24 frames a second (Jonas): the encoder keeps the frames and gives up size.
   {
+    name: "360p-300k-24",
+    maxBitrate: 300_000,
+    scaleResolutionDownBy: 2,
+    maxFramerate: 24,
+    keepFps: true,
+  },
+  {
+    name: "360p-400k-24",
+    maxBitrate: 400_000,
+    scaleResolutionDownBy: 2,
+    maxFramerate: 24,
+    keepFps: true,
+  },
+  {
     name: "540p-800k-24",
     maxBitrate: 800_000,
     scaleResolutionDownBy: 4 / 3,
@@ -116,6 +130,8 @@ const settings: Setting[] = [
     scaleResolutionDownBy: 4 / 3,
     maxFramerate: 15,
   },
+  // The app's own setting (simulcast, CAM_LAYERS): no hook. TEST_SCALE=2 gives Bia a 2x screen (a big tile).
+  { name: "app", maxBitrate: 0, scaleResolutionDownBy: 1, maxFramerate: 0 },
 ].filter(
   (s) =>
     !process.env.TEST_ONLY || process.env.TEST_ONLY.split(",").includes(s.name),
@@ -130,6 +146,9 @@ const browser = await chromium.launch({
 });
 async function person(email: string, setting: Setting) {
   const context = await browser.newContext({
+    deviceScaleFactor: email.startsWith("bia")
+      ? Number(process.env.TEST_SCALE ?? 1)
+      : 1,
     locale: "pt-BR",
     viewport: { width: 1280, height: 800 },
     permissions: ["microphone", "camera"],
@@ -154,7 +173,7 @@ async function person(email: string, setting: Setting) {
       ...rest: unknown[]
     ) {
       const encoding = params.encodings?.[0];
-      if (encoding?.scaleResolutionDownBy) {
+      if (wanted.name !== "app" && encoding?.scaleResolutionDownBy) {
         encoding.maxBitrate = wanted.maxBitrate;
         encoding.scaleResolutionDownBy = wanted.scaleResolutionDownBy;
         encoding.maxFramerate = wanted.maxFramerate;
@@ -202,11 +221,32 @@ const sent = (page: Page) =>
       )
         out = {
           ...out,
-          bytes: Number(s.bytesSent),
-          width: Number(s.frameWidth),
-          height: Number(s.frameHeight),
+          // Simulcast: every layer counts; the size is the biggest layer's.
+          bytes: out.bytes + Number(s.bytesSent),
+          ...(Number(s.frameWidth) < out.width
+            ? {}
+            : {
+                width: Number(s.frameWidth),
+                height: Number(s.frameHeight),
+                fps: Number(s.framesPerSecond ?? 0),
+                limit: String(s.qualityLimitationReason),
+              }),
+        };
+    });
+    return out;
+  });
+/** What Bia receives of the camera: bytes, size and frames a second. */
+const received = (page: Page) =>
+  page.evaluate(async () => {
+    const pc = (window as unknown as { pcs: RTCPeerConnection[] }).pcs.at(-1)!;
+    let out = { bytes: 0, width: 0, fps: 0, at: performance.now() };
+    (await pc.getStats()).forEach((s: Record<string, number | string>) => {
+      if (s.type === "inbound-rtp" && s.kind === "video")
+        out = {
+          ...out,
+          bytes: out.bytes + Number(s.bytesReceived),
+          width: Number(s.frameWidth ?? 0),
           fps: Number(s.framesPerSecond ?? 0),
-          limit: String(s.qualityLimitationReason),
         };
     });
     return out;
@@ -263,9 +303,11 @@ try {
     );
     // The encoder starts low and climbs to its limit.
     await ana.waitForTimeout(Number(process.env.TEST_SETTLE_MS ?? 25_000));
-    const a = await sent(ana);
+    const a = await sent(ana),
+      ra = await received(bia);
     await ana.waitForTimeout(6000);
-    const b = await sent(ana);
+    const b = await sent(ana),
+      rb = await received(bia);
     const png = await bia.evaluate(() => {
       const video = document.querySelector<HTMLVideoElement>(
         "video[data-call-cam]",
@@ -286,6 +328,7 @@ try {
       sent: `${b.width}×${b.height}`,
       fps: Math.round(b.fps),
       limited_by: b.limit,
+      bia_gets: `${rb.width} wide, ${Math.round(rb.fps)} fps, ${Math.round(((rb.bytes - ra.bytes) * 8) / ((rb.at - ra.at) / 1000) / 1000)} kbps`,
       ssim_grid_640: +(await ssim(frame, 640, 360)).toFixed(4),
       ssim_big_1280: +(await ssim(frame, 1280, 720)).toFixed(4),
     });
