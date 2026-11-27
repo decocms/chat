@@ -435,6 +435,14 @@
               size="sm"
               class="select-none"
               variant="success">{vb.t("entregue")}</Badge
+            >{/if}{#if m.kind === "transcript"}<!-- Said aloud in the call (the live transcript), not typed. --><Badge
+              size="sm"
+              class="select-none"
+              variant="muted"
+              data-transcript-mark
+              ><Icon icon="microphone-01" size={12} />{vb.t(
+                "transcrição",
+              )}</Badge
             >{/if}<time title={timestamp}
             >{vb.hhmm(m.ts)}<span
               data-time-zone

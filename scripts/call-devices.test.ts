@@ -161,7 +161,12 @@ afterEach(() => {
   saved.clear();
 });
 
-async function inCall(options: { plugged: string[]; stored?: string }) {
+async function inCall(options: {
+  plugged: string[];
+  stored?: string;
+  /** Joins with the microphone on, then mutes at once, while the call still starts. */
+  muteDuringJoin?: boolean;
+}) {
   const storage = memoryStorage();
   if (options.stored) storage.setItem("vb-call-mic", options.stored);
   let plugged = options.plugged;
@@ -285,7 +290,8 @@ async function inCall(options: { plugged: string[]; stored?: string }) {
     () => true,
     () => "main",
   );
-  call.join(true);
+  call.join(!options.muteDuringJoin);
+  if (options.muteDuringJoin) call.toggleMute();
   for (let i = 0; i < 50 && get(call.state).phase !== "in"; i++)
     await new Promise((ok) => setTimeout(ok, 0));
   expect(get(call.state).phase).toBe("in");
@@ -382,4 +388,127 @@ test("the chosen output plays every voice, also a voice that comes later", async
   expect(t.players.map((player) => player.sinkId)).toEqual(["out-b", "out-b"]);
   expect(t.storage.getItem("vb-call-speaker")).toBe("out-b");
   t.call.leave();
+});
+
+test("the stored cleanup keeps only known switches with a boolean, and is on by default", async () => {
+  const { cleanupStored } = await import("../web/features/call/session");
+  const on = {
+    noiseSuppression: true,
+    echoCancellation: true,
+    autoGainControl: true,
+  };
+  expect(cleanupStored(null)).toEqual(on);
+  expect(cleanupStored("not json")).toEqual(on);
+  expect(
+    cleanupStored(
+      '{"echoCancellation":false,"autoGainControl":"no","x":false}',
+    ),
+  ).toEqual({ ...on, echoCancellation: false });
+});
+
+test("a cleanup switch opens the microphone again with it, and keeps it on this device", async () => {
+  const t = await inCall({ plugged: ["mic-a"] });
+  const { micCleanup } = await import("../web/features/call/session");
+  const first = t.opened[0]!.track;
+  expect(await t.call.toggleCleanup("echoCancellation")).toBe(true);
+  const second = t.opened.at(-1)!;
+  expect(second.constraints).toMatchObject({
+    noiseSuppression: true,
+    echoCancellation: false,
+    autoGainControl: true,
+  });
+  expect(t.replaced.at(-1)).toBe(second.track);
+  expect(first.readyState).toBe("ended");
+  expect(JSON.parse(t.storage.getItem("vb-call-cleanup")!)).toMatchObject({
+    echoCancellation: false,
+  });
+  // Back on, for the next tests.
+  expect(await t.call.toggleCleanup("echoCancellation")).toBe(true);
+  expect(get(micCleanup).echoCancellation).toBe(true);
+  t.call.leave();
+});
+
+test("the stored volumes keep only numbers from 0 to 200%", async () => {
+  const { volumesStored } = await import("../web/features/call/session");
+  expect(volumesStored(null)).toEqual({});
+  expect(volumesStored("[")).toEqual({});
+  expect(volumesStored('{"a@x":1.5,"b@x":3,"c@x":"1","d@x":0}')).toEqual({
+    "a@x": 1.5,
+    "d@x": 0,
+  });
+});
+
+test("a voice past 100% plays louder through Web Audio, and plays as sent again at 100% or less", async () => {
+  const gains: { gain: { value: number } }[] = [];
+  const node = () => ({ connect: (next: unknown) => next, disconnect() {} });
+  stub(
+    "AudioContext",
+    class {
+      resume = async () => {};
+      close = async () => {};
+      createMediaStreamSource = node;
+      createAnalyser = () => ({
+        ...node(),
+        fftSize: 0,
+        getByteTimeDomainData() {},
+      });
+      createGain = () => {
+        const gain = { ...node(), gain: { value: 1 } };
+        gains.push(gain);
+        return gain;
+      };
+      createMediaStreamDestination = () => ({ ...node(), stream: "loud" });
+    },
+  );
+  const t = await inCall({ plugged: ["mic-a"] });
+  // The fake SFU names no owner for the voice it sends: its person is "".
+  t.call.setVolume("", 1.5);
+  t.receive();
+  const player = t.players[0] as unknown as {
+    srcObject: unknown;
+    volume: number;
+  };
+  const raw = t.players[1] as unknown as { srcObject: unknown; muted: boolean };
+  expect(player.srcObject).toBe("loud");
+  expect(player.volume).toBe(1);
+  expect(gains.at(-1)!.gain.value).toBe(1.5);
+  // Chrome needs an element on the remote track for Web Audio to hear it: a muted one.
+  expect(raw.muted).toBe(true);
+  t.call.setVolume("", 1.8);
+  expect(gains.at(-1)!.gain.value).toBe(1.8);
+  t.call.setVolume("", 0.5);
+  expect(player.srcObject).not.toBe("loud");
+  expect(player.volume).toBe(0.5);
+  expect(raw.srcObject).toBe(null);
+  expect(JSON.parse(t.storage.getItem("vb-call-volumes")!)).toEqual({
+    "": 0.5,
+  });
+  t.call.leave();
+});
+
+test("hearing my microphone plays what the call sends on my output, follows a new microphone, and stops on leave", async () => {
+  const t = await inCall({ plugged: ["mic-a", "mic-b"] });
+  await t.call.chooseSpeaker("out-b");
+  t.call.toggleHearMe();
+  expect(get(t.call.hearingMe)).toBe(true);
+  const echo = t.players.at(-1) as unknown as {
+    srcObject: { tracks: unknown[] } | null;
+    sinkId: string;
+  };
+  expect(echo.sinkId).toBe("out-b");
+  expect(echo.srcObject!.tracks).toEqual([t.opened[0]!.track]);
+  expect(await t.call.chooseMic("mic-b")).toBe(true);
+  expect(echo.srcObject!.tracks).toEqual([t.opened.at(-1)!.track]);
+  t.call.toggleHearMe();
+  expect(get(t.call.hearingMe)).toBe(false);
+  expect(echo.srcObject).toBe(null);
+  t.call.toggleHearMe();
+  t.call.leave();
+  expect(get(t.call.hearingMe)).toBe(false);
+});
+
+test("a mute clicked while the call starts holds: the microphone sends silence and the room hears muted", async () => {
+  const t = await inCall({ plugged: ["mic-a"], muteDuringJoin: true });
+  expect(get(t.call.state).muted).toBe(true);
+  expect(t.opened[0]!.track.enabled).toBe(false);
 });

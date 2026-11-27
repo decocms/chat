@@ -1074,6 +1074,19 @@ export const RecordedBody = z.object({
   ),
 });
 export type RecordedBody = z.infer<typeof RecordedBody>;
+/** POST /api/calls/live, from the recorder's container while the call is on: what was said in the last part. */
+export const LiveBody = z.object({
+  room: z.string().check(z.regex(/^[a-z0-9]{6,40}$/)),
+  lines: z
+    .array(
+      z.object({
+        name: z.string().check(z.maxLength(80)),
+        text: z.string().check(z.maxLength(4000)),
+      }),
+    )
+    .check(z.maxLength(50)),
+});
+export type LiveBody = z.infer<typeof LiveBody>;
 export type CallJoinResult = z.infer<typeof CallJoinResult>;
 export const CallDescription = z.object({
   type: z.enum(["offer", "answer"]),

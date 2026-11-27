@@ -1,12 +1,15 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import { writable } from "svelte/store";
+  import { get, writable } from "svelte/store";
   import CallStage from "../../features/call/CallStage.svelte";
   import CallControls from "../../features/call/CallControls.svelte";
   import CallSidebarRow from "../../features/call/CallSidebarRow.svelte";
   import CallPanel from "../../features/call/CallPanel.svelte";
   import {
     denoiseOn,
+    micCleanup,
+    saveCleanup,
+    callVolumes,
     type CallDevices,
     type CallSession,
     type CallView,
@@ -156,6 +159,7 @@
     });
   }
   void refreshDevices();
+  const hearingMe = writable(false);
   const call: CallSession = {
     state: { subscribe: store.subscribe },
     setPeers() {},
@@ -170,8 +174,19 @@
           : [...view.silenced, email],
       })),
     toggleDenoise: async () => denoiseOn.update((on) => !on),
+    setVolume: (email, volume) =>
+      callVolumes.update((now) => ({ ...now, [email]: volume })),
+    toggleCleanup: async (key) => {
+      const now = get(micCleanup);
+      saveCleanup({ ...now, [key]: !now[key] });
+      return true;
+    },
     devices: { subscribe: devices.subscribe },
     refreshDevices: () => void refreshDevices(),
+    hearingMe: { subscribe: hearingMe.subscribe },
+    toggleHearMe: () => hearingMe.update((on) => !on),
+    // A voice at a normal level, so the meter shows.
+    micLevel: { subscribe: writable(45).subscribe },
     chooseMic: async (id) => {
       storeDevice("audioinput", id);
       devices.update((value) => ({ ...value, mic: id }));

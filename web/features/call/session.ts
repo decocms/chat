@@ -122,12 +122,80 @@ type Wanted = { session: string; name: string };
 const trackKey = (track: Wanted) => `${track.session}/${track.name}`;
 
 // The browser cleans the microphone before it is sent: no room noise, no echo, an even level. Less noise is also
-// more silence, and silence is not sent (withDtx).
+// more silence, and silence is not sent (withDtx). Each one is on unless the person turned it off on this device
+// ("Mais opções"): a good headset or a studio microphone can sound better without them.
 const MIC_CLEANUP = {
   noiseSuppression: true,
   echoCancellation: true,
   autoGainControl: true,
 };
+export type MicCleanup = typeof MIC_CLEANUP;
+const CLEANUP_KEY = "vb-call-cleanup";
+/** The cleanup stored on this device. Only known keys with a boolean value are kept; the rest is the default. */
+export function cleanupStored(raw: string | null): MicCleanup {
+  const out = { ...MIC_CLEANUP };
+  try {
+    const saved = JSON.parse(raw ?? "{}") as Record<string, unknown>;
+    for (const key of Object.keys(out) as (keyof MicCleanup)[])
+      if (typeof saved[key] === "boolean") out[key] = saved[key];
+  } catch {
+    // A broken value: the defaults.
+  }
+  return out;
+}
+/** What the browser does to the microphone. It stays between calls, on this device. */
+export const micCleanup = writable<MicCleanup>(
+  cleanupStored(
+    typeof localStorage === "undefined"
+      ? null
+      : (() => {
+          try {
+            return localStorage.getItem(CLEANUP_KEY);
+          } catch {
+            return null;
+          }
+        })(),
+  ),
+);
+// How loud I hear each person (email → 0 to 2; 1 is as sent), as on Discord: past 100% for a quiet microphone.
+// It stays on this device, for the next calls too.
+const VOLUMES_KEY = "vb-call-volumes";
+export const MAX_VOLUME = 2;
+/** The volumes stored on this device: only numbers from 0 to MAX_VOLUME are kept. */
+export function volumesStored(raw: string | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  try {
+    const saved = JSON.parse(raw ?? "{}") as Record<string, unknown>;
+    for (const [email, value] of Object.entries(saved))
+      if (typeof value === "number" && value >= 0 && value <= MAX_VOLUME)
+        out[email] = value;
+  } catch {
+    // A broken value: everyone at 100%.
+  }
+  return out;
+}
+export const callVolumes = writable<Record<string, number>>(
+  volumesStored(
+    typeof localStorage === "undefined"
+      ? null
+      : (() => {
+          try {
+            return localStorage.getItem(VOLUMES_KEY);
+          } catch {
+            return null;
+          }
+        })(),
+  ),
+);
+/** Sets the cleanup, and keeps it on this device. */
+export function saveCleanup(next: MicCleanup) {
+  micCleanup.set(next);
+  try {
+    localStorage.setItem(CLEANUP_KEY, JSON.stringify(next));
+  } catch {
+    // Private mode: it lasts until the page closes.
+  }
+}
 // The most that each kind of track sends. A voice is clear at 24 kbps; a 720p screen at 1.5 Mbps.
 const MIC_MAX_BPS = 32_000,
   SCREEN_MAX_BPS = 2_500_000;
@@ -230,13 +298,86 @@ export function createCallSession(
   /** key → mid of what this tab receives; mid → whose track it is; mid → the element that plays it. */
   const pulled = new Map<string, string>(),
     owners = new Map<string, { email: string; key: string }>(),
-    players = new Map<string, HTMLAudioElement>();
+    players = new Map<string, HTMLAudioElement>(),
+    // mid → the gain of a voice I hear past 100%. An element plays at most 100% (volume 1): past it, the voice goes
+    // through Web Audio, and the element plays the louder copy.
+    boosts = new Map<
+      string,
+      { raw: MediaStream; loud: MediaStream; gain: GainNode; stop(): void }
+    >();
+  /** Plays a received voice at the volume I chose for its person. */
+  function loudness(mid: string) {
+    const player = players.get(mid);
+    if (!player) return;
+    const volume = get(callVolumes)[owners.get(mid)?.email ?? ""] ?? 1;
+    let boost = boosts.get(mid);
+    player.volume = Math.min(volume, 1);
+    if (volume <= 1 || typeof AudioContext === "undefined") {
+      if (!boost) return;
+      boost.stop();
+      boosts.delete(mid);
+      player.srcObject = boost.raw;
+      void player.play().catch(() => {});
+      return;
+    }
+    if (!boost) {
+      const raw = player.srcObject;
+      if (!(raw instanceof MediaStream)) return;
+      try {
+        sound ??= new AudioContext();
+        void sound.resume();
+        const source = sound.createMediaStreamSource(raw),
+          gain = sound.createGain(),
+          out = sound.createMediaStreamDestination();
+        source.connect(gain).connect(out);
+        // Chrome gives Web Audio silence from a remote track that no element plays: this one plays it, muted.
+        const keep = new Audio();
+        keep.muted = true;
+        keep.srcObject = raw;
+        void keep.play().catch(() => {});
+        boost = {
+          raw,
+          gain,
+          loud: out.stream,
+          stop() {
+            source.disconnect();
+            gain.disconnect();
+            keep.srcObject = null;
+          },
+        };
+      } catch {
+        return; // No Web Audio: 100% is the most.
+      }
+      boosts.set(mid, boost);
+      player.srcObject = boost.loud;
+      void player.play().catch(() => {});
+    }
+    boost.gain.gain.value = volume;
+  }
   /** One meter for each voice (a received track's mid, or "mic" for mine), and when each person was last heard. */
   const meters = new Map<
       string,
       { email: string; node: AnalyserNode; source: MediaStreamAudioSourceNode }
     >(),
     heard = new Map<string, number>();
+  /** How loud my microphone is now, 0 to 100 (a meter in "Mais opções": the person sees that it hears them).
+   *  It is in dB from -50 (silence) to 0, so a normal voice fills about half. */
+  const micLevel = writable(0);
+  // "Ouvir meu microfone": my microphone as the call sends it (after the cleanups), played to me, as a sound test.
+  const hearingMe = writable(false);
+  let echo: HTMLAudioElement | null = null;
+  function refreshEcho() {
+    if (!echo) return;
+    const [raw] = mic?.getAudioTracks() ?? [];
+    const sent = denoiser?.track ?? raw;
+    echo.srcObject = sent ? new MediaStream([sent]) : null;
+    void echo.play().catch(() => {});
+  }
+  function stopEcho() {
+    if (echo) echo.srcObject = null;
+    echo = null;
+    hearingMe.set(false);
+  }
   function listen(key: string, email: string, stream: MediaStream) {
     try {
       sound ??= new AudioContext();
@@ -261,8 +402,14 @@ export function createCallSession(
       meter.node.getByteTimeDomainData(samples);
       let sum = 0;
       for (const sample of samples) sum += ((sample - 128) / 128) ** 2;
-      if (Math.sqrt(sum / samples.length) > SPEAK_LEVEL)
-        heard.set(meter.email, now);
+      const rms = Math.sqrt(sum / samples.length);
+      if (rms > SPEAK_LEVEL) heard.set(meter.email, now);
+      if (meter === meters.get("mic"))
+        micLevel.set(
+          Math.round(
+            Math.min(100, Math.max(0, (20 * Math.log10(rms || 1e-6) + 50) * 2)),
+          ),
+        );
     }
     const speaking = [...heard]
       .filter(([, at]) => now - at < SPEAK_HOLD_MS)
@@ -326,6 +473,9 @@ export function createCallSession(
     void sound?.close().catch(() => {});
     sound = null;
     for (const player of players.values()) player.srcObject = null;
+    for (const boost of boosts.values()) boost.stop();
+    boosts.clear();
+    stopEcho();
     for (const stream of [mic, screen])
       stream?.getTracks().forEach((track) => track.stop());
     pc?.close();
@@ -404,6 +554,8 @@ export function createCallSession(
         const player = players.get(mid);
         if (player) player.srcObject = null;
         players.delete(mid);
+        boosts.get(mid)?.stop();
+        boosts.delete(mid);
         unlisten(mid);
         const owner = owners.get(mid);
         if (owner?.key.endsWith("/screen"))
@@ -471,6 +623,7 @@ export function createCallSession(
     void sink(player, get(devices).speaker);
     void player.play().catch(() => {});
     players.set(mid, player);
+    loudness(mid);
     listen(mid, email, stream);
   }
   /** The bytes this tab received since its last report, for the month's traffic budget (src/calls.ts). */
@@ -532,7 +685,7 @@ export function createCallSession(
   async function useSpeaker(id: string) {
     devices.update((value) => ({ ...value, speaker: id }));
     const done = await Promise.all(
-      [...players.values()].map((p) => sink(p, id)),
+      [...players.values(), ...(echo ? [echo] : [])].map((p) => sink(p, id)),
     );
     if (done.every(Boolean) || id === SYSTEM_DEVICE) return true;
     // The output went away while it was chosen: the system's plays everything.
@@ -549,7 +702,7 @@ export function createCallSession(
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: micConstraints(MIC_CLEANUP, id, true),
+          audio: micConstraints(get(micCleanup), id, true),
         });
       } catch {
         return false;
@@ -574,6 +727,7 @@ export function createCallSession(
       mic.getTracks().forEach((one) => one.stop());
       mic = stream;
       denoiser = next;
+      refreshEcho();
       watchMic(track);
       unlisten("mic");
       listen("mic", self, stream);
@@ -651,7 +805,7 @@ export function createCallSession(
       // The microphone chosen on this device, if it is there; else the browser's own.
       const wanted = storedDevice("audioinput");
       const media = navigator.mediaDevices.getUserMedia({
-        audio: micConstraints(MIC_CLEANUP, wanted, false),
+        audio: micConstraints(get(micCleanup), wanted, false),
       });
       const at = epoch;
       let joined = "";
@@ -678,7 +832,9 @@ export function createCallSession(
           });
           pc.ontrack = received;
           const [track] = mic.getAudioTracks();
-          if (track) track.enabled = !muted;
+          // The mute now, not the one of the click that joined: the stage shows its mute button while the call
+          // starts, and a click there must hold (else the person is heard while the button says muted).
+          if (track) track.enabled = !get(state).muted;
           if (track) watchMic(track);
           // The browser can give another microphone than the one asked for (it is not plugged in): the system's.
           devices.update((value) => ({
@@ -708,7 +864,7 @@ export function createCallSession(
           patch({ phase: "in" });
           // Now with the labels (the microphone is allowed): the lists, and the output chosen on this device.
           void refreshDevices();
-          send({ t: "call.mute", muted });
+          send({ t: "call.mute", muted: get(state).muted });
           void enqueue(sync);
         } catch (error) {
           if (at !== epoch) {
@@ -746,8 +902,35 @@ export function createCallSession(
           denoiser?.stop();
           denoiser = null;
         }
+        refreshEcho();
       });
     },
+    /** One of the browser's cleanups on or off: in the call now (the microphone opens again with it), and in the
+     *  next calls on this device. false: the microphone did not open again, and the cleanup stays as it was. */
+    async toggleCleanup(key: keyof MicCleanup) {
+      const before = get(micCleanup);
+      const next = { ...before, [key]: !before[key] };
+      micCleanup.set(next);
+      if (get(state).phase === "in" && !(await useMic(get(devices).mic))) {
+        micCleanup.set(before);
+        return false;
+      }
+      saveCleanup(next);
+      return true;
+    },
+    /** Am I hearing my own microphone ("Ouvir meu microfone")? */
+    hearingMe: { subscribe: hearingMe.subscribe },
+    /** Hear my own microphone as the others get it, or stop. Only in a call. */
+    toggleHearMe() {
+      if (echo) return stopEcho();
+      if (get(state).phase !== "in") return;
+      echo = new Audio();
+      void sink(echo, get(devices).speaker);
+      refreshEcho();
+      hearingMe.set(true);
+    },
+    /** How loud my microphone is now, 0 to 100. */
+    micLevel: { subscribe: micLevel.subscribe },
     /** The devices of this machine and the ones in use (the stage's menu). */
     devices: { subscribe: devices.subscribe },
     /** Reads the devices again (the menu opens: a device may be new). */
@@ -781,6 +964,21 @@ export function createCallSession(
       patch({
         silenced: on ? [...now, email] : now.filter((one) => one !== email),
       });
+    },
+    /** How loud I hear a person, 0 to MAX_VOLUME (1 is as sent): now, and in the next calls on this device. */
+    setVolume(email: string, volume: number) {
+      const next = {
+        ...get(callVolumes),
+        [email]: Math.min(MAX_VOLUME, Math.max(0, volume)),
+      };
+      callVolumes.set(next);
+      try {
+        localStorage.setItem(VOLUMES_KEY, JSON.stringify(next));
+      } catch {
+        // Private mode: it lasts until the page closes.
+      }
+      for (const mid of players.keys())
+        if ((owners.get(mid)?.email ?? "") === email) loudness(mid);
     },
     toggleMute() {
       const muted = !get(state).muted;

@@ -29,7 +29,7 @@ import { requestContext, track } from "./track";
 import { bookSocketUrl } from "./bookSocket";
 import { callRecorded, recorderLinkValid } from "./calls";
 import { recorderEmail } from "../shared/call";
-import { RecordedBody } from "../shared/schemas";
+import { LiveBody, RecordedBody } from "../shared/schemas";
 import { pushTo } from "./webpush";
 export { Book } from "./book";
 export { Person } from "./person";
@@ -263,6 +263,14 @@ app.post("/api/calls/recorded", async (c) => {
   if (!body.success) return c.text("bad request", 400);
   // The people of the call: the recorder shares the recording in Grain with them.
   return c.json({ emails: await callRecorded(c.env, body.data) });
+});
+// The live transcript: each short part of the call, as it is said (Book.callTranscript).
+app.post("/api/calls/live", async (c) => {
+  const secret = c.env.RECORDER_SECRET;
+  if (!secret || !safeEqual(c.req.header("authorization") ?? "", `Bearer ${secret}`)) return c.text("forbidden", 403);
+  const body = LiveBody.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.text("bad request", 400);
+  return c.json({ posted: await bookStub(c.env, body.data.room).callTranscript(body.data.room, body.data.lines) });
 });
 
 // Page views are counted server-side (no client script, no cookie), off the response path.

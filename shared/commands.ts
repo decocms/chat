@@ -95,6 +95,8 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("call.usage"), bytes: num }),
   z.object({ t: z.literal("call.mute"), muted: z.boolean() }),
   z.object({ t: z.literal("call.consent"), yes: z.boolean() }),
+  // The live transcript of this room's calls, on or off for everyone in the room (Jonas, d8fb8cf2).
+  z.object({ t: z.literal("call.transcript"), on: z.boolean() }),
   z.object({ t: z.literal("epic.rename"), id, title: z.string() }),
   z.object({ t: z.literal("epic.del"), id }),
   z.object({

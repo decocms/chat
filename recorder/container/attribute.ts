@@ -37,6 +37,14 @@ export function addMark(turns: Turn[], name: string, now: number, hold = 700) {
   turns.push({ name, start: Math.max(0, now - 200), end: now });
 }
 
+/** A live part's lines as the chat takes them (POST /api/calls/live): a name for nobody known, no empty text, the
+ *  sizes that the chat allows. */
+export const liveLines = (lines: readonly { name: string; text: string }[]) =>
+  lines
+    .filter((line) => line.text.trim())
+    .slice(0, 50)
+    .map((line) => ({ name: line.name === UNKNOWN ? "Desconhecido" : line.name.slice(0, 80), text: line.text.trim().slice(0, 4000) }));
+
 /** The pieces with their person, in the order of the call. `people`: who was in the call. With one person
  *  only, each piece is that person's. A piece with nobody near and no clear speech is dropped. */
 export const attribute = (turns: readonly Turn[], pieces: readonly Piece[], people: readonly string[] = []) =>
@@ -46,3 +54,18 @@ export const attribute = (turns: readonly Turn[], pieces: readonly Piece[], peop
     .map((piece) => ({ name: speakerOf(turns, piece.start, piece.end), start: piece.start, end: piece.end, text: piece.text.trim(), quiet: piece.quiet ?? 0 }))
     .filter((line) => line.name !== UNKNOWN || line.quiet < QUIET)
     .map(({ quiet: _quiet, ...line }) => (line.name === UNKNOWN && people.length === 1 ? { ...line, name: people[0]! } : line));
+
+/** The open live part: whose turn it is, when it began, and when that person was last heard (ms). */
+export type LiveTurn = { name: string; start: number; heard: number };
+/** The live transcript's cut, each 200 ms in the recorder's page: a part is one person's turn. It ends when that
+ *  person is quiet for `endMs`, or when another person speaks and they do not. Nobody speaks: no part, so silence
+ *  does not go to the speech-to-text. `cut`: stop the open part; `turn`: the part that is open after this.
+ *  The page gets this function's text (no imports, no outer names). */
+export function liveCut(turn: LiveTurn | null, speaking: readonly string[], now: number, endMs = 1200, maxMs = 120_000) {
+  const first = speaking[0];
+  if (!turn) return { cut: false, turn: first ? { name: first, start: now, heard: now } : null };
+  // ponytail: one turn longer than maxMs is cut, so that one file stays a size that the speech-to-text takes.
+  if (speaking.includes(turn.name)) return now - turn.start >= maxMs ? { cut: true, turn: { name: turn.name, start: now, heard: now } } : { cut: false, turn: { ...turn, heard: now } };
+  if (first) return { cut: true, turn: { name: first, start: now, heard: now } };
+  return now - turn.heard >= endMs ? { cut: true, turn: null } : { cut: false, turn };
+}

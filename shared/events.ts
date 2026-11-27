@@ -157,6 +157,7 @@ export const RoomEventSchemas = {
     thread: z.optional(str),
     ring: z.optional(RingSchema),
     consent: z.optional(CallConsentSchema),
+    transcriptOff: z.optional(z.boolean()),
   }),
   conns: event("conns", {}),
   error: event("error", { error: z.optional(str) }),

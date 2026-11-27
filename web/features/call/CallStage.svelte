@@ -24,9 +24,18 @@
   import { SYSTEM_DEVICE } from "./devices";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { meetLink, meetMessage } from "./meet";
-  import CameraDialog from "./CameraDialog.svelte";
+  import CameraDialog, { mirrored } from "./CameraDialog.svelte";
   import { isRecorder } from "../../../shared/call";
-  import { denoiseOn, type CallSession } from "./session";
+  import Slider from "../../lib/studio/Slider.svelte";
+  import Progress from "../../lib/studio/Progress.svelte";
+  import {
+    callVolumes,
+    MAX_VOLUME,
+    denoiseOn,
+    micCleanup,
+    type CallSession,
+    type MicCleanup,
+  } from "./session";
   import { callColors, callGrid, FITTED_ONE } from "./layout";
   import { cn } from "../../lib/studio/utils";
   /** How long a recorded room's call can be without its recorder before the warning shows. */
@@ -72,7 +81,23 @@
   } = $props();
   const view = $derived(call.state);
   const denoise = denoiseOn;
+  const cleanup = micCleanup;
+  const volumes = callVolumes;
+  // The browser's own cleanups of the microphone, each with its switch in "Mais opções".
+  const CLEANUPS: [keyof MicCleanup, string][] = [
+    ["noiseSuppression", "Redução de ruído do navegador"],
+    ["echoCancellation", "Cancelamento de eco"],
+    ["autoGainControl", "Ganho automático"],
+  ];
+  async function toggleCleanup(key: keyof MicCleanup) {
+    if (!(await call.toggleCleanup(key)))
+      showToast(
+        t("Não consegui reabrir o microfone. A call segue como estava."),
+      );
+  }
   const devices = $derived(call.devices);
+  const micLevel = $derived(call.micLevel);
+  const hearingMe = $derived(call.hearingMe);
   async function chooseMic(id: string) {
     if (!(await call.chooseMic(id)))
       showToast(
@@ -242,8 +267,11 @@
       peer,
       size,
       {},
-    )}{:else}{@const silenced = $view.silenced.includes(peer.email)}<ContextMenu
-    >
+    )}{:else}{@const silenced = $view.silenced.includes(
+      peer.email,
+    )}{@const volume = Math.round(
+      ($volumes[peer.email] ?? 1) * 100,
+    )}<ContextMenu>
       <ContextMenuPrimitive.Trigger>
         {#snippet child({ props })}{@render tileButton(
             peer,
@@ -263,6 +291,23 @@
             ? t("Ouvir de novo")
             : t("Silenciar pra mim")}</ContextMenuItem
         >
+        <!-- How loud I hear this person, up to 200% (a quiet microphone), as on Discord. -->
+        <div data-call-volume class="flex flex-col gap-2 px-2 pt-1 pb-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-call-muted-foreground">{t("Volume pra mim")}</span
+            ><span class="tabular-nums">{volume}%</span>
+          </div>
+          <Slider
+            value={[volume]}
+            min={0}
+            max={MAX_VOLUME * 100}
+            step={5}
+            thumbLabel={t("Volume de {name}", { name: name(peer.email) })}
+            thumbValueText={`${volume}%`}
+            onValueChange={([next]) =>
+              call.setVolume(peer.email, (next ?? 100) / 100)}
+          />
+        </div>
       </ContextMenuContent>
     </ContextMenu>{/if}{/snippet}
 {#snippet tileButton(
@@ -301,6 +346,7 @@
         class={[
           "size-full bg-call-chip",
           size === "big" ? "object-contain" : "object-cover",
+          peer.email === room.me && $mirrored && "-scale-x-100",
         ]}
       ></video>{:else}<PersonAvatar
         email={peer.email}
@@ -645,6 +691,13 @@
                   class="text-xs text-muted-foreground"
                   >{t("Microfone")}</DropdownMenuLabel
                 >
+                <!-- My microphone's level now: it moves when I speak (muted: it stays empty). -->
+                <Progress
+                  data-call-mic-level
+                  value={$micLevel}
+                  aria-label={t("Nível do microfone")}
+                  class="mx-2 mb-1 w-auto"
+                />
                 <DropdownMenuRadioGroup
                   data-call-mics
                   value={$devices.mic}
@@ -689,6 +742,22 @@
                     >{/each}
                 </DropdownMenuRadioGroup>
                 <DropdownMenuSeparator />{/if}
+              <DropdownMenuLabel class="text-xs text-muted-foreground"
+                >{t("Tratamento do áudio")}</DropdownMenuLabel
+              >
+              <!-- A sound test: my voice as the others get it, to hear the cleanups below at work. -->
+              <DropdownMenuCheckboxItem
+                data-call-hear-me
+                checked={$hearingMe}
+                onCheckedChange={() => call.toggleHearMe()}
+                >{t("Ouvir meu microfone")}</DropdownMenuCheckboxItem
+              >
+              {#each CLEANUPS as [key, label] (key)}<DropdownMenuCheckboxItem
+                  data-call-cleanup={key}
+                  checked={$cleanup[key]}
+                  onCheckedChange={() => void toggleCleanup(key)}
+                  >{t(label)}</DropdownMenuCheckboxItem
+                >{/each}
               <DropdownMenuCheckboxItem
                 data-call-denoise
                 checked={$denoise}
@@ -706,6 +775,16 @@
                   "Câmera e desfoque",
                 )}</DropdownMenuItem
               >
+              <!-- The lines of what each person says, in the call's thread: on or off for the whole room. -->
+              {#if room.callRecorded}<DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  data-call-transcript
+                  checked={!room.transcriptOff}
+                  onCheckedChange={(on) => send({ t: "call.transcript", on })}
+                  >{t(
+                    "Transcrição ao vivo nesta sala",
+                  )}</DropdownMenuCheckboxItem
+                >{/if}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

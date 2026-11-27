@@ -5,6 +5,7 @@
 //
 //   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--center] [--forward] [--audio] [--search] [--threadmenu] [--topbar] [--choices] [--receipts] [--name <folder>]
 import { chromium, type Locator, type Page } from "playwright";
+import assert from "node:assert/strict";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1291,6 +1292,36 @@ try {
       await checked(wide, "speakers", "out-headset");
       await wide.screenshot({ path: join(out, "audio-chosen-1440.png") });
       shots.push("audio-chosen-1440.png");
+      // The browser's echo cancellation off: it stays off after a reload, the other two stay on.
+      await wide.locator('[data-call-cleanup="echoCancellation"]').click();
+      await wide.reload({ waitUntil: "networkidle" });
+      await openMenu(wide);
+      // The item draws its check mark (data-state="checked") only while it is on.
+      await wide
+        .locator(
+          '[data-call-cleanup="noiseSuppression"] [data-state="checked"]',
+        )
+        .waitFor();
+      assert.equal(
+        await wide
+          .locator(
+            '[data-call-cleanup="echoCancellation"] [data-state="checked"]',
+          )
+          .count(),
+        0,
+        "echo cancellation is still on after the reload",
+      );
+      await wide.screenshot({ path: join(out, "audio-cleanup-1440.png") });
+      shots.push("audio-cleanup-1440.png");
+      // A person's volume for me, past 100% (right-click on their tile; the first tile is mine, with no menu): 10 steps of 5% up gives 150%.
+      await wide.keyboard.press("Escape");
+      await wide.waitForTimeout(400);
+      await wide.locator("[data-call-tile]").nth(1).click({ button: "right" });
+      await wide.locator("[data-call-volume] [role=slider]").focus();
+      for (let i = 0; i < 10; i++) await wide.keyboard.press("ArrowRight");
+      await wide.locator("[data-call-volume]", { hasText: "150%" }).waitFor();
+      await wide.screenshot({ path: join(out, "audio-volume-1440.png") });
+      shots.push("audio-volume-1440.png");
       await context.close();
 
       const plain = await browser.newContext({
@@ -1323,6 +1354,54 @@ try {
       await phone.screenshot({ path: join(out, "audio-menu-390.png") });
       shots.push("audio-menu-390.png");
       await small.close();
+
+      // The camera's dialog: a fake camera (Chrome's test device) and a second one in the list, the choice of the
+      // camera, and "Espelhar minha imagem na call" on.
+      const cams = await chromium.launch({
+        args: [
+          "--use-fake-ui-for-media-stream",
+          "--use-fake-device-for-media-stream",
+        ],
+      });
+      try {
+        const page = await (
+          await cams.newContext({
+            viewport: { width: 1440, height: 900 },
+            permissions: ["camera"],
+          })
+        ).newPage();
+        await page.addInitScript(() => {
+          const list = navigator.mediaDevices.enumerateDevices.bind(
+            navigator.mediaDevices,
+          );
+          navigator.mediaDevices.enumerateDevices = async () => [
+            ...(await list()),
+            {
+              kind: "videoinput",
+              deviceId: "cam-usb",
+              label: "Webcam USB de teste",
+              groupId: "g9",
+            } as MediaDeviceInfo,
+          ];
+        });
+        await page.goto(fixture, { waitUntil: "networkidle" });
+        await page.locator("[data-call-more]").click();
+        await page.locator("[data-call-camera-settings]").click();
+        await page.locator("[data-camera-choice]").waitFor();
+        await page.locator("[data-camera-mirror]").click();
+        await page
+          .locator('[data-camera-mirror][data-state="checked"]')
+          .waitFor();
+        await page.waitForTimeout(800);
+        await page.screenshot({ path: join(out, "camera-dialog-1440.png") });
+        shots.push("camera-dialog-1440.png");
+        await page.locator("[data-camera-choice]").click();
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: join(out, "camera-choice-1440.png") });
+        shots.push("camera-choice-1440.png");
+      } finally {
+        await cams.close();
+      }
     } finally {
       gallery.server.stop(true);
     }

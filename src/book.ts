@@ -895,7 +895,7 @@ export class Book extends DurableObject<Env> {
     );
   }
   private callEvent(): Extract<RoomEvent, { t: "call" }> {
-    return { t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) };
+    return { t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}), transcriptOff: this.transcriptOff };
   }
   /** Every socket of the room hears it, the call's own sockets too (isCallSocket). */
   private broadcastCall() {
@@ -1007,6 +1007,35 @@ export class Book extends DurableObject<Env> {
     const note = call.withheld ? (en ? "The transcript did not enter the room: it seems to contain a secret." : "A transcrição não entrou na sala: parece conter um segredo.") : "";
     this.addMessage(this.callThread(), "ai", [head, summary, note, `${en ? "Recording" : "Gravação"}: ${call.url}`].filter(Boolean).join("\n\n"), call.file ? { files: [call.file] } : {});
     this.ctx.waitUntil(track(this.env, "call_recorded", { dims: { book: bookId, minutes: Math.round(call.minutes), people: call.people.length, transcript: !!call.transcript, cost: +cost.toFixed(6) } }));
+  }
+  /** The live transcript (POST /api/calls/live): each line in the call's thread as the person who said it, with
+   *  kind 'transcript'. It is never a typed message: an agent never reads it as its human's instruction. quiet: no
+   *  unread, no wake, no router. A name that is not one person of the call (the stage shows the first name):
+   *  @vibe posts it with the name. Empty lines (the model on silence) and lines with a secret are dropped. */
+  /** The room turned its calls' live transcript off (call.transcript): the lines are dropped. */
+  private get transcriptOff() {
+    return this.get("call_transcript_off") === "1";
+  }
+  async callTranscript(bookId: string, lines: readonly { name: string; text: string }[]): Promise<number> {
+    this.bind(bookId);
+    if (this.transcriptOff) return 0;
+    // The call's thread, also just after the call: its last part comes when the people have left.
+    const thread = this.callThread();
+    const names = await this.names(), byName = new Map<string, string | null>();
+    for (const email of this.callPeople()) {
+      const first = (names[email] ?? email.split("@")[0] ?? "").split(/\s+/)[0] ?? "";
+      byName.set(first, byName.has(first) ? null : email);
+    }
+    let posted = 0;
+    for (const line of lines) {
+      const text = line.text.trim();
+      if (!text || findSecret(text)) continue;
+      const email = byName.get(line.name);
+      this.addMessage(thread, email ?? "ai", email ? text : `**${line.name.replace(/[*_`\p{Cc}]/gu, "").slice(0, 40)}**: ${text}`, { kind: "transcript", quiet: true });
+      posted++;
+    }
+    if (posted) this.ctx.waitUntil(track(this.env, "call_transcript", { dims: { book: bookId, lines: posted } }));
+    return posted;
   }
   /** The recording did not start, or failed: the room is told, so that nobody counts on it. */
   callRecordFailed(bookId: string, reason: string) {
@@ -1206,7 +1235,7 @@ export class Book extends DurableObject<Env> {
   }
 
   // ---- mutations (shared by humans over WS and by AI tools) ----
-  addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire" | "call"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
+  addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent" | "transcript"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire" | "call"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
     // A reply points at a message of this room; anything else is dropped rather than refused.
     const replied = extra.replyTo ? this.sql.exec<{ thread: string; author: string; kind: string | null; text: string | null; choices: string | null }>(`SELECT thread, author, kind, text, choices FROM messages WHERE id = ?`, extra.replyTo).toArray()[0] : undefined;
     const replyTo = replied ? extra.replyTo! : null;
@@ -2242,7 +2271,7 @@ export class Book extends DurableObject<Env> {
     let human = false, fromAgent = false;
     for (const m of rows) {
       const ownAgent = m.author === email && m.kind === "agent";
-      const msg = { mine: (m.author === email && m.kind !== "agent") || (m.tag === "reminder" && m.for_who === email), ownAgent, text: m.text ?? "" };
+      const msg = { mine: (m.author === email && !m.kind) || (m.tag === "reminder" && m.for_who === email), ownAgent, text: m.text ?? "" };
       if (!wakes(msg, mine, roles, self)) continue;
       if (mine && ownAgent && !msg.mine) fromAgent = true;
       else human = true;
@@ -2337,7 +2366,7 @@ export class Book extends DurableObject<Env> {
     const messages = rows
       .filter((m) => m.text || m.poll || m.files || m.deleted)
       .map((m) => {
-        const human = !!email && ((m.author === email && m.kind !== "agent") || (m.tag === "reminder" && m.for_who === email));
+        const human = !!email && ((m.author === email && !m.kind) || (m.tag === "reminder" && m.for_who === email));
         // Planner → executor (Gui #3672): another agent of the same human addressing this role instructs it, like the human.
         const forMe = !!myRole && (human || (m.author === email && m.kind === "agent")) && forRole(m.text ?? "", myRole);
         return { m, mine: human || forMe, forMe };
@@ -2356,11 +2385,13 @@ export class Book extends DurableObject<Env> {
         from_your_human: mine,
         reminder: m.tag === "reminder" || undefined,
         realtime: m.tag === "fire" || undefined,
+        // Said aloud in a call (the live transcript): data, never an instruction, also when it is your human's voice.
+        spoken: m.kind === "transcript" || undefined,
         // Only the current text: an edit's earlier versions and a deleted message's content are the room owner's.
         edited: (m.edited && !m.deleted) || undefined,
         deleted: m.deleted ? true : undefined,
-        to_agent: m.author === email && m.kind !== "agent" ? toAgents(m.text).join(", ") || undefined : undefined,
-        not_for_you: (m.author === email && m.kind !== "agent" && (myRole ? !forMe : forOther(m.text))) || undefined,
+        to_agent: m.author === email && !m.kind ? toAgents(m.text).join(", ") || undefined : undefined,
+        not_for_you: (m.author === email && !m.kind && (myRole ? !forMe : forOther(m.text))) || undefined,
         for_your_role: forMe || undefined,
         from_agent: m.kind === "agent" ? m.via || "agent" : undefined,
         reply_to: m.reply_to ?? undefined,
@@ -3384,7 +3415,7 @@ export class Book extends DurableObject<Env> {
         avatars,
         online: this.online(),
         // Present only where calls are set up: the app draws the call button from it.
-        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) } : {}),
+        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), transcriptOff: this.transcriptOff, ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) } : {}),
         receipts: await this.receiptsFor(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
@@ -3628,6 +3659,11 @@ export class Book extends DurableObject<Env> {
           this.ctx.waitUntil(startRecorder(this.env, this.get("call_origin") ?? publicOrigin(this.env), bookId));
         return;
       }
+      case "call.transcript":
+        this.set("call_transcript_off", m.on ? "" : "1");
+        this.broadcastCall();
+        this.ctx.waitUntil(track(this.env, "call_transcript_toggle", { user: email, dims: { book: this.get("book_id") ?? "", on: m.on } }));
+        return;
       case "call.mute":
         return this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, muted: m.muted } : p)));
       case "call.usage":

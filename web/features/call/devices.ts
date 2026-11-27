@@ -1,8 +1,8 @@
-// The microphone and the audio output of the call, as the person chose them on this device (the "Mais opções" menu
-// of the stage). The choice stays in device storage; a device that is not plugged in now gives the system's own
+// The microphone, the audio output and the camera of the call, as the person chose them on this device (the "Mais
+// opções" menu of the stage, and the camera's dialog). The choice stays in device storage; a device that is not plugged in now gives the system's own
 // device until it comes back.
 
-export type AudioKind = "audioinput" | "audiooutput";
+export type AudioKind = "audioinput" | "audiooutput" | "videoinput";
 export type AudioDevice = { id: string; label: string };
 /** The system's own device: what the browser uses when the person chose nothing. */
 export const SYSTEM_DEVICE = "system";
@@ -15,6 +15,7 @@ type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 const KEYS: Record<AudioKind, string> = {
   audioinput: "vb-call-mic",
   audiooutput: "vb-call-speaker",
+  videoinput: "vb-call-camera",
 };
 // Chrome lists the system's device again as "default" (and Windows' as "communications"): the menu has its own
 // "Padrão do sistema" item for them.
