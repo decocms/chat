@@ -98,10 +98,12 @@ export async function ensurePersonas(
 
 /** A runner's rooms (claude_rooms): each room is on when one of the machine's agents is on there: the one the runner
  *  runs (?4 persona), else the ones of its kind (?5), else all of them (an older runner). listening: that agent, or
- *  any of the person's agents, waited on the room since ?1. Binds (since, email, machine, persona or '', kind or ''). */
+ *  any of the person's agents, waited on the room since ?1. ?6 = 1: the main runner (it runs the main agent of its
+ *  kind; the machine's other agents have their own runners). Binds (since, email, machine, persona or '', kind or '',
+ *  main 0 or 1). */
 export const MACHINE_ROOMS_SQL = `SELECT b.id, b.title,
     EXISTS (SELECT 1 FROM agent_personas p LEFT JOIN persona_rooms pr ON pr.persona_id = p.id AND pr.book_id = b.id
-      WHERE p.machine_id = ?3 AND (?4 = '' OR p.id = ?4) AND (?5 = '' OR p.kind = ?5) AND ${PERSONA_ON} = 1) AS claude_on,
+      WHERE p.machine_id = ?3 AND (?4 = '' OR p.id = ?4) AND (?5 = '' OR p.kind = ?5) AND (?6 = 0 OR p.main = 1) AND ${PERSONA_ON} = 1) AS claude_on,
     EXISTS (SELECT 1 FROM agents a WHERE a.email = m.email AND a.listening_at > ?1 AND (a.listen_room = b.id OR a.listen_room IS NULL)
       AND (?4 = '' OR a.persona_id = ?4)) AS listening
   FROM members m JOIN books b ON b.id = m.book_id

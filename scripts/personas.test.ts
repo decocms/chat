@@ -254,10 +254,12 @@ test("a runner's rooms: its agent's switch, else its kind's, else any agent of t
   });
   if ("error" in codex) throw new Error(codex.error);
   await setPersonaRoom(w.db, claude.id, ROOM_A, false);
-  const rooms = (persona: string, kind: string) =>
+  const rooms = (persona: string, kind: string, main = 0) =>
     Object.fromEntries(
       (
-        w.sqlite.query(MACHINE_ROOMS_SQL).all(0, ME, MAC, persona, kind) as {
+        w.sqlite
+          .query(MACHINE_ROOMS_SQL)
+          .all(0, ME, MAC, persona, kind, main) as {
           id: string;
           claude_on: number;
         }[]
@@ -272,4 +274,8 @@ test("a runner's rooms: its agent's switch, else its kind's, else any agent of t
   expect(rooms("", "claude")[ROOM_A]).toBe(0);
   // An older runner (no persona, no kind): any agent of the machine.
   expect(rooms("", "")[ROOM_A]).toBe(1);
+  // The main runner of kind codex: the codex agent is not main (it has its own runner), so nothing here.
+  expect(rooms("", "codex", 1)).toEqual({ [ROOM_A]: 0, [ROOM_B]: 0 });
+  // The main runner of kind claude: only the main claude agent.
+  expect(rooms("", "claude", 1)).toEqual({ [ROOM_A]: 0, [ROOM_B]: 1 });
 });

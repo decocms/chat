@@ -39,6 +39,12 @@ Status: proposal. It is not built yet. Discuss it in the epic in the project roo
   - `claude_rooms` takes `persona` (the agent that a runner runs) or `machine.agent` (its kind). It answers `agents`: the machine's agents. An older runner sends neither, and each room is on when any agent of the machine is on there.
   - The app: `POST /api/personas`, `PATCH` and `DELETE /api/personas/:id`, and `POST /api/books/:id/delivery` with `{ persona }`. The machine switch also sets the switches of the machine's agents.
 
+- **Done (agents as people, step 4):** one runner per agent (`cli/agentRunners.ts`).
+  - The main runner (`vibebook herdr`, as always) sends `machine.agent` (its kind) and `machine.main`. It runs the machine's main agent of its kind, with the same files (`herdr.json`…) and herdr names (`vb-<room>`) as before.
+  - For each other agent of the machine that it can open (Claude or Codex), it starts `vibebook herdr --agent <kind> --persona <id> --as <name>`. That runner has its own files, lock and herdr names (`-<8 hex of the agent id>` added), and its tabs end with `· @<name>`. It does not start the page's local server.
+  - The main runner stops the runner of an agent that is removed or renamed, and starts again a runner that ended, after 15 s.
+  - A runner that names an agent that is gone gets every room off. A runner from this step on makes an agent only on a machine with none, so a removed agent does not come back.
+
 - **CLI, `vibebook listen`:** send the agent ID and the PID of its Claude to the hub (`/wait?book=…&agent=…&pid=…`).
 - **CLI, `vibebook hub`:** keep a table of agents (agent ID, Claude PID, room, `listening` or `working`). Check the PIDs every few seconds. Send the table to the server when it changes. Stay alive while a Claude in the table is alive.
 - **Server:** keep presence in the Durable Object of the person channel (memory and storage), keyed by machine. Write to D1 only the switch (`machine_rooms`) and the relation agent → machine. When the socket of a machine closes, its agents are offline.

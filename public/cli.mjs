@@ -69,6 +69,62 @@ async function scanTranscripts(root, skip) {
   return { days, sessions };
 }
 
+// cli/agentRunners.ts
+var RUNS = new Set(["claude", "codex"]);
+var ID = /^p_[a-f0-9]{32}$/;
+function createAgentRunners(opts) {
+  const later = opts.later ?? ((run, ms) => setTimeout(run, ms).unref?.());
+  const runners = new Map;
+  return {
+    sync(list) {
+      if (!list)
+        return;
+      const mine = list.find((a) => a.main && a.kind === opts.kind);
+      const want = new Map(list.filter((a) => a !== mine && RUNS.has(a.kind) && ID.test(a.id)).map((a) => [a.id, a]));
+      for (const [id, r] of runners) {
+        const w = want.get(id);
+        if (w && w.name === r.name && w.kind === r.kind)
+          continue;
+        r.stop = true;
+        try {
+          r.child?.kill();
+        } catch {}
+        runners.delete(id);
+        opts.log(`stopped the runner of @${r.name}${w ? " (changed)" : " (removed)"}`);
+      }
+      for (const [id, a] of want) {
+        if (runners.has(id))
+          continue;
+        const r = {
+          name: a.name,
+          kind: a.kind,
+          child: null,
+          stop: false
+        };
+        const start = () => {
+          if (r.stop)
+            return;
+          r.child = opts.start(a);
+          r.child.on("exit", () => later(start, 15000));
+        };
+        runners.set(id, r);
+        start();
+        opts.log(`started a runner for @${a.name} (${a.kind})`);
+      }
+    },
+    running: () => [...runners.keys()],
+    stopAll() {
+      for (const r of runners.values()) {
+        r.stop = true;
+        try {
+          r.child?.kill();
+        } catch {}
+      }
+      runners.clear();
+    }
+  };
+}
+
 // shared/agentKinds.ts
 var AGENT_KINDS = ["claude", "codex", "agy", "opencode"];
 function agentVersion(raw) {
@@ -663,8 +719,11 @@ var LISTEN_PROMPT = 'Ouça a sala do vibebook desta pasta: rode `vibebook listen
 var CODEX_LISTEN_PROMPT = 'Ouça a sala do vibebook desta pasta: rode `vibebook listen --model "<seu modelo>"` uma vez (no Codex ele fica em segundo plano e manda uma mensagem nesta conversa quando a sala tiver novidade); depois `vibebook call read_room` e aja nas mensagens from_your_human. Não rode listen de novo a cada turno.';
 var RUN_AGENT = (flag("agent") ?? process.env.VIBEBOOK_AGENT) === "codex" ? "codex" : "claude";
 var RUN_NAME = RUN_AGENT === "codex" ? "Codex" : "Claude";
-var HERDR_FILE = join2(HOME, RUN_AGENT === "codex" ? "herdr-codex.json" : "herdr.json");
-var roomLabel = (title) => RUN_AGENT === "codex" ? `${title.slice(0, 32)} · Codex` : title.slice(0, 40);
+var PERSONA = /^p_[a-f0-9]{32}$/.test(flag("persona") ?? "") ? flag("persona") : "";
+var PERSONA_AS = (flag("as") ?? "").replace(/[^a-z0-9-]/g, "").slice(0, 24);
+var TAG = PERSONA ? `-${PERSONA.slice(2, 10)}` : "";
+var HERDR_FILE = join2(HOME, `${RUN_AGENT === "codex" ? "herdr-codex" : "herdr"}${TAG}.json`);
+var roomLabel = (title) => PERSONA_AS ? `${title.slice(0, 32)} · @${PERSONA_AS}` : RUN_AGENT === "codex" ? `${title.slice(0, 32)} · Codex` : title.slice(0, 40);
 var listenWords = () => RUN_AGENT === "codex" ? CODEX_LISTEN_PROMPT : LISTEN_PROMPT;
 var BYPASS = { claude: "--dangerously-skip-permissions", codex: "--dangerously-bypass-approvals-and-sandbox" };
 var NO_AUTO_MODE = JSON.stringify({ permissions: { disableAutoMode: "disable" } });
@@ -987,10 +1046,11 @@ async function claudeRooms(agent, tools, kind = "herdr", managed = []) {
     return roomsCache.res;
   }
   const takes = !!tools.find((t) => t.name === "claude_rooms")?.inputSchema.properties?.machine;
-  const args = takes ? { machine: { id: machineId(), name: hostname().replace(/\.local$/, ""), kind, kinds: await localKinds() }, agents: managed.slice(0, 50) } : {};
+  const args = takes ? { machine: { id: machineId(), name: hostname().replace(/\.local$/, ""), kind, kinds: await localKinds(), agent: RUN_AGENT, ...PERSONA ? {} : { main: true } }, agents: managed.slice(0, 50), ...PERSONA ? { persona: PERSONA } : {} } : {};
   const why = !port ? "no hub" : !roomsCache ? "first pass" : roomsCache.gen !== gen ? "a switch or listener changed" : roomsCache.key !== key ? "its Claudes changed" : "5 min passed";
   const res = await callTool("claude_rooms", args, agent, tools);
   roomsCache = { gen, at: Date.now(), key, res };
+  superviseAgents(res);
   let rooms = [];
   try {
     rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
@@ -1109,7 +1169,7 @@ async function herdrSync(agent, tools) {
         if (updating)
           log("info", "plugin", `${title}: reopening its Claude on plugin ${e.plugin_v} (same conversation)`, { room });
         try {
-          herdr("agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...agentArgs(e.session), listenTask(room));
+          herdr("agent", "start", `vb-${room}${TAG}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...agentArgs(e.session), listenTask(room));
           log("info", "claude", `${title}: its ${RUN_NAME} had exited, started a new one`, { room, folder: tilde(e.folder), resume: short(e.session) });
         } catch (err) {
           const m = err.message;
@@ -1194,7 +1254,7 @@ async function herdrSync(agent, tools) {
     }
     const w = herdr("workspace", "create", "--cwd", e.folder, "--label", roomLabel(title), "--no-focus", "--env", "DISABLE_AUTO_UPDATE=true");
     e.workspace = w.workspace.workspace_id;
-    const args = ["agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--", ...agentArgs(e.session)];
+    const args = ["agent", "start", `vb-${room}${TAG}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--", ...agentArgs(e.session)];
     e.listening = true;
     e.plugin_v = pluginHooks();
     e.prompted_at = Date.now();
@@ -1219,7 +1279,7 @@ async function herdrSync(agent, tools) {
   writePrivate(HERDR_FILE, map);
   herdrOrder([...on.keys()], map);
 }
-var HERDR_APP = join2(HOME, RUN_AGENT === "codex" ? "herdr-app-codex.json" : "herdr-app.json");
+var HERDR_APP = join2(HOME, `${RUN_AGENT === "codex" ? "herdr-app-codex" : "herdr-app"}${TAG}.json`);
 var happ = (...args) => {
   const r = JSON.parse(execFileSync(findAgent("herdr-app") ?? "herdr-app", args, { stdio: ["ignore", "pipe", "pipe"] }).toString());
   if (r?.error)
@@ -1320,7 +1380,7 @@ async function herdrAppSync(agent, tools) {
     spaces = happ("ls").spaces;
   });
 }
-var HERDR_CORE = join2(HOME, RUN_AGENT === "codex" ? "herdr-core-codex.json" : "herdr-core.json");
+var HERDR_CORE = join2(HOME, `${RUN_AGENT === "codex" ? "herdr-core-codex" : "herdr-core"}${TAG}.json`);
 function hc(...args) {
   const env = { ...process.env };
   for (const k of ["HC_TERMINAL_ID", "HC_TERMINAL_SOCKET", "HC_SCOPE"])
@@ -1428,7 +1488,7 @@ async function herdrCoreSync(agent, tools) {
     const t = ours(e);
     if (t) {
       if (t.agent !== CORE_AGENT && Date.now() - (e.prompted_at ?? 0) > 2 * 60000) {
-        if (t.name === `vb-${room}`.slice(0, 32))
+        if (t.name === `vb-${room}${TAG}`.slice(0, 32))
           try {
             hc("kill", t.address);
             log("warn", "claude", `${title}: its ${RUN_NAME} did not start in 2 min, ended its terminal to open it again`, { room, terminal: t.address });
@@ -1457,7 +1517,7 @@ async function herdrCoreSync(agent, tools) {
         }
         const another = Object.entries(map).some(([r, x]) => r !== room && x.restarting_at);
         const sid = coreSession(t.address);
-        if (app && !shown.has(t.address) && t.name === `vb-${room}`.slice(0, 32) && coreFree(t) && sid && !another) {
+        if (app && !shown.has(t.address) && t.name === `vb-${room}${TAG}`.slice(0, 32) && coreFree(t) && sid && !another) {
           e.session = sid;
           e.restarting_at = Date.now();
           writePrivate(HERDR_CORE, map);
@@ -1551,7 +1611,7 @@ async function herdrCoreSync(agent, tools) {
         } catch {}
       continue;
     }
-    const name = `vb-${room}`.slice(0, 32);
+    const name = `vb-${room}${TAG}`.slice(0, 32);
     if (app) {
       try {
         if (space && !appClaude(space))
@@ -1716,6 +1776,23 @@ function findAgent(cmd) {
         return join2(d, n);
   return;
 }
+var agentRunners = createAgentRunners({
+  kind: RUN_AGENT,
+  start: (a) => {
+    const self = /^(\/\$bunfs\/|[A-Za-z]:[\\/]~BUN[\\/])/.test(process.argv[1] ?? "") ? [] : process.argv.slice(1, 2);
+    const args = [...self, "herdr", ...flags.app ? ["--app"] : [], ...flags.core ? ["--core"] : [], "--agent", a.kind, "--persona", a.id, "--as", a.name];
+    return spawn(process.execPath, args, { stdio: ["ignore", "ignore", "inherit"], env: process.env, windowsHide: true });
+  },
+  log: (line) => log("info", "agents", line)
+});
+function superviseAgents(res) {
+  if (PERSONA || flags.once)
+    return;
+  try {
+    agentRunners.sync(JSON.parse(res.content[0]?.text ?? "{}").agents);
+  } catch {}
+}
+process.on("exit", () => agentRunners.stopAll());
 var kindsMemo = null;
 async function localKinds() {
   if (kindsMemo && Date.now() - kindsMemo.at < 3600000)
@@ -2470,7 +2547,7 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
         return die(e.code === "ENOENT" ? `herdr isn't installed. It's the terminal your room Claudes open in. Set everything up with one line:
   curl -fsSL https://chat.decocms.com/setup.sh | sh` : 'herdr isn\'t open. Run `herdr` in a terminal: with the vibebook plugin (herdr plugin install decocms/chat/herdr-plugin) its "vibebook" tab runs this for you.');
       }
-      const lock = join2(HOME, "herdr.pid");
+      const lock = join2(HOME, `herdr${TAG}.pid`);
       const other = Number(existsSync2(lock) ? readFileSync(lock, "utf8") : 0);
       if (other && other !== process.pid) {
         let alive = true;
@@ -2480,7 +2557,7 @@ Rode \`vibebook call read_room${model ? ` --model "${model.replace(/["`$\\]/g, "
           alive = false;
         }
         if (alive)
-          return die(`vibebook herdr is already running (pid ${other}); one per machine is enough`);
+          return die(`vibebook herdr${PERSONA ? ` for @${PERSONA_AS || PERSONA}` : ""} is already running (pid ${other}); one per machine is enough`);
       }
       writeFileSync(lock, String(process.pid));
       const release = () => {
@@ -2548,7 +2625,7 @@ ${rule}`);
         log("warn", "hub", "no hub (Node without WebSocket, or VIBEBOOK_NO_HUB): asking the server for the room list every 15s");
       if (flags.verbose && !flags.once)
         tailHub();
-      if (!flags.once)
+      if (!flags.once && !PERSONA)
         herdrServer(appMode ? "app" : coreMode ? "core" : "terminal");
       let pluginAt = 0;
       for (;; ) {

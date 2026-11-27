@@ -2752,3 +2752,11 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Options:** (a) the line plus no ✓; (b) only a different placeholder in the reply box; (c) send "Outro" as the answer at once and let the Claude ask again.
 - **Why:** A person read the filled ✓ as "answered", and their Claude waited until the hook timed out (Gui #6344). (a) says it next to the button that they clicked. (b) is far from the click and easy to miss. (c) costs one more round trip, and the Claude gets no answer.
 - **Reviewer can change:** put the hint in the reply box too, or send a typed answer from a field inside the question.
+
+## 2026-11-27 · feat/runner-per-agent
+
+- **Decision:** The main runner starts one child runner for each other agent of its machine. The main runner keeps serving the main agent of its kind with its old files.
+- **Options:** (a) child runners started by the main runner; (b) the app (`vibebook watch --menu`) starts one runner per agent; (c) one runner opens all agents in one loop.
+- **Why:** (a) works in every mode (herdr terminal, herdr-core, Herdr app) and needs no change in the app. Keeping the old files for the main agent keeps every open Claude and its conversation. (c) needs a rewrite of the three sync loops.
+- **Reviewer can change:** move the start to the app (b) if the herdr tab mode goes away.
+

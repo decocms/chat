@@ -9,6 +9,7 @@ import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, delimiter, dirname, join } from "node:path";
 import { scanTranscripts } from "./backfill";
+import { createAgentRunners, type MachineAgent } from "./agentRunners";
 import { AGENT_KINDS, agentVersion as versionNumber, type MachineKinds } from "../shared/agentKinds";
 
 const VERSION = "1.7.12";
@@ -571,10 +572,17 @@ const CODEX_LISTEN_PROMPT = "Ouça a sala do vibebook desta pasta: rode `vibeboo
 /** The agent the runner opens in each room: Claude Code, or Codex with `vibebook herdr --agent codex` (herdr has a codex kind). */
 const RUN_AGENT: "claude" | "codex" = (flag("agent") ?? process.env.VIBEBOOK_AGENT) === "codex" ? "codex" : "claude";
 const RUN_NAME = RUN_AGENT === "codex" ? "Codex" : "Claude";
+/** The agent this runner runs (agents as people, src/personas.ts): `--persona p_…` and its @name (`--as`), given by
+ *  the machine's main runner, which starts one runner for each of the machine's other agents. None = the main runner:
+ *  it runs the machine's main agent of its kind, with the files and the herdr names it always had. */
+const PERSONA = /^p_[a-f0-9]{32}$/.test(flag("persona") ?? "") ? flag("persona")! : "";
+const PERSONA_AS = (flag("as") ?? "").replace(/[^a-z0-9-]/g, "").slice(0, 24);
+/** Added to an agent's runner's files, lock and herdr names, so two runners never share them. */
+const TAG = PERSONA ? `-${PERSONA.slice(2, 10)}` : "";
 // A Codex runner keeps its own map: the Claude runner's map points each room at its Claude, so a Codex runner that read
 // it saw every room as served and opened nothing (Viktor, 25/11). Its spaces are named "<room> · Codex".
-const HERDR_FILE = join(HOME, RUN_AGENT === "codex" ? "herdr-codex.json" : "herdr.json");
-const roomLabel = (title: string) => (RUN_AGENT === "codex" ? `${title.slice(0, 32)} · Codex` : title.slice(0, 40));
+const HERDR_FILE = join(HOME, `${RUN_AGENT === "codex" ? "herdr-codex" : "herdr"}${TAG}.json`);
+const roomLabel = (title: string) => (PERSONA_AS ? `${title.slice(0, 32)} · @${PERSONA_AS}` : RUN_AGENT === "codex" ? `${title.slice(0, 32)} · Codex` : title.slice(0, 40));
 /** What a running agent gets typed in to listen again. */
 const listenWords = () => (RUN_AGENT === "codex" ? CODEX_LISTEN_PROMPT : LISTEN_PROMPT);
 /** The runner's agents run headless: nobody watches their terminal, so any question there stops them (Gimenes #5956,
@@ -883,10 +891,14 @@ async function claudeRooms(agent: string, tools: Tool[], kind: "herdr" | "herdr-
     return roomsCache.res;
   }
   const takes = !!tools.find((t) => t.name === "claude_rooms")?.inputSchema.properties?.machine;
-  const args = takes ? { machine: { id: machineId(), name: hostname().replace(/\.local$/, ""), kind, kinds: await localKinds() }, agents: managed.slice(0, 50) } : {};
+  // The machine, the kind this runner opens, and which agent it runs: one (an agent's runner) or the main one.
+  const args = takes
+    ? { machine: { id: machineId(), name: hostname().replace(/\.local$/, ""), kind, kinds: await localKinds(), agent: RUN_AGENT, ...(PERSONA ? {} : { main: true }) }, agents: managed.slice(0, 50), ...(PERSONA ? { persona: PERSONA } : {}) }
+    : {};
   const why = !port ? "no hub" : !roomsCache ? "first pass" : roomsCache.gen !== gen ? "a switch or listener changed" : roomsCache.key !== key ? "its Claudes changed" : "5 min passed";
   const res = await callTool("claude_rooms", args, agent, tools);
   roomsCache = { gen, at: Date.now(), key, res };
+  superviseAgents(res);
   let rooms: { room_id: string; title: string; on: boolean; listening?: boolean }[] = [];
   try {
     rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: typeof rooms }).rooms ?? [];
@@ -999,7 +1011,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
         writePrivate(HERDR_FILE, map);
         if (updating) log("info", "plugin", `${title}: reopening its Claude on plugin ${e.plugin_v} (same conversation)`, { room });
         try {
-          herdr("agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...agentArgs(e.session), listenTask(room));
+          herdr("agent", "start", `vb-${room}${TAG}`, "--kind", RUN_AGENT, "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...agentArgs(e.session), listenTask(room));
           log("info", "claude", `${title}: its ${RUN_NAME} had exited, started a new one`, { room, folder: tilde(e.folder), resume: short(e.session) });
         } catch (err) {
           const m = (err as Error).message;
@@ -1093,7 +1105,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
     // answered it and the room stayed "abrindo" (#4259). No auto-update prompt in the shells we open.
     const w = herdr("workspace", "create", "--cwd", e.folder, "--label", roomLabel(title), "--no-focus", "--env", "DISABLE_AUTO_UPDATE=true");
     e.workspace = w.workspace.workspace_id as string;
-    const args = ["agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--", ...agentArgs(e.session)];
+    const args = ["agent", "start", `vb-${room}${TAG}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--", ...agentArgs(e.session)];
     e.listening = true; // started with /vibebook:listen as its first prompt
     e.plugin_v = pluginHooks();
     e.prompted_at = Date.now();
@@ -1123,7 +1135,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
 // Same rooms, as spaces in the Herdr window (herdr-app + herdr-core): one space per room whose Claude is on, in the
 // room's folder, started with `claude "/vibebook:listen"`; a space already open in that folder with a Claude in it is
 // adopted. Off only mutes: no space closes. Spaces follow the rail's order. ~/.vibebook/herdr-app.json maps them.
-const HERDR_APP = join(HOME, RUN_AGENT === "codex" ? "herdr-app-codex.json" : "herdr-app.json");
+const HERDR_APP = join(HOME, `${RUN_AGENT === "codex" ? "herdr-app-codex" : "herdr-app"}${TAG}.json`);
 type AppSpace = { id: string; name: string; folder: string; tabs: { terminals: { terminal: string; app: string | null; status: string | null }[] }[] };
 const happ = (...args: string[]) => {
   const r = JSON.parse(execFileSync(findAgent("herdr-app") ?? "herdr-app", args, { stdio: ["ignore", "pipe", "pipe"] }).toString());
@@ -1230,7 +1242,7 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
 // The same rooms, each in a terminal of herdr-core (`hc`, https://herdr.dev), with no window: `vb-<room>`, in the
 // room's folder, started with the listen task. A Claude already in a terminal in that folder is adopted. The person
 // looks at one with `hc attach vb-<room>`, or in the Herdr app. Off only mutes. ~/.vibebook/herdr-core.json maps them.
-const HERDR_CORE = join(HOME, RUN_AGENT === "codex" ? "herdr-core-codex.json" : "herdr-core.json");
+const HERDR_CORE = join(HOME, `${RUN_AGENT === "codex" ? "herdr-core-codex" : "herdr-core"}${TAG}.json`);
 type CoreTerminal = { address: string; name?: string | null; agent?: string | null; cwd?: string; state?: string; status?: string | null };
 type CoreRoom = HerdrRoom & { terminal?: string; space?: string };
 /** hc as this runner's own client: without the HC_* variables of a terminal that it may run in, so a send is not
@@ -1342,7 +1354,7 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
       // The agent exited and the terminal went back to a shell (an adopted terminal): start it again there.
       if (t.agent !== CORE_AGENT && Date.now() - (e.prompted_at ?? 0) > 2 * 60_000) {
         // Ours and still without its agent after 2 minutes (a shell stuck at a question): end it, so its name is free.
-        if (t.name === `vb-${room}`.slice(0, 32))
+        if (t.name === `vb-${room}${TAG}`.slice(0, 32))
           try {
             hc("kill", t.address);
             log("warn", "claude", `${title}: its ${RUN_NAME} did not start in 2 min, ended its terminal to open it again`, { room, terminal: t.address });
@@ -1368,7 +1380,7 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
         }
         const another = Object.entries(map).some(([r, x]) => r !== room && x.restarting_at);
         const sid = coreSession(t.address);
-        if (app && !shown.has(t.address) && t.name === `vb-${room}`.slice(0, 32) && coreFree(t) && sid && !another) {
+        if (app && !shown.has(t.address) && t.name === `vb-${room}${TAG}`.slice(0, 32) && coreFree(t) && sid && !another) {
           e.session = sid;
           e.restarting_at = Date.now();
           writePrivate(HERDR_CORE, map);
@@ -1468,7 +1480,7 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
     }
     // Back on after an off, or moved from herdr: the same conversation (--resume). --rm: a terminal whose Claude exited
     // goes away, so its name is free for the next one.
-    const name = `vb-${room}`.slice(0, 32);
+    const name = `vb-${room}${TAG}`.slice(0, 32);
     if (app) {
       try {
         // Its old space, if its Claude ended there: closed, so the room keeps one space.
@@ -1619,6 +1631,23 @@ function findAgent(cmd: string): string | undefined {
   for (const d of agentDirs()) for (const n of names) if (existsSync(join(d, n))) return join(d, n);
   return undefined;
 }
+/** The machine's other agents, each in its own runner (cli/agentRunners.ts), started by the main runner. */
+const agentRunners = createAgentRunners({
+  kind: RUN_AGENT,
+  start: (a) => {
+    const self = /^(\/\$bunfs\/|[A-Za-z]:[\\/]~BUN[\\/])/.test(process.argv[1] ?? "") ? [] : process.argv.slice(1, 2);
+    const args = [...self, "herdr", ...(flags.app ? ["--app"] : []), ...(flags.core ? ["--core"] : []), "--agent", a.kind, "--persona", a.id, "--as", a.name];
+    return spawn(process.execPath, args, { stdio: ["ignore", "ignore", "inherit"], env: process.env, windowsHide: true });
+  },
+  log: (line) => log("info", "agents", line),
+});
+function superviseAgents(res: { content: { text?: string }[] }) {
+  if (PERSONA || flags.once) return;
+  try {
+    agentRunners.sync((JSON.parse(res.content[0]?.text ?? "{}") as { agents?: MachineAgent[] }).agents);
+  } catch {}
+}
+process.on("exit", () => agentRunners.stopAll());
 /** The agent CLIs on this machine and their versions (shared/agentKinds.ts), for the check-in: "Adicionar agent" in
  *  the app offers only these. Names and versions only, never a path. Looked up at most once an hour. */
 let kindsMemo: { at: number; kinds: MachineKinds } | null = null;
@@ -2219,12 +2248,12 @@ async function main() {
       }
       // One runner per machine: a second one (the herdr plugin's pane plus a manual `vibebook herdr`) would open every
       // room twice. The pid file is released on exit; a stale one (dead pid) is taken over.
-      const lock = join(HOME, "herdr.pid");
+      const lock = join(HOME, `herdr${TAG}.pid`);
       const other = Number(existsSync(lock) ? readFileSync(lock, "utf8") : 0);
       if (other && other !== process.pid) {
         let alive = true;
         try { process.kill(other, 0); } catch { alive = false; }
-        if (alive) return die(`vibebook herdr is already running (pid ${other}); one per machine is enough`);
+        if (alive) return die(`vibebook herdr${PERSONA ? ` for @${PERSONA_AS || PERSONA}` : ""} is already running (pid ${other}); one per machine is enough`);
       }
       writeFileSync(lock, String(process.pid));
       const release = () => { try { if (Number(readFileSync(lock, "utf8")) === process.pid) unlinkSync(lock); } catch {} };
@@ -2283,7 +2312,8 @@ async function main() {
       if (port) log("info", "hub", `hub ${h?.v ?? "?"} running`, { pid: h?.pid, port });
       else log("warn", "hub", "no hub (Node without WebSocket, or VIBEBOOK_NO_HUB): asking the server for the room list every 15s");
       if (flags.verbose && !flags.once) void tailHub();
-      if (!flags.once) herdrServer(appMode ? "app" : coreMode ? "core" : "terminal");
+      // The page's local server (one port per machine): only the main runner.
+      if (!flags.once && !PERSONA) herdrServer(appMode ? "app" : coreMode ? "core" : "terminal");
       let pluginAt = 0;
       for (;;) {
         // Hourly: pull the vibebook plugin's new version (Claude Code doesn't auto-update a third-party marketplace);
