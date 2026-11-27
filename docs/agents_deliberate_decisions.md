@@ -2838,3 +2838,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-27 · feat/question-current-thread · A terminal stuck at a menu no hook saw asks in the room
+
+- Agent: Claude Opus 5.5
+- Context: Step 3 of the plan Gimenes chose (#6508, #6514). Some menus never reach a plugin hook: the Claude in Chrome site question, "Make auto mode your default?". The terminal waits there and nobody sees it. Step 2 (the question goes to the thread where that Claude works) was already in `Book.agentPost` (`askThread`), so it needed no change.
+- Decision:
+  - The runner (terminal mode, `herdrCoreSync`) reads its own terminal when it has been `blocked` for 20 s. If the foot of the screen is a menu (`1. …`, `2. …`, `cli/menu.ts`) that the hooks do not handle (`HOOKED_MENU`: "Do you want to proceed", AskUserQuestion, a plan), it posts "❓ Seu Claude pergunta no terminal: <question>" with the options as choices.
+  - It posts as that Claude (`CLAUDE_CODE_SESSION_ID` = its session), so the server puts it in that Claude's current thread, and only the person can answer.
+  - The answer comes back as the option's number key (`hc keys`). When the terminal moves on without it, the room question closes.
+  - CLI 1.7.15. It reaches app machines with the next tray release.
+- Other options: Answer some menus by itself (always "Allow"). Ask for every blocked screen, also the hooked ones.
+- Risk: medium (it types into the agent's terminal, only the option the person picked)
+- Undo: Revert the commit.
+- Status: open
