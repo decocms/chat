@@ -20,8 +20,9 @@ export const CanvasCardSchema = z.object({
   kind: z.enum(CANVAS_KINDS),
   title: z.optional(z.string()),
   body: z.string(),
-  /** Who wrote it: the email of the person whose Claude it is. */
+  /** Who wrote it last: the email of the person whose Claude it is, and that Claude's @name in the room. */
   author: z.string(),
+  agent: z.optional(z.string()),
   x: z.number(),
   y: z.number(),
   w: z.number(),
@@ -82,6 +83,7 @@ export function putCard(
   input: CardInput,
   author: string,
   now: number,
+  agent?: string,
 ): { canvas: Canvas; card: CanvasCard } | { error: string } {
   const kind = input.kind ?? "markdown";
   if (!(CANVAS_KINDS as readonly string[]).includes(kind))
@@ -116,6 +118,7 @@ export function putCard(
     ...(title ? { title } : {}),
     body,
     author,
+    ...(agent ? { agent } : {}),
     ...at,
     w,
     h,
@@ -130,6 +133,40 @@ export function putCard(
     },
     card,
   };
+}
+
+/** Each Claude's color on a canvas (Gui #6627): its own one, fixed by its person and @name; when another Claude on
+ *  the same canvas got there first with that color, the next free one (as the call's tiles, web/features/call/layout.ts).
+ *  "First" is by each Claude's oldest card, so every viewer sees the same colors. Key: `author/agent`; values are
+ *  indexes into the app's palette (web/features/canvas/canvasStyle.ts CLAUDE_COLORS). */
+export const claudeKey = (card: { author: string; agent?: string }) =>
+  `${card.author}/${card.agent || "claude"}`;
+export function claudeColors(
+  cards: readonly CanvasCard[],
+  colors = 6,
+): Map<string, number> {
+  const first = new Map<string, number>();
+  for (const c of cards)
+    first.set(
+      claudeKey(c),
+      Math.min(first.get(claudeKey(c)) ?? Infinity, c.at),
+    );
+  const out = new Map<string, number>(),
+    taken = new Set<number>();
+  for (const [key] of [...first].sort((a, b) => a[1] - b[1])) {
+    // FNV-1a and a final mix: emails share their domain.
+    let hash = 2166136261;
+    for (const char of key)
+      hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
+    hash = Math.imul(hash ^ (hash >>> 16), 0x45d9f3b) >>> 0;
+    let index = ((hash ^ (hash >>> 16)) >>> 0) % colors;
+    for (let step = 0; step < colors && taken.has(index); step++)
+      index = (index + 1) % colors;
+    taken.add(index);
+    if (taken.size >= colors) taken.clear();
+    out.set(key, index);
+  }
+  return out;
 }
 
 /** A ```canvas block of a doc: "x=0 y=0 zoom=1" (each optional), the viewport on the plane. */

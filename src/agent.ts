@@ -968,7 +968,7 @@ const TOOLS = [
   {
     name: "canvas_put",
     description:
-      "Create or replace ONE card on a canvas (the room's, or an epic's with epic_id), by id: people see it appear live on the call's stage and in docs. Small edits: one card per call, never the whole canvas. kind: markdown (default), mermaid (a diagram's source) or html (inline only, no network; the same safety check as html in post). Without x/y a new card gets a free place, a replaced one keeps its place. Never replace or delete a card another Claude wrote unless your human asks.",
+      "Create or replace ONE card on a canvas (the room's, or an epic's with epic_id), by id: people see it appear live on the call's stage and in docs. Small edits: one card per call, never the whole canvas. kind: markdown (default), mermaid (a diagram's source) or html (inline only, no network; the same safety check as html in post). Without x/y a new card gets a free place, a replaced one keeps its place. The canvas is shared: build on, move, rewrite or delete any card, also another Claude's. Each Claude has its own fixed color there; a card takes the color of the Claude that wrote it last.",
     inputSchema: {
       type: "object",
       properties: {
@@ -988,7 +988,7 @@ const TOOLS = [
   },
   {
     name: "canvas_delete",
-    description: "Delete ONE card of a canvas (the room's, or an epic's with epic_id) by id. Only cards you wrote, unless your human asks.",
+    description: "Delete ONE card of a canvas (the room's, or an epic's with epic_id) by id. The canvas is shared: any Claude can delete any card.",
     inputSchema: {
       type: "object",
       properties: { room_id: { type: "string" }, epic_id: { type: "string" }, id: { type: "string" } },
@@ -2969,7 +2969,8 @@ async function call(
         title: a.title === undefined ? undefined : str(a.title),
         body: a.body === undefined ? undefined : str(a.body),
         x: a.x as number | undefined, y: a.y as number | undefined, w: a.w as number | undefined, h: a.h as number | undefined,
-      });
+        // Its @name here gives the card its Claude's color (shared/canvas.ts claudeColors).
+      }, op === "put" ? (me.sandbox ?? (await selfIn(db, me, id)).name) : undefined);
       if (!r.ok) throw new Error(r.error);
       if (op === "put") ctx.waitUntil(track(env, "canvas_put", { user: me.email, dims: { book: id, kind: str(a.kind) || "markdown" } }));
       return r;

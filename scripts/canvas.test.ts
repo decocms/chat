@@ -57,3 +57,18 @@ test("a canvas event updates that canvas only", () => {
   expect(next?.canvases?.[""]?.open).toBe(true);
   expect(next?.canvases?.e1?.cards).toHaveLength(1);
 });
+
+test("each Claude has its own color on a canvas, and two Claudes never share one while colors are left (Gui #6627)", async () => {
+  const { claudeColors, claudeKey } = await import("../shared/canvas");
+  const card = (author: string, at: number, agent?: string) => ({ id: `${author}${at}`, kind: "markdown" as const, body: "x", author, ...(agent ? { agent } : {}), x: 0, y: 0, w: 1, h: 1, at });
+  const people = ["valls", "ana", "bruno", "gui", "pedro", "cecilia"].map((p, i) => card(`${p}@example.com`, i));
+  const colors = claudeColors([...people, card("gui@example.com", 9, "claude-2")]);
+  expect(new Set([...colors.values()].slice(0, 6)).size).toBe(6);
+  // The same Claude keeps its color as the canvas changes after it; another of the same person is another Claude.
+  expect(claudeColors(people.slice(0, 2)).get(claudeKey(people[0]!))).toBe(colors.get(claudeKey(people[0]!)));
+  expect(colors.has("gui@example.com/claude-2")).toBe(true);
+  // The last Claude to write a card gives it its name and color.
+  const r = putCard(empty, { id: "a", body: "x" }, "gui@x.test", 1, "claude-2");
+  if ("error" in r) throw new Error(r.error);
+  expect(r.card).toMatchObject({ author: "gui@x.test", agent: "claude-2" });
+});

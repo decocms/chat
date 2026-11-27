@@ -2883,3 +2883,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low (new state only; a large canvas makes the room's snapshot larger: 60 cards at most, 8,000 characters of text each)
 - Undo: Revert the commit. The `canvas:` keys in `meta` stay and nothing reads them.
 - Status: open
+
+### 2026-11-27 · feat/call-canvas · One shared canvas: each Claude has its own color, and any Claude edits any card
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#6627) on the first version: "parece que cada claude tem sua janela? nao deveria ser assim at all. cada claude devia ter uma cor, fixa pra ele. e ai cada claude pode colaborar no canvas livremente".
+- Decision:
+  - A card has no window now: no box, no header bar. It is its content beside a bar in its Claude's color, with that Claude's name and a dot on top.
+  - A Claude is its person and its @name in the room (`claude`, `claude-2`): `canvas_put` stores the @name in the card (`agent`). The last Claude that wrote a card gives it its name and color.
+  - The color (`claudeColors`, shared/canvas.ts): its own, fixed by person and @name. When another Claude on the same canvas got that color first (by its oldest card), it takes the next free one, as the call's tiles do. Six colors from the theme: `team-1`, `team-2`, `special`, `link`, `success`, `team-4`.
+  - The tools say that the canvas is shared: build on, move, rewrite or delete any card, also another Claude's. Before, they said "never replace or delete a card another Claude wrote".
+- Other options: A pure hash with no collision step (two Claudes had the same color in a 3-person test). Free strokes or shapes in place of cards (a bigger change; the cards stay).
+- Risk: low. A Claude can overwrite another's card. Gui asked for that.
+- Undo: Revert the commit.
+- Status: open

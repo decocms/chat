@@ -7,7 +7,8 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import { resolveApplicationLanguage } from "../application/copy";
-  import { cardStyle, planeStyle } from "./canvasStyle";
+  import { CLAUDE_COLORS, cardStyle, planeStyle } from "./canvasStyle";
+  import { claudeColors, claudeKey } from "../../../shared/canvas";
   /**
    * A viewport on a canvas (shared/canvas.ts): the call's stage and each ```canvas block of a doc draw the same
    * plane, each with its own x, y and zoom. Agents write the cards (canvas_put); people look, pan and zoom.
@@ -65,6 +66,18 @@
   const at = $derived(moved ?? fit);
   const name = (email: string) =>
     (room.names?.[email] ?? email.split("@")[0] ?? "").split(/\s+/)[0];
+  /** "Claude de Ana", or "claude-2 de Ana" when Ana has more than one. */
+  const who = (card: CanvasCard) => {
+    const agent =
+      !card.agent || card.agent === "claude" ? "Claude" : card.agent;
+    return en
+      ? `${name(card.author)}'s ${agent}`
+      : `${agent} de ${name(card.author)}`;
+  };
+  const palette = $derived(claudeColors(cards, CLAUDE_COLORS.length));
+  const color = (card: CanvasCard) => palette.get(claudeKey(card)) ?? 0;
+  const tone = (card: CanvasCard) =>
+    CLAUDE_COLORS[color(card)] ?? CLAUDE_COLORS[0];
   let drag: { px: number; py: number; x: number; y: number } | null = null;
   function down(event: PointerEvent) {
     if (!interactive || event.button !== 0) return;
@@ -139,29 +152,33 @@
     use:planeStyle={at}
     class="absolute top-0 left-0 origin-top-left [transform:scale(var(--cv-s))_translate(var(--cv-x),var(--cv-y))]"
   >
+    <!-- One shared plane, no window per card (Gui #6627): each card is its content beside a bar in its Claude's
+         color, with that Claude's name on top. -->
     {#each cards as card (card.id)}<article
         data-canvas-card={card.id}
+        data-canvas-color={color(card)}
         use:cardStyle={card}
-        class="absolute top-(--cv-t) left-(--cv-l) flex h-(--cv-h) w-(--cv-w) flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm"
+        class="absolute top-(--cv-t) left-(--cv-l) flex h-(--cv-h) w-(--cv-w) flex-col gap-1 border-l-4 pl-3 {tone(
+          card,
+        ).bar}"
       >
         <header
-          class="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5 text-xs"
+          class="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
         >
-          <span class="min-w-0 flex-1 truncate font-semibold"
-            >{card.title ?? ""}</span
-          >
-          <span class="shrink-0 text-muted-foreground"
-            >{en
-              ? `${name(card.author)}'s Claude`
-              : `Claude de ${name(card.author)}`}</span
-          >
+          <span class="size-2 shrink-0 rounded-full {tone(card).dot}"></span>
+          <span class="truncate">{who(card)}</span>
         </header>
-        <div class="min-h-0 flex-1 overflow-auto px-3 py-2 text-sm">
+        {#if card.title}<h3
+            class="m-0 shrink-0 truncate text-sm font-semibold text-foreground"
+          >
+            {card.title}
+          </h3>{/if}
+        <div class="min-h-0 flex-1 overflow-auto text-sm text-foreground">
           {#if card.kind === "html"}<iframe
               title={card.title ?? "html"}
               sandbox="allow-scripts"
               srcdoc={srcdoc(card)}
-              class="size-full border-0 bg-background"
+              class="size-full rounded-lg border-0 bg-background"
             ></iframe>{:else if card.kind === "mermaid"}<Mermaid
               source={card.body}
               {context}

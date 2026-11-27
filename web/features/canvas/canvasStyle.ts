@@ -23,3 +23,14 @@ export function cardStyle(node: HTMLElement, box: Box) {
   apply(box);
   return { update: apply };
 }
+
+/** Each Claude's color on a canvas (shared/canvas.ts claudeColors picks the index): the bar beside its cards and the
+ *  dot of its name. Whole class strings, so Tailwind finds them. */
+export const CLAUDE_COLORS = [
+  { bar: "border-team-1", dot: "bg-team-1" },
+  { bar: "border-team-2", dot: "bg-team-2" },
+  { bar: "border-special", dot: "bg-special" },
+  { bar: "border-link", dot: "bg-link" },
+  { bar: "border-success", dot: "bg-success" },
+  { bar: "border-team-4", dot: "bg-team-4" },
+] as const;

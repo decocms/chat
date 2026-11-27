@@ -118,7 +118,7 @@
     x: number,
     y: number,
     author: string,
-  ) => ({ id, kind, title, body, author, x, y, w: 360, h: 240, at: 0 });
+  ) => ({ id, kind, title, body, author, x, y, w: 360, h: 240, at: x + y });
   let canvas = $state(
     params.get("canvas") === "1"
       ? {
@@ -149,7 +149,7 @@
               '<p><b>MRR</b> = assentos × preço</p><input type=range min=10 max=200 value=50 oninput="o.textContent=this.value*49"> <output id=o>2450</output>',
               0,
               280,
-              me,
+              emails[2] ?? me,
             ),
           ],
         }

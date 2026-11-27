@@ -970,7 +970,7 @@ export class Book extends DurableObject<Env> {
     this.setCanvas("", { ...this.canvas(""), open });
   }
   /** canvas_read / canvas_put / canvas_delete of an agent (src/agent.ts). An html card was checked there. */
-  async canvasEdit(bookId: string, email: string, op: "read" | "put" | "delete", scope: string, a: CardInput) {
+  async canvasEdit(bookId: string, email: string, op: "read" | "put" | "delete", scope: string, a: CardInput, agent?: string) {
     this.bind(bookId);
     if (!(await this.members()).includes(email)) return { ok: false as const, error: "forbidden" };
     if (scope && !this.epics().some((e) => e.id === scope)) return { ok: false as const, error: "epic not found" };
@@ -983,7 +983,7 @@ export class Book extends DurableObject<Env> {
     }
     const secret = findSecret(`${a.title ?? ""}\n${a.body ?? ""}`);
     if (secret) return { ok: false as const, error: `blocked: looks like a secret (${secret})` };
-    const r = putCard(now, a, email, Date.now());
+    const r = putCard(now, a, email, Date.now(), agent);
     if ("error" in r) return { ok: false as const, error: r.error };
     this.setCanvas(scope, r.canvas);
     return { ok: true as const, card: r.card };
