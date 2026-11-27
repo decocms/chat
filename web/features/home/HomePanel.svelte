@@ -466,6 +466,7 @@
       {#if $account.me}<NewMessage
           me={$account.me}
           {lang}
+          sheet
           {onconnect}
           {ondismiss}
           onroom={(trigger) => {
