@@ -71,6 +71,10 @@
   function openMain() {
     open("main");
   }
+  /** The main conversation has a message you have not seen: its name is bolder, like a thread's (Valls). */
+  const mainUnread = $derived(
+    thread !== "main" && !!room.unread?.includes("main"),
+  );
   function sheetHandle(node: HTMLElement) {
     return { destroy: mountSheetHandle?.(node) };
   }
@@ -194,7 +198,13 @@
           }}
         >
           <RoomMark title={room.book.title} src={roomIcon} />
-          <h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
+          <h2
+            data-main-unread={mainUnread ? "" : undefined}
+            class={cn(
+              "m-0 min-w-0 flex-1 truncate text-sm",
+              mainUnread ? "font-bold" : "font-semibold",
+            )}
+          >
             {room.book.title}
           </h2>
           <WaitBadge
@@ -262,7 +272,11 @@
               class="shrink-0 text-muted-foreground"
             /><span class="min-w-0 truncate">{vb.t("Conversa")}</span
             >{:else}<RoomMark title={room.book.title} src={roomIcon} />
-            <span class="min-w-0 truncate">{room.book.title}</span>{/if}
+            <span
+              data-main-unread={mainUnread ? "" : undefined}
+              class={cn("min-w-0 truncate", mainUnread && "font-semibold")}
+              >{room.book.title}</span
+            >{/if}
           <WaitBadge
             waits={vb.waitsIn("main")}
             label={(n) => vb.t("{n} coisas esperando você", { n })}

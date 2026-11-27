@@ -113,6 +113,8 @@
         ? vb.name(epic.owner)
         : "";
   }
+  /** Threads with a message you have not seen (Book.unreadThreads): their names are bolder (Valls). */
+  const unread = $derived(new Set(room.unread ?? []));
   let navigation = $derived(session.state);
   const mutation = untrack(() => mutations.state);
   const mutationBusy = $derived(
@@ -484,6 +486,7 @@
           {#each rows as row (row.epic.id)}
             {@const epic = row.epic}
             {@const current = !selectionDisabled && thread === epic.id}
+            {@const fresh = !current && unread.has(epic.id)}
             {@const status = epicStatus(epic)}
             <SortableItem
               as="li"
@@ -521,12 +524,15 @@
                           "relative h-10 min-w-0 flex-1 justify-start gap-2.5 rounded-lg px-2.5 text-left font-normal hover:bg-transparent",
                           phone.current && "h-18 gap-3 px-2 py-1",
                           current && "font-medium",
+                          fresh && "font-semibold",
                           // Done: finished work reads quieter, and comes back on hover or when open.
                           value === "done" &&
                             !current &&
+                            !fresh &&
                             "text-muted-foreground group-hover/row:text-sidebar-foreground",
                         )}
                         data-epic-thread={epic.id}
+                        data-epic-unread={fresh ? "" : undefined}
                         aria-keyshortcuts={value === "open" && epic.pinned
                           ? "Shift+F10 Alt+ArrowUp Alt+ArrowDown"
                           : "Shift+F10"}
@@ -556,6 +562,7 @@
                             phone.current ? "size-14" : "size-6",
                             value === "done" &&
                               !current &&
+                              !fresh &&
                               "opacity-60 group-hover/row:opacity-100",
                           )}
                         />

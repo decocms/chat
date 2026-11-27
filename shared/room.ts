@@ -273,6 +273,8 @@ export const RoomSnapshotSchema = z.object({
   pins: opt(z.array(PinSchema)),
   polls: opt(z.record(str, PollSchema)),
   briefs: opt(z.array(BriefSchema)),
+  /** The threads with a message you have not seen there (Book.unreadThreads): the sidebar shows their names bolder. */
+  unread: opt(strings),
   /** When the Book built this state, and the hash of its epics: a reconnect sends them back (since/at/eh) to resume. */
   at: opt(num),
   eh: opt(str),

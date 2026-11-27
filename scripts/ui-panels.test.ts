@@ -4813,6 +4813,32 @@ describe("stable sidebar integration", () => {
     flushSync();
     await expectFocusedAfterUpdates(draft);
   }, 30_000);
+  test("a thread with a message you have not seen has a bolder name, until it is the one open (Valls)", () => {
+    const room = fixture();
+    room.epics.push({ id: "other", title: "Other", tasks: [] });
+    const rendered = sidebar({ ...room, unread: ["other", "main"] });
+    const row = (id: string) =>
+      rendered.target.querySelector<HTMLElement>(`[data-epic-thread="${id}"]`)!;
+    expect(row("other").hasAttribute("data-epic-unread")).toBe(true);
+    expect(row("other").classList.contains("font-semibold")).toBe(true);
+    // The open thread is read, whatever the list says.
+    rendered.view.update({
+      ...rendered.props,
+      room: { ...room, unread: ["e"] },
+    });
+    flushSync();
+    expect(row("e").hasAttribute("data-epic-unread")).toBe(false);
+    expect(row("e").classList.contains("font-semibold")).toBe(false);
+    expect(row("other").classList.contains("font-semibold")).toBe(false);
+    rendered.view.update({
+      ...rendered.props,
+      room: { ...room, unread: ["main"] },
+    });
+    flushSync();
+    const main = rendered.target.querySelector("[data-room-home] h2")!;
+    expect(main.hasAttribute("data-main-unread")).toBe(true);
+    expect(main.classList.contains("font-bold")).toBe(true);
+  });
   test("repeated room updates preserve keyed navigation rows", () => {
     let room = fixture();
     const target = window.document.createElement("div");

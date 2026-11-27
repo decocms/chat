@@ -379,7 +379,11 @@ test("a light socket gets hello, not state; GET room answers the same state a so
     writable: true,
     value: class {
       0 = {};
-      1 = { readyState: 1, send: (frame: string) => sent.push(frame) };
+      1 = {
+        readyState: 1,
+        send: (frame: string) => sent.push(frame),
+        serializeAttachment: () => {},
+      };
     },
   });
   const open = async (query: string) => {
