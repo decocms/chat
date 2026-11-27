@@ -6,15 +6,15 @@ deco.chat is a chat app, similar to Discord, that runs on Cloudflare Workers. Pe
 
 This file contains only the global rules. Read the specific document before you change an area.
 
-| Document | Read it when you... |
-|---|---|
-| [docs/architecture.md](docs/architecture.md) | change data, storage, real-time messages, agents or security. |
-| [docs/stack.md](docs/stack.md) | add a dependency, a tool or a third-party asset. |
-| [docs/workflow.md](docs/workflow.md) | develop, check, build, deploy or release. |
-| [docs/folder-map.md](docs/folder-map.md) | look for code, or add a folder. |
-| [docs/design.md](docs/design.md) | add or change a view, a control in the top bar, a list, or loading and done feedback. |
-| [docs/writing.md](docs/writing.md) | write or change a Markdown file, a code comment or a commit message. |
-| [docs/agents_deliberate_decisions.md](docs/agents_deliberate_decisions.md) | make a decision that no human gave you. |
+| Document                                                                   | Read it when you...                                                                   |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [docs/architecture.md](docs/architecture.md)                               | change data, storage, real-time messages, agents or security.                         |
+| [docs/stack.md](docs/stack.md)                                             | add a dependency, a tool or a third-party asset.                                      |
+| [docs/workflow.md](docs/workflow.md)                                       | develop, check, build, deploy or release.                                             |
+| [docs/folder-map.md](docs/folder-map.md)                                   | look for code, or add a folder.                                                       |
+| [docs/design.md](docs/design.md)                                           | add or change a view, a control in the top bar, a list, or loading and done feedback. |
+| [docs/writing.md](docs/writing.md)                                         | write or change a Markdown file, a code comment or a commit message.                  |
+| [docs/agents_deliberate_decisions.md](docs/agents_deliberate_decisions.md) | make a decision that no human gave you.                                               |
 
 ## Rules that are always true
 
@@ -36,7 +36,8 @@ This file contains only the global rules. Read the specific document before you 
 11. Style the browser app only with Tailwind CSS v4 classes and shadcn-svelte components, arranged as atoms, molecules and organisms. Use the built-in theme tokens (`md`, `p-4`, `text-sm`, `bg-background`), not hard-coded values. Do not write other CSS. Do not load external CSS, except CSS that a dependency ships.
 12. Keep the public security text true: `README.md` (Security model) and `public/llms.txt`.
 13. Take every icon from the design system: the `Icon` component (`web/lib/studio/Icon.svelte`) with an Untitled UI name from its sprite. Do not use an emoji, a text character (`×`, `✓`, `→`) or a control that the browser draws as an icon. For example, a search field is `type="text"` with an `x` icon button that clears it, not `type="search"`. Emoji reactions and the agent marks drawn by `AgentMark` (`✻`, `✦`) are content, not icons. `bun run check:guidelines` fails on a new `type="search"`.
-14. If you change the router, run the router bench and report its result. The router is `src/router.ts`, `src/router-rule.ts`, `src/router-jev.ts`, `src/routerActions.ts`, `src/jev.ts` and the bench cases (`scripts/router-cases.json`, `scripts/router-action-cases.json`).
+14. Obvious before clean (Gui, #6295). Do not hide all the actions of a screen in a ⋮ menu. The main actions stay visible as buttons: in a room, the Doc and Pessoas are always in the top bar. ⋮ is only for the secondary actions. Read "Obvious before clean" in [docs/design.md](docs/design.md).
+15. If you change the router, run the router bench and report its result. The router is `src/router.ts`, `src/router-rule.ts`, `src/router-jev.ts`, `src/routerActions.ts`, `src/jev.ts` and the bench cases (`scripts/router-cases.json`, `scripts/router-action-cases.json`).
     - The "Router bench" workflow (`.github/workflows/router-bench.yml`) runs it on each pull request that touches these files. It runs the bench on main and on the branch, with the repository cases and the production cases in D1, comments the scores on the pull request, and fails when a case fails or a score goes down. You can also run `bun scripts/router-bench.ts` locally with `OPENROUTER_API_KEY`.
     - Put the scores before and after your change in the "Router bench" part of the pull request (copy the workflow's comment).
     - Every case must pass, and a score must not go down. If a case fails or a score goes down, stop and ask a human.

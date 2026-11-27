@@ -2702,3 +2702,10 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Why:** Gimenes approved (a) (#6228) after three proposals (#6221). Seeked keyframes keep the look in the stylesheet (no inline style, no Web Animations). bits-ui keeps the focus trap and the layered Escape. A separate state machine adds a file for five states that fit in the engine.
 - **Reviewer can change:** add history entries to the four other drawers (Back closes them) through the same `onOpenChange`.
 
+
+## 2026-11-27 · fix/topbar-obvious
+
+- **Decision:** Gui decided (#6295) that the Doc and Pessoas are always visible in the top bar. My choices: on desktop they are buttons with their text (`tab` variant, pressed when open), and the call is a phone icon in the bar too. ⋮ keeps Arquivos, Apps, Decisões and Lembretes. On phones, the Doc and Pessoas are icons before the search, and the call stays in ⋮, because the phone bar has little space. The rule is in `AGENTS.md` (rule 14) and in "Obvious before clean" in `docs/design.md`, with a DOM test.
+- **Options:** (a) Doc and Pessoas visible, the rest in ⋮; (b) all the panes visible as tabs (the bar before #565); (c) a side rail with all the panes (Valls's T3 idea, #6297).
+- **Why:** (a) is the smallest change that does what Gui asked. (b) gives back the long row of tabs that #565 removed. (c) is a larger redesign that Gui and Gimenes must decide.
+- **Reviewer can change:** show more panes as buttons, or move to a side rail.

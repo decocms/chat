@@ -87,8 +87,15 @@ export async function openRoomPane(
       (await layout.getAttribute("data-sheet")) !== "doc" ||
       (await layout.getAttribute("data-pane")) !== pane
     ) {
-      await page.locator("[data-room-bar] [data-phone-more]").click();
-      await page.locator(`[data-phone-more-item="${pane}"]`).click();
+      // Doc and Pessoas are buttons in the bar (Gui #6295); the other panes are in ⋮.
+      const bar = page.locator(
+        `[data-room-bar] [data-room-pane-button="${pane}"]:visible`,
+      );
+      if (await bar.isVisible()) await bar.click();
+      else {
+        await page.locator("[data-room-bar] [data-phone-more]").click();
+        await page.locator(`[data-phone-more-item="${pane}"]`).click();
+      }
     }
     await expect(layout).toHaveAttribute("data-sheet", "doc");
     await expect(layout).toHaveAttribute("data-pane", pane);
@@ -119,13 +126,21 @@ export async function openRoomPane(
   await expect(page.locator(content[pane])).toBeVisible();
 }
 /**
- * Desktop: picks a pane in the top bar's ⋮ (Gimenes #6099). Like the old tab, it opens the pane, switches to it, or
+ * Desktop: picks a pane with its button in the top bar (Doc, Pessoas) or in ⋮ (Gimenes #6099). Like the old tab, it opens the pane, switches to it, or
  * closes it when it is the open one.
  */
 export async function pickDesktopPane(
   page: Page,
   pane: Exclude<DocumentPane, "view">,
 ) {
+  // Doc and Pessoas are buttons in the bar (Gui #6295); the other panes are in ⋮.
+  const bar = page.locator(
+    `[data-room-bar] [data-room-pane-button="${pane}"]:visible`,
+  );
+  if (await bar.isVisible()) {
+    await bar.click();
+    return;
+  }
   await page.locator("[data-room-bar] [data-desktop-more]").click();
   await page.locator(`[data-desktop-more-item="${pane}"]`).click();
 }
