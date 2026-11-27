@@ -4,6 +4,8 @@
 // person: `@claude` in Viktor's message is Viktor's Claude, never yours. A name is kept per agent and room
 // (agent_rooms.name), so a Claude that restarts comes back as itself; one quiet for days frees its name.
 //
+// An agent of the person (src/personas.ts) has its own name in every room: a process that runs it takes that name.
+//
 // One Primary per person and room: the active agent without a role with the lowest name (`claude` before `claude-2`,
 // `claude` before `codex`). Only the Primary gets what its human writes without an @; the others wake for their
 // @name (shared/roles.ts wakes).
@@ -39,10 +41,20 @@ export async function selfIn(
       .bind(book, me.email)
       .all<Row>()
   ).results;
+  // The person's agents (src/personas.ts): a process that runs one has its name; the others' names are taken.
+  const personas = (
+    await db
+      .prepare(`SELECT p.name, p.id = (SELECT persona_id FROM agents WHERE id = ?) AS mine FROM agent_personas p WHERE p.email = ?`)
+      .bind(me.agent, me.email)
+      .all<{ name: string; mine: number }>()
+  ).results;
+  const persona = personas.find((p) => p.mine)?.name ?? null;
   const kept = rows.filter((r) => r.agent !== me.agent && now - (r.seen_at ?? r.listening_at ?? 0) < NAME_KEEP);
-  let name = me.role || rows.find((r) => r.agent === me.agent)?.name || null;
-  // A role is its name; a kept name a newer agent took meanwhile (it was quiet for days) is given again.
-  if (!me.role && (!name || kept.some((r) => r.name === name))) name = freeName(baseName(me.client), kept.map((r) => r.name!));
+  let name = me.role || persona || rows.find((r) => r.agent === me.agent)?.name || null;
+  const taken = [...kept.map((r) => r.name!), ...personas.filter((p) => !p.mine).map((p) => p.name)];
+  // A role or an agent is its name; a kept name a newer agent (or one of the person's agents) took meanwhile is given
+  // again.
+  if (!me.role && !persona && (!name || taken.includes(name))) name = freeName(baseName(me.client), taken);
   if (rows.find((r) => r.agent === me.agent)?.name !== name)
     await db
       .prepare(`INSERT INTO agent_rooms (agent, book_id, name) VALUES (?, ?, ?) ON CONFLICT(agent, book_id) DO UPDATE SET name = excluded.name`)

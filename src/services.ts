@@ -26,6 +26,7 @@ import { routerStats } from "./router";
 import { setHandle, setProfilePublic } from "./profile";
 import { aiSpend, infraMonitor } from "./reports";
 import { resolveLink } from "./linkTarget";
+import { createPersona, deletePersona, renamePersona, setPersonaRoom } from "./personas";
 import { orgRooms, requestAccess, roomOrg, seeOrgRooms, setRoomOrg } from "./orgRooms";
 
 // The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
@@ -205,6 +206,20 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     vapidKey: env.VAPID_PUBLIC_KEY ?? null,
     pushToMe: (p, endpoint) => pushTo(env, [email], p, endpoint),
     sqlAll: async (query, ...binds) => (await env.DB.prepare(query).bind(...binds).all()).results,
+    personas: {
+      create: async (input) => {
+        const r = await createPersona(env.DB, email, input);
+        return "error" in r ? r : { id: r.id, name: r.name };
+      },
+      rename: (id, name) => renamePersona(env.DB, email, id, name),
+      remove: (id) => deletePersona(env.DB, email, id),
+      setRoom: async (id, book, on) => {
+        const own = await env.DB.prepare(`SELECT 1 FROM agent_personas WHERE id = ? AND email = ?`).bind(id, email).first();
+        if (!own) return false;
+        await setPersonaRoom(env.DB, id, book, on);
+        return true;
+      },
+    },
     search: async (q) => {
       if (!(await env.AGENT_LIMIT.limit({ key: `search:${email}` })).success) return false;
       const out = await searchRooms(env, email, q);

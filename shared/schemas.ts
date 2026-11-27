@@ -1,6 +1,7 @@
 // Runtime schemas for what the browser sends the Worker: the TypeScript types are derived from them, so a schema
 // edit changes every consumer's type. Browser-safe: zod/mini only, no Worker or database types.
 import * as z from "zod/mini";
+import { AGENT_KINDS } from "./agentKinds";
 import { ClientIdSchema } from "./commands";
 import { AckSchema, MessageSchema } from "./room";
 import {
@@ -410,11 +411,41 @@ export const RoomMachine = z.object({
   seen_at: num,
   /** Its switch in this room: deliver to its agents (a computer also opens one when none is open). */
   on: z.boolean(),
+  /** The agent CLIs it has and their versions (shared/agentKinds.ts); none = an older CLI. */
+  kinds: z.optional(z.record(z.string(), z.string())),
 });
 export type RoomMachine = z.infer<typeof RoomMachine>;
-/** Delivery switches: one machine, one one-off agent, or everything of yours in the room. */
+/** One of your agents (src/personas.ts): its name (its @ in every room), its kind, its machine and its switch here. */
+export const RoomPersona = z.object({
+  id: z.string(),
+  name: z.string(),
+  kind: z.enum(AGENT_KINDS),
+  machine: z.string(),
+  machine_name: z.string(),
+  online: z.boolean(),
+  on: z.boolean(),
+  /** A process of it waits on this room now. */
+  listening: z.boolean(),
+});
+export type RoomPersona = z.infer<typeof RoomPersona>;
+/** Add an agent: a machine of yours, a kind it has, a name (none = the kind, then kind-2…); on in `book` when given. */
+export const PersonaCreateBody = z.object({
+  machine: z.string(),
+  kind: z.string(),
+  name: z.optional(z.string()),
+  book: z.optional(z.string()),
+});
+export const PersonaRenameBody = z.object({ name: z.string() });
+export const PersonaResult = z.object({
+  ok: z.literal(true),
+  id: z.optional(z.string()),
+  name: z.optional(z.string()),
+});
+export type PersonaResult = z.infer<typeof PersonaResult>;
+/** Delivery switches: one of your agents, one machine, one one-off agent, or everything of yours in the room. */
 export const DeliveryBody = z.object({
   on: z.boolean(),
+  persona: z.optional(z.string()),
   machine: z.optional(z.string()),
   agent: z.optional(z.string()),
   all: z.optional(z.boolean()),
@@ -438,6 +469,8 @@ export const AgentsResult = z.object({
   sandboxes: z.array(RoomSandbox),
   agents: z.array(RoomAgent),
   machines: z.optional(z.array(RoomMachine)),
+  /** Your agents (src/personas.ts), with their switch here. */
+  personas: z.optional(z.array(RoomPersona)),
 });
 export type AgentsResult = z.infer<typeof AgentsResult>;
 // The person's own cloud sandboxes in a room (freestyle.sh VMs; the key never leaves the server).

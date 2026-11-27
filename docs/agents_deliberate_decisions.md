@@ -2717,3 +2717,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - **Why:** The CLI, the server and the app need the same list. `src/delivery.ts` is server-only, and two copies can drift.
 - **Reviewer can change:** move it into an existing shared file if one fits better.
 
+## 2026-11-27 · feat/agent-personas
+
+- **Decision:** The migration makes each machine's runner kind into a "main" agent. A main agent follows "Ligar Claude" (`members.claude_on`) in a room where it has no switch. An agent that the person adds is off where it has no switch.
+- **Options:** (a) main agents follow `members.claude_on`; (b) copy every room into `persona_rooms` once; (c) no row = off for all agents.
+- **Why:** (a) keeps what each person has today without a bulk write to production, and a new room behaves as before. (c) turns off the Claude in every room where the machine switch was never set.
+- **Reviewer can change:** run a one-time copy (b) and drop `main`.
+
+- **Decision:** A runner that does not say which agent it runs (all CLIs before step 4) gets each room on when any agent of its machine is on there. A runner that says its kind (`machine.agent`) gets only the agents of that kind.
+- **Options:** (a) any agent of the machine; (b) only `claude` agents; (c) close the room for older runners.
+- **Why:** an older Codex runner (`--agent codex`) does not say its kind. (b) closes all its rooms.
+- **Reviewer can change:** (b) after all runners have step 4.
+
+- **Decision:** The routes are `/api/personas`, not `/api/agents`.
+- **Options:** (a) `/api/personas`; (b) `/api/agents` (the user-facing word).
+- **Why:** `/api/agents` and `DELETE /api/agents/:id` already list and revoke the connected Claudes (OAuth grants).
+- **Reviewer can change:** rename both if the grants move.
+
