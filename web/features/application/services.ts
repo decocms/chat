@@ -158,7 +158,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       browser.socketUrl(
         `/ws/${id}?t=${encodeURIComponent(thread)}&ed=1${lite ? "&lite=1" : ""}${code ? `&rc=${encodeURIComponent(code)}` : ""}${
           resume
-            ? `&since=${resume.since}&at=${resume.at}${resume.eh ? `&eh=${encodeURIComponent(resume.eh)}` : ""}`
+            ? `&since=${resume.since}&at=${resume.at}${resume.eh ? `&eh=${encodeURIComponent(resume.eh)}` : ""}${resume.rev !== undefined ? `&rev=${resume.rev}` : ""}`
             : ""
         }`,
       ),
@@ -180,7 +180,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
           room: (
             roomId: string,
             thread: string,
-            resume?: { since: number; at: number; eh?: string },
+            resume?: { since: number; at: number; eh?: string; rev?: number },
           ) => options.messagesApi!.room(roomId, { thread, resume }),
         }
       : {}),
