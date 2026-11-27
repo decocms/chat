@@ -2680,3 +2680,10 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. The first pass after the update closes free Claudes of the old mode and opens them again in herdr-core. A busy one is left until it is free.
 - Undo: Revert the commit and release the app again. The Claudes in herdr-core keep running; the terminal mode then opens new ones in herdr.
 - Status: open
+
+## 2026-11-27 · fix/runner-herdr-app-spaces
+
+- **Decision:** In herdr-core mode, when the Herdr app is open, the runner opens a room's Claude with `herdr-app do space.new` (a space with the room's name), not with `hc run`. A `vb-<room>` terminal with no pane moves into a space when its Claude is free (`/exit`, then `--resume`).
+- **Options:** (a) a space of the app when the app is open; (b) always `hc run`, and the person attaches with `hc attach`; (c) always `hc run`, then `terminal.keep` to give it a pane.
+- **Why:** Gimenes wants to see all the room Claudes in the Herdr app (#6208). A terminal from `hc run` has no pane in the app. Option (c) gives a pane in the shown space, not a space for the room.
+- **Reviewer can change:** use `terminal.keep` instead of a restart, if a space for each room is not necessary.

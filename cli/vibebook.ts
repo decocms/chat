@@ -757,7 +757,7 @@ function herdrServer(mode: "terminal" | "app" | "core" = "terminal") {
       // herdr-core has no window: the Herdr app shows its terminals, when it is installed. Else the answer says how to
       // look at it from a terminal.
       if (mode === "core") {
-        if (process.platform === "darwin" && existsSync("/Applications/Herdr.app")) {
+        if (process.platform === "darwin" && findAgent("herdr-app")) {
           execFileSync("open", ["-a", "Herdr"]);
           log("info", "focus", `${roomName(room)}: opened Herdr (↗ in the app)`, { room, terminal: ws });
           return send(200, { ok: true });
@@ -1125,7 +1125,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
 const HERDR_APP = join(HOME, RUN_AGENT === "codex" ? "herdr-app-codex.json" : "herdr-app.json");
 type AppSpace = { id: string; name: string; folder: string; tabs: { terminals: { terminal: string; app: string | null; status: string | null }[] }[] };
 const happ = (...args: string[]) => {
-  const r = JSON.parse(execFileSync("herdr-app", args, { stdio: ["ignore", "pipe", "pipe"] }).toString());
+  const r = JSON.parse(execFileSync(findAgent("herdr-app") ?? "herdr-app", args, { stdio: ["ignore", "pipe", "pipe"] }).toString());
   if (r?.error) throw new Error(r.error);
   return r;
 };
@@ -1231,7 +1231,7 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
 // looks at one with `hc attach vb-<room>`, or in the Herdr app. Off only mutes. ~/.vibebook/herdr-core.json maps them.
 const HERDR_CORE = join(HOME, RUN_AGENT === "codex" ? "herdr-core-codex.json" : "herdr-core.json");
 type CoreTerminal = { address: string; name?: string | null; agent?: string | null; cwd?: string; state?: string; status?: string | null };
-type CoreRoom = HerdrRoom & { terminal?: string };
+type CoreRoom = HerdrRoom & { terminal?: string; space?: string };
 /** hc as this runner's own client: without the HC_* variables of a terminal that it may run in, so a send is not
  *  marked as from that terminal (Claude refused an `/exit` marked `<hc from=…>`) and a new terminal has no parent. */
 function hc(...args: string[]): any {
@@ -1308,6 +1308,16 @@ function claudeSessionIn(folder?: string): string | undefined {
 async function herdrCoreSync(agent: string, tools: Tool[]) {
   const map = readJson<Record<string, CoreRoom>>(HERDR_CORE, {});
   const terms = ((hc("ls").terminals ?? []) as CoreTerminal[]).filter((t) => t.state === "live");
+  // The Herdr app open (Gimenes #6208): each room's Claude goes in a space of its own, so the person sees them all there.
+  // Without the app, the terminals have no window (`hc attach vb-<room>`).
+  const app = (() => {
+    try {
+      return happ("ls").spaces as AppSpace[];
+    } catch {
+      return null;
+    }
+  })();
+  const shown = new Set((app ?? []).flatMap((sp) => sp.tabs.flatMap((tab) => tab.terminals.map((x) => x.terminal))));
   const byAddr = new Map(terms.map((t) => [t.address, t]));
   const ours = (e: CoreRoom) => (e.terminal ? byAddr.get(e.terminal) : undefined);
   const managed: string[] = [];
@@ -1357,6 +1367,16 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
         }
         const another = Object.entries(map).some(([r, x]) => r !== room && x.restarting_at);
         const sid = coreSession(t.address);
+        if (app && !shown.has(t.address) && t.name === `vb-${room}`.slice(0, 32) && coreFree(t) && sid && !another) {
+          e.session = sid;
+          e.restarting_at = Date.now();
+          writePrivate(HERDR_CORE, map);
+          try {
+            hc("send", t.address, "/exit");
+            log("info", "herdr", `${title}: moving its ${RUN_NAME} into a space of the Herdr app (same conversation)`, { room, session: short(sid) });
+          } catch {}
+          continue;
+        }
         if (pv && e.plugin_v !== pv && !another && Date.now() - lastPluginRestart > RESTART_GAP_MS && coreFree(t) && sid) {
           lastPluginRestart = Date.now();
           e.session = sid;
@@ -1431,10 +1451,13 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
     linkFolder(e.folder, room);
     // A Claude already in a terminal in that folder: adopt it instead of opening a second one.
     const there = terms.find((x) => x.agent === CORE_AGENT && x.cwd === e.folder);
+    const space = app && e.space ? app.find((sp) => sp.id === e.space) : undefined;
+    if (!there && space && Date.now() - (e.prompted_at ?? 0) < 2 * 60_000) continue; // its Claude is still starting
     if (there) {
       e.terminal = there.address;
       log("info", "claude", `${title}: adopted the ${RUN_NAME} already open in its folder`, { room, folder: tilde(e.folder), terminal: there.address });
-      if (coreFree(there))
+      // A space opened with the listen task: its first prompt is already that task.
+      if (coreFree(there) && !(e.space && Date.now() - (e.prompted_at ?? 0) < 2 * 60_000))
         try {
           hc("send", there.address, listenWords());
           e.listening = true;
@@ -1445,6 +1468,22 @@ async function herdrCoreSync(agent: string, tools: Tool[]) {
     // Back on after an off, or moved from herdr: the same conversation (--resume). --rm: a terminal whose Claude exited
     // goes away, so its name is free for the next one.
     const name = `vb-${room}`.slice(0, 32);
+    if (app) {
+      try {
+        // Its old space, if its Claude ended there: closed, so the room keeps one space.
+        if (space && !appClaude(space)) happ("do", "space.close", "--id", space.id, "--confirmed", "true");
+        const r = happ("do", "space.new", "--name", roomLabel(title), "--folder", e.folder, "--argv", JSON.stringify([RUN_AGENT, ...agentArgs(e.session)]), "--task", listenTask(room), "--focus", "false");
+        e.space = String(r.space ?? "");
+        delete e.terminal; // adopted on the next pass, once its Claude runs in the room's folder
+        e.listening = true;
+        e.plugin_v = pv;
+        e.prompted_at = Date.now();
+        log("info", "claude", `${title}: opened a ${RUN_NAME} in the Herdr app${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder), space: e.space });
+      } catch (err) {
+        log("error", "claude", `${title}: could not open a ${RUN_NAME} in the Herdr app: ${String((err as Error).message ?? err).split("\n")[0].slice(0, 160)}`, { room });
+      }
+      continue;
+    }
     try {
       const r = hc("run", "--bg", "--name", name, "--cwd", e.folder, "--label", `vibebook.room=${room}`, "--no-parent", "--outlive-parent", "--rm", "--", ...coreArgv(e.session, room));
       e.terminal = String(r.address ?? name);
