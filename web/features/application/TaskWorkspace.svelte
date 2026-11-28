@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, tick, untrack, type Snippet } from "svelte";
+  import { get } from "svelte/store";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Button from "../../lib/studio/Button.svelte";
@@ -355,11 +356,15 @@
       dialog.sync(room, request);
     }
   });
+  // The viewer is unmounted while the thread doc (or nothing) is shown, and unmounting it empties it: coming back to
+  // the same file opens it again, else the app or file is blank (Cecilia #6502).
   $effect(() => {
     const target = shown;
+    void full;
     if (!room || target?.kind !== "file") return;
     untrack(() => {
-      if (side.target()?.id !== target.file.id) side.open(target.file);
+      if (side.target()?.id !== target.file.id || !get(side.viewer.state).open)
+        side.open(target.file);
     });
   });
   const richActions = {
