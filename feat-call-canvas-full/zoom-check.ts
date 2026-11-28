@@ -1,0 +1,32 @@
+import { chromium } from "playwright";
+const BASE = "http://127.0.0.1:8797";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2, locale: "pt-BR" });
+await page.context().addCookies([{ name: "dev_as", value: "ana@example.test", url: BASE }]);
+await page.goto(`${BASE}/b/5e6b7c3a76eb?t=1207386b`);
+const plane = page.locator("[data-canvas]").first();
+await plane.locator("[data-canvas-card]").first().waitFor();
+await page.waitForTimeout(2000);
+const inner = plane.locator(":scope > div").first();
+const s = () => inner.evaluate((n) => getComputedStyle(n).getPropertyValue("--cv-s"));
+const b = (await plane.boundingBox())!;
+await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+const s0 = await s();
+// A pinch: the browser sends ctrl + small wheel steps.
+await page.keyboard.down("Control");
+for (let i = 0; i < 10; i++) await page.mouse.wheel(0, -4);
+await page.keyboard.up("Control");
+await page.waitForTimeout(300);
+const s1 = await s();
+// ⌘ + mouse wheel.
+await page.keyboard.down("Meta");
+await page.mouse.wheel(0, 100);
+await page.keyboard.up("Meta");
+await page.waitForTimeout(300);
+const s2 = await s();
+console.log("zoom start", s0, "after pinch in", s1, "after cmd+wheel out", s2);
+await page.locator("[data-canvas-full]").first().click();
+await page.waitForTimeout(800);
+console.log("full", await page.locator("[data-canvas-full-open]").count()); await page.keyboard.press("Escape"); await page.waitForTimeout(200); console.log("after esc", await page.locator("[data-canvas-full-open]").count()); await page.locator("[data-canvas-full]").first().click(); await page.waitForTimeout(600);
+await page.screenshot({ path: ".screens/cv/fullscreen.png" });
+await browser.close();
