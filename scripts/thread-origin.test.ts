@@ -167,11 +167,12 @@ test("a thread from a message in main starts from that message, with no new line
   expect(f.book.epics().find((e) => e.id === "aaaa0002")?.parent).toBeNull();
 });
 
-test("a thread from a message inside a thread starts from a new line in main that links it: no sub-thread", async () => {
+test("a thread from a message inside a thread starts from that message: it nests, and nothing goes to main (Gui #6781)", async () => {
   const f = fixture();
   await f.run({ t: "epic", title: "Pagamentos", id: "aaaa0003" });
   await f.run({ t: "msg", thread: "aaaa0003", text: "e o reembolso?" });
   const source = f.messages().find((m) => m.thread === "aaaa0003")!;
+  const before = f.messages().length;
   expect(
     await f.run({
       t: "epic",
@@ -180,17 +181,9 @@ test("a thread from a message inside a thread starts from a new line in main tha
       id: "aaaa0004",
     }),
   ).toEqual({ ok: true });
-  const line = f.messages().at(-1)!;
-  expect(line).toMatchObject({
-    thread: "main",
-    author: email,
-    kind: null,
-    reply_to: source.id,
-  });
-  expect(line.text).toBe("Nova thread a partir desta mensagem de “Pagamentos”");
-  expect(f.epic("aaaa0004")?.from_msg).toBe(line.id);
-  expect(f.book.epics().find((e) => e.id === "aaaa0004")?.parent).toBeNull();
-  // The request's own thread is found through that line.
+  expect(f.messages()).toHaveLength(before);
+  expect(f.epic("aaaa0004")?.from_msg).toBe(source.id);
+  expect(f.book.epics().find((e) => e.id === "aaaa0004")?.parent).toBe("aaaa0003");
   expect(f.book.epicsFrom(source.id).map((e) => e.id)).toEqual(["aaaa0004"]);
 });
 
@@ -203,7 +196,7 @@ test("a thread from an unknown message is refused", async () => {
   expect(f.messages()).toHaveLength(0);
 });
 
-test("an agent's start_thread inside a thread: a line in main by the agent, and a sibling thread", async () => {
+test("an agent's start_thread inside a thread: the thread nests under the request (Gui #6781)", async () => {
   const f = fixture();
   await f.run({ t: "epic", title: "Pagamentos", id: "aaaa0005" });
   await f.run({
@@ -212,6 +205,7 @@ test("an agent's start_thread inside a thread: a line in main by the agent, and 
     text: "cria um épico pro reembolso",
   });
   const source = f.messages().find((m) => m.thread === "aaaa0005")!;
+  const before = f.messages().length;
   const out = (await f.book.agentEpic(
     "abcdef",
     email,
@@ -222,16 +216,9 @@ test("an agent's start_thread inside a thread: a line in main by the agent, and 
     source.id,
   )) as { ok: boolean; epic_id: string };
   expect(out.ok).toBe(true);
-  const line = f.messages().at(-1)!;
-  expect(line).toMatchObject({
-    thread: "main",
-    author: email,
-    kind: "agent",
-    via: "Claude Opus 5.5",
-    reply_to: source.id,
-  });
-  expect(f.epic(out.epic_id)?.from_msg).toBe(line.id);
-  expect(f.book.epics().find((e) => e.id === out.epic_id)?.parent).toBeNull();
+  expect(f.messages()).toHaveLength(before);
+  expect(f.epic(out.epic_id)?.from_msg).toBe(source.id);
+  expect(f.book.epics().find((e) => e.id === out.epic_id)?.parent).toBe("aaaa0005");
 });
 
 test("an agent's start_thread with no request: its line in main is the thread's origin", async () => {

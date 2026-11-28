@@ -1600,7 +1600,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Return the new ID in the RPC result (more protocol work). A long-press menu on phones (a new component). Keep sub-threads for agents.
 - Risk: medium. Every new thread now writes one more message in the main thread when it does not start from a main message.
 - Undo: Revert this commit.
-- Status: open
+- Status: undone on 2026-11-28 (fix/nested-threads, Gui #6781)
 
 ### 2026-11-23 · feat/thread-tool-names · The thread tools have thread names
 
@@ -2982,4 +2982,14 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Drop every part of 1 or 2 words (loses "Sim."). A list of known phrases.
 - Risk: low (only short parts in another language)
 - Undo: Revert the commit.
+- Status: open
+
+### 2026-11-28 · fix/nested-threads · Threads nest again: a thread starts from the message that asked for it
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#6781): "alguem regrediu … o sistema de threads ser em árvore. Isso não é por acaso, e não deve ser mudado sem ser discutido … volte a ter threads nested, onde SEMPRE a origem da thread é a mensagem original." #343 (Nov 23) made every thread start from a message in `main`. A thread from a message inside a thread got a new line in `main`, away from where it was asked.
+- Decision: `Book.threadOrigin` returns the message itself, in any thread. Only a thread with no message gets a line in `main`. This holds for "Criar thread", the `epic` command and an agent's `start_thread`. The threads that #343 made stay as they are. `epicsFrom` still finds them through their line.
+- Other options: none. Gui asked for this result.
+- Risk: low. The sidebar and `epics().parent` already showed sub-threads (the threads from before #343).
+- Undo: Revert the commit, and discuss it with Gui first.
 - Status: open

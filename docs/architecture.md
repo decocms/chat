@@ -6,13 +6,12 @@ deco.chat is a chat app, similar to Discord. It runs on Cloudflare Workers. Peop
 
 A room has these parts:
 
-- Chat threads. The main thread is `main`. Each epic has its own thread. Each new thread starts from a message in `main` (`epics.from_msg`), as in Discord, so threads do not nest (`Book.threadOrigin`):
-  - From a message in `main` ("Criar thread" on the message): that message is the origin. One click makes the thread and opens it (Gimenes #4310). The title is the first line of the message (`threadTitle`). For 5 seconds, while the thread is empty, the thread shows "Thread criada · Desfazer", which sends `epic.del`.
-  - From a message in another thread: the server writes a line in `main` that replies to that message ("Nova thread a partir desta mensagem de …"). The quote of the reply links the source. That line is the origin. `Book.epicsFrom` finds the thread of a request through that line.
+- Chat threads. The main thread is `main`. Each epic has its own thread. Each thread starts from the message that asked for it (`epics.from_msg`, `Book.threadOrigin`). Threads nest (Gui #6781): a thread from a message inside another thread is a sub-thread of that thread (`parent`), shown under it in the sidebar, and nothing goes to `main`.
+  - From a message ("Criar thread" on the message, in `main` or in a thread): that message is the origin. One click makes the thread and opens it (Gimenes #4310). The title is the first line of the message (`threadTitle`). For 5 seconds, while the thread is empty, the thread shows "Thread criada · Desfazer", which sends `epic.del`.
+  - From Nov 23 to Nov 28, 2026 (#343) a message inside a thread got a new line in `main` that replied to it, and the thread started from that line. `Book.epicsFrom` still finds those threads through the line.
   - The app has no "Nova thread" in the sidebar (Gimenes #4286). A person starts a thread only with "Criar thread" on a message. The server still accepts an `epic` command without `from`: then it writes the title in `main` as a message of the person, and that message is the origin.
   - From an agent (`start_thread`): the same rules. A line that the server writes for an agent is an agent message.
   - The client can pick the ID of the new thread (8 hex characters). Then it opens the thread, and a retry with the same ID makes nothing.
-  - Older threads that started inside another thread stay as they are.
 - Epics with tasks. There is no task board: the tasks show in their epic. Each epic has one status: A fazer, Fazendo, Requer ação (stored as `review`) or Feito. There is no archive. Feito is the column `epics.done = 1` and the Done tab (-1 = a person opened it again). A person or an agent sets it (`epic.status`, `update_thread` `status`). Only a person makes it Feito: tasks and production do not. `epicStatus` (`shared/epicStatus.ts`) reads it. When an agent acknowledges a message in an epic with `doing`, an epic that is A fazer changes to Fazendo (`Book.agentAck`). The thread list shows no other mark for an agent at work.
 - Documents. The room has one document, and each epic has one document.
 - Files, decisions, reminders, pins and polls.

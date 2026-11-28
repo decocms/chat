@@ -1292,6 +1292,7 @@ const EN: Readonly<Record<string, string>> = {
   "Discussão desta thread. Os agents leem as tarefas, o doc e a sala principal.":
     "This thread's discussion. The agents read the tasks, the doc and the main room.",
   "ver na sala principal": "see in the main room",
+  "ver em “{thread}”": "see in “{thread}”",
   "{who} está fazendo isso": "{who} is on it",
   "{who} fez isso": "{who} did it",
   "aguardando {who}": "waiting on {who}",
