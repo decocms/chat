@@ -142,6 +142,9 @@ export const MessageSchema = z.object({
   kind: maybe(str),
   tag: maybe(str),
   via: maybe(str),
+  // An agent's own @name in the room when it posted (claude-3), shown as "Gimenes's claude-3" (Gimenes #6546). Absent =
+  // an older message or not an agent's: the app shows via (the model) instead.
+  agent_name: opt(str),
   reply_to: maybe(num),
   // The thread of the message it answers, only when that is another thread: a click on the quote opens it there
   // even when the quoted message isn't loaded (it may be weeks back, or in a thread the room open didn't send).

@@ -185,7 +185,7 @@ export class Book extends DurableObject<Env> {
     const epicCols = this.sql.exec<{ name: string }>(`PRAGMA table_info(epics)`).toArray().map((c) => c.name);
     if (epicCols.includes("archived") && !epicCols.includes("done")) this.sql.exec(`ALTER TABLE epics RENAME COLUMN archived TO done`);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "done INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"], ["decisions", "msg INTEGER"], ["decisions", "email TEXT"], ["decisions", "via TEXT"], ["messages", "private_to TEXT"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "done INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"], ["decisions", "msg INTEGER"], ["decisions", "email TEXT"], ["decisions", "via TEXT"], ["messages", "private_to TEXT"], ["messages", "agent_name TEXT"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -1235,7 +1235,7 @@ export class Book extends DurableObject<Env> {
   }
 
   // ---- mutations (shared by humans over WS and by AI tools) ----
-  addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent" | "transcript"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire" | "call"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
+  addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent" | "transcript"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire" | "call"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string; agentName?: string } = {}): Msg {
     // A reply points at a message of this room; anything else is dropped rather than refused.
     const replied = extra.replyTo ? this.sql.exec<{ thread: string; author: string; kind: string | null; text: string | null; choices: string | null }>(`SELECT thread, author, kind, text, choices FROM messages WHERE id = ?`, extra.replyTo).toArray()[0] : undefined;
     const replyTo = replied ? extra.replyTo! : null;
@@ -1245,7 +1245,7 @@ export class Book extends DurableObject<Env> {
     const files = extra.files ?? [];
     const id = this.sql
       .exec(
-        `INSERT INTO messages (thread, author, text, ts, files, poll, kind, via, tag, reply_to, choices, for_who, card, client_id, private_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        `INSERT INTO messages (thread, author, text, ts, files, poll, kind, via, tag, reply_to, choices, for_who, card, client_id, private_to, agent_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
         thread,
         author,
         text,
@@ -1261,9 +1261,10 @@ export class Book extends DurableObject<Env> {
         extra.card ? JSON.stringify(extra.card) : null,
         extra.clientId ?? null,
         privateTo,
+        extra.agentName ?? null,
       )
       .one().id as number;
-    const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, ...(replied && replied.thread !== thread ? { reply_thread: replied.thread } : {}), choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}) };
+    const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, ...(replied && replied.thread !== thread ? { reply_thread: replied.thread } : {}), choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}), ...(extra.agentName ? { agent_name: extra.agentName } : {}) };
     // quiet: @vibe's routine lines (done/reopened, nudges, the issue feed): drawn in the thread, but no unread dot,
     // no listener wake, no chime and no mention e-mail; the morning/evening catch-up carries them.
     const event = { t: "msg", m: extra.quiet ? { ...m, quiet: true } : m } satisfies RoomEvent;
@@ -2499,7 +2500,7 @@ export class Book extends DurableObject<Env> {
   }
 
   // via: the agent's own model name ("Claude Opus 5.5"), shown as "Claude Opus 5.5 de Gui" in the app.
-  async agentPost(bookId: string, email: string, raw: string, thread = "main", fileIds: string[] = [], via = "", done = false, embed = false, replyTo?: number, choices?: { options: string[]; multi: boolean }, card?: Card, agent?: string, clientKey?: string) {
+  async agentPost(bookId: string, email: string, raw: string, thread = "main", fileIds: string[] = [], via = "", done = false, embed = false, replyTo?: number, choices?: { options: string[]; multi: boolean }, card?: Card, agent?: string, clientKey?: string, agentName?: string) {
     this.bind(bookId);
     const text = raw.trim().slice(0, MESSAGE_TEXT_LIMIT);
     // embed: the file is HTML the agent posted inline (checked by checkEmbed); the app draws it inside the message.
@@ -2542,7 +2543,7 @@ export class Book extends DurableObject<Env> {
     if (recent) return { ok: true, id: recent.id, repeat: true as const };
     if (this.agentStreak(thread) >= AGENT_STREAK_MAX)
       return { ok: false, paused: true, error: `room paused: ${AGENT_STREAK_MAX} messages in a row between agents with no human in the last 10 minutes. Wait for a person to write in the room, and tell your human.` };
-    const m = this.addMessage(thread, email, text, { kind: "agent", files, via: model, tag: done ? "done" : undefined, replyTo, choices, card, clientId: clientKey });
+    const m = this.addMessage(thread, email, text, { kind: "agent", files, via: model, tag: done ? "done" : undefined, replyTo, choices, card, clientId: clientKey, agentName: agentName?.replace(/^@/, "").slice(0, 40) || undefined });
     // The answer posted in an answer epic whose doc is still empty is the answer (Gui #4210): it goes into the doc too,
     // so the placeholder never stays. Only a reply or a done post: "pesquisando…" is not an answer.
     if (thread !== "main" && text && (done || replyTo) && this.answerPending(thread)) {
