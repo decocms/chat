@@ -89,6 +89,12 @@
   const footers = $derived(messageFooters(room, thread, now));
   const workers = $derived(threadWorkers(room, thread, now));
   const epic = $derived(room.epics.find((e) => e.id === thread));
+  /** A sub-thread's origin is a message in its parent thread (Gui #6781): the link names that thread. */
+  const originThread = $derived(
+    origin && origin.thread !== "main"
+      ? room.epics.find((e) => e.id === origin.thread)?.title
+      : undefined,
+  );
   // Work taken from here to an epic: the banner names that epic (and opens it) instead of "on this".
   const moved = $derived(
     workers[0]?.epic && workers.every((w) => w.epic?.id === workers[0].epic?.id)
@@ -228,7 +234,9 @@
             size="sm"
             data-origin-id={origin.id}
             onclick={() => actions.navigate(origin!.id, origin!.thread)}
-            >{vb.t("ver na sala principal")} ↩</Button
+            >{origin.thread === "main" || !originThread
+              ? vb.t("ver na sala principal")
+              : vb.t("ver em “{thread}”", { thread: originThread })} ↩</Button
           >
         </div>
       </div>{/if}

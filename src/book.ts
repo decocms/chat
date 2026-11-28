@@ -2950,21 +2950,14 @@ export class Book extends DurableObject<Env> {
     this.epicsChanged();
     return { ok: true as const };
   }
-  /** The main-thread message a new thread starts from (Gimenes #4123, #4126): the tree is shallow, as in Discord.
-   *  A message in main is its own origin. A message in another thread gets a new line in main that replies to it (plain text: a person's message shows no Markdown), and the
-   *  thread starts from that line. No message (the sidebar's "Nova thread", an agent's request with none): a line in
-   *  main with `text`. Older sub-threads (from_msg inside another thread) stay as they are. */
+  /** The message a new thread starts from. Threads nest (Gui #6781): a thread always starts from the message that
+   *  asked for it, in main or inside another thread, and the parent thread shows it there. Only a thread with no
+   *  message (an epic command without `from`, an agent's request with none) gets a line in main with `text`.
+   *  From Nov 23 to Nov 28 (#343) a message inside a thread got a new line in main instead; those threads stay. */
   threadOrigin(by: { author: string; kind?: "agent"; via?: string }, from: number | undefined, text: string): number {
-    const row = from === undefined ? undefined : this.sql.exec<{ id: number; thread: string }>(`SELECT id, thread FROM messages WHERE id = ?`, from).toArray()[0];
-    if (row?.thread === "main") return row.id;
-    const where = row && this.epics().find((e) => e.id === row.thread)?.title;
-    const line = !row
-      ? text
-      : this.en
-        ? `New thread from this message${where ? ` in “${where}”` : ""}`
-        : `Nova thread a partir desta mensagem${where ? ` de “${where}”` : ""}`;
-    // The line replies to its source, so the room shows the quote and epicsFrom() finds the request's thread.
-    return this.addMessage("main", by.author, line.slice(0, MESSAGE_TEXT_LIMIT), { kind: by.kind, via: by.via, replyTo: row?.id }).id;
+    const row = from === undefined ? undefined : this.sql.exec<{ id: number }>(`SELECT id FROM messages WHERE id = ?`, from).toArray()[0];
+    if (row) return row.id;
+    return this.addMessage("main", by.author, text.slice(0, MESSAGE_TEXT_LIMIT), { kind: by.kind, via: by.via }).id;
   }
   /** An answer epic (Gui #2767) whose doc is still only its title: nobody answered yet (Gui #4210). Same test as the
    *  app's "Claude está escrevendo" placeholder (DocumentPreview.svelte). */
@@ -3054,8 +3047,7 @@ export class Book extends DurableObject<Env> {
     if (answer) this.set(`answer:${id}`, "1"), this.setDoc(`# ${t}\n`, "tasks", undefined, id);
     this.sql.exec(`UPDATE epics SET owner = ? WHERE id = ?`, own, id);
     if (src) {
-      // Every thread starts from a message in main (Gimenes #4123): a request asked inside another thread gets a line
-      // in main that links it, and the new thread is a sibling there, not a sub-thread.
+      // The thread starts from the request itself (Gui #6781): asked inside another thread, it nests there.
       this.sql.exec(`UPDATE epics SET from_msg = ? WHERE id = ?`, this.threadOrigin({ author: email, kind: "agent", via: via || undefined }, Number(src), t), id);
       this.epicsChanged();
       // Opening an epic for a request is taking it: the request itself shows "X está fazendo isso".
