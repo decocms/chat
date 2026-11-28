@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { appendFileSync, openAsBlob, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { chromium, type Page } from "playwright-core";
-import { addMark, attribute, liveCut, liveLines, UNKNOWN, type LiveTurn, type Piece, type Turn } from "./attribute.ts";
+import { addMark, attribute, callLanguage, countWords, liveCut, liveLines, strayPart, UNKNOWN, type LiveTurn, type Piece, type Turn } from "./attribute.ts";
 import { shareWith, type GrainUser } from "./share.ts";
 
 /** `recorder`: the address of the recorder's Worker, which has the speech-to-text (POST /transcribe). */
@@ -247,7 +247,7 @@ type Line = { name: string; start: number; end: number; text: string };
  *  the start of the recording. */
 type LivePart = { audio: string; start: number; end: number; marks: [string, number][] };
 /** What the live parts gave. `failed`: a part had no transcript, so the end of the call transcribes it all again. */
-type Live = { pieces: Piece[]; language: string; failed: boolean; queue: Promise<void> };
+type Live = { pieces: Piece[]; language: string; words: Record<string, number>; failed: boolean; queue: Promise<void> };
 
 /** One file of audio to the Worker's speech-to-text: its pieces, at `offset` ms from the start of the recording. */
 async function speech(job: Job, file: string, offset: number) {
@@ -266,7 +266,9 @@ async function livePart(job: Job, origin: string, part: LivePart, live: Live) {
     writeFileSync("/tmp/live.webm", Buffer.from(part.audio, "base64"));
     await run("ffmpeg", ["-v", "error", "-y", "-i", "/tmp/live.webm", "-vn", "-ac", "1", "-ar", "16000", "-b:a", "32k", "/tmp/live.mp3"]);
     const { language, pieces } = await speech(job, "/tmp/live.mp3", part.start);
-    live.language ||= language;
+    if (strayPart(callLanguage(live.words), language, pieces)) return log("stray part dropped:", language, pieces.map((piece) => piece.text).join(" "));
+    live.words = countWords(live.words, language, pieces);
+    live.language = callLanguage(live.words);
     live.pieces.push(...pieces);
     const turns: Turn[] = [];
     for (const [name, at] of part.marks) addMark(turns, name, at);
@@ -367,7 +369,7 @@ async function toWorkspace(recording: string) {
 async function record(job: Job) {
   const origin = new URL(job.joinUrl).origin;
   rmSync(RAW, { force: true });
-  const live: Live = { pieces: [], language: "", failed: false, queue: Promise.resolve() };
+  const live: Live = { pieces: [], language: "", words: {}, failed: false, queue: Promise.resolve() };
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM || undefined,
     args: [

@@ -16,6 +16,8 @@ const browser = await chromium.launch({
     "--use-fake-ui-for-media-stream",
     "--use-fake-device-for-media-stream",
     "--auto-select-desktop-capture-source=Entire screen",
+    // TEST_AUDIO: a speech file as the microphones (the live transcript needs words, not the fake beep).
+    ...(process.env.TEST_AUDIO ? [`--use-file-for-fake-audio-capture=${process.env.TEST_AUDIO}`] : []),
   ],
 });
 const shots: string[] = [];
@@ -49,6 +51,8 @@ try {
   // Bia has the room open: she is not pulled in. She joins with a click.
   await bia.locator("[data-call-start]").first().click();
   await bia.getByRole("button", { name: /Silenciar o microfone|Desativar o microfone|Ativar o microfone/ }).first().waitFor({ timeout: 30_000 });
+  // TEST_BIA_MUTED: only Ana speaks (with TEST_AUDIO, each word of the transcript is hers).
+  if (process.env.TEST_BIA_MUTED) await bia.getByRole("button", { name: "Silenciar o microfone" }).first().dispatchEvent("click");
   if (withRecorder) {
     
     
@@ -64,7 +68,7 @@ try {
   await ana.getByRole("button", { name: /Compartilhar a tela/ }).first().click();
   await bia.waitForFunction(() => (document.querySelector<HTMLVideoElement>("[data-call-stage] video:not([data-call-cam])")?.videoWidth ?? 0) > 0, null, { timeout: 30_000 });
   await shot(bia, "screen-at-bia");
-  if (withRecorder) await ana.waitForTimeout(15_000);
+  if (withRecorder) await ana.waitForTimeout(Number(process.env.TEST_TALK_MS ?? 15_000));
 
   await bia.getByRole("button", { name: /Sair da call/ }).first().click();
   await ana.getByRole("button", { name: /Sair da call/ }).first().click();

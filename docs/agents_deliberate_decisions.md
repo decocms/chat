@@ -2970,3 +2970,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low (read-only, same access as the other report apps)
 - Undo: Revert the commit and delete apps/growth.html from the room.
 - Status: open
+
+### 2026-11-28 · JonasJesus42/transcript-stray · The live transcript drops short parts in another language
+
+- Agent: Claude Opus 5.5
+- Context: Jonas (#6760): drop the words that Whisper writes for noise. The local recorder test gave "That's all.", "A bientôt" and "And I'll do that one." in a call in Portuguese.
+- Decision:
+  - A live part of 3 words or fewer whose language is not the call's is dropped (`strayPart`). The call's language is the one with the most words so far (`callLanguage`), and is known from 4 words on. Before that, nothing is dropped.
+  - Not the model's no-speech score: Workers AI gives 0 for each piece with `vad_filter` on (measured).
+  - Not a list of phrases ("Tchau, tchau.", "Até a próxima."): a person can say them.
+- Other options: Drop every part of 1 or 2 words (loses "Sim."). A list of known phrases.
+- Risk: low (only short parts in another language)
+- Undo: Revert the commit.
+- Status: open

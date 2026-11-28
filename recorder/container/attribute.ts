@@ -37,6 +37,23 @@ export function addMark(turns: Turn[], name: string, now: number, hold = 700) {
   turns.push({ name, start: Math.max(0, now - 200), end: now });
 }
 
+/** Words in a text. */
+const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
+/** The words of each language so far (the speech-to-text gives one language for each part), with this part's. */
+export const countWords = (counts: Record<string, number>, language: string, pieces: readonly Piece[]) =>
+  language ? { ...counts, [language]: (counts[language] ?? 0) + words(pieces.map((piece) => piece.text).join(" ")) } : counts;
+/** The call's language: the one with the most words so far (one noisy part in another language does not set it).
+ *  "" before 4 words. */
+export const callLanguage = (counts: Record<string, number>) => {
+  const [language, total] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0] ?? ["", 0];
+  return total >= 4 ? language : "";
+};
+/** A short part (3 words or fewer) in another language than the call's: noise that the model wrote as words
+ *  ("That's all." in a call in Portuguese). Its pieces are dropped. The model's own no-speech score is 0 with
+ *  vad_filter on (measured on Workers AI), so it cannot tell. */
+export const strayPart = (known: string, language: string, pieces: readonly Piece[]) =>
+  !!known && !!language && language !== known && words(pieces.map((piece) => piece.text).join(" ")) <= 3;
+
 /** A live part's lines as the chat takes them (POST /api/calls/live): a name for nobody known, no empty text, the
  *  sizes that the chat allows. */
 export const liveLines = (lines: readonly { name: string; text: string }[]) =>
