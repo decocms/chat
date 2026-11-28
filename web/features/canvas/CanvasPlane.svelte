@@ -89,8 +89,10 @@
   let drag: { px: number; py: number; x: number; y: number } | null = null;
   function down(event: PointerEvent) {
     if (event.button !== 0) return;
-    // A card's own content (a link, a selection, an html card) keeps its clicks; the plane around it pans.
-    if ((event.target as HTMLElement).closest("[data-canvas-card]")) return;
+    // A card's own content (a link, a selection, an html card) and the zoom buttons keep their clicks; the plane
+    // around them pans.
+    if ((event.target as HTMLElement).closest("[data-canvas-card], button"))
+      return;
     drag = { px: event.clientX, py: event.clientY, x: at.x, y: at.y };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }
@@ -112,17 +114,47 @@
     };
   }
   let plane: HTMLElement | undefined = $state();
+  /** Full screen (Gui #6761): the canvas over the whole app, to read a big diagram. Esc or the button closes it. */
+  let full = $state(false);
+  $effect(() => {
+    if (!full) return;
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        full = false;
+        moved = null;
+      }
+    };
+    document.addEventListener("keydown", key);
+    return () => document.removeEventListener("keydown", key);
+  });
+  // Opening or closing fits the drawing to the new size.
+  const toggleFull = () => {
+    full = !full;
+    moved = null;
+  };
   // The wheel zooms the plane, not the page: a listener that may preventDefault (Svelte's onwheel is passive).
   $effect(() => {
     const host = plane;
     if (!host) return;
+    // Like a design tool (Gui #6761): a pinch (the browser sends it as ctrl + wheel) or ⌘/ctrl + wheel zooms, fast;
+    // a plain wheel or two fingers pan, except in a doc, where they scroll the doc (and in full screen they pan).
     const wheel = (event: WheelEvent) => {
-      // In a doc the wheel scrolls the doc; a pinch (ctrl + wheel) zooms the canvas.
-      if (!interactive && !event.ctrlKey) return;
+      const zoom = event.ctrlKey || event.metaKey;
+      if (!zoom && !interactive && !full) return;
       event.preventDefault();
+      if (!zoom) {
+        moved = {
+          x: at.x + event.deltaX / at.zoom,
+          y: at.y + event.deltaY / at.zoom,
+          zoom: at.zoom,
+        };
+        return;
+      }
       const box = host.getBoundingClientRect();
+      // A pinch sends small steps, a mouse wheel big ones: both feel quick.
+      const speed = Math.abs(event.deltaY) < 50 ? 0.02 : 0.004;
       zoomBy(
-        Math.exp(-event.deltaY / 500),
+        Math.exp(-event.deltaY * speed),
         event.clientX - box.left,
         event.clientY - box.top,
       );
@@ -142,7 +174,10 @@
   bind:this={plane}
   bind:clientWidth={width}
   bind:clientHeight={height}
-  class="relative cursor-grab touch-none overflow-hidden rounded-xl bg-muted active:cursor-grabbing {className}"
+  data-canvas-full-open={full || undefined}
+  class="cursor-grab touch-none overflow-hidden rounded-xl bg-muted active:cursor-grabbing {full
+    ? 'fixed inset-4 z-50 border border-border shadow-2xl'
+    : 'relative'} {full ? '' : className}"
   onpointerdown={down}
   onpointermove={move}
   onpointerup={() => (drag = null)}
@@ -251,17 +286,29 @@
       <IconButton
         data-canvas-zoom-out
         label={en ? "Zoom out" : "Diminuir"}
-        onclick={() => zoomBy(1 / 1.25)}><Icon icon="minus" /></IconButton
+        onclick={() => zoomBy(1 / 1.5)}><Icon icon="minus" /></IconButton
       >
       <IconButton
         data-canvas-fit
         label={en ? "Fit all cards" : "Ver todos os cartões"}
-        onclick={() => (moved = null)}><Icon icon="expand-01" /></IconButton
+        onclick={() => (moved = null)}><Icon icon="target-04" /></IconButton
       >
       <IconButton
         data-canvas-zoom-in
         label={en ? "Zoom in" : "Aumentar"}
-        onclick={() => zoomBy(1.25)}><Icon icon="plus" /></IconButton
+        onclick={() => zoomBy(1.5)}><Icon icon="plus" /></IconButton
+      >
+      <IconButton
+        data-canvas-full
+        label={full
+          ? en
+            ? "Exit full screen"
+            : "Sair da tela cheia"
+          : en
+            ? "Full screen"
+            : "Tela cheia"}
+        onclick={toggleFull}
+        ><Icon icon={full ? "minimize-01" : "expand-01"} /></IconButton
       >
     </div>{/if}
 </div>
