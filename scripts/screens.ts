@@ -2356,6 +2356,15 @@ async function askScreens(
     await answerInRoom(row, "BLACK15");
     if (!page.url().includes(room_id))
       throw new Error(`ask: Responder opened ${page.url()}, not its room`);
+    // The agent's message is signed with its @name in the room, not its model (Gimenes #6546).
+    await page.screenshot({ path: join(out, "ask-room-1440.png") });
+    shots.push("ask-room-1440.png");
+    const head = await page
+      .locator("[data-message-head]:visible")
+      .first()
+      .innerText();
+    if (/^agent de /i.test(head))
+      throw new Error(`ask: the agent's message has no @name (${head})`);
     const picked = await tool("permission_wait", {
       room_id,
       message_id: id,

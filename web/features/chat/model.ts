@@ -440,7 +440,8 @@ export function messageAuthor(
     ? "@vibe"
     : message.kind === "agent"
       ? vb.t("{via} de {who}", {
-          via: message.via || "agent",
+          // Its @name in the room (claude-3) when it posted; older messages have only the model.
+          via: message.agent_name || message.via || "agent",
           who: vb.name(message.author),
         })
       : vb.name(message.author);

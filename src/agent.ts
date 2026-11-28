@@ -2395,6 +2395,8 @@ async function call(
         a.card === undefined ? undefined : cardOf(a.card, id),
         me.agent,
         clientKey,
+        // Its @name here (claude-3): the room shows "Gimenes's claude-3", not the model (Gimenes #6546).
+        me.sandbox ?? (await selfIn(db, me, id)).name ?? undefined,
       );
       if ("repeat" in posted) return posted;
       if (posted.ok && isLaunchCard(a.card))

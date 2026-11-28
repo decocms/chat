@@ -177,6 +177,10 @@ export function storedMessageRows(
       ...row,
       text: row.text ?? "",
       answers_ask: answersAsk,
+      agent_name:
+        typeof row.agent_name === "string" && row.agent_name
+          ? row.agent_name
+          : undefined,
     });
     if (
       !base.success ||
