@@ -225,6 +225,23 @@
       },
     };
   }
+  /** A camera's tile tells the call its width on screen: a big tile gets the camera's 720p layer, a small one its
+   *  360p (simulcast, CAM_LAYERS). */
+  function sized(node: HTMLVideoElement, email: string) {
+    let who = email;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) call.camSize(who, entry.contentRect.width * devicePixelRatio);
+    });
+    observer.observe(node);
+    return {
+      update(next: string) {
+        who = next;
+      },
+      destroy() {
+        observer.disconnect();
+      },
+    };
+  }
   // Desktop: the stage alone goes to full screen, edge to edge, like a video app (Esc or the button brings the room
   // back as it was). Phones: the shared screen's video alone.
   let stage = $state<HTMLElement | null>(null);
@@ -339,6 +356,7 @@
     >{#if cam}<!-- Muted: a camera's picture has no sound, the voices play apart. -->
       <video
         use:stream={cam}
+        use:sized={peer.email}
         autoplay
         playsinline
         muted

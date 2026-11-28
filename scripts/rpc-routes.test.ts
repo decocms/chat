@@ -66,6 +66,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     allowCall: async () => true,
     callJoin: async () => ({ session: "s1" }),
     callTracks: async () => ({}),
+    callLayer: async () => ({}),
     callAnswer: async () => true,
     callClose: async () => true,
     callLeave: async () => {},
@@ -2381,6 +2382,27 @@ test("the call routes are members-only, off without an SFU app, and say when the
     json({ session: "bad session!" }),
   );
   expect(malformed.status).toBe(400);
+  // A camera's layer: only "h" or "q", and a session of someone else is refused.
+  const layer = { session: "s1", peer: "s2", name: "cam", mid: "3", rid: "h" };
+  expect(
+    (await on.app.request("/api/books/room/call/layer", json(layer))).status,
+  ).toBe(200);
+  expect(
+    (
+      await on.app.request(
+        "/api/books/room/call/layer",
+        json({ ...layer, rid: "f" }),
+      )
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await fixture({ callLayer: async () => "forbidden" }).app.request(
+        "/api/books/room/call/layer",
+        json(layer),
+      )
+    ).status,
+  ).toBe(403);
 });
 
 test("leave: a member takes themself out; the owner and a DM can't; tracked as book_left", async () => {

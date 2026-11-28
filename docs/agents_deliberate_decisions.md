@@ -2981,6 +2981,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - Not a list of phrases ("Tchau, tchau.", "Até a próxima."): a person can say them.
 - Other options: Drop every part of 1 or 2 words (loses "Sim."). A list of known phrases.
 - Risk: low (only short parts in another language)
+
+### 2026-11-27 · JonasJesus42/camera-simulcast · The camera in two layers (simulcast)
+
+- Agent: Claude Opus 5.5
+- Context: Jonas (#6675, #6728): the best camera quality with the least bandwidth, at least 24 frames a second.
+- Decision:
+  - Two layers: "h" 720p at 1.2 Mbps and "q" 360p at 300 kbps, both 24 frames a second, `maintain-framerate`. Measured with `scripts/call-camera-quality.ts` on the real SFU: 720p at 1.2 Mbps is near the webcam's picture (SSIM 0.89 against 0.90 at 2.5 Mbps); 360p at 300 kbps is as sharp as the old 360p at 500 kbps.
+  - A tile asks for "h" when it is wider than 800 device pixels on screen (`camLayer`), else "q". The SFU falls back from "h" to "q" by itself without the bandwidth (`asciibetical`).
+  - The sender uploads both layers (about 1.5 Mbps). The SFU's cost is what it sends out, so a small tile costs 40% less than before and only a big tile costs more.
+- Other options: 720p at 1.2 Mbps for every tile (2.4 times the cost). 540p at 350 kbps (15 frames a second: below Jonas's minimum).
+- Risk: medium (every camera of every call)
 - Undo: Revert the commit.
 - Status: open
 

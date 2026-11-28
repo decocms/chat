@@ -166,7 +166,7 @@ The SFU bills the traffic that it sends to the browsers, after 1,000 GB in a mon
 | Rule | Where |
 |---|---|
 | The microphone sends at 32 kbps at most, and does not send silence (Opus DTX). The browser removes noise and echo first. | `MIC_MAX_BPS`, `withDtx`, `MIC_CLEANUP` |
-| The camera is taken at 720p and sent at 360p, 24 frames a second, 500 kbps at most. | `CAM_SEND` |
+| The camera is taken at 720p and sent in two layers (simulcast), each at 24 frames a second: "h" 720p, 1.2 Mbps at most, and "q" 360p, 300 kbps at most. Each person receives the layer of the size the tile has on their screen: wider than 800 device pixels, "h". With little bandwidth the encoder keeps the frames and gives up size, and the SFU gives "q". | `CAM_LAYERS`, `camLayer`, `call/layer` |
 | A screen is sent at 1080p and 30 frames a second at most, 2.5 Mbps at most. | `SCREEN_LIMITS`, `SCREEN_MAX_BPS` |
 | A browser receives one screen at a time: the one that the person chose. A hidden tab receives voices only. | `sync` and `planTracks` |
 | A person alone in the call cannot share a screen. A screen that did not change for 10 minutes stops. | `stopShare`, `SCREEN_IDLE_REPORTS` |
