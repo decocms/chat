@@ -89,10 +89,10 @@
   let drag: { px: number; py: number; x: number; y: number } | null = null;
   function down(event: PointerEvent) {
     if (event.button !== 0) return;
-    // A card's own content (a link, a selection, an html card) and the zoom buttons keep their clicks; the plane
-    // around them pans.
-    if ((event.target as HTMLElement).closest("[data-canvas-card], button"))
-      return;
+    // A drag pans everywhere on the board, also on a shape or a block (Gui #6762: it selected text before); only the
+    // controls, links and an html block keep their own clicks. Nothing on the board is selectable text.
+    if ((event.target as HTMLElement).closest("button, a, iframe")) return;
+    event.preventDefault();
     drag = { px: event.clientX, py: event.clientY, x: at.x, y: at.y };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }
@@ -175,7 +175,7 @@
   bind:clientWidth={width}
   bind:clientHeight={height}
   data-canvas-full-open={full || undefined}
-  class="cursor-grab touch-none overflow-hidden rounded-xl bg-muted active:cursor-grabbing {full
+  class="cursor-grab touch-none overflow-hidden select-none rounded-xl bg-muted active:cursor-grabbing {full
     ? 'fixed inset-4 z-50 border border-border shadow-2xl'
     : 'relative'} {full ? '' : className}"
   onpointerdown={down}
