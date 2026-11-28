@@ -1,0 +1,21 @@
+import { chromium } from "playwright";
+const BASE = "http://127.0.0.1:8797";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, locale: "pt-BR" });
+await page.context().addCookies([{ name: "dev_as", value: "ana@example.test", url: BASE }]);
+await page.goto(`${BASE}/b/5e6b7c3a76eb?t=1207386b`);
+const plane = page.locator("[data-canvas]").first();
+const shape = plane.locator("[data-canvas-card]", { hasText: "Hook" }).first();
+await shape.waitFor();
+await page.waitForTimeout(1500);
+const inner = plane.locator(":scope > div").first();
+const x = () => inner.evaluate((n) => getComputedStyle(n).getPropertyValue("--cv-x"));
+const before = await x();
+const b = (await shape.boundingBox())!;
+// Drag starting on the text of a shape, across another shape's text.
+await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+await page.mouse.down();
+await page.mouse.move(b.x + b.width / 2 + 180, b.y + b.height / 2 + 140, { steps: 10 });
+await page.mouse.up();
+console.log("pan from a shape", before, "->", await x(), "| selected text:", JSON.stringify(await page.evaluate(() => getSelection()?.toString() ?? "")));
+await browser.close();
