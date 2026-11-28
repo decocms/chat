@@ -215,6 +215,10 @@ const audio = Uint8Array.from({ length: 64 }, (_, i) => i);
 const upAudio = (await g.tool("upload_file", { room_id: room, filename: "nota.m4a", content_type: "audio/mp4", base64: btoa(String.fromCharCode(...audio)) })).out;
 const ga = await g.rpc("tools/call", { name: "get_file", arguments: { room_id: room, file_id: upAudio?.file?.id } });
 check(ga.result?.content?.some((p: { type: string; mimeType?: string; data?: string }) => p.type === "audio" && p.mimeType === "audio/mp4" && p.data === btoa(String.fromCharCode(...audio))), "get_file returns an attached audio as its bytes");
+// Any other file (a PDF here) comes back as an embedded resource, its uri ending in the file's name.
+const upPdf = (await g.tool("upload_file", { room_id: room, filename: "contrato.pdf", content_type: "application/pdf", base64: btoa("%PDF-1.4 test") })).out;
+const gp = await g.rpc("tools/call", { name: "get_file", arguments: { room_id: room, file_id: upPdf?.file?.id } });
+check(gp.result?.content?.some((p: { type: string; resource?: { uri?: string; mimeType?: string; blob?: string } }) => p.type === "resource" && p.resource?.uri?.endsWith("/contrato.pdf") && p.resource.mimeType === "application/pdf" && p.resource.blob === btoa("%PDF-1.4 test")), "get_file returns any other file (a PDF) as its bytes, under its name");
 const gfOut = await connectAgent(`outsider2-${stamp}@test.vibebook.dev`, "Claude Code (test)");
 check((await gfOut.rpc("tools/call", { name: "get_file", arguments: { room_id: room, file_id: att?.id } })).result?.isError === true, "a non-member can't get the file");
 
