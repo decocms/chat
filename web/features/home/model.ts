@@ -231,6 +231,42 @@ export const recentRooms = (books: readonly RoomSummary[]) =>
       (b.opened_at ?? 0) - (a.opened_at ?? 0) ||
       (b.updated_at ?? 0) - (a.updated_at ?? 0),
   );
+/** The Inbox at zero: the rooms an agent works in now, then the rooms that moved last (not those), newest first. */
+export function quietRooms(
+  me: MeResult | null,
+  now: number,
+  limit = 4,
+): { working: RoomSummary[]; recent: RoomSummary[] } {
+  const books = me?.books ?? [];
+  const busy = (room: RoomSummary) => (room.busy_until ?? 0) > now;
+  const newest = (a: RoomSummary, b: RoomSummary) =>
+    (b.updated_at ?? 0) - (a.updated_at ?? 0);
+  const working = books.filter(busy).sort(newest).slice(0, limit);
+  const recent = books
+    .filter((room) => !busy(room) && (room.updated_at ?? 0) > 0)
+    .sort(newest)
+    .slice(0, limit);
+  return { working, recent };
+}
+/** What a busy room's agent said last, and whose agent it is ("Seu Claude", "Claude de Ana"); null when the room's
+ *  newest line is not an agent's (the row then says only that an agent works there). */
+export function agentLine(
+  room: RoomSummary,
+  me: MeResult | null,
+  lang: HomeLanguage,
+): { who: string; text: string } | null {
+  const text = plainWaitText(room.last_text ?? "");
+  if (!room.last_agent || !text) return null;
+  const by = room.last_by ?? "";
+  const who =
+    by && by === me?.email
+      ? homeText(lang, "yourClaude")
+      : homeText(lang, "agentOf", {
+          name:
+            (room.last_by_name ?? by.split("@")[0] ?? "").split(" ")[0] ?? "",
+        });
+  return { who, text };
+}
 export const unread = (room: RoomSummary, seen = 0) =>
   room.last_human_id > Math.max(room.read_id, seen)
     ? "human"

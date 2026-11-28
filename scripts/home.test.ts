@@ -42,6 +42,8 @@ import {
   waitKind,
   orderedRooms,
   recentRooms,
+  quietRooms,
+  agentLine,
   unread,
   waitTarget,
   targetHref,
@@ -66,6 +68,50 @@ import {
   settle,
   suggestion,
 } from "./home-fixtures";
+
+test("the Inbox at zero lists the rooms an agent works in, then the rooms that moved last", () => {
+  const books = [
+    room("aaaaaa", { updated_at: 300 }),
+    room("bbbbbb", { updated_at: 500, busy_until: 2_000 }),
+    room("cccccc", { updated_at: 400 }),
+    room("dddddd", { updated_at: 0 }),
+    room("eeeeee", { updated_at: 200, busy_until: 900 }),
+  ];
+  const quiet = quietRooms(me({ books }), 1_000);
+  expect(quiet.working.map((r) => r.id)).toEqual(["bbbbbb"]);
+  expect(quiet.recent.map((r) => r.id)).toEqual(["cccccc", "aaaaaa", "eeeeee"]);
+  expect(quietRooms(me({ books }), 1_000, 1).recent.map((r) => r.id)).toEqual([
+    "cccccc",
+  ]);
+  expect(quietRooms(null, 1_000)).toEqual({ working: [], recent: [] });
+});
+
+test("a busy room names whose agent works and what it said last", () => {
+  const busy = (extra: Partial<Parameters<typeof agentLine>[0]>) =>
+    room("aaaaaa", { busy_until: 9_999, ...extra });
+  expect(
+    agentLine(
+      busy({
+        last_agent: 1,
+        last_by: "ana@test.com",
+        last_by_name: "Ana Souza",
+        last_text: "Organizando as notas",
+      }),
+      me(),
+      "pt",
+    ),
+  ).toEqual({ who: "Claude de Ana", text: "Organizando as notas" });
+  expect(
+    agentLine(
+      busy({ last_agent: 1, last_by: "me@test.com", last_text: "Pronto" }),
+      me(),
+      "en",
+    ),
+  ).toEqual({ who: "Your Claude", text: "Pronto" });
+  expect(
+    agentLine(busy({ last_by: "ana@test.com", last_text: "oi" }), me(), "pt"),
+  ).toBeNull();
+});
 
 test("desktop placement and mobile recency remain distinct and unread respects seen highwater", () => {
   const rooms = [

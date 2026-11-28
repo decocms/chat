@@ -219,7 +219,8 @@ export function mountRailCube(canvas: HTMLCanvasElement): RailCube {
 // @vibe's face: the rail's cube at rest, drawn once per theme on one shared
 // canvas and handed out as a picture. A WebGL context per avatar would run out
 // fast in a long channel (browsers keep about sixteen); a picture costs nothing.
-const PICTURE_PX = 96;
+// Sharp up to the Inbox's 64px cube on a 2x screen (its picture is a third larger).
+const PICTURE_PX = 176;
 let pictureCanvas: HTMLCanvasElement | null = null,
   picturePaint: Paint | null | undefined;
 const pictures = new Map<boolean, string | null>();

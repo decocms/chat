@@ -65,6 +65,8 @@
   import { inboxPreview } from "../application/roomInboxModel";
   import { keyboardInset } from "./keyboardInset";
   import ChatRowEnd from "./ChatRowEnd.svelte";
+  import AskStarters from "./AskStarters.svelte";
+  import InboxClear from "./InboxClear.svelte";
   let {
     pwa,
     personal,
@@ -160,6 +162,16 @@
   const mentionRooms = $derived(
     new Set((inboxLists?.mentions ?? []).map((card) => card.book)),
   );
+  /** A starter of the Inbox at zero: its words go into the docked ask box, the caret at their end. */
+  function start(value: string) {
+    personal.editAsk(value);
+    void tick().then(() => {
+      const field = document.getElementById("home-ask");
+      if (!(field instanceof HTMLTextAreaElement)) return;
+      field.focus();
+      field.setSelectionRange(value.length, value.length);
+    });
+  }
   const chipItems = $derived(chip === "all" ? [] : (inboxLists?.[chip] ?? []));
   function chipEmpty(tab: HomeInboxTab) {
     switch (tab) {
@@ -610,7 +622,22 @@
               </RoomRow>
             </li>{/each}
         </ul>
-      </nav>{:else}<p
+      </nav>{:else if chip === "foryou" && $inboxView?.phase === "ready"}<div
+        data-home-inbox-empty={chip}
+        role="status"
+        class="flex flex-col items-center gap-2 pb-6"
+      >
+        <InboxClear
+          me={$account.me}
+          now={$account.now}
+          {lang}
+          title={text("clearTitle")}
+          {ago}
+          layout="phone"
+          onopen={(roomId) => onnavigate({ roomId })}
+          ><AskStarters {lang} layout="chips" onstart={start} /></InboxClear
+        >
+      </div>{:else}<p
         data-home-inbox-empty={chip}
         role="status"
         class="m-0 px-4 py-10 text-center text-base text-muted-foreground"

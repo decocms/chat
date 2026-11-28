@@ -255,8 +255,6 @@ const EN: Readonly<Record<string, string>> = {
   "você pediu:": "you asked:",
   "Tarefa aprovada": "Task approved",
   "Nada esperando você.": "Nothing waiting on you.",
-  "Mande algo na caixa acima. Quando alguém precisar de você, aparece aqui.":
-    "Send something in the box above. When someone needs you, it shows up here.",
   "Nenhuma menção.": "No mentions.",
   "Nada novo nas suas salas.": "Nothing new in your rooms.",
   "1 nova": "1 new",

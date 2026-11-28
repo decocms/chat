@@ -201,6 +201,15 @@ const pt = {
     "Uma sala pra conversa, as tarefas e o doc, com seu time e o agent de cada um.",
   deskConnectHelp: "Cole no Claude Code, dentro da pasta do projeto.",
   deskAskShort: "O que vamos resolver?",
+  clearTitle: "Tudo em dia",
+  clearNow: "Trabalhando agora",
+  clearRecent: "Voltar pra",
+  clearStart: "Comece algo",
+  agentOf: "Claude de {name}",
+  starterCatchUp: "Resumir o dia",
+  starterCatchUpText: "Resuma o que mudou hoje nas minhas salas",
+  starterTask: "Criar uma tarefa",
+  starterTaskText: "Nova tarefa: ",
 } as const;
 const en: Record<keyof typeof pt, string> = {
   inbox: "Inbox",
@@ -404,6 +413,15 @@ const en: Record<keyof typeof pt, string> = {
     "A room for the conversation, the tasks and the doc, with your team and everyone's agent.",
   deskConnectHelp: "Paste it into Claude Code, inside the project folder.",
   deskAskShort: "What needs doing?",
+  clearTitle: "All caught up",
+  clearNow: "Working now",
+  clearRecent: "Jump back in",
+  clearStart: "Start something",
+  agentOf: "{name}'s Claude",
+  starterCatchUp: "Catch me up",
+  starterCatchUpText: "Summarize what changed today in my rooms",
+  starterTask: "Create a task",
+  starterTaskText: "New task: ",
 };
 export type HomeLanguage = "pt" | "en";
 export type HomeCopyKey = keyof typeof pt;
