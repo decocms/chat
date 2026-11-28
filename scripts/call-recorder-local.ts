@@ -26,6 +26,9 @@ Bun.serve({
       });
       const out = ((await res.json()) as Whisper).result ?? {};
       console.log("transcribe", res.status, (out.segments ?? []).length, "pieces");
+      // Each piece with how sure the model is that it has no speech: to tune the filter for invented words.
+      for (const piece of out.segments ?? [])
+        console.log("  piece", out.transcription_info?.language ?? "", (piece.no_speech_prob ?? 0).toFixed(3), JSON.stringify(piece.text.trim().slice(0, 80)));
       return Response.json({
         language: out.transcription_info?.language ?? "",
         segments: (out.segments ?? []).map((piece) => ({ start: piece.start, end: piece.end, text: piece.text, quiet: piece.no_speech_prob ?? 0 })),

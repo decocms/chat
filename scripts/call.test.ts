@@ -8,7 +8,7 @@ import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from 
 import { CALL_THREAD, RING_MS, callLineText, isRecorder, isRecorderOf, isRoomMember, parseCallLine, recorderEmail } from "../shared/call";
 import { encodeCall } from "../shared/jsonRpc";
 import type { RoomCommand } from "../shared/commands";
-import { addMark, attribute, liveCut, liveLines, speakerOf, type Turn } from "../recorder/container/attribute";
+import { addMark, attribute, callLanguage, countWords, liveCut, liveLines, speakerOf, strayPart, type Turn } from "../recorder/container/attribute";
 import { transcriptMarkdown, transcriptName } from "../src/callText";
 import { callColors, callGrid, callTileSize } from "../web/features/call/layout";
 import { shareWith } from "../recorder/container/share";
@@ -927,4 +927,21 @@ test("the live transcript cuts a part when the person stops speaking, not by the
   expect(liveCut(ana, ["bia", "ana"], 1400).cut).toBe(false);
   // A turn of 2 minutes is cut so that one file stays a size the speech-to-text takes.
   expect(liveCut(ana, ["ana"], 121_000)).toEqual({ cut: true, turn: { name: "ana", start: 121_000, heard: 121_000 } });
+});
+
+test("live transcript: a short part in another language than the call's is noise; the call's language has the most words", () => {
+  const piece = (text: string) => ({ start: 0, end: 1000, text });
+  // Measured on the local recorder (Workers AI): noise written as English in a call in Portuguese.
+  let counts = countWords({}, "en", [piece("And I'll do that one.")]);
+  expect(callLanguage(counts)).toBe("en");
+  counts = countWords(counts, "pt", [piece("Bom dia, pessoal. Hoje vamos revisar a qualidade do áudio.")]);
+  const pt = callLanguage(counts);
+  expect(pt).toBe("pt");
+  expect(strayPart(pt, "en", [piece("That's all.")])).toBe(true);
+  // A short line in the call's language stays ("Sim."), and so does a long one in another language.
+  expect(strayPart(pt, "pt", [piece("Sim.")])).toBe(false);
+  expect(strayPart(pt, "en", [piece("Now in English for a while")])).toBe(false);
+  // Before 4 words, the language is not known and nothing is dropped.
+  expect(callLanguage(countWords({}, "en", [piece("That's all.")]))).toBe("");
+  expect(strayPart("", "en", [piece("That's all.")])).toBe(false);
 });
