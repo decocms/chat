@@ -1,6 +1,6 @@
 {
   "name": "@decocms/chat",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "deco.chat CLI: your deco.chat rooms from the terminal, for you and your Claude. One login per machine; room tools discovered at run time.",
   "type": "module",
   "bin": { "deco-chat": "cli.mjs", "vibebook": "cli.mjs" },

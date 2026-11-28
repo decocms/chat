@@ -14,7 +14,7 @@ import { createAgentRunners, type MachineAgent } from "./agentRunners";
 import { menuOf } from "./menu";
 import { AGENT_KINDS, agentVersion as versionNumber, type MachineKinds } from "../shared/agentKinds";
 
-const VERSION = "1.8.1";
+const VERSION = "1.8.2";
 /** The npm package (Gimenes #5917, #6702). The old one, vibebook.dev, moves to it on update. */
 const PKG = "@decocms/chat";
 const OLD_PKG = "vibebook.dev";
@@ -506,11 +506,12 @@ async function callTool(name: string, args: Record<string, unknown>, agent: stri
   // "Antigravity · Gemini 3.8 Flash" instead of a bare model name that read as another product.
   const host = hostApp();
   if (host && typeof args.model === "string" && !args.model.toLowerCase().includes(host.toLowerCase())) args.model = `${host} · ${args.model}`.slice(0, 40);
-  const res = (await rpc("tools/call", { name, arguments: args }, agent)) as { content: { type: string; text?: string; data?: string; mimeType?: string }[]; isError?: boolean };
+  const res = (await rpc("tools/call", { name, arguments: args }, agent)) as { content: { type: string; text?: string; data?: string; mimeType?: string; resource?: { uri?: string; blob?: string } }[]; isError?: boolean };
   return res;
 }
-// Images (get_file) go to a temp file: the agent reads that file instead of getting base64 in its output.
-const printResult = (res: { content: { type: string; text?: string; data?: string; mimeType?: string }[]; isError?: boolean }) => {
+// Files of get_file (images, audio, any other file) go to a temp file: the agent reads that file instead of getting
+// base64 in its output.
+const printResult = (res: { content: { type: string; text?: string; data?: string; mimeType?: string; resource?: { uri?: string; blob?: string } }[]; isError?: boolean }) => {
   for (const c of res.content) {
     if (c.type === "text") {
       let text = c.text ?? "";
@@ -524,6 +525,17 @@ const printResult = (res: { content: { type: string; text?: string; data?: strin
       const f = join(tmpdir(), `vibebook-${randomBytes(4).toString("hex")}.${(c.mimeType ?? "").split("/")[1] || "bin"}`);
       writeFileSync(f, Buffer.from(c.data, "base64"));
       process.stdout.write(`${c.type} saved to ${f}\n`);
+    }
+    // Any other file of get_file (a PDF, a video, a zip): saved under its own name, in a folder of its own.
+    else if (c.resource?.blob) {
+      let name = c.resource.uri?.split("/").pop() ?? "";
+      try { name = decodeURIComponent(name); } catch {}
+      name = basename(name).replace(/^\.+/, "") || "file";
+      const dir = join(tmpdir(), `vibebook-${randomBytes(4).toString("hex")}`);
+      mkdirSync(dir, { recursive: true });
+      const f = join(dir, name);
+      writeFileSync(f, Buffer.from(c.resource.blob, "base64"));
+      process.stdout.write(`file saved to ${f}\n`);
     }
   }
   if (res.isError) process.exit(1);
