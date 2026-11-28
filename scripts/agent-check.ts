@@ -42,10 +42,11 @@ async function connectAgent(email: string, clientName: string) {
     resource: `${BASE}/mcp`,
   });
   const me = `dev_as=${encodeURIComponent(email)}`;
-  const page = await fetch(`${BASE}/authorize?${q}`, { headers: { cookie: me }, redirect: "manual" });
-  const html = await page.text();
-  const handle = html.match(/name="handle" value="([^"]+)"/)?.[1];
-  check(page.status === 200 && handle && html.includes(clientName), `${email}: consent page shows the client`);
+  // The consent page is the app now; it reads who asks from this JSON (the handle stopped being in the HTML).
+  const page = await fetch(`${BASE}/api/authorize/context?${q}`, { headers: { cookie: me }, redirect: "manual" });
+  const ctx = (await page.json().catch(() => ({}))) as { handle?: string; client_name?: string };
+  const handle = ctx.handle;
+  check(page.status === 200 && handle && ctx.client_name === clientName, `${email}: consent page shows the client`);
   const form = new URLSearchParams({ handle: handle ?? "", decision: "approve" });
   const ok = await fetch(`${BASE}/authorize?${q}`, {
     method: "POST",
@@ -209,6 +210,11 @@ check((await fetch(ul.url, { method: "PUT", headers: { "content-type": "image/pn
 const att = (await g.tool("read_room", { room_id: room, all: true })).out?.messages?.flatMap((x: { files?: { id: string; name: string }[] }) => x.files ?? []).find((f: { name: string }) => f.name === "antes.png");
 const gf = await g.rpc("tools/call", { name: "get_file", arguments: { room_id: room, file_id: att?.id } });
 check(gf.result?.content?.some((p: { type: string; mimeType?: string; data?: string }) => p.type === "image" && p.mimeType === "image/png" && p.data?.length > 10), "get_file returns the attached image as an image");
+// An audio file comes back as its bytes (Gui #6772: a Claude could not get an .m4a and tried curl with the token).
+const audio = Uint8Array.from({ length: 64 }, (_, i) => i);
+const upAudio = (await g.tool("upload_file", { room_id: room, filename: "nota.m4a", content_type: "audio/mp4", base64: btoa(String.fromCharCode(...audio)) })).out;
+const ga = await g.rpc("tools/call", { name: "get_file", arguments: { room_id: room, file_id: upAudio?.file?.id } });
+check(ga.result?.content?.some((p: { type: string; mimeType?: string; data?: string }) => p.type === "audio" && p.mimeType === "audio/mp4" && p.data === btoa(String.fromCharCode(...audio))), "get_file returns an attached audio as its bytes");
 const gfOut = await connectAgent(`outsider2-${stamp}@test.vibebook.dev`, "Claude Code (test)");
 check((await gfOut.rpc("tools/call", { name: "get_file", arguments: { room_id: room, file_id: att?.id } })).result?.isError === true, "a non-member can't get the file");
 
